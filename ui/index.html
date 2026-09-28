@@ -48,6 +48,11 @@ header .tag { color:var(--muted); font-size:13px; }
 .chk .em { font-size:17px; line-height:1.3; }
 .chk b { font-weight:500; }
 .chk .fix { color:var(--muted); font-size:13px; }
+.chk .spin { display:inline-block; width:16px; height:16px; margin-top:3px; border:2px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; }
+.chk.good .em, .chk.bad .em, .chk.warn .em { animation:pop .25s ease-out; }
+@keyframes spin { to { transform:rotate(360deg); } }
+@keyframes pop { from { transform:scale(.4); opacity:0; } }
+@media (prefers-reduced-motion: reduce) { .chk .spin { animation:none; border-top-color:var(--line); } .chk .em { animation:none !important; } }
 .chk.bad .fix { color:var(--err); }
 #settingsDlg { width:min(92vw,520px); max-width:none; }
 #settingsDlg h3 { font:600 15px Inter, sans-serif; margin:18px 0 8px; }
@@ -302,7 +307,7 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
 <dialog class="zoom" id="zoom"><img alt=""></dialog>
 <dialog id="settingsDlg">
   <h3>🩺 Is everything set up?</h3>
-  <div id="checks"><p class="hint">Checking…</p></div>
+  <div id="checks" aria-live="polite"><p class="hint">Checking…</p></div>
   <button class="btn" id="recheck" type="button" style="margin-top:8px">🔄 Check again</button>
   <h3>🖨️ Open minis in</h3>
   <select id="slicer" aria-label="App to open minis in"></select>
@@ -549,34 +554,74 @@ function slicerLabel() {
   const s = slicers.find(x => x.id === slicerChoice());
   $("open").textContent = s ? `🖨️ Open in ${s.name}` : "🖨️ Open in your slicer";
 }
+// Each check runs on its own request, one after another: a row shows a spinner until its own
+// answer arrives, so nothing on screen is ever a leftover from an earlier check.
+let checkRun = 0;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function checkRow(c) {
+  const el = document.createElement("div");
+  el.className = "chk";
+  el.innerHTML = `<span class="em"><span class="spin" aria-hidden="true"></span></span><div><b></b><div class="fix">Checking…</div></div>`;
+  el.querySelector("b").textContent = c.label + (c.required ? "" : " (optional)");
+  return el;
+}
+function showResult(el, r) {
+  el.className = "chk" + (r.ok ? " good" : r.required ? " bad" : " warn");
+  el.querySelector(".em").textContent = r.ok ? "✅" : r.required ? "❌" : "⚠️";
+  el.querySelector("b").textContent = r.label + (r.required || r.ok ? "" : " (optional)");
+  el.querySelector(".fix").textContent = r.ok ? "" : r.fix;
+}
 async function loadChecks() {
+  const run = ++checkRun;
+  const box = $("checks");
+  box.setAttribute("aria-busy", "true");
+  $("recheck").disabled = true;
   let data;
-  $("checks").innerHTML = `<p class="hint">Checking…</p>`;
   try { data = await getJSON("/api/checks"); }
   catch {
-    lastChecks = [{ id: "mimic", label: "Mimic itself", required: true, ok: false,
-                    fix: "Mimic has stopped running. Open Mimic from your Applications folder, then reload this page." }];
-    data = { checks: lastChecks, slicers };
+    const gone = { id: "mimic", label: "Mimic itself", required: true, ok: false,
+                   fix: "Mimic has stopped running. Open Mimic from your Applications folder, then reload this page." };
+    const el = checkRow(gone); showResult(el, gone);
+    box.replaceChildren(el);
+    lastChecks = [gone];
+    return finishChecks(run);
   }
-  lastChecks = data.checks; slicers = data.slicers;
-  $("checks").replaceChildren(...lastChecks.map(c => {
-    const el = document.createElement("div");
-    el.className = "chk" + (c.ok ? "" : c.required ? " bad" : "");
-    el.innerHTML = `<span class="em"></span><div><b></b><div class="fix"></div></div>`;
-    el.querySelector(".em").textContent = c.ok ? "✅" : c.required ? "❌" : "⚠️";
-    el.querySelector("b").textContent = c.label + (c.required || c.ok ? "" : " (optional)");
-    el.querySelector(".fix").textContent = c.ok ? "" : c.fix;
-    return el;
-  }));
-  $("warnDot").hidden = !lastChecks.some(c => c.required && !c.ok);
-  const when = document.createElement("p");
-  when.className = "hint"; when.style.margin = "8px 0 0";
-  when.textContent = `Last checked at ${new Date().toLocaleTimeString()}.`;
-  $("checks").append(when);
+  slicers = data.slicers;
   const saved = store.get("slicer");
   $("slicer").replaceChildren(...slicers.map(x => new Option(x.name, x.id)), new Option("Your Mac's default app for 3D files", "default"));
   $("slicer").value = slicers.some(x => x.id === saved) || saved === "default" ? saved : (slicers[0]?.id || "default");
   slicerLabel();
+
+  const rows = data.checks.map(checkRow);
+  box.replaceChildren(...rows);
+  const results = [];
+  for (const [i, c] of data.checks.entries()) {
+    const started = performance.now();
+    let r;
+    try { r = await getJSON("/api/check?id=" + encodeURIComponent(c.id)); }
+    catch { r = { ...c, ok: false, fix: "Couldn't check this: Mimic stopped running. Open Mimic from your Applications folder." }; }
+    // At least 150 ms a row, so results arrive one by one instead of all in one flash.
+    const left = 150 - (performance.now() - started);
+    if (left > 0) await sleep(left);
+    if (run !== checkRun) return;  // "Check again" was pressed: that run owns the list now
+    showResult(rows[i], r);
+    results.push(r);
+  }
+  lastChecks = results;
+  finishChecks(run);
+}
+function finishChecks(run) {
+  if (run !== checkRun) return;
+  const box = $("checks");
+  box.removeAttribute("aria-busy");
+  $("recheck").disabled = false;
+  $("warnDot").hidden = !lastChecks.some(c => c.required && !c.ok);
+  const when = document.createElement("p");
+  when.className = "hint"; when.style.margin = "8px 0 0";
+  const bad = lastChecks.filter(c => !c.ok).length;
+  when.textContent = (bad ? `${bad} thing${bad > 1 ? "s" : ""} to look at. ` : "✨ Everything's ready. ")
+    + `Last checked at ${new Date().toLocaleTimeString()}.`;
+  box.append(when);
 }
 $("slicer").onchange = () => { store.set("slicer", $("slicer").value); slicerLabel(); };
 $("settingsBtn").onclick = () => { loadChecks(); $("settingsDlg").showModal(); };

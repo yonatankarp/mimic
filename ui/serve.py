@@ -135,34 +135,51 @@ def engine_starts():
         return False
 
 
+REINSTALL = "Run Install Mimic again: it only adds what's missing."
+
+
+def _free_gb():
+    return shutil.disk_usage(RUNS).free / 1e9
+
+
+# Everything Mimic depends on: (id, label, required, test, fix). `required` ones stop it
+# working; the rest only switch off a feature (drawing pictures, opening a slicer). Tests are
+# functions so the page can run them one at a time and show each result as it arrives.
+CHECKS = [
+    ("engine", "3D engine", True, lambda: engine_starts(), REINSTALL),
+    ("models", "3D model files", True,
+     lambda: (ENGINE / "models" / "pixal3d-sv" / "pixal3d_shape_flow_1024_sv.gguf").is_file(),
+     REINSTALL + " This part downloads 8.4 GB."),
+    ("helpers", "Mimic's helper tools", True, lambda: (LAB / ".venv" / "bin" / "python").is_file(), REINSTALL),
+    ("blender", "Blender (makes the print file)", True, lambda: shutil.which("blender") is not None,
+     "Install Blender from blender.org, or run Install Mimic again."),
+    ("space", "Free disk space", True, lambda: _free_gb() >= 5,
+     "Free up some space: each mini takes about 150 MB while it's being made."),
+    ("drawthings-app", "Draw Things app", False,
+     lambda: any((d / "Draw Things.app").is_dir() for d in APP_DIRS),
+     "Install Draw Things from the Mac App Store. It's free."),
+    ("drawthings-api", "Draw Things is open and connected", False, lambda: health()["drawthings"]["running"],
+     "Open Draw Things, then Settings → Advanced → API Server: turn it on, choose HTTP, port 7860."),
+    ("drawthings-model", "FLUX.2 Klein model in Draw Things", False, lambda: health()["drawthings"]["model"],
+     "In Draw Things' model list, search for FLUX.2 Klein and download it."),
+    ("slicer", "A slicer to print with", False, lambda: bool(installed_slicers()),
+     "Install a slicer such as Bambu Studio, OrcaSlicer, PrusaSlicer or Cura. "
+     "Until then Mimic opens minis with your Mac's default app for 3D files."),
+]
+
+
+def run_check(check_id):
+    """Run one check; None for an unknown id."""
+    for i, label, required, test, fix in CHECKS:
+        if i == check_id:
+            if i == "space":
+                label = f"{label} ({_free_gb():.0f} GB)"
+            return {"id": i, "label": label, "required": required, "ok": bool(test()), "fix": fix}
+    return None
+
+
 def checks():
-    """Everything Mimic depends on, each with a plain-words fix. `required` ones stop it working;
-    the rest only switch off a feature (drawing pictures, opening a slicer)."""
-    dt = health()["drawthings"]
-    free_gb = shutil.disk_usage(RUNS).free / 1e9
-    reinstall = "Run Install Mimic again: it only adds what's missing."
-    items = [
-        ("engine", "3D engine", True, engine_starts(), reinstall),
-        ("models", "3D model files", True,
-         (ENGINE / "models" / "pixal3d-sv" / "pixal3d_shape_flow_1024_sv.gguf").is_file(),
-         reinstall + " This part downloads 8.4 GB."),
-        ("helpers", "Mimic's helper tools", True, (LAB / ".venv" / "bin" / "python").is_file(), reinstall),
-        ("blender", "Blender (makes the print file)", True, shutil.which("blender") is not None,
-         "Install Blender from blender.org, or run Install Mimic again."),
-        ("space", f"Free disk space ({free_gb:.0f} GB)", True, free_gb >= 5,
-         "Free up some space: each mini takes about 150 MB while it's being made."),
-        ("drawthings-app", "Draw Things app", False,
-         any((d / "Draw Things.app").is_dir() for d in APP_DIRS),
-         "Install Draw Things from the Mac App Store. It's free."),
-        ("drawthings-api", "Draw Things is open and connected", False, dt["running"],
-         "Open Draw Things, then Settings → Advanced → API Server: turn it on, choose HTTP, port 7860."),
-        ("drawthings-model", "FLUX.2 Klein model in Draw Things", False, dt["model"],
-         "In Draw Things' model list, search for FLUX.2 Klein and download it."),
-        ("slicer", "A slicer to print with", False, bool(installed_slicers()),
-         "Install a slicer such as Bambu Studio, OrcaSlicer, PrusaSlicer or Cura. "
-         "Until then Mimic opens minis with your Mac's default app for 3D files."),
-    ]
-    return [{"id": i, "label": l, "required": r, "ok": bool(ok), "fix": f} for i, l, r, ok, f in items]
+    return [run_check(i) for i, *_ in CHECKS]
 
 
 def list_runs():
@@ -223,9 +240,14 @@ class H(BaseHTTPRequestHandler):
         if path == "/api/health":
             return self.send(200, health())
         if path == "/api/checks":
-            return self.send(200, {"checks": checks(),
+            # The list only, nothing run yet: the page shows a spinner per row, then asks
+            # /api/check for each in turn.
+            return self.send(200, {"checks": [{"id": i, "label": l, "required": r} for i, l, r, *_ in CHECKS],
                                    "slicers": [{"id": k, "name": n} for k, (n, _) in installed_slicers().items()],
                                    "runs_dir": str(RUNS)})
+        if path == "/api/check":
+            result = run_check(self.query().get("id", ""))
+            return self.send(200, result) if result else self.send(404, {"error": "no such check"})
         if path in STATIC and (UI / path[1:]).is_file():
             return self.send_file(UI / path[1:])
         m = re.match(r"^/runs/([a-z0-9-]+)/([A-Za-z0-9_.-]+)$", path)
