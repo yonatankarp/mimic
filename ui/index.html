@@ -556,7 +556,7 @@ $("openFolder").onclick = () => post("/api/reveal-folder");
 
 $("del").onclick = () => {
   $("delText").textContent = `Move ${selected} to the Trash? If you change your mind, you can put it back from the Trash.`;
-  $("delDlg").showModal();
+  ask($("delDlg"));
 };
 $("delDlg").onclose = async () => {
   if ($("delDlg").returnValue !== "yes") return;
@@ -629,12 +629,26 @@ function select(name, force = false) {
   else { clearModel(); $("overlay").textContent = "This mini isn't finished yet."; $("overlay").hidden = false; }
 }
 $("zoom").onclick = () => $("zoom").close();
+// A click on the dim area around any popup closes it, like pressing Esc. Such a click lands
+// on the <dialog> element itself, outside its box. The target test matters: a button pressed
+// with Enter or Space reports a click at (0, 0), which the box test alone calls "outside",
+// so it cancelled "Move to Trash" for keyboard users.
+for (const dlg of document.querySelectorAll("dialog")) {
+  dlg.addEventListener("click", e => {
+    if (e.target !== dlg) return;
+    const r = dlg.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dlg.close("");
+  });
+}
+// Esc and an outside click leave returnValue as the last button pressed, so without this
+// reset, Esc on the second Delete of a session read as the first one's "Move to Trash".
+const ask = dlg => { dlg.returnValue = ""; dlg.showModal(); };
 
 // ---- quit ----
 $("quit").onclick = async () => {
   const s = await fetch("/api/job").then(r => r.json()).catch(() => ({}));
   $("quitText").textContent = s.running ? `Mimic is still making ${s.name}. You can quit once it's finished.` : "Quit Mimic? Your minis are saved.";
-  $("quitDlg").showModal();
+  ask($("quitDlg"));
 };
 $("quitDlg").onclose = async () => {
   if ($("quitDlg").returnValue !== "yes") return;
