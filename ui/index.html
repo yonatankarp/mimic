@@ -95,6 +95,8 @@ details.adv > summary::before { content:"▸"; transition:transform .15s; }
 details.adv[open] > summary::before { transform:rotate(90deg); }
 details.adv > div { padding-top:8px; }
 @media (prefers-reduced-motion: reduce) { details.adv > summary::before { transition:none; } }
+#offline { max-width:1392px; margin:4px auto 0; padding:12px 16px; border-radius:var(--r-sm); background:var(--warn-soft); color:var(--text); border:1px solid var(--warn); }
+@media (max-width: 900px) { #offline { margin:4px 16px 0; } }
 /* setup checklist */
 #setup { border-left:4px solid var(--gold); }
 #setup h2 { font:600 15px Inter, sans-serif; }
@@ -179,6 +181,7 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
     <button id="quit" type="button">⏻ Quit Mimic</button>
   </div>
 </header>
+<div id="offline" role="alert" hidden>⚠️ <b>Mimic has stopped running.</b> Open Mimic from your Applications folder, then reload this page.</div>
 <main>
   <section id="left">
     <div class="card" id="setup" hidden aria-live="polite">
@@ -416,8 +419,19 @@ function prepParams(name) {
   if ($("nobase").checked) p.set("nobase", "1");
   return p;
 }
+// Every call to the server goes through here. A network error means the server isn't running
+// (quit, or the Mac restarted): say so loudly instead of leaving stale state on screen, which
+// is how the setup check once stayed all green with nothing behind it.
+async function api(url, opts) {
+  let r;
+  try { r = await fetch(url, opts); }
+  catch (e) { $("offline").hidden = false; throw new Error("offline"); }
+  $("offline").hidden = true;
+  return r;
+}
+const getJSON = async url => (await api(url)).json();
 async function post(url, body) {
-  const r = await fetch(url, { method: "POST", body });
+  const r = await api(url, { method: "POST", body });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || r.statusText);
   return j;
@@ -455,7 +469,7 @@ $("reveal").onclick = () => post("/api/reveal?name=" + selected).catch(e => say(
 // ---- setup checklist ----
 async function health() {
   let h;
-  try { h = await (await fetch("/api/health")).json(); } catch { return; }
+  try { h = await getJSON("/api/health"); } catch { setTimeout(health, 5000); return; }
   const { running, model } = h.drawthings;
   $("t1").textContent = running ? "✅" : "⬜";
   $("t2").textContent = running ? "✅" : "⬜";
@@ -477,7 +491,8 @@ async function health() {
 // ---- job progress ----
 const STEP = { 1: ["🖼️", "Getting the picture ready"], 2: ["🧊", "Building the 3D shape"], 3: ["🖨️", "Making the print-ready file"] };
 async function poll() {
-  const s = await (await fetch("/api/job")).json();
+  let s;
+  try { s = await getJSON("/api/job"); } catch { if (wasRunning) setTimeout(poll, 5000); return; }
   if (!s.name) return;
   const log = s.log || "";
   const prep = s.kind === "prep";
@@ -532,7 +547,13 @@ function slicerLabel() {
 }
 async function loadChecks() {
   let data;
-  try { data = await (await fetch("/api/checks")).json(); } catch { return; }
+  $("checks").innerHTML = `<p class="hint">Checking…</p>`;
+  try { data = await getJSON("/api/checks"); }
+  catch {
+    lastChecks = [{ id: "mimic", label: "Mimic itself", required: true, ok: false,
+                    fix: "Mimic has stopped running. Open Mimic from your Applications folder, then reload this page." }];
+    data = { checks: lastChecks, slicers };
+  }
   lastChecks = data.checks; slicers = data.slicers;
   $("checks").replaceChildren(...lastChecks.map(c => {
     const el = document.createElement("div");
@@ -544,6 +565,10 @@ async function loadChecks() {
     return el;
   }));
   $("warnDot").hidden = !lastChecks.some(c => c.required && !c.ok);
+  const when = document.createElement("p");
+  when.className = "hint"; when.style.margin = "8px 0 0";
+  when.textContent = `Last checked at ${new Date().toLocaleTimeString()}.`;
+  $("checks").append(when);
   const saved = store.get("slicer");
   $("slicer").replaceChildren(...slicers.map(x => new Option(x.name, x.id)), new Option("Your Mac's default app for 3D files", "default"));
   $("slicer").value = slicers.some(x => x.id === saved) || saved === "default" ? saved : (slicers[0]?.id || "default");
@@ -588,7 +613,7 @@ function tips() {
 // ---- runs ----
 let runs = [];
 async function loadRuns() {
-  runs = (await (await fetch("/api/runs")).json()).filter(r => !r.name.startsWith("_"));
+  try { runs = (await getJSON("/api/runs")).filter(r => !r.name.startsWith("_")); } catch { return; }
   $("gallery").replaceChildren(...runs.map(r => {
     const b = document.createElement("button");
     b.className = "run"; b.type = "button"; b.dataset.name = r.name;
@@ -646,7 +671,7 @@ const ask = dlg => { dlg.returnValue = ""; dlg.showModal(); };
 
 // ---- quit ----
 $("quit").onclick = async () => {
-  const s = await fetch("/api/job").then(r => r.json()).catch(() => ({}));
+  const s = await getJSON("/api/job").catch(() => ({}));
   $("quitText").textContent = s.running ? `Mimic is still making ${s.name}. You can quit once it's finished.` : "Quit Mimic? Your minis are saved.";
   ask($("quitDlg"));
 };
