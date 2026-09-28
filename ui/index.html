@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mini Forge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Fraunces:opsz,wght@9..144,600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f4f1ec; --panel: #ffffff; --panel-2: #f8f6f2; --line: #e3ddd3;
+  --text: #22201c; --muted: #7a7368; --accent: #b4562a; --accent-ink: #fff;
+  --ok: #3d7a4f; --err: #b3332e; --viewer: #e9e4dc;
+  --radius: 14px; --shadow: 0 1px 2px rgba(40,30,20,.06), 0 6px 24px rgba(40,30,20,.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161412; --panel: #1f1c19; --panel-2: #262320; --line: #34302b;
+    --text: #ece6dd; --muted: #9a9185; --accent: #e07a45; --accent-ink: #1a1410;
+    --ok: #6bbf83; --err: #ef6b62; --viewer: #1a1816;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 24px rgba(0,0,0,.25);
+  }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 Inter, system-ui, sans-serif; }
+header { display: flex; align-items: baseline; gap: 12px; padding: 18px 24px 6px; }
+h1 { font: 600 26px/1 Fraunces, Georgia, serif; margin: 0; letter-spacing: -.01em; }
+header span { color: var(--muted); }
+main { display: grid; grid-template-columns: 360px 1fr; gap: 18px; padding: 12px 24px 24px; align-items: start; }
+@media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 12px 16px; } header { padding: 16px; } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; }
+.stack > * + * { margin-top: 14px; }
+label.f { display: block; font-weight: 500; margin-bottom: 6px; }
+input[type=text], input[type=number], textarea {
+  width: 100%; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--panel-2); color: var(--text); font: inherit;
+}
+textarea { min-height: 88px; resize: vertical; }
+input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
+.seg button { border: 0; background: none; color: var(--muted); padding: 7px; border-radius: 8px; font: 500 13px Inter, sans-serif; cursor: pointer; }
+.seg button[aria-pressed=true] { background: var(--panel); color: var(--text); box-shadow: var(--shadow); }
+.drop { border: 1.5px dashed var(--line); border-radius: 12px; padding: 18px; text-align: center; color: var(--muted); cursor: pointer; background: var(--panel-2); }
+.drop.over { border-color: var(--accent); color: var(--text); }
+.drop img { max-width: 100%; max-height: 220px; border-radius: 8px; display: block; margin: 0 auto 8px; }
+.row { display: flex; gap: 10px; align-items: center; }
+.slider { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; }
+.slider output { font-variant-numeric: tabular-nums; color: var(--muted); }
+.slider input { grid-column: 1 / -1; accent-color: var(--accent); width: 100%; }
+.hint { color: var(--muted); font-size: 12.5px; }
+button.btn { border: 1px solid var(--line); background: var(--panel-2); color: var(--text); padding: 9px 14px; border-radius: 10px; font: 500 14px Inter, sans-serif; cursor: pointer; }
+button.btn:hover:not(:disabled) { border-color: var(--muted); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; width: 100%; padding: 11px; font-weight: 600; }
+button.primary:hover:not(:disabled) { filter: brightness(1.06); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+.steps { list-style: none; margin: 0; padding: 0; }
+.steps li { display: flex; gap: 10px; align-items: center; padding: 5px 0; color: var(--muted); }
+.steps li .dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--line); flex: none; }
+.steps li.active { color: var(--text); }
+.steps li.active .dot { border-color: var(--accent); background: var(--accent); animation: pulse 1.2s infinite; }
+.steps li.done .dot { border-color: var(--ok); background: var(--ok); }
+.steps li.fail .dot { border-color: var(--err); background: var(--err); }
+@keyframes pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .steps li.active .dot { animation: none; } }
+.detail { font: 12px ui-monospace, Menlo, monospace; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+details pre { max-height: 220px; overflow: auto; font: 11.5px/1.4 ui-monospace, Menlo, monospace; background: var(--panel-2); padding: 10px; border-radius: 8px; white-space: pre-wrap; margin: 8px 0 0; }
+.msg { font-size: 13px; }
+.msg.err { color: var(--err); }
+#viewerWrap { position: relative; height: min(62vh, 620px); min-height: 320px; background: var(--viewer); border-radius: 10px; overflow: hidden; }
+#viewer { width: 100%; height: 100%; display: block; }
+.overlay { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); pointer-events: none; text-align: center; padding: 20px; }
+.dims { position: absolute; left: 12px; bottom: 10px; font: 12px ui-monospace, Menlo, monospace; color: var(--muted); }
+.topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.topbar h2 { margin: 0; font: 600 20px Fraunces, Georgia, serif; }
+.thumbs { display: flex; gap: 10px; margin-top: 12px; overflow-x: auto; }
+.thumbs figure { margin: 0; flex: none; }
+.thumbs img { width: 120px; height: 120px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); background: var(--viewer); display: block; cursor: zoom-in; }
+.thumbs figcaption { font-size: 12px; color: var(--muted); text-align: center; margin-top: 4px; }
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+.run { border: 1px solid var(--line); border-radius: 10px; padding: 6px; background: var(--panel-2); cursor: pointer; text-align: left; color: var(--text); font: inherit; }
+.run[aria-current=true] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.run img, .run .ph { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; background: var(--viewer); display: block; }
+.run div { font-size: 12.5px; margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+dialog { border: 0; padding: 0; border-radius: 12px; background: var(--panel); max-width: 92vw; }
+dialog img { display: block; max-width: 92vw; max-height: 88vh; }
+dialog::backdrop { background: rgba(0,0,0,.6); }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<header><h1>Mini Forge</h1><span>image → 3D → print-ready STL</span></header>
+<main>
+  <section class="stack">
+    <div class="card stack">
+      <div>
+        <label class="f" for="name">Name</label>
+        <input id="name" type="text" placeholder="dwarf-cleric" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="seg" role="group" aria-label="Source">
+        <button id="modeImage" aria-pressed="true">From image</button>
+        <button id="modeDesc" aria-pressed="false">Describe it</button>
+      </div>
+      <div id="imagePane">
+        <div id="drop" class="drop" tabindex="0" role="button" aria-label="Choose an image">
+          <div id="dropInner">Drop an image here, or click to choose<br><span class="hint">Full body, head to feet, plain background</span></div>
+        </div>
+        <input id="file" type="file" accept="image/*" hidden>
+        <label class="row" style="margin-top:12px"><input id="restyle" type="checkbox" checked> Convert to a miniature sculpt first</label>
+        <div class="hint">Redraws your picture as a grey sculpt of the same character. Keep it on for paintings and photos; turn it off if the image is already a clean 3D render. Needs Draw Things.</div>
+      </div>
+      <div id="descPane" hidden class="stack">
+        <textarea id="desc" placeholder="dwarf cleric, warhammer held against chest, shield on back"></textarea>
+        <div class="row">
+          <label class="f" for="seed" style="margin:0">Seed</label>
+          <input id="seed" type="number" value="42" style="width:110px">
+          <button class="btn" id="dice" title="Random seed" aria-label="Random seed">🎲</button>
+        </div>
+        <div class="hint">Needs Draw Things open with its API server on.</div>
+      </div>
+    </div>
+
+    <div class="card stack">
+      <div class="row">
+        <label for="real" style="white-space:nowrap">Character is</label>
+        <input id="real" type="number" min="0.3" max="8" step="0.01" placeholder="1.80" style="width:80px"> m tall
+        <select id="scale" aria-label="Miniature scale" style="padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);color:var(--text);font:inherit">
+          <option value="28">28 mm scale</option><option value="32" selected>32 mm scale</option><option value="54">54 mm scale</option>
+        </select>
+      </div>
+      <div class="hint" style="margin-top:-6px">Sets the height below: a 1.8 m human is 28, 32 or 54 mm. Add a little for horns or a raised weapon.</div>
+      <div class="slider"><label for="height">Figure height</label><output id="heightV"></output>
+        <input id="height" type="range" min="15" max="120" step="1" value="32"></div>
+      <div class="slider"><label for="base">Base diameter</label><output id="baseV"></output>
+        <input id="base" type="range" min="20" max="50" step="1" value="25"></div>
+      <div class="slider"><label for="inflate">Thicken thin parts</label><output id="inflateV"></output>
+        <input id="inflate" type="range" min="0" max="0.3" step="0.01" value="0.08"></div>
+      <label class="row"><input id="nobase" type="checkbox"> Keep the model's own base</label>
+      <button class="primary" id="go">Generate mini</button>
+      <div id="msg" class="msg" role="status"></div>
+    </div>
+
+    <div class="card" id="jobCard" hidden>
+      <ol class="steps" id="steps">
+        <li data-s="1"><span class="dot"></span>Image / sculpt redraw</li>
+        <li data-s="2"><span class="dot"></span>3D mesh (Pixal3D, ~7 min)</li>
+        <li data-s="3"><span class="dot"></span>Print prep</li>
+      </ol>
+      <div class="detail" id="detail"></div>
+      <details><summary class="hint">Log</summary><pre id="log"></pre></details>
+    </div>
+  </section>
+
+  <section class="stack">
+    <div class="card">
+      <div class="topbar">
+        <h2 id="title">No mini selected</h2>
+        <div class="row">
+          <button class="btn" id="reprep" disabled title="Re-run print prep with the current sliders (seconds)">Re-prep</button>
+          <button class="btn" id="reveal" disabled>Show in Finder</button>
+          <button class="btn" id="open" disabled>Open in Bambu Studio</button>
+        </div>
+      </div>
+      <div id="viewerWrap">
+        <canvas id="viewer"></canvas>
+        <div class="overlay" id="overlay">Generate a mini, or pick one below.</div>
+        <div class="dims" id="dims"></div>
+      </div>
+      <div class="thumbs" id="thumbs"></div>
+    </div>
+    <div class="card">
+      <div class="gallery" id="gallery"></div>
+    </div>
+  </section>
+</main>
+<dialog id="zoom"><img alt=""></dialog>
+
+<script type="module">
+import * as THREE from "three";
+import { STLLoader } from "three/addons/loaders/STLLoader.js";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const $ = id => document.getElementById(id);
+let mode = "image", file = null, selected = null, wasRunning = false;
+
+// ---- form ----
+function setMode(m) {
+  mode = m;
+  $("modeImage").setAttribute("aria-pressed", m === "image");
+  $("modeDesc").setAttribute("aria-pressed", m === "desc");
+  $("imagePane").hidden = m !== "image";
+  $("descPane").hidden = m !== "desc";
+}
+$("modeImage").onclick = () => setMode("image");
+$("modeDesc").onclick = () => setMode("desc");
+$("dice").onclick = () => $("seed").value = Math.floor(Math.random() * 1e6);
+
+const units = { height: " mm", base: " mm", inflate: " mm" };
+for (const k of Object.keys(units)) {
+  const upd = () => $(k + "V").textContent = $(k).value + units[k];
+  $(k).oninput = upd; upd();
+}
+
+function fromReal() {
+  const m = parseFloat($("real").value);
+  if (!(m > 0)) return;
+  $("height").value = Math.round(m * $("scale").value / 1.8);
+  $("height").dispatchEvent(new Event("input"));
+}
+$("real").oninput = fromReal; $("scale").onchange = fromReal;
+
+function takeFile(f) {
+  if (!f || !f.type.startsWith("image/")) return;
+  file = f;
+  const url = URL.createObjectURL(f);
+  $("dropInner").innerHTML = `<img src="${url}" alt="Chosen image"><span class="hint"></span>`;
+  $("dropInner").querySelector(".hint").textContent = f.name;
+  if (!$("name").value) $("name").value = slug(f.name.replace(/\.[^.]+$/, ""));
+}
+const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+$("drop").onclick = () => $("file").click();
+$("drop").onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("file").click(); } };
+$("file").onchange = e => takeFile(e.target.files[0]);
+$("drop").ondragover = e => { e.preventDefault(); $("drop").classList.add("over"); };
+$("drop").ondragleave = () => $("drop").classList.remove("over");
+$("drop").ondrop = e => { e.preventDefault(); $("drop").classList.remove("over"); takeFile(e.dataTransfer.files[0]); };
+$("name").onblur = () => $("name").value = slug($("name").value);
+
+function prepParams(name) {
+  const p = new URLSearchParams({ name, height: $("height").value, base: $("base").value, inflate: $("inflate").value });
+  if ($("nobase").checked) p.set("nobase", "1");
+  return p;
+}
+function say(text, err = false) { $("msg").textContent = text; $("msg").className = "msg" + (err ? " err" : ""); }
+
+async function post(url, body) {
+  const r = await fetch(url, { method: "POST", body });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+
+$("go").onclick = async () => {
+  const name = slug($("name").value);
+  if (!name) return say("Give the mini a name first.", true);
+  $("name").value = name;
+  const p = prepParams(name);
+  let body;
+  if (mode === "image") {
+    if (!file) return say("Choose an image first.", true);
+    body = file;
+    if ($("restyle").checked) p.set("restyle", "1"); p.set("seed", $("seed").value || "42");
+  } else {
+    const d = $("desc").value.trim();
+    if (!d) return say("Describe the character first.", true);
+    p.set("desc", d); p.set("seed", $("seed").value || "42");
+  }
+  try { await post("/api/generate?" + p, body); say(""); selected = name; poll(); }
+  catch (e) { say(e.message, true); }
+};
+
+$("reprep").onclick = async () => {
+  try { await post("/api/prep?" + prepParams(selected)); say(""); poll(); }
+  catch (e) { say(e.message, true); }
+};
+$("open").onclick = () => post("/api/open?name=" + selected).catch(e => say(e.message, true));
+$("reveal").onclick = () => post("/api/reveal?name=" + selected).catch(e => say(e.message, true));
+
+// ---- job progress ----
+async function poll() {
+  const s = await (await fetch("/api/job")).json();
+  const card = $("jobCard");
+  if (s.name) card.hidden = false;
+  const log = s.log || "";
+  const step = s.kind === "prep" ? 3 : log.includes("[3/3]") ? 3 : log.includes("[2/3]") ? 2 : 1;
+  const failed = !s.running && s.exit !== null && s.exit !== 0;
+  for (const li of $("steps").children) {
+    const n = +li.dataset.s;
+    li.className = "";
+    if (s.kind === "prep" && n < 3) { li.className = "done"; continue; }
+    if (s.running) li.className = n < step ? "done" : n === step ? "active" : "";
+    else if (s.exit === 0) li.className = "done";
+    else if (failed) li.className = n < step ? "done" : n === step ? "fail" : "";
+  }
+  const mm = String(Math.floor(s.elapsed / 60)), ss = String(s.elapsed % 60).padStart(2, "0");
+  $("detail").textContent = s.running ? `${s.name} · ${mm}:${ss}  ${s.detail || ""}` :
+    failed ? `${s.name} failed, see log` : s.name ? `${s.name} done` : "";
+  $("log").textContent = log;
+  for (const b of ["go", "reprep"]) $(b).disabled = s.running || (b === "reprep" && !selected);
+  if (s.running) { wasRunning = true; setTimeout(poll, 1500); }
+  else if (wasRunning) {
+    wasRunning = false; await loadRuns();
+    if (s.exit === 0) { select(s.name, true); $("name").value = ""; }
+    const warn = log.split("\n").find(l => l.includes("WARNING"));
+    if (warn) say(warn.replace(/^mini_prep: WARNING /, "Heads up: "), true);
+  }
+}
+
+// ---- runs ----
+let runs = [];
+async function loadRuns() {
+  runs = await (await fetch("/api/runs")).json();
+  const g = $("gallery");
+  g.replaceChildren(...runs.map(r => {
+    const b = document.createElement("button");
+    b.className = "run";
+    b.setAttribute("aria-current", r.name === selected);
+    const img = r.renders.includes("front") ? `/runs/${r.name}/${r.name}_front.png?${r.mtime}`
+              : r.source ? `/runs/${r.name}/source.png` : null;
+    b.innerHTML = img ? `<img alt="" loading="lazy">` : `<span class="ph"></span>`;
+    if (img) b.querySelector("img").src = img;
+    const t = document.createElement("div"); t.textContent = r.name; b.append(t);
+    b.onclick = () => select(r.name);
+    return b;
+  }));
+}
+
+function select(name, force = false) {
+  if (name === selected && !force && currentStl) return;
+  selected = name;
+  const r = runs.find(x => x.name === name);
+  $("title").textContent = name;
+  for (const el of $("gallery").children) el.setAttribute("aria-current", el.lastChild.textContent === name);
+  const has = !!(r && r.stl);
+  $("open").disabled = $("reveal").disabled = !has;
+  $("reprep").disabled = !r;
+  const t = $("thumbs"); t.replaceChildren();
+  if (!r) return;
+  const bust = "?" + Date.now();
+  const add = (src, cap) => {
+    const f = document.createElement("figure");
+    f.innerHTML = `<img alt=""><figcaption></figcaption>`;
+    f.querySelector("img").src = src; f.querySelector("img").alt = cap;
+    f.querySelector("figcaption").textContent = cap;
+    f.querySelector("img").onclick = () => { $("zoom").querySelector("img").src = src; $("zoom").showModal(); };
+    t.append(f);
+  };
+  if (r.source) add(`/runs/${name}/source.png`, "source");
+  for (const v of r.renders) add(`/runs/${name}/${name}_${v}.png${bust}`, v);
+  if (has) loadStl(`/runs/${name}/${r.stl}${bust}`);
+  else { clearModel(); $("overlay").textContent = "No STL yet."; $("overlay").hidden = false; }
+}
+$("zoom").onclick = () => $("zoom").close();
+
+// ---- 3D viewer ----
+const canvas = $("viewer");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 2000);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+scene.add(new THREE.HemisphereLight(0xfff4e8, 0x3a3530, 1.4));
+const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(40, 80, 60); scene.add(key);
+const rim = new THREE.DirectionalLight(0xffd9c0, 0.8); rim.position.set(-60, 30, -50); scene.add(rim);
+const grid = new THREE.GridHelper(60, 12, 0x8a8175, 0x8a8175);
+grid.material.opacity = 0.25; grid.material.transparent = true; scene.add(grid);
+const material = new THREE.MeshStandardMaterial({ color: 0xb9b2a8, roughness: 0.75, metalness: 0 });
+let currentStl = null, mesh = null;
+
+function clearModel() {
+  if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); mesh = null; }
+  currentStl = null; $("dims").textContent = "";
+}
+function loadStl(url) {
+  clearModel();
+  currentStl = url;
+  $("overlay").textContent = "Loading model…"; $("overlay").hidden = false;
+  new STLLoader().load(url, geo => {
+    if (currentStl !== url) return geo.dispose();
+    geo.rotateX(-Math.PI / 2);                // STL is Z-up, three.js is Y-up
+    geo.computeBoundingBox();
+    const b = geo.boundingBox, size = new THREE.Vector3(); b.getSize(size);
+    geo.translate(-(b.min.x + b.max.x) / 2, -b.min.y, -(b.min.z + b.max.z) / 2);
+    mesh = new THREE.Mesh(geo, material); scene.add(mesh);
+    const r = Math.max(size.x, size.y, size.z);
+    controls.target.set(0, size.y / 2, 0);
+    camera.position.set(0, size.y * 0.7, -r * 2.4);  // figures face −Z here
+    controls.update();
+    $("dims").textContent = `${size.x.toFixed(1)} × ${size.z.toFixed(1)} × ${size.y.toFixed(1)} mm`;
+    $("overlay").hidden = true;
+  }, undefined, () => { $("overlay").textContent = "Couldn't load the STL."; });
+}
+function resize() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (canvas.width !== Math.floor(w * renderer.getPixelRatio())) { renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+}
+renderer.setAnimationLoop(() => { resize(); controls.update(); renderer.render(scene, camera); });
+
+await loadRuns();
+if (runs[0]) select(runs[0].name);
+poll();
+</script>
+</body>
+</html>
