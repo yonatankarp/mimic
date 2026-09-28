@@ -80,10 +80,18 @@ tall character) faces, small pets and props come out much better on a home print
 
 ### How it works
 
-```
-picture ─┐                           ┌─ 3D mesh ─┐
-         ├─ (sculpt redraw) ─ image ─┤  Pixal3D  ├─ print prep ─ STL + previews
-text ────┘   FLUX.2 Klein            └───────────┘   Blender
+```mermaid
+flowchart LR
+  pic["🖼️ Picture"] --> choice{"Grey sculpt<br/>first?"}
+  choice -- yes --> redraw["Redraw as a grey sculpt<br/><i>FLUX.2 Klein in Draw Things</i>"]
+  choice -- no --> image
+  redraw --> image["Character image"]
+  text["✍️ Description"] --> draw["Draw the character<br/><i>FLUX.2 Klein in Draw Things</i>"]
+  draw --> image
+  image --> mesh["🧊 3D model<br/><i>Pixal3D</i>"]
+  mesh --> prep["🖨️ Print prep<br/><i>Blender</i>"]
+  prep --> out["STL + front, side<br/>and back previews"]
+  out --> slicer["Your slicer"]
 ```
 
 1. **Image.** Optionally redrawn as a grey sculpt by FLUX.2 Klein through
