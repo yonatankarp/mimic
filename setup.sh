@@ -114,5 +114,5 @@ cp "$HERE/ui/Mimic.icns" "$app/Contents/Resources/applet.icns"
 touch "$app"
 ok "Mimic is in your Applications folder ($app)"
 
-printf '\n🎉 \033[1mAll set!\033[0m Opening Mimic. It shows the last two clicks in Draw Things.\n'
+printf '\n🎉 \033[1mAll set!\033[0m Opening Mimic. If anything is still missing, ⚙️ Settings in Mimic says what.\n'
 open "$app"
