@@ -126,11 +126,12 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
     </div>
 
     <div class="card stack">
-      <div class="row">
+      <div class="row" style="flex-wrap:wrap;gap:6px 8px">
         <label for="real" style="white-space:nowrap">Character is</label>
-        <input id="real" type="number" min="0.3" max="8" step="0.01" placeholder="1.80" style="width:80px"> m tall
+        <input id="real" type="number" min="0.3" max="8" step="0.01" placeholder="1.80" style="width:72px"><span style="white-space:nowrap">m tall,</span>
+        <span style="white-space:nowrap">scale</span>
         <select id="scale" aria-label="Miniature scale" style="padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);color:var(--text);font:inherit">
-          <option value="28">28 mm scale</option><option value="32" selected>32 mm scale</option><option value="54">54 mm scale</option>
+          <option value="28">28 mm</option><option value="32" selected>32 mm</option><option value="54">54 mm</option>
         </select>
       </div>
       <div class="hint" style="margin-top:-6px">Sets the height below: a 1.8 m human is 28, 32 or 54 mm. Add a little for horns or a raised weapon.</div>
@@ -393,7 +394,10 @@ function resize() {
 renderer.setAnimationLoop(() => { resize(); controls.update(); renderer.render(scene, camera); });
 
 await loadRuns();
-if (runs[0]) select(runs[0].name);
+// ?run=<name> opens that mini; otherwise the newest.
+const wanted = new URLSearchParams(location.search).get("run");
+const first = runs.find(r => r.name === wanted) || runs[0];
+if (first) select(first.name);
 poll();
 </script>
 </body>

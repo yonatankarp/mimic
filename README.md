@@ -3,6 +3,8 @@
 Turn a character picture, or a description, into a print-ready STL of a tabletop
 miniature. Everything runs locally on an Apple Silicon Mac.
 
+![A generated dwarf cleric image, and the print-ready STL made from it seen from the front and side](docs/images/pipeline.jpg)
+
 ```
 picture ─┐                           ┌─ 3D mesh ─┐
          ├─ (sculpt redraw) ─ image ─┤  Pixal3D  ├─ print prep ─ STL + previews
@@ -43,7 +45,10 @@ It has to be running while you generate.
 
 ## Use
 
-Double-click **`Mini Forge.command`**. It opens <http://127.0.0.1:8765>.
+Double-click **`Mini Forge.command`**. It opens <http://127.0.0.1:8765>. Add
+`?run=<name>` to the address to open a specific mini.
+
+![Mini Forge: generation controls on the left, an interactive 3D view of the dwarf cleric on its base with its dimensions, and the source image plus front, side and back renders below](docs/images/ui.jpg)
 
 - **From image**: drop a full-body picture. Leave *Convert to a miniature sculpt first* on
   unless the picture is already a clean grey 3D render.
@@ -86,7 +91,9 @@ smoothed over, but they don't cause failures.
 - **Realistic proportions** shrink faces to about 4 mm at 32 mm scale. Heroic proportions
   read better, which is why the redraw asks for a slightly larger head and hands.
 - **Print prep trades sharpness for printability.** `--inflate` thickens every surface.
-  0.08 mm keeps cloth in one piece; 0.15 mm looked like melted clay.
+  0.08 mm keeps cloth in one piece; 0.15 mm looked like melted clay:
+
+  ![The dwarf's face and beard with the old settings (soft, melted) next to the current settings (crisp braids and brows)](docs/images/cleanup.jpg)
 
 ## Layout
 
@@ -99,6 +106,7 @@ smoothed over, but they don't cause failures.
 | `ui/` | Mini Forge web UI (`serve.py`, stdlib only; `index.html`) |
 | `tests/` | `test_prep.sh` (pipeline, needs Blender) and `test_serve.py` (input checks) |
 | `setup.sh` | one-time setup |
+| `docs/images/` | the pictures in this README |
 | `runs/` | generated minis (git-ignored) |
 | `image-to-3dlab/` | third-party lab plus weights (git-ignored, made by `setup.sh`) |
 
