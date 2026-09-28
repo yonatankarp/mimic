@@ -129,14 +129,15 @@ Add `?run=<name>` to the page address to open a specific mini.
 | `pipeline/` | `mini_prep.py` (Blender), `drawthings.py`, `gen_views.py` (multiview input, not wired in yet), `render_zoom.py` |
 | `ui/` | the web app: `serve.py` (standard library only), `index.html`, logo and icon |
 | `tools/package_pixal3d.sh` | builds the relocatable Pixal3D download the installer uses |
-| `tests/` | `test_prep.sh` (print prep on a synthetic figure) and `test_serve.py` (input checks) |
+| `tests/` | `test_prep.sh` (print prep on a synthetic figure), `test_serve.py` (input checks), `test_checks.py` (Settings checks, both ways) |
 | `runs/`, `image-to-3dlab/` | your minis, and the engine plus models (both git-ignored) |
 
 ### Tests
 
 ```bash
 tests/test_prep.sh          # watertight, flat bottom, right height, centred, one piece
-python3 tests/test_serve.py # the web app's input validation
+python3 tests/test_serve.py  # the web app's input validation
+python3 tests/test_checks.py # every Settings check goes red when its part is missing, green when present
 ```
 
 ### Releasing the Pixal3D engine

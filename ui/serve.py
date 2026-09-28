@@ -125,19 +125,14 @@ def installed_slicers():
     return found
 
 
-_engine_ok = {"at": 0.0, "ok": False}
-
-
 def engine_starts():
-    """Whether the 3D engine launches. Cached: it runs a process, and the page may ask often."""
-    if time.time() - _engine_ok["at"] > 60:
-        cli = ENGINE / "build" / "trellis-cli"
-        try:
-            ok = cli.is_file() and subprocess.run([str(cli), "--help"], capture_output=True, timeout=10).returncode == 0
-        except (OSError, subprocess.TimeoutExpired):
-            ok = False
-        _engine_ok.update(at=time.time(), ok=ok)
-    return _engine_ok["ok"]
+    """Whether the 3D engine launches. Run fresh every time (it takes ~10 ms): a cached
+    answer is how a check keeps saying yes after the thing it checks has gone."""
+    cli = ENGINE / "build" / "trellis-cli"
+    try:
+        return cli.is_file() and subprocess.run([str(cli), "--help"], capture_output=True, timeout=10).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
 
 
 def checks():

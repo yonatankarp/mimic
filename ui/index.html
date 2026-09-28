@@ -332,7 +332,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 const $ = id => document.getElementById(id);
 const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } },
                 set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
-let mode = "image", file = null, selected = null, wasRunning = false, dtReady = false, inflateTouched = false;
+let mode = "image", file = null, selected = null, wasRunning = false, dtReady = false, everReady = false, inflateTouched = false;
 
 // ---- radio groups (role=radio buttons, arrow keys move) ----
 function radios(group, onPick) {
@@ -475,17 +475,21 @@ async function health() {
   $("t2").textContent = running ? "✅" : "⬜";
   $("t3").textContent = model ? "✅" : "⬜";
   const ready = running && model;
-  if (ready && !dtReady && !$("setup").hidden) {
-    $("setup").querySelector("h2").textContent = "✅ All set!";
-    setTimeout(() => $("setup").hidden = true, 3000);
-  } else if (!ready) {
+  if (!ready) {
+    $("setup").querySelector("h2").textContent = everReady ? "⚠️ Draw Things isn't connected any more" : "🧙 One-time setup";
     $("setup").hidden = false;
+  } else if (!dtReady && !$("setup").hidden) {
+    $("setup").querySelector("h2").textContent = "✅ All set!";
+    setTimeout(() => { if (dtReady) $("setup").hidden = true; }, 3000);
   }
+  everReady ||= ready;
   dtReady = ready;
   document.querySelectorAll(".needsDT").forEach(el => el.hidden = ready);
   $("restyle").disabled = !ready;
   $("modeDesc").disabled = !ready;
-  if (!ready) setTimeout(health, 5000);
+  // Keep watching after it's ready too: Draw Things can be quit at any moment, and the page
+  // used to stop asking once it had seen it ready once.
+  setTimeout(health, ready ? 15000 : 5000);
 }
 
 // ---- job progress ----
