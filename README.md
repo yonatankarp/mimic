@@ -1,9 +1,75 @@
-# Mini Forge
+<p align="center"><img src="ui/logo.png" width="160" alt="Mimic's logo: a cartoon treasure-chest monster with a tiny grey miniature standing in its open mouth"></p>
 
-Turn a character picture, or a description, into a print-ready STL of a tabletop
-miniature. Everything runs locally on an Apple Silicon Mac.
+<h1 align="center">Mimic</h1>
 
-![A generated dwarf cleric image, and the print-ready STL made from it seen from the front and side](docs/images/pipeline.jpg)
+<p align="center"><b>Turn any character into a miniature you can print.</b><br>
+Drop in a picture, or describe your character, and Mimic makes a 3D-printable mini of it.<br>
+Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
+
+![A picture of a dwarf cleric, and the printable mini Mimic made from it, seen from the front and side](docs/images/pipeline.jpg)
+
+## 🚀 Get started
+
+**What you need:**
+- a Mac with an Apple chip (M1 or newer), running macOS 15 (Sequoia) or newer;
+- about 25 GB of free space;
+- an internet connection for the first install;
+- a 3D printer, and Bambu Studio or another slicer.
+
+1. **Download Mimic.** On this page, press the green **Code** button, then **Download ZIP**. Open the ZIP.
+2. **Double-click `Install Mimic.command`.**
+   - If your Mac says it can't check the file for malicious software, open
+     **System Settings → Privacy & Security**, scroll down, and press **Open Anyway** next to
+     *Install Mimic.command*.
+   - The installer asks once before it starts, and may ask for your Mac password.
+3. **Wait 20–60 minutes.** Most of that is downloading about 10 GB of AI models.
+4. **Mimic opens by itself.** A short checklist walks you through the last two clicks in
+   *Draw Things*, the free app Mimic uses to draw and redraw pictures.
+
+After that, open **Mimic** from your Applications folder whenever you want to make a mini.
+
+## 🧙 Making a mini
+
+![Mimic's page: the character and size settings on the left, the finished dwarf cleric in a 3D view on the right, with print tips below](docs/images/ui.jpg)
+
+1. **Your character.** Drop in a picture, or switch to ✍️ **Describe it** and write a
+   sentence. A full-body picture with a plain background works best. Leave *Turn it into a
+   grey sculpt first* on for drawings and photos.
+2. **Size & printer.**
+   - Type how tall the character is and pick a scale; Mimic works out the size of the mini.
+   - Pick your printer's nozzle. If you're not sure, it's 0.4 mm.
+3. **✨ Make my mini** and wait about 7–10 minutes. Your Mac will be busy while it works.
+4. **🖨️ Open in Bambu Studio** and print. The print tips under the 3D view match your nozzle.
+
+Changed your mind about the size? **🔁 Apply new size** remakes the print file in seconds.
+Your character stays exactly the same.
+
+## 🖨️ Printing tips
+
+| Nozzle | Layer height | Walls | What to expect |
+|---|---|---|---|
+| 0.2 mm | 0.06–0.08 mm | 3–4 | Sharp faces and small details; slow |
+| 0.4 mm | 0.12 mm | 3 | Faces and weapons read clearly; fine hair gets softened |
+| 0.6 mm | 0.2 mm | 2–3 | Quick and sturdy; best at 54 mm scale or bigger |
+
+For every nozzle: supports on **Tree (auto)**, stand the mini upright on its base, no brim.
+
+**Bigger shows more.** At 32 mm a face is about 5 mm tall. At 54 mm scale (about 6 cm for a
+tall character) faces, small pets and props come out much better on a home printer.
+
+## ⚠️ Good to know
+
+- **Small companions and props**, like a bird on a shoulder, can come out as blobs. The AI
+  sees them at only a few pixels and has to guess their far side.
+- **Chunky, heroic-looking characters work best.** Realistic proportions make faces tiny.
+- Pictures you make are yours to print. If you want to sell prints, check the licences at the
+  bottom first.
+
+---
+
+## 🛠️ For developers
+
+### How it works
 
 ```
 picture ─┐                           ┌─ 3D mesh ─┐
@@ -11,114 +77,63 @@ picture ─┐                           ┌─ 3D mesh ─┐
 text ────┘   FLUX.2 Klein            └───────────┘   Blender
 ```
 
-1. **Image.** Your picture, optionally redrawn by FLUX.2 Klein as an unpainted grey
-   sculpt of the same character. Paintings and photos mesh badly, because surface texture
-   turns into bumps. With a description instead, Klein draws the character from scratch.
-2. **Mesh.** [Pixal3D](https://github.com/raven38/pixal3d.cpp), through
+1. **Image.** Optionally redrawn as a grey sculpt by FLUX.2 Klein through
+   [Draw Things](https://drawthings.ai)' HTTP API (`pipeline/drawthings.py`, which pins the
+   model and sampler).
+2. **Mesh.** [Pixal3D](https://github.com/raven38/pixal3d.cpp) via
    [image-to-3dlab](https://github.com/Bingeljell/image-to-3dlab), on the Mac's GPU.
-   About 7 minutes.
-3. **Print prep** (`pipeline/mini_prep.py`, Blender). About 30 seconds:
-   - scales the figure to size
-   - centres it on the solid cross-sections of its lower body, then fuses it to a round,
-     bevelled base
-   - rebuilds it as one watertight solid
-   - thickens paper-thin parts, drops floating fragments, slices the bottom flat
-   - exports an STL with front, side and back renders
+3. **Print prep** (`pipeline/mini_prep.py`, Blender):
+   - scales the figure and centres it on the solid cross-sections of its lower body;
+   - fuses it to a round base and rebuilds it as one watertight solid;
+   - thickens thin parts by 0.4 × the nozzle, drops floating bits and slices the bottom flat;
+   - exports the STL plus front, side and back renders.
 
-## Setup
+![The dwarf's face with too much thickening (soft, melted) next to the current setting (crisp braids and brows)](docs/images/cleanup.jpg)
 
-You need an Apple Silicon Mac, [Homebrew](https://brew.sh), full Xcode (Pixal3D compiles
-Metal kernels) and about 20 GB of disk.
-
-```bash
-./setup.sh
-```
-
-This installs `uv`, `jq` and Blender, clones image-to-3dlab at the pinned release, builds
-Pixal3D and downloads its weights (8.4 GB, and it asks first). Re-running it is safe.
-
-**Draw Things** is needed for the sculpt redraw and for text-to-image. Set it up by hand:
-1. Install it from the App Store and download the **FLUX.2 Klein 9B** model.
-2. Settings → Advanced → **API Server**: on, **HTTP**, port **7860**.
-
-It has to be running while you generate.
-
-## Use
-
-Double-click **`Mini Forge.command`**. It opens <http://127.0.0.1:8765>. Add
-`?run=<name>` to the address to open a specific mini.
-
-![Mini Forge: generation controls on the left, an interactive 3D view of the dwarf cleric on its base with its dimensions, and the source image plus front, side and back renders below](docs/images/ui.jpg)
-
-- **From image**: drop a full-body picture. Leave *Convert to a miniature sculpt first* on
-  unless the picture is already a clean grey 3D render.
-- **Describe it**: type the character; the seed gives different takes.
-- **Character is … m tall** plus a scale (28 / 32 / 54 mm) sets the height. The height
-  counts everything, horns and raised weapons included.
-- **Re-prep** redoes only the print prep with new sliders, in seconds. Generation isn't
-  repeated.
-- **Open in Bambu Studio** / **Show in Finder**. Everything goes in `runs/<name>/`.
-
-The same pipeline from a terminal:
+### From a terminal
 
 ```bash
 ./make_mini.sh dwarf-cleric "dwarf cleric, warhammer held against chest"
-./make_mini.sh tiefling --image art.png --restyle --height 38
+./make_mini.sh tiefling --image art.png --restyle --height 38 --nozzle 0.2
 SEED=7 ./make_mini.sh dwarf-cleric-2 "dwarf cleric, warhammer held against chest"
 ```
 
 Flags after the description or image go to `mini_prep.py`: `--height`, `--base`,
-`--base-height`, `--inflate`, `--voxel`, `--faces`, `--no-base`, `--flatten`.
+`--base-height`, `--nozzle`, `--inflate`, `--voxel`, `--faces`, `--no-base` and `--flatten`.
+Add `?run=<name>` to the page address to open a specific mini.
 
-## Printing (FDM, 0.2 mm nozzle)
-
-- Select the 0.2 mm nozzle printer preset.
-- Layers: 0.06–0.08 mm.
-- Supports: **Tree (auto)**.
-- Stand the mini upright on its base; no brim needed.
-- Walls: 3–4.
-
-A 0.2 mm nozzle resolves details of about 0.2 mm. Finer hair strands and cloth edges get
-smoothed over, but they don't cause failures.
-
-## What limits quality
-
-- **Small props and companions**, like a bird on a shoulder, come out as blobs. They get
-  few pixels in the picture, and their hidden sides are guessed. The raw mesh already
-  looks that way (`pipeline/render_zoom.py` shows it). Printing bigger helps.
-  `pipeline/gen_views.py` generates the right, back and left views for Pixal3D's multiview
-  mode; it isn't wired in yet.
-- **Realistic proportions** shrink faces to about 4 mm at 32 mm scale. Heroic proportions
-  read better, which is why the redraw asks for a slightly larger head and hands.
-- **Print prep trades sharpness for printability.** `--inflate` thickens every surface.
-  0.08 mm keeps cloth in one piece; 0.15 mm looked like melted clay:
-
-  ![The dwarf's face and beard with the old settings (soft, melted) next to the current settings (crisp braids and brows)](docs/images/cleanup.jpg)
-
-## Layout
+### Layout
 
 | Path | What |
 |---|---|
+| `Install Mimic.command` / `setup.sh` | the installer (`setup.sh --yes`, `--build-from-source`) |
+| `Mimic.command` | starts the app; the Mimic app in Applications runs it |
 | `make_mini.sh` | the pipeline: image → mesh → print prep |
-| `pipeline/mini_prep.py` | Blender: GLB → printable STL + renders |
-| `pipeline/gen_views.py` | front image → the four views for Pixal3D multiview |
-| `pipeline/render_zoom.py` | close-up render for judging small details |
-| `ui/` | Mini Forge web UI (`serve.py`, stdlib only; `index.html`) |
-| `tests/` | `test_prep.sh` (pipeline, needs Blender) and `test_serve.py` (input checks) |
-| `setup.sh` | one-time setup |
-| `docs/images/` | the pictures in this README |
-| `runs/` | generated minis (git-ignored) |
-| `image-to-3dlab/` | third-party lab plus weights (git-ignored, made by `setup.sh`) |
+| `pipeline/` | `mini_prep.py` (Blender), `drawthings.py`, `gen_views.py` (multiview input, not wired in yet), `render_zoom.py` |
+| `ui/` | the web app: `serve.py` (standard library only), `index.html`, logo and icon |
+| `tools/package_pixal3d.sh` | builds the relocatable Pixal3D download the installer uses |
+| `tests/` | `test_prep.sh` (print prep on a synthetic figure) and `test_serve.py` (input checks) |
+| `runs/`, `image-to-3dlab/` | your minis, and the engine plus models (both git-ignored) |
 
-## Tests
+### Tests
 
 ```bash
-tests/test_prep.sh          # synthetic figure through mini_prep: watertight, flat, centred, one piece
-python3 tests/test_serve.py # web UI input validation
+tests/test_prep.sh          # watertight, flat bottom, right height, centred, one piece
+python3 tests/test_serve.py # the web app's input validation
 ```
+
+### Releasing the Pixal3D engine
+
+The installer downloads a pre-built Pixal3D so users never need Xcode. To rebuild it, see
+the header of `tools/package_pixal3d.sh`. It must target macOS 14 and map the source path
+away. Upload the tarball to a release, then update `PIXAL3D_URL` and `PIXAL3D_SHA256` in
+`setup.sh`.
 
 ## Licences
 
-- This repository's code is yours.
-- Pixal3D code and flow weights: MIT. The bundled DINOv3 encoder has its own licence.
-- FLUX.2 Klein is subject to Black Forest Labs' licence. Check it before selling prints.
+- **Mimic:** MIT (see `LICENSE`).
+- **Pixal3D (pixal3d.cpp) and ggml:** MIT. Their licence texts ship inside the engine download.
+- **Pixal3D's model weights:** MIT, with the bundled DINOv3 image encoder under Meta's DINOv3
+  licence.
+- **FLUX.2 Klein:** Black Forest Labs' licence. Check it before selling prints of generated
+  characters.

@@ -3,88 +3,150 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mini Forge</title>
+<title>Mimic</title>
+<link rel="icon" href="/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Fraunces:opsz,wght@9..144,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #f4f1ec; --panel: #ffffff; --panel-2: #f8f6f2; --line: #e3ddd3;
-  --text: #22201c; --muted: #7a7368; --accent: #b4562a; --accent-ink: #fff;
-  --ok: #3d7a4f; --err: #b3332e; --viewer: #e9e4dc;
-  --radius: 14px; --shadow: 0 1px 2px rgba(40,30,20,.06), 0 6px 24px rgba(40,30,20,.06);
+  --bg:#f6f1e9; --panel:#fff; --panel-2:#faf6f0; --line:#e6dccd;
+  --text:#231a13; --muted:#6b6358;
+  --accent:#b8561b; --accent-ink:#fff; --accent-hover:#a04813;
+  --gold:#f2b705; --gold-soft:#fdf1c7; --brown:#6b3a1e; --outline:#1b1410;
+  --ok:#2f7a45; --warn:#9a5b00; --err:#b3332e; --ok-soft:#e5f3e8; --warn-soft:#fdf1d6;
+  --viewer:#ece5da; --radius:14px; --r-sm:10px;
+  --shadow:0 1px 2px rgba(40,30,20,.06), 0 6px 24px rgba(40,30,20,.06);
+  --grid:0xc9b79f;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #161412; --panel: #1f1c19; --panel-2: #262320; --line: #34302b;
-    --text: #ece6dd; --muted: #9a9185; --accent: #e07a45; --accent-ink: #1a1410;
-    --ok: #6bbf83; --err: #ef6b62; --viewer: #1a1816;
-    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 24px rgba(0,0,0,.25);
+    --bg:#15110d; --panel:#1f1914; --panel-2:#28211a; --line:#3a3027;
+    --text:#f1e9de; --muted:#a79c8e;
+    --accent:#f08a3c; --accent-ink:#1b1410; --accent-hover:#f59d57;
+    --gold-soft:#3a2f10; --ok:#6bc488; --warn:#f2b705; --err:#ef6b62;
+    --ok-soft:#1d2e22; --warn-soft:#352a0c; --viewer:#1a1511;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 24px rgba(0,0,0,.25);
+    --grid:0x4a3d30;
   }
 }
-* { box-sizing: border-box; }
-[hidden] { display: none !important; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 Inter, system-ui, sans-serif; }
-header { display: flex; align-items: baseline; gap: 12px; padding: 18px 24px 6px; }
-h1 { font: 600 26px/1 Fraunces, Georgia, serif; margin: 0; letter-spacing: -.01em; }
-header span { color: var(--muted); }
-main { display: grid; grid-template-columns: 360px 1fr; gap: 18px; padding: 12px 24px 24px; align-items: start; }
-@media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 12px 16px; } header { padding: 16px; } }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; }
-.stack > * + * { margin-top: 14px; }
-label.f { display: block; font-weight: 500; margin-bottom: 6px; }
+* { box-sizing:border-box; }
+[hidden] { display:none !important; }
+body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 Inter, system-ui, sans-serif; }
+header { display:flex; align-items:center; gap:12px; padding:16px 24px 8px; max-width:1440px; margin:0 auto; }
+header img { width:52px; height:52px; }
+h1 { font:600 28px/1 Fraunces, Georgia, serif; margin:0; letter-spacing:-.01em; }
+header .tag { color:var(--muted); font-size:13px; }
+#quit { margin-left:auto; height:32px; padding:0 12px; font:500 13px Inter, sans-serif; color:var(--muted); background:none; border:1px solid transparent; border-radius:var(--r-sm); cursor:pointer; }
+#quit:hover { border-color:var(--line); color:var(--err); }
+main { display:grid; grid-template-columns:360px minmax(0,1fr); gap:20px; padding:12px 24px 32px; align-items:start; max-width:1440px; margin:0 auto; }
+main > section { min-width:0; display:flex; flex-direction:column; gap:16px; }
+.card { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; }
+.stack > * + * { margin-top:14px; }
+h2 { font:600 18px/1.2 Fraunces, Georgia, serif; margin:0 0 12px; }
+label.f { display:block; font-weight:500; margin-bottom:6px; }
+.hint { color:var(--muted); font-size:13px; }
 input[type=text], input[type=number], textarea {
-  width: 100%; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--line);
-  background: var(--panel-2); color: var(--text); font: inherit;
+  width:100%; height:40px; padding:0 11px; border-radius:var(--r-sm); border:1px solid var(--line);
+  background:var(--panel-2); color:var(--text); font:inherit;
 }
-textarea { min-height: 88px; resize: vertical; }
-input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
-.seg button { border: 0; background: none; color: var(--muted); padding: 7px; border-radius: 8px; font: 500 13px Inter, sans-serif; cursor: pointer; }
-.seg button[aria-pressed=true] { background: var(--panel); color: var(--text); box-shadow: var(--shadow); }
-.drop { border: 1.5px dashed var(--line); border-radius: 12px; padding: 18px; text-align: center; color: var(--muted); cursor: pointer; background: var(--panel-2); }
-.drop.over { border-color: var(--accent); color: var(--text); }
-.drop img { max-width: 100%; max-height: 220px; border-radius: 8px; display: block; margin: 0 auto 8px; }
-.row { display: flex; gap: 10px; align-items: center; }
-.slider { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; }
-.slider output { font-variant-numeric: tabular-nums; color: var(--muted); }
-.slider input { grid-column: 1 / -1; accent-color: var(--accent); width: 100%; }
-.hint { color: var(--muted); font-size: 12.5px; }
-button.btn { border: 1px solid var(--line); background: var(--panel-2); color: var(--text); padding: 9px 14px; border-radius: 10px; font: 500 14px Inter, sans-serif; cursor: pointer; }
-button.btn:hover:not(:disabled) { border-color: var(--muted); }
-button.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; width: 100%; padding: 11px; font-weight: 600; }
-button.primary:hover:not(:disabled) { filter: brightness(1.06); }
-button:disabled { opacity: .5; cursor: not-allowed; }
-.steps { list-style: none; margin: 0; padding: 0; }
-.steps li { display: flex; gap: 10px; align-items: center; padding: 5px 0; color: var(--muted); }
-.steps li .dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--line); flex: none; }
-.steps li.active { color: var(--text); }
-.steps li.active .dot { border-color: var(--accent); background: var(--accent); animation: pulse 1.2s infinite; }
-.steps li.done .dot { border-color: var(--ok); background: var(--ok); }
-.steps li.fail .dot { border-color: var(--err); background: var(--err); }
-@keyframes pulse { 50% { opacity: .35; } }
-@media (prefers-reduced-motion: reduce) { .steps li.active .dot { animation: none; } }
-.detail { font: 12px ui-monospace, Menlo, monospace; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-details pre { max-height: 220px; overflow: auto; font: 11.5px/1.4 ui-monospace, Menlo, monospace; background: var(--panel-2); padding: 10px; border-radius: 8px; white-space: pre-wrap; margin: 8px 0 0; }
-.msg { font-size: 13px; }
-.msg.err { color: var(--err); }
-#viewerWrap { position: relative; height: min(62vh, 620px); min-height: 320px; background: var(--viewer); border-radius: 10px; overflow: hidden; }
-#viewer { width: 100%; height: 100%; display: block; }
-.overlay { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); pointer-events: none; text-align: center; padding: 20px; }
-.dims { position: absolute; left: 12px; bottom: 10px; font: 12px ui-monospace, Menlo, monospace; color: var(--muted); }
-.topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
-.topbar h2 { margin: 0; font: 600 20px Fraunces, Georgia, serif; }
-.thumbs { display: flex; gap: 10px; margin-top: 12px; overflow-x: auto; }
-.thumbs figure { margin: 0; flex: none; }
-.thumbs img { width: 120px; height: 120px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); background: var(--viewer); display: block; cursor: zoom-in; }
-.thumbs figcaption { font-size: 12px; color: var(--muted); text-align: center; margin-top: 4px; }
-.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
-.run { border: 1px solid var(--line); border-radius: 10px; padding: 6px; background: var(--panel-2); cursor: pointer; text-align: left; color: var(--text); font: inherit; }
-.run[aria-current=true] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-.run img, .run .ph { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; background: var(--viewer); display: block; }
-.run div { font-size: 12.5px; margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-dialog { border: 0; padding: 0; border-radius: 12px; background: var(--panel); max-width: 92vw; }
-dialog img { display: block; max-width: 92vw; max-height: 88vh; }
-dialog::backdrop { background: rgba(0,0,0,.6); }
+textarea { height:auto; min-height:88px; padding:9px 11px; resize:vertical; }
+input:hover, textarea:hover { border-color:var(--muted); }
+:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
+@media (prefers-color-scheme: light) { :focus-visible { box-shadow:0 0 0 4px var(--outline); } }
+.seg { display:grid; grid-auto-flow:column; grid-auto-columns:1fr; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--r-sm); padding:3px; }
+.seg button { border:0; background:none; color:var(--muted); min-height:34px; padding:4px 6px; border-radius:8px; font:500 13px Inter, sans-serif; cursor:pointer; font-variant-numeric:tabular-nums; }
+.seg button[aria-checked=true] { background:var(--panel); color:var(--text); box-shadow:inset 0 -2px 0 var(--gold), var(--shadow); }
+.seg button small { display:block; font-size:11px; font-weight:400; color:var(--muted); }
+.drop { border:1.5px dashed var(--line); border-radius:12px; padding:18px; text-align:center; color:var(--muted); cursor:pointer; background:var(--panel-2); }
+.drop.over { border-color:var(--accent); color:var(--text); }
+.drop img { max-width:100%; max-height:220px; border-radius:8px; display:block; margin:0 auto 8px; }
+.row { display:flex; gap:8px; align-items:center; }
+.check { display:flex; gap:8px; align-items:flex-start; font-weight:500; }
+.check input { margin-top:4px; accent-color:var(--accent); }
+.slider { display:grid; grid-template-columns:1fr auto; gap:4px 10px; }
+.slider label { font-weight:500; }
+.slider output { font-variant-numeric:tabular-nums; color:var(--muted); }
+.slider input { grid-column:1 / -1; accent-color:var(--accent); width:100%; }
+.btn { height:40px; border:1px solid var(--line); background:var(--panel-2); color:var(--text); padding:0 14px; border-radius:var(--r-sm); font:500 14px Inter, sans-serif; cursor:pointer; white-space:nowrap; }
+.btn:hover:not(:disabled) { border-color:var(--muted); }
+.btn.primary { background:var(--accent); color:var(--accent-ink); border-color:transparent; font-weight:700; box-shadow:0 2px 0 var(--brown); }
+.btn.primary:hover:not(:disabled) { background:var(--accent-hover); }
+.btn.primary:active:not(:disabled) { transform:translateY(1px); box-shadow:none; }
+#go { width:100%; height:46px; font-size:15px; }
+button:disabled { opacity:.5; cursor:not-allowed; }
+details.adv > summary { list-style:none; cursor:pointer; font-weight:500; min-height:36px; display:flex; align-items:center; gap:6px; border-top:1px solid var(--line); padding-top:10px; }
+details.adv > summary::-webkit-details-marker { display:none; }
+details.adv > summary::before { content:"▸"; transition:transform .15s; }
+details.adv[open] > summary::before { transform:rotate(90deg); }
+details.adv > div { padding-top:8px; }
+@media (prefers-reduced-motion: reduce) { details.adv > summary::before { transition:none; } }
+/* setup checklist */
+#setup { border-left:4px solid var(--gold); }
+#setup h2 { font:600 15px Inter, sans-serif; }
+.todo { display:grid; grid-template-columns:24px 1fr; gap:2px 10px; padding:10px 0; border-top:1px solid var(--line); }
+.todo:first-of-type { border-top:0; }
+.todo .em { font-size:18px; line-height:1.2; }
+.todo b { font-weight:500; }
+/* progress */
+.steps { list-style:none; margin:12px 0 0; padding:0; position:relative; }
+.steps li { display:flex; gap:10px; align-items:center; padding:6px 0; color:var(--muted); position:relative; }
+.steps li + li::before { content:""; position:absolute; left:10px; top:-8px; height:14px; width:2px; background:var(--line); }
+.steps li.done + li::before { background:var(--ok); }
+.steps .dot { width:22px; height:22px; border-radius:50%; border:2px solid var(--line); flex:none; display:grid; place-items:center; font:700 12px Inter, sans-serif; }
+.steps li.active { color:var(--text); font-weight:600; }
+.steps li.active .dot { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); box-shadow:0 0 0 3px var(--gold-soft); animation:pulse 1.2s infinite; }
+.steps li.done .dot { background:var(--ok); border-color:var(--ok); color:#fff; }
+.steps li.fail .dot { background:var(--err); border-color:var(--err); color:#fff; }
+@keyframes pulse { 50% { opacity:.55; } }
+@media (prefers-reduced-motion: reduce) { .steps li.active .dot { animation:none; } }
+.bar { height:6px; border-radius:3px; background:var(--line); overflow:hidden; margin-top:10px; }
+.bar > i { display:block; height:100%; width:0; background:var(--accent); transition:width 1s linear; }
+.msg { font-size:13px; }
+.msg.err { color:var(--err); }
+.msg.warn { color:var(--warn); background:var(--warn-soft); padding:8px 10px; border-radius:8px; }
+pre.log { max-height:220px; overflow:auto; font:11.5px/1.4 ui-monospace, Menlo, monospace; background:var(--panel-2); padding:10px; border-radius:8px; white-space:pre-wrap; margin:8px 0 0; }
+/* viewer */
+.topbar { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+.topbar h2 { margin:0; font-size:20px; }
+.actions { display:flex; gap:8px; flex-wrap:wrap; }
+#viewerWrap { position:relative; height:min(64vh,640px); min-height:320px; background:var(--viewer); border-radius:var(--r-sm); overflow:hidden; }
+#viewer { width:100%; height:100%; display:block; }
+.overlay { position:absolute; inset:0; display:grid; place-items:center; color:var(--muted); text-align:center; padding:20px; pointer-events:none; }
+#busy { background:color-mix(in srgb, var(--viewer) 82%, transparent); color:var(--text); }
+#busy .big { font-size:40px; }
+#busy .name { font-weight:600; font-size:16px; }
+.dims { position:absolute; left:12px; bottom:10px; font:12px ui-monospace, Menlo, monospace; color:var(--muted); background:color-mix(in srgb, var(--panel) 80%, transparent); padding:3px 8px; border-radius:6px; }
+.thumbs { display:flex; gap:10px; margin-top:12px; overflow-x:auto; }
+.thumbs figure { margin:0; flex:none; }
+.thumbs img { width:112px; height:112px; object-fit:cover; border-radius:8px; border:1px solid var(--line); background:var(--viewer); display:block; cursor:zoom-in; }
+.thumbs figcaption { font-size:12px; color:var(--muted); text-align:center; margin-top:4px; }
+#tips { margin-top:12px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--r-sm); padding:12px 14px; }
+#tips b { display:block; margin-bottom:4px; }
+#tips ul { margin:0; padding-left:18px; }
+.gallery { display:grid; grid-template-columns:repeat(auto-fill, minmax(104px, 1fr)); gap:10px; }
+.run { border:2px solid transparent; border-radius:10px; padding:5px; background:var(--panel-2); cursor:pointer; text-align:left; color:var(--text); font:inherit; }
+.run[aria-current=true] { border-color:var(--gold); }
+.run img, .run .ph { width:100%; aspect-ratio:1; object-fit:cover; border-radius:6px; background:var(--viewer); display:block; }
+.run div { font-size:12.5px; margin-top:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+dialog { border:0; border-radius:var(--radius); background:var(--panel); color:var(--text); box-shadow:var(--shadow); max-width:min(92vw,420px); }
+dialog.zoom { padding:0; max-width:92vw; }
+dialog.zoom img { display:block; max-width:92vw; max-height:88vh; }
+dialog::backdrop { background:rgba(0,0,0,.55); }
+@media (max-width: 900px) {
+  main { grid-template-columns:minmax(0,1fr); padding:8px 16px 96px; }
+  header { padding:14px 16px 4px; }
+  .card { padding:14px; }
+  #left, #right { display:contents; }
+  #setup { order:1; } #viewCard { order:2; } #charCard { order:3; } #sizeCard { order:4; } #jobCard { order:5; } #galleryCard { order:6; }
+  #viewerWrap { height:min(56vh,420px); }
+  .topbar .actions { display:grid; grid-template-columns:1fr 1fr; width:100%; }
+  #open { grid-column:1 / -1; }
+  .btn, #go { min-height:44px; }
+  #goWrap { position:sticky; bottom:12px; z-index:2; }
+  #go { box-shadow:0 6px 18px rgba(0,0,0,.25); }
+  .thumbs img { width:96px; height:96px; }
+}
+@media (max-width: 480px) { header .tag { display:none; } }
 </style>
 <script type="importmap">
 { "imports": {
@@ -94,92 +156,134 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 </script>
 </head>
 <body>
-<header><h1>Mini Forge</h1><span>image → 3D → print-ready STL</span></header>
+<header>
+  <img src="/logo.png" alt="">
+  <h1>Mimic</h1><span class="tag">Turn any character into a miniature you can print</span>
+  <button id="quit" type="button">⏻ Quit Mimic</button>
+</header>
 <main>
-  <section class="stack">
-    <div class="card stack">
+  <section id="left">
+    <div class="card" id="setup" hidden aria-live="polite">
+      <h2>🧙 One-time setup</h2>
+      <p class="hint" style="margin:0 0 6px">Pictures work right away. To use ✍️ Describe it or the grey-sculpt step, Mimic needs the free Draw Things app.</p>
+      <div class="todo"><span class="em" id="t1">⬜</span><div><b>Open Draw Things.</b></div></div>
+      <div class="todo"><span class="em" id="t2">⬜</span><div><b>Turn on its connection.</b><div class="hint">In Draw Things: Settings → Advanced → API Server. Turn it on, choose HTTP, set the port to 7860.</div></div></div>
+      <div class="todo"><span class="em" id="t3">⬜</span><div><b>Download FLUX.2 Klein.</b><div class="hint">In Draw Things' model list, search for FLUX.2 Klein and download it. It's big, so give it a few minutes.</div></div></div>
+      <p class="hint" style="margin:8px 0 0">This list updates on its own. You can keep going meanwhile.</p>
+    </div>
+
+    <div class="card stack" id="charCard">
+      <h2>1 · 🧙 Your character</h2>
       <div>
-        <label class="f" for="name">Name</label>
-        <input id="name" type="text" placeholder="dwarf-cleric" autocomplete="off" spellcheck="false">
+        <label class="f" for="name">Name your mini</label>
+        <input id="name" type="text" placeholder="e.g. dwarf-cleric" autocomplete="off" spellcheck="false">
       </div>
-      <div class="seg" role="group" aria-label="Source">
-        <button id="modeImage" aria-pressed="true">From image</button>
-        <button id="modeDesc" aria-pressed="false">Describe it</button>
+      <div class="seg" role="radiogroup" aria-label="Start from">
+        <button type="button" role="radio" id="modeImage" aria-checked="true">🖼️ From a picture</button>
+        <button type="button" role="radio" id="modeDesc" aria-checked="false">✍️ Describe it</button>
       </div>
-      <div id="imagePane">
-        <div id="drop" class="drop" tabindex="0" role="button" aria-label="Choose an image">
-          <div id="dropInner">Drop an image here, or click to choose<br><span class="hint">Full body, head to feet, plain background</span></div>
+      <div id="imagePane" class="stack">
+        <div id="drop" class="drop" tabindex="0" role="button" aria-label="Choose a picture">
+          <div id="dropInner">Drop a picture here, or click to choose<br><span class="hint">Full body, head to feet, plain background</span></div>
         </div>
         <input id="file" type="file" accept="image/*" hidden>
-        <label class="row" style="margin-top:12px"><input id="restyle" type="checkbox" checked> Convert to a miniature sculpt first</label>
-        <div class="hint">Redraws your picture as a grey sculpt of the same character. Keep it on for paintings and photos; turn it off if the image is already a clean 3D render. Needs Draw Things.</div>
+        <label class="check"><input id="restyle" type="checkbox" checked><span>Turn it into a grey sculpt first (recommended)<br><span class="hint" style="font-weight:400">Best for drawings and photos. Turn it off only if your picture is already a grey 3D model.</span></span></label>
+        <div class="hint needsDT" hidden>Needs Draw Things (see setup above).</div>
       </div>
       <div id="descPane" hidden class="stack">
-        <textarea id="desc" placeholder="dwarf cleric, warhammer held against chest, shield on back"></textarea>
-        <div class="row">
-          <label class="f" for="seed" style="margin:0">Seed</label>
-          <input id="seed" type="number" value="42" style="width:110px">
-          <button class="btn" id="dice" title="Random seed" aria-label="Random seed">🎲</button>
-        </div>
-        <div class="hint">Needs Draw Things open with its API server on.</div>
+        <textarea id="desc" placeholder="e.g. dwarf cleric holding a warhammer against his chest, shield on his back"></textarea>
+        <button class="btn" id="dice" type="button">🎲 Try a different version</button>
+        <div class="hint needsDT" hidden>Needs Draw Things (see setup above).</div>
       </div>
     </div>
 
-    <div class="card stack">
-      <div class="row" style="flex-wrap:wrap;gap:6px 8px">
-        <label for="real" style="white-space:nowrap">Character is</label>
-        <input id="real" type="number" min="0.3" max="8" step="0.01" placeholder="1.80" style="width:72px"><span style="white-space:nowrap">m tall,</span>
-        <span style="white-space:nowrap">scale</span>
-        <select id="scale" aria-label="Miniature scale" style="padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);color:var(--text);font:inherit">
-          <option value="28">28 mm</option><option value="32" selected>32 mm</option><option value="54">54 mm</option>
-        </select>
+    <div class="card stack" id="sizeCard">
+      <h2>2 · 📏 Size &amp; printer</h2>
+      <div class="row" style="flex-wrap:wrap">
+        <label for="real" style="font-weight:500">How tall is the character?</label>
+        <span class="row"><input id="real" type="number" min="0.3" max="8" step="0.01" placeholder="1.80" style="width:84px"> m</span>
       </div>
-      <div class="hint" style="margin-top:-6px">Sets the height below: a 1.8 m human is 28, 32 or 54 mm. Add a little for horns or a raised weapon.</div>
-      <div class="slider"><label for="height">Figure height</label><output id="heightV"></output>
+      <div>
+        <label class="f" id="scaleL">Scale</label>
+        <div class="seg" role="radiogroup" aria-labelledby="scaleL" id="scale">
+          <button type="button" role="radio" data-v="28" aria-checked="false">28 mm</button>
+          <button type="button" role="radio" data-v="32" aria-checked="true">32 mm<small>most common</small></button>
+          <button type="button" role="radio" data-v="54" aria-checked="false">54 mm</button>
+        </div>
+        <div class="hint" style="margin-top:6px">An average human (1.8 m) comes out at 28, 32 or 54 mm. Add a little for horns or a raised weapon.</div>
+      </div>
+      <div>
+        <label class="f" id="nozzleL">🖨️ Your printer's nozzle</label>
+        <div class="seg" role="radiogroup" aria-labelledby="nozzleL" id="nozzle">
+          <button type="button" role="radio" data-v="0.2" aria-checked="false">0.2 mm<small>fine</small></button>
+          <button type="button" role="radio" data-v="0.4" aria-checked="true">0.4 mm<small>standard</small></button>
+          <button type="button" role="radio" data-v="0.6" aria-checked="false">0.6 mm<small>fast</small></button>
+        </div>
+        <div class="hint" style="margin-top:6px">Not sure? Most printers come with 0.4 mm. Choose the same nozzle in Bambu Studio.</div>
+      </div>
+      <div class="slider"><label for="height">📏 Mini height</label><output id="heightV"></output>
         <input id="height" type="range" min="15" max="120" step="1" value="32"></div>
-      <div class="slider"><label for="base">Base diameter</label><output id="baseV"></output>
+      <div class="slider"><label for="base">Base size</label><output id="baseV"></output>
         <input id="base" type="range" min="20" max="50" step="1" value="25"></div>
-      <div class="slider"><label for="inflate">Thicken thin parts</label><output id="inflateV"></output>
-        <input id="inflate" type="range" min="0" max="0.3" step="0.01" value="0.08"></div>
-      <label class="row"><input id="nobase" type="checkbox"> Keep the model's own base</label>
-      <button class="primary" id="go">Generate mini</button>
+      <details class="adv">
+        <summary>⚙️ Advanced</summary>
+        <div class="stack">
+          <div class="slider"><label for="inflate">Extra thickness for thin parts</label><output id="inflateV"></output>
+            <input id="inflate" type="range" min="0" max="0.4" step="0.01" value="0.16">
+            <span class="hint" style="grid-column:1/-1">Set by your nozzle. More keeps swords and capes in one piece, but softens faces.</span></div>
+          <label class="check"><input id="nobase" type="checkbox"><span style="font-weight:400">Use the character's own base instead of a round one</span></label>
+          <div class="row"><label for="seed" style="white-space:nowrap">Variation number</label><input id="seed" type="number" value="42" style="width:110px"></div>
+        </div>
+      </details>
+      <div id="goWrap"><button class="btn primary" id="go" type="button">✨ Make my mini</button></div>
       <div id="msg" class="msg" role="status"></div>
     </div>
 
     <div class="card" id="jobCard" hidden>
+      <h2 id="jobTitle" style="font:600 15px Inter,sans-serif;margin:0"></h2>
       <ol class="steps" id="steps">
-        <li data-s="1"><span class="dot"></span>Image / sculpt redraw</li>
-        <li data-s="2"><span class="dot"></span>3D mesh (Pixal3D, ~7 min)</li>
-        <li data-s="3"><span class="dot"></span>Print prep</li>
+        <li data-s="1"><span class="dot">1</span>🖼️ Getting the picture ready</li>
+        <li data-s="2"><span class="dot">2</span>🧊 Building the 3D shape (the long part)</li>
+        <li data-s="3"><span class="dot">3</span>🖨️ Making the print-ready file</li>
       </ol>
-      <div class="detail" id="detail"></div>
-      <details><summary class="hint">Log</summary><pre id="log"></pre></details>
+      <div class="bar"><i id="barFill"></i></div>
+      <p class="hint" id="jobNote" style="margin:8px 0 0"></p>
+      <details class="adv" style="margin-top:10px"><summary class="hint">Technical details (for troubleshooting)</summary><pre class="log" id="log"></pre></details>
     </div>
   </section>
 
-  <section class="stack">
-    <div class="card">
+  <section id="right">
+    <div class="card" id="viewCard">
       <div class="topbar">
-        <h2 id="title">No mini selected</h2>
-        <div class="row">
-          <button class="btn" id="reprep" disabled title="Re-run print prep with the current sliders (seconds)">Re-prep</button>
-          <button class="btn" id="reveal" disabled>Show in Finder</button>
-          <button class="btn" id="open" disabled>Open in Bambu Studio</button>
+        <h2 id="title">Your mini will appear here</h2>
+        <div class="actions">
+          <button class="btn" id="reprep" type="button" disabled title="Remakes the print file with your size and nozzle settings. About 30 seconds. The character itself doesn't change.">🔁 Apply new size</button>
+          <button class="btn" id="reveal" type="button" disabled>📂 Show in Finder</button>
+          <button class="btn primary" id="open" type="button" disabled>🖨️ Open in Bambu Studio</button>
         </div>
       </div>
       <div id="viewerWrap">
-        <canvas id="viewer"></canvas>
-        <div class="overlay" id="overlay">Generate a mini, or pick one below.</div>
-        <div class="dims" id="dims"></div>
+        <canvas id="viewer" aria-label="3D view of the mini: drag to turn it, scroll to zoom"></canvas>
+        <div class="overlay" id="overlay">✨ Make your first mini on the left.<br>It will show up here, ready to spin around.</div>
+        <div class="overlay" id="busy" hidden><div><div class="big" id="busyEm">🧊</div><div class="name" id="busyStep"></div><div class="hint" id="busyTime"></div></div></div>
+        <div class="dims" id="dims" hidden></div>
       </div>
       <div class="thumbs" id="thumbs"></div>
+      <div id="tips"></div>
     </div>
-    <div class="card">
+    <div class="card" id="galleryCard">
+      <h2>🗂️ Your minis</h2>
       <div class="gallery" id="gallery"></div>
     </div>
   </section>
 </main>
-<dialog id="zoom"><img alt=""></dialog>
+<dialog class="zoom" id="zoom"><img alt=""></dialog>
+<dialog id="quitDlg">
+  <p id="quitText" style="margin:0 0 16px">Quit Mimic? Your minis are saved.</p>
+  <form method="dialog" class="row" style="justify-content:flex-end">
+    <button class="btn" value="no">Keep going</button><button class="btn primary" value="yes">Quit</button>
+  </form>
+</dialog>
 
 <script type="module">
 import * as THREE from "three";
@@ -187,43 +291,64 @@ import { STLLoader } from "three/addons/loaders/STLLoader.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 const $ = id => document.getElementById(id);
-let mode = "image", file = null, selected = null, wasRunning = false;
+const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } },
+                set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+let mode = "image", file = null, selected = null, wasRunning = false, dtReady = false, inflateTouched = false;
 
-// ---- form ----
-function setMode(m) {
-  mode = m;
-  $("modeImage").setAttribute("aria-pressed", m === "image");
-  $("modeDesc").setAttribute("aria-pressed", m === "desc");
-  $("imagePane").hidden = m !== "image";
-  $("descPane").hidden = m !== "desc";
+// ---- radio groups (role=radio buttons, arrow keys move) ----
+function radios(group, onPick) {
+  const btns = [...group.querySelectorAll("[role=radio]")];
+  const pick = b => { btns.forEach(x => { x.setAttribute("aria-checked", x === b); x.tabIndex = x === b ? 0 : -1; }); onPick(b); };
+  btns.forEach((b, i) => {
+    b.tabIndex = b.getAttribute("aria-checked") === "true" ? 0 : -1;
+    b.onclick = () => pick(b);
+    b.onkeydown = e => {
+      const d = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+      if (d) { e.preventDefault(); const n = btns[(i + d + btns.length) % btns.length]; pick(n); n.focus(); }
+    };
+  });
+  return v => { const b = btns.find(x => x.dataset.v === v); if (b) pick(b); };
 }
-$("modeImage").onclick = () => setMode("image");
-$("modeDesc").onclick = () => setMode("desc");
-$("dice").onclick = () => $("seed").value = Math.floor(Math.random() * 1e6);
+const value = group => group.querySelector("[aria-checked=true]")?.dataset.v;
+
+radios($("modeImage").parentElement, b => {
+  mode = b.id === "modeDesc" ? "desc" : "image";
+  $("imagePane").hidden = mode !== "image";
+  $("descPane").hidden = mode !== "desc";
+});
+radios($("scale"), () => fromReal());
+const setNozzle = radios($("nozzle"), b => {
+  store.set("nozzle", b.dataset.v);
+  if (!inflateTouched) { $("inflate").value = (0.4 * b.dataset.v).toFixed(2); showSlider("inflate"); }
+  tips();
+});
+
+$("dice").onclick = () => { $("seed").value = Math.floor(Math.random() * 1e6); say("🎲 Next version picked. Press ✨ Make my mini."); };
 
 const units = { height: " mm", base: " mm", inflate: " mm" };
-for (const k of Object.keys(units)) {
-  const upd = () => $(k + "V").textContent = $(k).value + units[k];
-  $(k).oninput = upd; upd();
-}
+function showSlider(k) { $(k + "V").textContent = $(k).value + units[k]; }
+for (const k of Object.keys(units)) { $(k).addEventListener("input", () => showSlider(k)); showSlider(k); }
+$("inflate").addEventListener("input", () => inflateTouched = true);
 
 function fromReal() {
   const m = parseFloat($("real").value);
   if (!(m > 0)) return;
-  $("height").value = Math.round(m * $("scale").value / 1.8);
-  $("height").dispatchEvent(new Event("input"));
+  $("height").value = Math.round(m * value($("scale")) / 1.8);
+  showSlider("height");
 }
-$("real").oninput = fromReal; $("scale").onchange = fromReal;
+$("real").oninput = fromReal;
 
+// ---- picture ----
+const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
 function takeFile(f) {
   if (!f || !f.type.startsWith("image/")) return;
   file = f;
   const url = URL.createObjectURL(f);
-  $("dropInner").innerHTML = `<img src="${url}" alt="Chosen image"><span class="hint"></span>`;
+  $("dropInner").innerHTML = `<img alt="Your picture"><span class="hint"></span>`;
+  $("dropInner").querySelector("img").src = url;
   $("dropInner").querySelector(".hint").textContent = f.name;
   if (!$("name").value) $("name").value = slug(f.name.replace(/\.[^.]+$/, ""));
 }
-const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
 $("drop").onclick = () => $("file").click();
 $("drop").onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("file").click(); } };
 $("file").onchange = e => takeFile(e.target.files[0]);
@@ -232,13 +357,27 @@ $("drop").ondragleave = () => $("drop").classList.remove("over");
 $("drop").ondrop = e => { e.preventDefault(); $("drop").classList.remove("over"); takeFile(e.dataTransfer.files[0]); };
 $("name").onblur = () => $("name").value = slug($("name").value);
 
+// ---- messages: server errors in plain words ----
+function say(text, kind = "") { $("msg").textContent = text; $("msg").className = "msg" + (kind ? " " + kind : ""); }
+function plain(err, name) {
+  const m = err.message || "";
+  if (m.startsWith("busy with")) return `⏳ Mimic is still making ${m.slice(10)}. Wait for it to finish.`;
+  if (m.includes("already exists")) return `You already have a mini called ${name}. Pick a new name, or use 🔁 Apply new size to change it.`;
+  if (m.startsWith("name:")) return "Names can only use lowercase letters, numbers and dashes.";
+  if (m.includes("must be numbers")) return "Sizes must be numbers.";
+  if (m.includes("no model yet")) return "This mini isn't made yet. Press ✨ Make my mini first.";
+  if (m.includes("no STL")) return "This mini's print file isn't ready yet.";
+  if (m.includes("describe")) return "Describe the character first.";
+  if (m.startsWith("still making")) return `⏳ Mimic is ${m}. Wait for it to finish.`;
+  return "Something went wrong: " + m;
+}
+
 function prepParams(name) {
-  const p = new URLSearchParams({ name, height: $("height").value, base: $("base").value, inflate: $("inflate").value });
+  const p = new URLSearchParams({ name, height: $("height").value, base: $("base").value, nozzle: value($("nozzle")) });
+  if (inflateTouched) p.set("inflate", $("inflate").value);
   if ($("nobase").checked) p.set("nobase", "1");
   return p;
 }
-function say(text, err = false) { $("msg").textContent = text; $("msg").className = "msg" + (err ? " err" : ""); }
-
 async function post(url, body) {
   const r = await fetch(url, { method: "POST", body });
   const j = await r.json().catch(() => ({}));
@@ -248,85 +387,139 @@ async function post(url, body) {
 
 $("go").onclick = async () => {
   const name = slug($("name").value);
-  if (!name) return say("Give the mini a name first.", true);
+  if (!name) return say("Give your mini a name first.", "err");
   $("name").value = name;
   const p = prepParams(name);
+  p.set("seed", $("seed").value || "42");
   let body;
   if (mode === "image") {
-    if (!file) return say("Choose an image first.", true);
+    if (!file) return say("Choose a picture first.", "err");
     body = file;
-    if ($("restyle").checked) p.set("restyle", "1"); p.set("seed", $("seed").value || "42");
+    if ($("restyle").checked && dtReady) p.set("restyle", "1");
   } else {
+    if (!dtReady) return say("✍️ Describe it needs Draw Things. See the setup steps above.", "err");
     const d = $("desc").value.trim();
-    if (!d) return say("Describe the character first.", true);
-    p.set("desc", d); p.set("seed", $("seed").value || "42");
+    if (!d) return say("Describe the character first.", "err");
+    p.set("desc", d);
   }
   try { await post("/api/generate?" + p, body); say(""); selected = name; poll(); }
-  catch (e) { say(e.message, true); }
+  catch (e) { say(plain(e, name), "err"); }
 };
-
 $("reprep").onclick = async () => {
   try { await post("/api/prep?" + prepParams(selected)); say(""); poll(); }
-  catch (e) { say(e.message, true); }
+  catch (e) { say(plain(e, selected), "err"); }
 };
-$("open").onclick = () => post("/api/open?name=" + selected).catch(e => say(e.message, true));
-$("reveal").onclick = () => post("/api/reveal?name=" + selected).catch(e => say(e.message, true));
+$("open").onclick = () => post("/api/open?name=" + selected).catch(e => say(plain(e, selected), "err"));
+$("reveal").onclick = () => post("/api/reveal?name=" + selected).catch(e => say(plain(e, selected), "err"));
+
+// ---- setup checklist ----
+async function health() {
+  let h;
+  try { h = await (await fetch("/api/health")).json(); } catch { return; }
+  const { running, model } = h.drawthings;
+  $("t1").textContent = running ? "✅" : "⬜";
+  $("t2").textContent = running ? "✅" : "⬜";
+  $("t3").textContent = model ? "✅" : "⬜";
+  const ready = running && model;
+  if (ready && !dtReady && !$("setup").hidden) {
+    $("setup").querySelector("h2").textContent = "✅ All set!";
+    setTimeout(() => $("setup").hidden = true, 3000);
+  } else if (!ready) {
+    $("setup").hidden = false;
+  }
+  dtReady = ready;
+  document.querySelectorAll(".needsDT").forEach(el => el.hidden = ready);
+  $("restyle").disabled = !ready;
+  $("modeDesc").disabled = !ready;
+  if (!ready) setTimeout(health, 5000);
+}
 
 // ---- job progress ----
+const STEP = { 1: ["🖼️", "Getting the picture ready"], 2: ["🧊", "Building the 3D shape"], 3: ["🖨️", "Making the print-ready file"] };
 async function poll() {
   const s = await (await fetch("/api/job")).json();
-  const card = $("jobCard");
-  if (s.name) card.hidden = false;
+  if (!s.name) return;
   const log = s.log || "";
-  const step = s.kind === "prep" ? 3 : log.includes("[3/3]") ? 3 : log.includes("[2/3]") ? 2 : 1;
+  const prep = s.kind === "prep";
+  const step = prep ? 3 : log.includes("[3/3]") ? 3 : log.includes("[2/3]") ? 2 : 1;
   const failed = !s.running && s.exit !== null && s.exit !== 0;
+  if (!s.running && !wasRunning && !failed) return;  // an old job from an earlier visit
+  $("jobCard").hidden = false;
   for (const li of $("steps").children) {
     const n = +li.dataset.s;
-    li.className = "";
-    if (s.kind === "prep" && n < 3) { li.className = "done"; continue; }
-    if (s.running) li.className = n < step ? "done" : n === step ? "active" : "";
-    else if (s.exit === 0) li.className = "done";
-    else if (failed) li.className = n < step ? "done" : n === step ? "fail" : "";
+    li.hidden = prep && n < 3;
+    li.className = s.running ? (n < step ? "done" : n === step ? "active" : "")
+      : s.exit === 0 ? "done" : failed ? (n < step ? "done" : n === step ? "fail" : "") : "";
   }
-  const mm = String(Math.floor(s.elapsed / 60)), ss = String(s.elapsed % 60).padStart(2, "0");
-  $("detail").textContent = s.running ? `${s.name} · ${mm}:${ss}  ${s.detail || ""}` :
-    failed ? `${s.name} failed, see log` : s.name ? `${s.name} done` : "";
+  const mm = Math.floor(s.elapsed / 60), ss = String(s.elapsed % 60).padStart(2, "0");
+  const total = prep ? 40 : 540;
+  $("barFill").style.width = (s.running ? Math.min(95, 100 * s.elapsed / total) : s.exit === 0 ? 100 : 0) + "%";
   $("log").textContent = log;
-  for (const b of ["go", "reprep"]) $(b).disabled = s.running || (b === "reprep" && !selected);
-  if (s.running) { wasRunning = true; setTimeout(poll, 1500); }
-  else if (wasRunning) {
-    wasRunning = false; await loadRuns();
-    if (s.exit === 0) { select(s.name, true); $("name").value = ""; }
-    const warn = log.split("\n").find(l => l.includes("WARNING"));
-    if (warn) say(warn.replace(/^mini_prep: WARNING /, "Heads up: "), true);
+  if (s.running) {
+    $("jobTitle").textContent = prep ? `🔁 Updating ${s.name}'s size… about 30 seconds` : `⏳ Making ${s.name}… this takes about 7–10 minutes`;
+    $("jobNote").textContent = prep ? "" : `${mm}:${ss} so far. You can leave this page open and come back. Your Mac will be busy, and the fan may get loud.`;
+    $("busy").hidden = false; $("overlay").hidden = true;
+    $("busyEm").textContent = STEP[step][0]; $("busyStep").textContent = `${s.name}: ${STEP[step][1].toLowerCase()}`;
+    $("busyTime").textContent = `${mm}:${ss}` + (prep ? "" : ` · about ${Math.max(1, Math.round((total - s.elapsed) / 60))} min left`);
+    wasRunning = true;
+    for (const b of ["go", "reprep"]) $(b).disabled = true;
+    setTimeout(poll, 1500);
+    return;
   }
+  $("busy").hidden = true;
+  $("go").disabled = false;
+  $("reprep").disabled = !selected;
+  if (failed) {
+    const stepName = STEP[step][1].toLowerCase();
+    $("jobTitle").textContent = `❌ Something went wrong while ${stepName}.`;
+    $("jobNote").textContent = /Draw Things/.test(log)
+      ? "Is Draw Things still open? Check the setup steps, then try again."
+      : "Try again, or try a clearer, full-body picture.";
+  } else {
+    $("jobTitle").textContent = `🎉 ${s.name} is ready!`;
+    $("jobNote").textContent = "";
+    if (log.includes("WARNING")) say("⚠️ Your mini is ready, but some thin parts may be fragile. Check it in Bambu Studio before printing.", "warn");
+  }
+  if (wasRunning) { wasRunning = false; await loadRuns(); if (s.exit === 0) { select(s.name, true); $("name").value = ""; $("open").focus(); } }
+}
+
+// ---- print tips ----
+const TIPS = {
+  "0.2": ["Layer height 0.06–0.08 mm", "3–4", "Sharp faces, beard braids and belt buckles. Slow, but the most detail."],
+  "0.4": ["Layer height 0.12 mm", "3", "Faces and weapons come out clearly; hair strands and cloth edges get softened. A good balance."],
+  "0.6": ["Layer height 0.2 mm", "2–3", "Quick and sturdy; small details blur. Best at 54 mm scale or bigger."],
+};
+function tips() {
+  const n = value($("nozzle")), [layer, walls, expect] = TIPS[n];
+  $("tips").innerHTML = `<b>🖨️ Print tips for a ${n} mm nozzle</b><ul>
+    <li>${layer}. Supports: Tree (auto). Walls: ${walls}.</li>
+    <li>Stand the mini upright on its base. No brim needed.</li>
+    <li>${expect}</li></ul>`;
 }
 
 // ---- runs ----
 let runs = [];
 async function loadRuns() {
-  runs = await (await fetch("/api/runs")).json();
-  const g = $("gallery");
-  g.replaceChildren(...runs.map(r => {
+  runs = (await (await fetch("/api/runs")).json()).filter(r => !r.name.startsWith("_"));
+  $("gallery").replaceChildren(...runs.map(r => {
     const b = document.createElement("button");
-    b.className = "run";
+    b.className = "run"; b.type = "button"; b.dataset.name = r.name;
     b.setAttribute("aria-current", r.name === selected);
-    const img = r.renders.includes("front") ? `/runs/${r.name}/${r.name}_front.png?${r.mtime}`
-              : r.source ? `/runs/${r.name}/source.png` : null;
-    b.innerHTML = img ? `<img alt="" loading="lazy">` : `<span class="ph"></span>`;
+    const img = r.renders.includes("front") ? `/runs/${r.name}/${r.name}_front.png?${r.mtime}` : r.source ? `/runs/${r.name}/source.png` : null;
+    b.innerHTML = img ? `<img alt="">` : `<span class="ph"></span>`;
     if (img) b.querySelector("img").src = img;
     const t = document.createElement("div"); t.textContent = r.name; b.append(t);
     b.onclick = () => select(r.name);
     return b;
   }));
+  if (!runs.length) $("gallery").innerHTML = `<p class="hint" style="margin:0">Your finished minis will be collected here.</p>`;
 }
-
 function select(name, force = false) {
   if (name === selected && !force && currentStl) return;
   selected = name;
   const r = runs.find(x => x.name === name);
   $("title").textContent = name;
-  for (const el of $("gallery").children) el.setAttribute("aria-current", el.lastChild.textContent === name);
+  for (const el of $("gallery").querySelectorAll(".run")) el.setAttribute("aria-current", el.dataset.name === name);
   const has = !!(r && r.stl);
   $("open").disabled = $("reveal").disabled = !has;
   $("reprep").disabled = !r;
@@ -336,17 +529,29 @@ function select(name, force = false) {
   const add = (src, cap) => {
     const f = document.createElement("figure");
     f.innerHTML = `<img alt=""><figcaption></figcaption>`;
-    f.querySelector("img").src = src; f.querySelector("img").alt = cap;
+    const im = f.querySelector("img"); im.src = src; im.alt = cap;
     f.querySelector("figcaption").textContent = cap;
-    f.querySelector("img").onclick = () => { $("zoom").querySelector("img").src = src; $("zoom").showModal(); };
+    im.onclick = () => { $("zoom").querySelector("img").src = src; $("zoom").showModal(); };
     t.append(f);
   };
-  if (r.source) add(`/runs/${name}/source.png`, "source");
-  for (const v of r.renders) add(`/runs/${name}/${name}_${v}.png${bust}`, v);
+  if (r.source) add(`/runs/${name}/source.png`, "Your picture");
+  for (const [v, cap] of [["front", "Front"], ["side", "Side"], ["back", "Back"]]) if (r.renders.includes(v)) add(`/runs/${name}/${name}_${v}.png${bust}`, cap);
   if (has) loadStl(`/runs/${name}/${r.stl}${bust}`);
-  else { clearModel(); $("overlay").textContent = "No STL yet."; $("overlay").hidden = false; }
+  else { clearModel(); $("overlay").textContent = "This mini isn't finished yet."; $("overlay").hidden = false; }
 }
 $("zoom").onclick = () => $("zoom").close();
+
+// ---- quit ----
+$("quit").onclick = async () => {
+  const s = await fetch("/api/job").then(r => r.json()).catch(() => ({}));
+  $("quitText").textContent = s.running ? `Mimic is still making ${s.name}. You can quit once it's finished.` : "Quit Mimic? Your minis are saved.";
+  $("quitDlg").showModal();
+};
+$("quitDlg").onclose = async () => {
+  if ($("quitDlg").returnValue !== "yes") return;
+  try { await post("/api/quit"); } catch (e) { return say(plain(e), "err"); }
+  document.body.innerHTML = `<main style="display:block;text-align:center;padding:80px 24px"><p style="font-size:40px;margin:0">👋</p><h2>Mimic has stopped.</h2><p class="hint">To start it again, open Mimic from your Applications folder.</p></main>`;
+};
 
 // ---- 3D viewer ----
 const canvas = $("viewer");
@@ -359,45 +564,50 @@ controls.enableDamping = true;
 scene.add(new THREE.HemisphereLight(0xfff4e8, 0x3a3530, 1.4));
 const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(40, 80, 60); scene.add(key);
 const rim = new THREE.DirectionalLight(0xffd9c0, 0.8); rim.position.set(-60, 30, -50); scene.add(rim);
-const grid = new THREE.GridHelper(60, 12, 0x8a8175, 0x8a8175);
-grid.material.opacity = 0.25; grid.material.transparent = true; scene.add(grid);
-const material = new THREE.MeshStandardMaterial({ color: 0xb9b2a8, roughness: 0.75, metalness: 0 });
+const gridColor = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--grid"));
+const grid = new THREE.GridHelper(60, 12, gridColor, gridColor);
+grid.material.opacity = 0.35; grid.material.transparent = true; scene.add(grid);
+const material = new THREE.MeshStandardMaterial({ color: 0xa9a39b, roughness: 0.75, metalness: 0 });
 let currentStl = null, mesh = null;
-
 function clearModel() {
   if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); mesh = null; }
-  currentStl = null; $("dims").textContent = "";
+  currentStl = null; $("dims").hidden = true;
 }
 function loadStl(url) {
   clearModel();
   currentStl = url;
-  $("overlay").textContent = "Loading model…"; $("overlay").hidden = false;
+  $("overlay").textContent = "Loading your mini…"; $("overlay").hidden = false;
   new STLLoader().load(url, geo => {
     if (currentStl !== url) return geo.dispose();
-    geo.rotateX(-Math.PI / 2);                // STL is Z-up, three.js is Y-up
+    geo.rotateX(-Math.PI / 2);                 // print files are Z-up, the viewer is Y-up
     geo.computeBoundingBox();
     const b = geo.boundingBox, size = new THREE.Vector3(); b.getSize(size);
     geo.translate(-(b.min.x + b.max.x) / 2, -b.min.y, -(b.min.z + b.max.z) / 2);
     mesh = new THREE.Mesh(geo, material); scene.add(mesh);
     const r = Math.max(size.x, size.y, size.z);
     controls.target.set(0, size.y / 2, 0);
-    camera.position.set(0, size.y * 0.7, -r * 2.4);  // figures face −Z here
+    camera.position.set(0, size.y * 0.65, -r * 2.0);  // minis face -Z here
     controls.update();
-    $("dims").textContent = `${size.x.toFixed(1)} × ${size.z.toFixed(1)} × ${size.y.toFixed(1)} mm`;
+    $("dims").textContent = `${Math.round(size.y)} mm tall · ${Math.round(size.x)} × ${Math.round(size.z)} mm`;
+    $("dims").hidden = false;
     $("overlay").hidden = true;
-  }, undefined, () => { $("overlay").textContent = "Couldn't load the STL."; });
+  }, undefined, () => { $("overlay").textContent = "Couldn't show this mini. Try 📂 Show in Finder."; });
 }
 function resize() {
   const w = canvas.clientWidth, h = canvas.clientHeight;
-  if (canvas.width !== Math.floor(w * renderer.getPixelRatio())) { renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+  if (canvas.width !== Math.floor(w * renderer.getPixelRatio()) || canvas.height !== Math.floor(h * renderer.getPixelRatio())) {
+    renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
 }
 renderer.setAnimationLoop(() => { resize(); controls.update(); renderer.render(scene, camera); });
 
+setNozzle(store.get("nozzle") || "0.4");
 await loadRuns();
 // ?run=<name> opens that mini; otherwise the newest.
 const wanted = new URLSearchParams(location.search).get("run");
 const first = runs.find(r => r.name === wanted) || runs[0];
 if (first) select(first.name);
+health();
 poll();
 </script>
 </body>

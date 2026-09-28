@@ -13,20 +13,16 @@ the right of the front image, and the figure faces the image's left edge.
 """
 
 import argparse
-import base64
-import io
-import json
 import sys
-import urllib.request
 from pathlib import Path
 
 from PIL import Image
 
 LAB = Path(__file__).resolve().parents[1] / "image-to-3dlab"
-sys.path.insert(0, str(LAB))
+sys.path[:0] = [str(LAB), str(Path(__file__).resolve().parent)]
 from image_to_3dlab.matte import cut_out  # noqa: E402
+import drawthings  # noqa: E402  (beside this file)
 
-API = "http://127.0.0.1:7860/sdapi/v1/img2img"
 CANVAS = 1024
 FILL = 0.85  # figure height as a share of the frame, the README's advice for this rig
 
@@ -47,17 +43,6 @@ TURNS = {
             "was on the left of the original image is now nearest the camera",
 }
 ORDER = ["front", "right", "back", "left"]
-
-
-def draw(front: Image.Image, turn: str, seed: int) -> Image.Image:
-    buf = io.BytesIO()
-    front.save(buf, "PNG")
-    body = {"init_images": [base64.b64encode(buf.getvalue()).decode()], "strength": 1.0,
-            "prompt": COMMON.format(turn=turn), "seed": seed,
-            "width": front.width, "height": front.height}
-    req = urllib.request.Request(API, json.dumps(body).encode(), {"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=900) as r:
-        return Image.open(io.BytesIO(base64.b64decode(json.load(r)["images"][0]))).convert("RGB")
 
 
 def frame(cut: Image.Image) -> Image.Image:
@@ -94,7 +79,7 @@ def main():
         if a.only and name not in a.only:
             continue
         print(f"view {i}/4: {name}", flush=True)
-        img = front if name == "front" else draw(front, TURNS[name], a.seed)
+        img = front if name == "front" else drawthings.edit(front, COMMON.format(turn=TURNS[name]), a.seed)
         img.save(a.out / f"raw_{name}.png")
         cut, _ = cut_out(img)
         frame(cut).save(a.out / f"{i}_{name}.png")

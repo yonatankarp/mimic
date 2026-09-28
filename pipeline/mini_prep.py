@@ -1,7 +1,7 @@
 """Turn a generated GLB into a printable mini STL, plus preview renders.
 
     blender -b -P pipeline/mini_prep.py -- in.glb out.stl [--height 32] [--base 25]
-        [--base-height 3] [--inflate 0.08] [--voxel 0.05] [--no-base] [--flatten 0.4]
+        [--base-height 3] [--nozzle 0.4] [--inflate MM] [--voxel 0.05] [--no-base] [--flatten 0.4]
 
 Units are millimetres. Steps: join meshes, scale to --height, inflate the surface
 by --inflate (thickens blades/staffs by twice that), stand it on a round base,
@@ -24,12 +24,18 @@ p.add_argument("stl")
 p.add_argument("--height", type=float, default=32.0, help="figure height, feet to top, mm")
 p.add_argument("--base", type=float, default=25.0, help="base diameter, mm")
 p.add_argument("--base-height", type=float, default=3.0)
-p.add_argument("--inflate", type=float, default=0.08, help="surface offset, mm")
+p.add_argument("--nozzle", type=float, default=0.4, help="printer nozzle, mm; sets --inflate")
+p.add_argument("--inflate", type=float, default=None,
+               help="surface offset, mm (default 0.4 x nozzle: 0.08 keeps a 0.2 nozzle's cloth whole)")
 p.add_argument("--voxel", type=float, default=0.05, help="remesh voxel size, mm; finer keeps detail, --faces trims the result")
 p.add_argument("--no-base", action="store_true", help="keep the model's own base")
 p.add_argument("--flatten", type=float, default=0.4, help="slice this much off the bottom, mm")
 p.add_argument("--faces", type=int, default=800_000, help="decimate to about this many triangles")
 a = p.parse_args(argv)
+if a.inflate is None:
+    # A wider nozzle drops thinner walls, so thin parts need more help to survive the slicer.
+    # 0.4 x nozzle was tuned on a 0.2 nozzle (0.08 mm); 0.15 there already looked melted.
+    a.inflate = round(0.4 * a.nozzle, 3)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=a.glb)

@@ -36,6 +36,12 @@ class PrepFlags(unittest.TestCase):
             with self.assertRaises(ValueError, msg=bad):
                 serve.prep_flags({"height": bad})
 
+    def test_nozzle_is_one_of_the_offered_sizes(self):
+        self.assertEqual(serve.prep_flags({"nozzle": "0.2"}), ["--nozzle", "0.2"])
+        for bad in ("0.3", "0.20", "--image", "1e9"):
+            with self.assertRaises(ValueError, msg=bad):
+                serve.prep_flags({"nozzle": bad})
+
     def test_unknown_keys_are_dropped(self):
         self.assertEqual(serve.prep_flags({"voxel": "0.01", "stl": "/etc/passwd"}), [])
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Mini Forge: a local web UI over make_mini.sh and mini_prep.py.
+"""Mimic: a local web UI over make_mini.sh and mini_prep.py.
 
-    python3 ~/Projects/minis/ui/serve.py      # then open http://127.0.0.1:8765
+    image-to-3dlab/.venv/bin/python ui/serve.py      # or double-click Mimic.command
 
 Stdlib only. One job at a time: Pixal3D and Blender both want the whole machine.
 """
@@ -12,6 +12,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -23,8 +24,11 @@ RUNS = ROOT / "runs"
 UI = Path(__file__).resolve().parent
 PORT = 8765
 NAME_RE = re.compile(r"[a-z0-9][a-z0-9-]{0,63}")  # used with fullmatch: "$" admits a trailing newline
-TYPES = {".html": "text/html; charset=utf-8", ".png": "image/png", ".stl": "model/stl",
+TYPES = {".html": "text/html; charset=utf-8", ".png": "image/png", ".stl": "model/stl", ".svg": "image/svg+xml",
          ".glb": "model/gltf-binary", ".json": "application/json", ".log": "text/plain; charset=utf-8"}
+
+NOZZLES = {"0.2", "0.4", "0.6"}
+STATIC = {"/logo.png"}  # served from ui/ as they are
 
 job = {"running": False, "name": None, "kind": None, "log": "", "exit": None, "started": 0}
 lock = threading.Lock()
@@ -39,6 +43,10 @@ def prep_flags(q):
             if not math.isfinite(value) or value < 0:  # float() also takes "nan" and "inf"
                 raise ValueError(key)
             flags += [f"--{key}", str(value)]
+    if "nozzle" in q:
+        if q["nozzle"] not in NOZZLES:
+            raise ValueError("nozzle")
+        flags += ["--nozzle", q["nozzle"]]
     if q.get("nobase") == "1":
         flags.append("--no-base")
     return flags
@@ -70,6 +78,15 @@ def job_status():
             s["detail"] = lines[-1] if lines else ""
     s["elapsed"] = int(time.time() - s["started"]) if s["started"] else 0
     return s
+
+
+def health():
+    """What the page's setup checklist shows. Draw Things is only needed to draw or redraw
+    a picture; turning an existing picture into a mini works without it."""
+    sys.path.insert(0, str(ROOT / "pipeline"))
+    import drawthings  # stdlib-only at import time
+
+    return {"drawthings": {"running": drawthings.reachable(), "model": drawthings.find_model() is not None}}
 
 
 def list_runs():
@@ -127,6 +144,10 @@ class H(BaseHTTPRequestHandler):
             return self.send(200, list_runs())
         if path == "/api/job":
             return self.send(200, job_status())
+        if path == "/api/health":
+            return self.send(200, health())
+        if path in STATIC and (UI / path[1:]).is_file():
+            return self.send_file(UI / path[1:])
         m = re.match(r"^/runs/([a-z0-9-]+)/([A-Za-z0-9_.-]+)$", path)
         if m:
             f = (RUNS / m[1] / m[2]).resolve()
@@ -136,6 +157,13 @@ class H(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path, q = urlparse(self.path).path, self.query()
+        if path == "/api/quit":
+            with lock:
+                if job["running"]:
+                    return self.send(409, {"error": f"still making {job['name']}"})
+            self.send(200, {"ok": True})
+            threading.Thread(target=self.server.shutdown, daemon=True).start()
+            return
         d = self.run_dir(q)
         if d is None:
             return
@@ -198,5 +226,5 @@ class H(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     RUNS.mkdir(exist_ok=True)
-    print(f"Mini Forge on http://127.0.0.1:{PORT}")
+    print(f"Mimic on http://127.0.0.1:{PORT}")
     ThreadingHTTPServer(("127.0.0.1", PORT), H).serve_forever()
