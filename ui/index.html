@@ -36,8 +36,23 @@ header { display:flex; align-items:center; gap:12px; padding:16px 24px 8px; max-
 header img { width:52px; height:52px; }
 h1 { font:600 28px/1 Fraunces, Georgia, serif; margin:0; letter-spacing:-.01em; }
 header .tag { color:var(--muted); font-size:13px; }
-#quit { margin-left:auto; height:32px; padding:0 12px; font:500 13px Inter, sans-serif; color:var(--muted); background:none; border:1px solid transparent; border-radius:var(--r-sm); cursor:pointer; }
+.hdr { margin-left:auto; display:flex; gap:4px; }
+.ghost, #quit { height:32px; padding:0 12px; font:500 13px Inter, sans-serif; color:var(--muted); background:none; border:1px solid transparent; border-radius:var(--r-sm); cursor:pointer; }
 #quit:hover { border-color:var(--line); color:var(--err); }
+.ghost:hover { border-color:var(--line); color:var(--text); }
+.titlewrap { display:flex; align-items:center; gap:6px; min-width:0; }
+.titlewrap h2 { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#del:hover { color:var(--err); }
+.chk { display:grid; grid-template-columns:24px 1fr; gap:2px 10px; padding:9px 0; border-top:1px solid var(--line); }
+.chk:first-child { border-top:0; }
+.chk .em { font-size:17px; line-height:1.3; }
+.chk b { font-weight:500; }
+.chk .fix { color:var(--muted); font-size:13px; }
+.chk.bad .fix { color:var(--err); }
+#settingsDlg { width:min(92vw,520px); max-width:none; }
+#settingsDlg h3 { font:600 15px Inter, sans-serif; margin:18px 0 8px; }
+#settingsDlg h3:first-child { margin-top:0; }
+select { height:40px; width:100%; padding:0 10px; border-radius:var(--r-sm); border:1px solid var(--line); background:var(--panel-2); color:var(--text); font:inherit; }
 main { display:grid; grid-template-columns:360px minmax(0,1fr); gap:20px; padding:12px 24px 32px; align-items:start; max-width:1440px; margin:0 auto; }
 main > section { min-width:0; display:flex; flex-direction:column; gap:16px; }
 .card { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; }
@@ -159,7 +174,10 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
 <header>
   <img src="/logo.png" alt="">
   <h1>Mimic</h1><span class="tag">Turn any character into a miniature you can print</span>
-  <button id="quit" type="button">⏻ Quit Mimic</button>
+  <div class="hdr">
+    <button class="ghost" id="settingsBtn" type="button">⚙️ Settings<span id="warnDot" hidden> ⚠️</span></button>
+    <button id="quit" type="button">⏻ Quit Mimic</button>
+  </div>
 </header>
 <main>
   <section id="left">
@@ -255,7 +273,8 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
   <section id="right">
     <div class="card" id="viewCard">
       <div class="topbar">
-        <h2 id="title">Your mini will appear here</h2>
+        <div class="titlewrap"><h2 id="title">Your mini will appear here</h2>
+          <button class="ghost" id="del" type="button" hidden>🗑️ Delete</button></div>
         <div class="actions">
           <button class="btn" id="reprep" type="button" disabled title="Remakes the print file with your size and nozzle settings. About 30 seconds. The character itself doesn't change.">🔁 Apply new size</button>
           <button class="btn" id="reveal" type="button" disabled>📂 Show in Finder</button>
@@ -278,6 +297,23 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
   </section>
 </main>
 <dialog class="zoom" id="zoom"><img alt=""></dialog>
+<dialog id="settingsDlg">
+  <h3>🩺 Is everything set up?</h3>
+  <div id="checks"><p class="hint">Checking…</p></div>
+  <button class="btn" id="recheck" type="button" style="margin-top:8px">🔄 Check again</button>
+  <h3>🖨️ Open minis in</h3>
+  <select id="slicer" aria-label="App to open minis in"></select>
+  <p class="hint" style="margin:6px 0 0">Mimic lists the slicers it finds on this Mac. "Your Mac's default app" works with any other slicer.</p>
+  <h3>📁 Where your minis are saved</h3>
+  <button class="btn" id="openFolder" type="button">📂 Open the minis folder</button>
+  <form method="dialog" class="row" style="justify-content:flex-end;margin-top:18px"><button class="btn primary">Done</button></form>
+</dialog>
+<dialog id="delDlg">
+  <p id="delText" style="margin:0 0 16px"></p>
+  <form method="dialog" class="row" style="justify-content:flex-end">
+    <button class="btn" value="no">Keep it</button><button class="btn primary" value="yes">🗑️ Move to Trash</button>
+  </form>
+</dialog>
 <dialog id="quitDlg">
   <p id="quitText" style="margin:0 0 16px">Quit Mimic? Your minis are saved.</p>
   <form method="dialog" class="row" style="justify-content:flex-end">
@@ -369,6 +405,8 @@ function plain(err, name) {
   if (m.includes("no STL")) return "This mini's print file isn't ready yet.";
   if (m.includes("describe")) return "Describe the character first.";
   if (m.startsWith("still making")) return `⏳ Mimic is ${m}. Wait for it to finish.`;
+  if (m.includes("slicer not installed")) return "That slicer isn't installed any more. Pick another one in ⚙️ Settings.";
+  if (m.includes("Trash")) return "Couldn't move it to the Trash. Try 📂 Show in Finder and delete it there.";
   return "Something went wrong: " + m;
 }
 
@@ -386,6 +424,8 @@ async function post(url, body) {
 }
 
 $("go").onclick = async () => {
+  const missing = lastChecks.filter(c => c.required && !c.ok);
+  if (missing.length) return say(`Mimic isn't fully set up yet: ${missing.map(c => c.label).join(", ")}. Open ⚙️ Settings to see how to fix it.`, "err");
   const name = slug($("name").value);
   if (!name) return say("Give your mini a name first.", "err");
   $("name").value = name;
@@ -409,7 +449,7 @@ $("reprep").onclick = async () => {
   try { await post("/api/prep?" + prepParams(selected)); say(""); poll(); }
   catch (e) { say(plain(e, selected), "err"); }
 };
-$("open").onclick = () => post("/api/open?name=" + selected).catch(e => say(plain(e, selected), "err"));
+$("open").onclick = () => post(`/api/open?name=${selected}&app=${slicerChoice()}`).catch(e => say(plain(e, selected), "err"));
 $("reveal").onclick = () => post("/api/reveal?name=" + selected).catch(e => say(plain(e, selected), "err"));
 
 // ---- setup checklist ----
@@ -483,6 +523,54 @@ async function poll() {
   if (wasRunning) { wasRunning = false; await loadRuns(); if (s.exit === 0) { select(s.name, true); $("name").value = ""; $("open").focus(); } }
 }
 
+// ---- settings: health checks and slicer ----
+let lastChecks = [], slicers = [];
+const slicerChoice = () => $("slicer").value || "default";
+function slicerLabel() {
+  const s = slicers.find(x => x.id === slicerChoice());
+  $("open").textContent = s ? `🖨️ Open in ${s.name}` : "🖨️ Open in your slicer";
+}
+async function loadChecks() {
+  let data;
+  try { data = await (await fetch("/api/checks")).json(); } catch { return; }
+  lastChecks = data.checks; slicers = data.slicers;
+  $("checks").replaceChildren(...lastChecks.map(c => {
+    const el = document.createElement("div");
+    el.className = "chk" + (c.ok ? "" : c.required ? " bad" : "");
+    el.innerHTML = `<span class="em"></span><div><b></b><div class="fix"></div></div>`;
+    el.querySelector(".em").textContent = c.ok ? "✅" : c.required ? "❌" : "⚠️";
+    el.querySelector("b").textContent = c.label + (c.required || c.ok ? "" : " (optional)");
+    el.querySelector(".fix").textContent = c.ok ? "" : c.fix;
+    return el;
+  }));
+  $("warnDot").hidden = !lastChecks.some(c => c.required && !c.ok);
+  const saved = store.get("slicer");
+  $("slicer").replaceChildren(...slicers.map(x => new Option(x.name, x.id)), new Option("Your Mac's default app for 3D files", "default"));
+  $("slicer").value = slicers.some(x => x.id === saved) || saved === "default" ? saved : (slicers[0]?.id || "default");
+  slicerLabel();
+}
+$("slicer").onchange = () => { store.set("slicer", $("slicer").value); slicerLabel(); };
+$("settingsBtn").onclick = () => { loadChecks(); $("settingsDlg").showModal(); };
+$("recheck").onclick = loadChecks;
+$("openFolder").onclick = () => post("/api/reveal-folder");
+
+$("del").onclick = () => {
+  $("delText").textContent = `Move ${selected} to the Trash? If you change your mind, you can put it back from the Trash.`;
+  $("delDlg").showModal();
+};
+$("delDlg").onclose = async () => {
+  if ($("delDlg").returnValue !== "yes") return;
+  const gone = selected;
+  try { await post("/api/delete?name=" + gone); } catch (e) { return say(plain(e, gone), "err"); }
+  selected = null; clearModel(); $("thumbs").replaceChildren();
+  await loadRuns();
+  if (runs[0]) select(runs[0].name);
+  else { $("title").textContent = "Your mini will appear here"; $("del").hidden = true;
+         for (const b of ["open", "reveal", "reprep"]) $(b).disabled = true;
+         $("overlay").innerHTML = "✨ Make your first mini on the left.<br>It will show up here, ready to spin around."; $("overlay").hidden = false; }
+  say(`🗑️ ${gone} is in the Trash.`);
+};
+
 // ---- print tips ----
 const TIPS = {
   "0.2": ["Layer height 0.06–0.08 mm", "3–4", "Sharp faces, beard braids and belt buckles. Slow, but the most detail."],
@@ -522,6 +610,7 @@ function select(name, force = false) {
   for (const el of $("gallery").querySelectorAll(".run")) el.setAttribute("aria-current", el.dataset.name === name);
   const has = !!(r && r.stl);
   $("open").disabled = $("reveal").disabled = !has;
+  $("del").hidden = !r;
   $("reprep").disabled = !r;
   const t = $("thumbs"); t.replaceChildren();
   if (!r) return;
@@ -608,6 +697,7 @@ const wanted = new URLSearchParams(location.search).get("run");
 const first = runs.find(r => r.name === wanted) || runs[0];
 if (first) select(first.name);
 health();
+loadChecks();
 poll();
 </script>
 </body>

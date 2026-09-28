@@ -27,6 +27,30 @@ NAME_RE = re.compile(r"[a-z0-9][a-z0-9-]{0,63}")  # used with fullmatch: "$" adm
 TYPES = {".html": "text/html; charset=utf-8", ".png": "image/png", ".stl": "model/stl", ".svg": "image/svg+xml",
          ".glb": "model/gltf-binary", ".json": "application/json", ".log": "text/plain; charset=utf-8"}
 
+# Started from the Mimic app, the server gets launchd's PATH (/usr/bin:/bin:/usr/sbin:/sbin),
+# where neither Homebrew's tools nor Blender are, so every mini failed at print prep.
+os.environ["PATH"] = os.pathsep.join(
+    ["/opt/homebrew/bin", "/Applications/Blender.app/Contents/MacOS", os.environ.get("PATH", "/usr/bin:/bin")])
+LAB = ROOT / "image-to-3dlab"
+ENGINE = LAB / "vendor" / "pixal3d-cpp"
+APP_DIRS = [Path("/Applications"), Path.home() / "Applications"]
+# Slicers Mimic can hand a mini to: shown name -> the bundle names it ships under.
+SLICERS = {
+    "bambu": ("Bambu Studio", ["BambuStudio.app", "Bambu Studio.app"]),
+    "orca": ("OrcaSlicer", ["OrcaSlicer.app"]),
+    "prusa": ("PrusaSlicer", ["PrusaSlicer.app", "Original Prusa Drivers/PrusaSlicer.app"]),
+    "cura": ("UltiMaker Cura", ["UltiMaker Cura.app", "Ultimaker Cura.app", "Ultimaker-Cura.app"]),
+    "creality": ("Creality Print", ["Creality Print.app", "CrealityPrint.app"]),
+    "elegoo": ("ElegooSlicer", ["ElegooSlicer.app"]),
+    "anycubic": ("Anycubic Slicer Next", ["AnycubicSlicerNext.app", "Anycubic Slicer Next.app"]),
+    "super": ("SuperSlicer", ["SuperSlicer.app"]),
+    "ideamaker": ("ideaMaker", ["ideaMaker.app"]),
+    "flashprint": ("FlashPrint", ["FlashPrint 5.app", "FlashPrint.app"]),
+    "simplify": ("Simplify3D", ["Simplify3D.app", "Simplify3D 5.app"]),
+    "lychee": ("Lychee Slicer", ["Lychee Slicer.app", "LycheeSlicer.app"]),
+    "chitubox": ("CHITUBOX", ["CHITUBOX Basic.app", "CHITUBOX.app"]),
+}
+
 NOZZLES = {"0.2", "0.4", "0.6"}
 STATIC = {"/logo.png"}  # served from ui/ as they are
 
@@ -89,6 +113,63 @@ def health():
     return {"drawthings": {"running": drawthings.reachable(), "model": drawthings.find_model() is not None}}
 
 
+def installed_slicers():
+    """{id: (name, path)} for every known slicer present in an Applications folder."""
+    found = {}
+    for key, (name, bundles) in SLICERS.items():
+        for d in APP_DIRS:
+            hit = next((d / b for b in bundles if (d / b).is_dir()), None)
+            if hit:
+                found[key] = (name, str(hit))
+                break
+    return found
+
+
+_engine_ok = {"at": 0.0, "ok": False}
+
+
+def engine_starts():
+    """Whether the 3D engine launches. Cached: it runs a process, and the page may ask often."""
+    if time.time() - _engine_ok["at"] > 60:
+        cli = ENGINE / "build" / "trellis-cli"
+        try:
+            ok = cli.is_file() and subprocess.run([str(cli), "--help"], capture_output=True, timeout=10).returncode == 0
+        except (OSError, subprocess.TimeoutExpired):
+            ok = False
+        _engine_ok.update(at=time.time(), ok=ok)
+    return _engine_ok["ok"]
+
+
+def checks():
+    """Everything Mimic depends on, each with a plain-words fix. `required` ones stop it working;
+    the rest only switch off a feature (drawing pictures, opening a slicer)."""
+    dt = health()["drawthings"]
+    free_gb = shutil.disk_usage(RUNS).free / 1e9
+    reinstall = "Run Install Mimic again: it only adds what's missing."
+    items = [
+        ("engine", "3D engine", True, engine_starts(), reinstall),
+        ("models", "3D model files", True,
+         (ENGINE / "models" / "pixal3d-sv" / "pixal3d_shape_flow_1024_sv.gguf").is_file(),
+         reinstall + " This part downloads 8.4 GB."),
+        ("helpers", "Mimic's helper tools", True, (LAB / ".venv" / "bin" / "python").is_file(), reinstall),
+        ("blender", "Blender (makes the print file)", True, shutil.which("blender") is not None,
+         "Install Blender from blender.org, or run Install Mimic again."),
+        ("space", f"Free disk space ({free_gb:.0f} GB)", True, free_gb >= 5,
+         "Free up some space: each mini takes about 150 MB while it's being made."),
+        ("drawthings-app", "Draw Things app", False,
+         any((d / "Draw Things.app").is_dir() for d in APP_DIRS),
+         "Install Draw Things from the Mac App Store. It's free."),
+        ("drawthings-api", "Draw Things is open and connected", False, dt["running"],
+         "Open Draw Things, then Settings → Advanced → API Server: turn it on, choose HTTP, port 7860."),
+        ("drawthings-model", "FLUX.2 Klein model in Draw Things", False, dt["model"],
+         "In Draw Things' model list, search for FLUX.2 Klein and download it."),
+        ("slicer", "A slicer to print with", False, bool(installed_slicers()),
+         "Install a slicer such as Bambu Studio, OrcaSlicer, PrusaSlicer or Cura. "
+         "Until then Mimic opens minis with your Mac's default app for 3D files."),
+    ]
+    return [{"id": i, "label": l, "required": r, "ok": bool(ok), "fix": f} for i, l, r, ok, f in items]
+
+
 def list_runs():
     out = []
     for d in sorted((p for p in RUNS.iterdir() if p.is_dir()), key=lambda p: p.stat().st_mtime, reverse=True):
@@ -146,6 +227,10 @@ class H(BaseHTTPRequestHandler):
             return self.send(200, job_status())
         if path == "/api/health":
             return self.send(200, health())
+        if path == "/api/checks":
+            return self.send(200, {"checks": checks(),
+                                   "slicers": [{"id": k, "name": n} for k, (n, _) in installed_slicers().items()],
+                                   "runs_dir": str(RUNS)})
         if path in STATIC and (UI / path[1:]).is_file():
             return self.send_file(UI / path[1:])
         m = re.match(r"^/runs/([a-z0-9-]+)/([A-Za-z0-9_.-]+)$", path)
@@ -157,6 +242,10 @@ class H(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path, q = urlparse(self.path).path, self.query()
+        if path == "/api/reveal-folder":
+            RUNS.mkdir(exist_ok=True)
+            subprocess.run(["open", str(RUNS)], check=False)
+            return self.send(200, {"ok": True})
         if path == "/api/quit":
             with lock:
                 if job["running"]:
@@ -217,8 +306,28 @@ class H(BaseHTTPRequestHandler):
             stl = d / f"{name}.stl"
             if not stl.exists():
                 return self.send(404, {"error": "no STL yet"})
-            args = ["open", "-a", "BambuStudio", str(stl)] if path == "/api/open" else ["open", "-R", str(stl)]
+            if path == "/api/reveal":
+                args = ["open", "-R", str(stl)]
+            elif q.get("app", "default") == "default":
+                args = ["open", str(stl)]  # whatever the Mac opens .stl files with
+            else:
+                slicer = installed_slicers().get(q["app"])
+                if not slicer:
+                    return self.send(404, {"error": "slicer not installed"})
+                args = ["open", "-a", slicer[1], str(stl)]
             subprocess.run(args, check=False)
+            return self.send(200, {"ok": True})
+
+        if path == "/api/delete":
+            with lock:
+                if job["running"] and job["name"] == name:
+                    return self.send(409, {"error": f"still making {name}"})
+            if not d.is_dir():
+                return self.send(404, {"error": "not found"})
+            # To the Trash, not gone: a wrong click is one drag back from the Trash.
+            done = subprocess.run(["/usr/bin/trash", str(d)], capture_output=True)
+            if done.returncode:
+                return self.send(500, {"error": "couldn't move it to the Trash"})
             return self.send(200, {"ok": True})
 
         self.send(404, {"error": "not found"})

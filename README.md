@@ -39,10 +39,19 @@ After that, open **Mimic** from your Applications folder whenever you want to ma
    - Type how tall the character is and pick a scale; Mimic works out the size of the mini.
    - Pick your printer's nozzle. If you're not sure, it's 0.4 mm.
 3. **✨ Make my mini** and wait about 7–10 minutes. Your Mac will be busy while it works.
-4. **🖨️ Open in Bambu Studio** and print. The print tips under the 3D view match your nozzle.
+4. **🖨️ Open in your slicer** and print. The print tips under the 3D view match your nozzle.
 
 Changed your mind about the size? **🔁 Apply new size** remakes the print file in seconds.
-Your character stays exactly the same.
+Your character stays exactly the same. Don't want a mini any more? **🗑️ Delete** moves it to
+the Trash, so a wrong click can be undone.
+
+**⚙️ Settings** has three things:
+- **Is everything set up?** A check of everything Mimic needs, with what to do about
+  anything that's missing. A ⚠️ on the Settings button means something needs attention.
+- **Open minis in.** Any slicer Mimic finds: Bambu Studio, OrcaSlicer, PrusaSlicer, Cura,
+  Creality Print, ElegooSlicer, Anycubic and more. Or your Mac's default app for 3D files,
+  which covers any other slicer.
+- **Where your minis are saved.**
 
 ## 🖨️ Printing tips
 
