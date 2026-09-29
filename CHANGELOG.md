@@ -9,6 +9,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 
 ### Fixed
 - When something a figure holds (a bow, a staff) comes out of the 3D model separate from the figure, Mimic still leaves it out of the print file, but now says so on the mini's page, with how long it was and what to try, instead of dropping it silently.
+- `mimic --help` prints the commands instead of opening the app.
 
 ## 0.5.0
 

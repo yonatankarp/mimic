@@ -8,8 +8,10 @@ import SwiftUI
 enum Entry {
     static func main() {
         let args = Array(CommandLine.arguments.dropFirst())
-        // Finder may pass "-psn_…"; anything starting with "-" means "open the app".
-        if let first = args.first, !first.hasPrefix("-") || ["--probe-notifications", "--version"].contains(first) {
+        // macOS may launch the app with its own "-" arguments ("-psn_…", "-NSDocumentRevisionsDebugMode"),
+        // so any other "-" argument opens the app; these few are the command line's own.
+        let commandLineFlags = ["--probe-notifications", "--version", "--help", "-h"]
+        if let first = args.first, !first.hasPrefix("-") || commandLineFlags.contains(first) {
             exit(CLI.run(args))
         }
         MimicApp.main()
