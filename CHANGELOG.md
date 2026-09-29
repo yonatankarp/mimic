@@ -13,9 +13,11 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 - **Times that fit your Mac.** Mimic times every mini it makes and estimates the next from the ones like it: in New Mini ("about 8 minutes on this Mac"), in the progress window (time left for each step), for the queue, and for each 3D model in Settings. Until you've made a few, it uses its own figures.
 - Settings → Time estimates says how many minis the estimates are based on, with Clear to start over. The times are kept on your Mac only and never sent anywhere.
 - **Zoom with your mouse.** Scroll the wheel, or pinch or two-finger scroll on a trackpad, over the 3D view. The "Pinch to Zoom" switch is gone; Face Front zooms back out.
+- **Zoom where you point.** Zoom now heads toward the spot under the pointer, and a wheel click, a trackpad swipe and a pinch each zoom by a natural amount (the same in as out). Face Front or a double-click puts it back.
 - **Better AI descriptions.** Glowing, sparks and smoke are taken out of improved descriptions (they don't print), and Settings suggests the best local model you have installed.
 
 ### Fixed
+- The 3D view no longer keeps your Mac busy while the mini just stands there: it used about a fifth of a processor core the whole time a mini was open, and now close to none.
 - Opening a second Mimic (or running `mimic` in Terminal) while one was making a mini could stop that mini.
 
 ## 0.4.2
