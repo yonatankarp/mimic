@@ -81,7 +81,7 @@ final class CheckTests: XCTestCase {
         XCTAssertFalse(results(checks(freeGB: 100))["engine"]!)
     }
 
-    /// Every model file, at its full size (sparse here, so 8.4 GB costs nothing): one missing,
+    /// Every model file, at its full size (sparse here, so 8.1 GB costs nothing): one missing,
     /// or one cut short by an interrupted download, is red.
     func modelFiles(except short: String? = nil) throws {
         try FileManager.default.createDirectory(at: f.install.models, withIntermediateDirectories: true)

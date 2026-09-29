@@ -51,7 +51,7 @@ public struct Checks: Sendable {
         let s = self
         return [
             check("engine", "3D engine", true, Self.reinstall) { s.engineStarts() },
-            check("models", "3D model files", true, Self.reinstall + " This part downloads 8.4 GB.") { s.modelsComplete() },
+            check("models", "3D model files", true, Self.reinstall + " This part downloads 8.1 GB.") { s.modelsComplete() },
             check("blender", "Blender (makes the print file)", true,
                   "Blender is missing or won't start. Run Install Mimic again, or install Blender from blender.org.") {
                 s.blenderStarts()

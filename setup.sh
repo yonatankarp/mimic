@@ -143,7 +143,7 @@ fetch() {
   fi
   mv "$file.part" "$file"
 }
-echo "  Checking the 3D model files (8.4 GB). Downloading them, if needed, is the long part."
+echo "  Checking the 3D model files (8.1 GB). Downloading them, if needed, is the long part."
 echo "$WEIGHTS" | while read -r name sum; do [ -z "$name" ] || fetch "$name" "$sum"; done
 ok "3D model"
 

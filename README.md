@@ -32,7 +32,7 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
 | Homebrew | Installs Blender and Draw Things | [Homebrew/brew](https://github.com/Homebrew/brew) |
 | Blender | Makes the print-ready file | [blender/blender](https://github.com/blender/blender) |
 | Draw Things | Draws the pictures | [App Store](https://apps.apple.com/app/id6444050820) |
-| Pixal3D and its 3D model (8.4 GB) | Turns a picture into a 3D model | [raven38/pixal3d.cpp](https://github.com/raven38/pixal3d.cpp) |
+| Pixal3D and its 3D model (8.1 GB) | Turns a picture into a 3D model | [raven38/pixal3d.cpp](https://github.com/raven38/pixal3d.cpp) |
 
 ### Install
 
