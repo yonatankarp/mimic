@@ -146,6 +146,10 @@ extension Gallery {
             let f = dst.appendingPathComponent(old + suffix)
             if fm.fileExists(atPath: f.path) { try fm.moveItem(at: f, to: dst.appendingPathComponent(new + suffix)) }
         }
+        // Its other versions name it as their first: they follow it.
+        for m in list(runs) where MiniSettings.load(m.folder).versionOf == old {
+            try? MiniSettings.update(m.folder) { $0.versionOf = new }
+        }
     }
 
     /// Moves a mini to the Trash, where it can be put back.

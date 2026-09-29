@@ -331,6 +331,19 @@ final class AppModel {
         reload()  // picks the newest mini if this one was selected
     }
 
+    /// Keep This One: moves `mini`'s other versions to the Trash (waiting ones leave the queue).
+    /// One being made stays, and says so. Returns whether they all went.
+    @discardableResult
+    func keep(_ mini: Mini) -> Bool {
+        let others = Gallery.versions(of: mini, in: minis).filter { $0.name != mini.name }
+        for v in others where v.name != busyWith { trash(v) }
+        if let v = others.first(where: { $0.name == busyWith }) {
+            problem = (problem.map { $0 + " " } ?? "") + "“\(v.displayName)” is being made, so it wasn't moved to the Trash. Move it there once it's done."
+            return false
+        }
+        return problem == nil
+    }
+
     /// An error in words for people. Mimic's own refusals already are; anything else (a Cocoa
     /// error, a failed launch) gets `fallback`, and its raw text goes only in the tooltip.
     func plainWords(_ error: Error, else fallback: String = "Couldn't start. Check that Mimic's folder is still there, then try again.") -> String {

@@ -95,10 +95,10 @@ public final class JobRunner: @unchecked Sendable {
     /// Makes a new mini of `kind` with `model`, in `project` (nil: unsorted). Everything is
     /// checked before anything is written; then its folder, settings and picture are written and
     /// it joins the queue. Returns nil when it started at once, else how many jobs are ahead of it
-    /// (the running one included).
+    /// (the running one included). `versionOf` is the first of its versions, for Make Another Version.
     @discardableResult
     public func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes,
-                     kind: MiniKind = .character, model: EngineModel, project: String? = nil) throws -> Int? {
+                     kind: MiniKind = .character, model: EngineModel, project: String? = nil, versionOf: String? = nil) throws -> Int? {
         guard Rules.isValidName(name) else { throw RequestError.badName }
         if let project, !Gallery.projects(install.runs).contains(project) { throw RequestError.projectNotFound }
         _ = try sizes.flags()
@@ -135,6 +135,7 @@ public final class JobRunner: @unchecked Sendable {
                     s.source = settings.source; s.desc = settings.desc; s.descOriginal = settings.descOriginal; s.restyle = restyle; s.seed = seed; s.requested = sizes
                     s.kind = settings.kind  // always set: a failed attempt's folder may say otherwise
                     s.model = model.id
+                    s.versionOf = versionOf
                 }
                 if case .image(let url) = picture {
                     let upload = folder.appendingPathComponent("upload.img")

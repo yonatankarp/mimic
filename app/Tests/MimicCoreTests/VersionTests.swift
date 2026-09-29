@@ -57,7 +57,8 @@ final class VersionTests: XCTestCase {
             XCTAssertEqual(Gallery.list(runs).first { $0.name == new }?.project, project, "\(new) left its project")
             let s = MiniSettings.load(folder)
             XCTAssertNotEqual(s.seed, old.seed, name)
-            var same = s; same.seed = old.seed
+            XCTAssertEqual(s.versionOf, name)
+            var same = s; same.seed = old.seed; same.versionOf = nil
             XCTAssertEqual(same, old, "\(name): settings other than the seed changed")
             let seed = String(s.seed!)
             let plan = try Pipeline.plan(.generate, folder: folder, settings: s, tools: tools).map(\.step)
@@ -72,9 +73,23 @@ final class VersionTests: XCTestCase {
             guard case .run(_, let args, _, _) = plan[1] else { return XCTFail("step 2 isn't the engine") }
             XCTAssertEqual(args[args.firstIndex(of: "--seed")! + 1], seed, "\(name): the 3D engine gets the old seed")
         }
-        XCTAssertEqual(try jobs.makeAnotherVersion(of: "wizard").name, "wizard-3")
+        XCTAssertEqual(try jobs.makeAnotherVersion(of: "wizard-2").name, "wizard-3")
+        XCTAssertEqual(MiniSettings.load(try XCTUnwrap(Gallery.folder(runs, "wizard-3"))).versionOf, "wizard", "a version of a version names the first")
         for n in jobs.queue.entries().map(\.name) { try jobs.remove(n) }
         jobs.waitUntilDone()
+    }
+
+    /// A mini's versions are the first one and those naming it, in its project; renaming the
+    /// first keeps them together.
+    func testTheVersionsOfAMini() throws {
+        let fx = try Fixture(), runs = fx.install.runs
+        _ = try fx.mini("dwarf"); _ = try fx.mini("elf")
+        for v in ["dwarf-2", "dwarf-3"] { try MiniSettings.update(try fx.mini(v)) { $0.versionOf = "dwarf" } }
+        let names = { (m: String) in Gallery.versions(of: Gallery.list(runs).first { $0.name == m }!, in: Gallery.list(runs)).map(\.name) }
+        XCTAssertEqual(names("dwarf-3"), ["dwarf", "dwarf-2", "dwarf-3"])
+        XCTAssertEqual(names("elf"), ["elf"])
+        try Gallery.rename(runs, from: "dwarf", to: "dwarf-king")
+        XCTAssertEqual(names("dwarf-2"), ["dwarf-2", "dwarf-3", "dwarf-king"])
     }
 
     /// Older minis: a picture mini from before upload.img was kept uses source.png as it is; one
