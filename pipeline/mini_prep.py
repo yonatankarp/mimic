@@ -1,7 +1,8 @@
 """Turn a generated GLB into a printable mini STL, plus preview renders.
 
     blender -b -P pipeline/mini_prep.py -- in.glb out.stl [--height 32] [--base 25]
-        [--base-height 3] [--nozzle 0.4] [--inflate MM] [--voxel 0.05] [--no-base] [--flatten 0.4]
+        [--base-height 3] [--nozzle 0.4] [--inflate MM] [--voxel 0.05] [--faces 800000]
+        [--no-base] [--flatten 0.4]
 
 Units are millimetres. Steps: join meshes, scale to --height, inflate the surface
 by --inflate (thickens blades/staffs by twice that), stand it on a round base,

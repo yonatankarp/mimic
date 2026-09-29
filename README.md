@@ -113,64 +113,37 @@ flowchart TD
   out --> slicer["Your slicer"]
 ```
 
-1. **Image.** Optionally redrawn as a grey sculpt by FLUX.2 Klein through
-   [Draw Things](https://drawthings.ai)' HTTP API (`pipeline/drawthings.py`, which pins the
-   model and sampler).
-2. **Mesh.** [Pixal3D](https://github.com/raven38/pixal3d.cpp) via
-   [image-to-3dlab](https://github.com/Bingeljell/image-to-3dlab), on the Mac's GPU.
-3. **Print prep** (`pipeline/mini_prep.py`, Blender):
-   - scales the figure and centres it on the solid cross-sections of its lower body;
-   - fuses it to a round base and rebuilds it as one watertight solid;
-   - thickens thin parts by 0.4 × the nozzle, drops floating bits and slices the bottom flat.
-     More thickening keeps swords and capes whole but softens faces, which is why it follows
-     the nozzle rather than being fixed;
-   - exports the STL plus front, side and back renders.
+1. **The picture.** FLUX.2 Klein, running in Draw Things, draws your character from a
+   description, or redraws your picture as a grey sculpt so it's easier to turn into 3D.
+2. **The 3D model.** [Pixal3D](https://github.com/raven38/pixal3d.cpp), through
+   [image-to-3dlab](https://github.com/Bingeljell/image-to-3dlab), builds a 3D model from the
+   picture on your Mac's graphics chip.
+3. **Print prep.** Blender sizes the model, centres it on a round base, makes it one solid
+   piece, thickens thin parts to suit your nozzle, and flattens the bottom so it sits on the
+   print bed.
 
 ### From a terminal
 
 ```bash
 ./make_mini.sh dwarf-cleric "dwarf cleric, warhammer held against chest"
 ./make_mini.sh tiefling --image art.png --restyle --height 38 --nozzle 0.2
-SEED=7 ./make_mini.sh dwarf-cleric-2 "dwarf cleric, warhammer held against chest"
 ```
 
-Flags after the description or image go to `mini_prep.py`: `--height`, `--base`,
-`--base-height`, `--nozzle`, `--inflate`, `--voxel`, `--faces`, `--no-base` and `--flatten`.
-Add `?run=<name>` to the page address to open a specific mini.
-
-### Layout
-
-| Path | What |
+| Option | What it does |
 |---|---|
-| `Install Mimic.command` / `setup.sh` | the installer (`setup.sh --yes`, `--build-from-source`) |
-| `Mimic.command` | starts the app; the Mimic app in Applications runs it |
-| `make_mini.sh` | the pipeline: image → mesh → print prep |
-| `pipeline/` | `mini_prep.py` (Blender), `drawthings.py`, `gen_views.py` (experimental, unused: side and back views for Pixal3D multiview), `render_zoom.py` |
-| `ui/` | the web app: `serve.py` (standard library only), `index.html`, logo and icon |
-| `tools/package_pixal3d.sh` | builds the relocatable Pixal3D download the installer uses |
-| `tests/` | `test_prep.sh` (print prep on a synthetic figure), `test_serve.py` (input checks), `test_checks.py` (Settings checks, both ways) |
-| `runs/`, `image-to-3dlab/` | your minis, and the engine plus models (both git-ignored) |
+| `--image FILE` | Start from your own picture instead of a description |
+| `--restyle` | Redraw that picture as a grey sculpt first |
+| `--height MM` | How tall the character is, feet to top; the base adds about 2 mm |
+| `--base MM` | Size of the round base |
+| `--nozzle 0.2` / `0.4` / `0.6` | Your printer's nozzle |
+| `--no-base` | Keep the character's own base instead of adding a round one |
+| `SEED=7` before the command | Try a different version of the same character |
 
-### Tests
-
-```bash
-tests/test_prep.sh          # watertight, flat bottom, right height, centred, one piece
-python3 tests/test_serve.py  # the web app's input validation
-python3 tests/test_checks.py # every Settings check goes red when its part is missing, green when present
-```
-
-### Releasing the Pixal3D engine
-
-The installer downloads a pre-built Pixal3D so users never need Xcode. To rebuild it, see
-the header of `tools/package_pixal3d.sh`. It must target macOS 14 and map the source path
-away. Upload the tarball to a release, then update `PIXAL3D_URL` and `PIXAL3D_SHA256` in
-`setup.sh`.
+Want to change Mimic itself? See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Licences
 
 - **Mimic:** MIT (see `LICENSE`).
-- **Pixal3D (pixal3d.cpp) and ggml:** MIT. Their licence texts ship inside the engine download.
-- **Pixal3D's model weights:** MIT, with the bundled DINOv3 image encoder under Meta's DINOv3
-  licence.
+- **Pixal3D:** MIT, except the image encoder its model includes, which uses Meta's DINOv3 licence.
 - **FLUX.2 Klein:** Black Forest Labs' licence. Check it before selling prints of generated
   characters.
