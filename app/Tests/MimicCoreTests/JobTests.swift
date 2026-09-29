@@ -34,7 +34,7 @@ final class JobTests: XCTestCase {
                             arguments: ["_prep", d.appendingPathComponent("model.glb").path,
                                         d.appendingPathComponent("mini.stl").path] + flags,
                             directory: nil, log: d.appendingPathComponent("prep.log"))
-        func mesh(_ model: String = "pixal3d-sv") -> Step {
+        func mesh(_ model: String = "trellis2-q8") -> Step {
             .run(executable: "/app/mimic", arguments: ["_engine", src.path, d.appendingPathComponent("model.glb").path,
                                                        "--seed", "7", "--engine", fx.install.engine.path, "--model", model],
                  directory: nil, log: d.appendingPathComponent("pixal3d.log"))
@@ -45,13 +45,13 @@ final class JobTests: XCTestCase {
                               directory: nil, log: d.appendingPathComponent("prep.log"))
         func settings(_ f: (inout MiniSettings) -> Void) -> MiniSettings { var s = MiniSettings(); s.seed = 7; s.requested = sizes; f(&s); return s }
         let cases: [(String, JobKind, MiniSettings, [Step])] = [
-            ("picture", .generate, settings { $0.source = .image; $0.restyle = false }, [.copyPicture(from: up, to: src), mesh(), prep]),
-            ("picture, redrawn", .generate, settings { $0.source = .image; $0.restyle = true }, [.sculptPicture(from: up, seed: 7, to: src), mesh(), prep]),
-            ("description", .generate, settings { $0.source = .desc; $0.desc = "a dwarf" }, [.drawCharacter(description: "a dwarf", seed: 7, to: src), mesh(), prep]),
-            ("TRELLIS.2, turned to face the front", .generate, settings { $0.source = .image; $0.model = "trellis2-q8" },
-             [.copyPicture(from: up, to: src), mesh("trellis2-q8"), turned]),
-            ("TRELLIS.2 resize, turned too", .prep, settings { $0.model = "trellis2-q8" }, [turned]),
-            ("resize", .prep, settings { _ in }, [prep]),
+            ("picture", .generate, settings { $0.source = .image; $0.restyle = false }, [.copyPicture(from: up, to: src), mesh(), turned]),
+            ("picture, redrawn", .generate, settings { $0.source = .image; $0.restyle = true }, [.sculptPicture(from: up, seed: 7, to: src), mesh(), turned]),
+            ("description", .generate, settings { $0.source = .desc; $0.desc = "a dwarf" }, [.drawCharacter(description: "a dwarf", seed: 7, to: src), mesh(), turned]),
+            ("Pixal3D, not turned", .generate, settings { $0.source = .image; $0.model = "pixal3d-sv" },
+             [.copyPicture(from: up, to: src), mesh("pixal3d-sv"), prep]),
+            ("Pixal3D resize, not turned either", .prep, settings { $0.model = "pixal3d-sv" }, [prep]),
+            ("resize", .prep, settings { _ in }, [turned]),
         ]
         for (label, kind, s, want) in cases {
             XCTAssertEqual(try Pipeline.plan(kind, folder: d, settings: s, tools: tools).map(\.step), want, label)
@@ -88,8 +88,8 @@ final class JobTests: XCTestCase {
         jobs.waitUntilDone()
     }
 
-    /// A mini made before there was a choice has no `model` and is the standard one; an install
-    /// with nothing chosen uses the standard model, which it already has: nothing to download.
+    /// A mini with no `model` is the standard one, TRELLIS.2; an install with nothing chosen uses
+    /// the standard model and, once that is downloaded, has nothing more to download.
     func testOlderMinisAndInstallsMeanTheStandardModel() throws {
         XCTAssertEqual(EngineDownload.model(MiniSettings().model), EngineDownload.standard)
         let old = try JSONDecoder().decode(MiniSettings.self, from: Data(#"{"requested": {"height": "32"}, "seed": 3}"#.utf8))
@@ -108,10 +108,10 @@ final class JobTests: XCTestCase {
         try "#!/bin/sh\n".write(to: fx.install.trellisCLI, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: fx.install.trellisCLI.path)
         try fx.modelFiles()
-        XCTAssertEqual(EngineDownload.standard.folder(in: fx.install).lastPathComponent, "pixal3d-sv", "existing installs keep their folder")
+        XCTAssertEqual(EngineDownload.standard.folder(in: fx.install).lastPathComponent, "trellis2-q8", "the standard model's folder")
         defaults.removeObject(forKey: "model")
         XCTAssertTrue(EngineDownload.present(fx.install, EngineDownload.selected(defaults: defaults)),
-                      "an install from before the choice would be sent to setup")
+                      "an install with nothing chosen would be sent to setup")
     }
 
     /// An object mini: the object prompts, and print prep sizes it by its longest side and
@@ -125,7 +125,7 @@ final class JobTests: XCTestCase {
         }
         func plan(_ kind: JobKind, _ s: MiniSettings) throws -> [Step] { try Pipeline.plan(kind, folder: d, settings: s, tools: fx.tools(mimic: "/app/mimic")).map(\.step) }
         let prepArgs = ["_prep", d.appendingPathComponent("model.glb").path, d.appendingPathComponent("pot.stl").path,
-                        "--height", "80.0", "--nozzle", "0.4", "--no-base", "--fit", "longest", "--ground", "bottom"]
+                        "--height", "80.0", "--nozzle", "0.4", "--no-base", "--fit", "longest", "--ground", "bottom", "--turn", "180"]
         guard case let .run(_, args, _, _) = try plan(.prep, settings { _ in })[0] else { return XCTFail("resize runs print prep") }
         XCTAssertEqual(args, prepArgs)
         XCTAssertEqual(try plan(.generate, settings { $0.source = .desc; $0.desc = "a teapot" })[0], .drawObject(description: "a teapot", seed: 7, to: src))
@@ -166,10 +166,10 @@ final class JobTests: XCTestCase {
         let base = try sizes.flags()
         let object = ["--fit", "longest", "--ground", "bottom"], turn = ["--turn", "180"]
         XCTAssertEqual(try prepArgs { $0.kind = .object; $0.model = "trellis2-q8" }, base + object + turn)
-        XCTAssertEqual(try prepArgs { $0.kind = .object; $0.model = "trellis2-q4" }, base + object + turn)
         XCTAssertEqual(try prepArgs { $0.model = "trellis2-q8" }, base + turn, "a TRELLIS.2 character changed")
-        XCTAssertEqual(try prepArgs { $0.kind = .object }, base + object, "a Pixal3D object changed")
-        XCTAssertEqual(try prepArgs { _ in }, base)
+        XCTAssertEqual(try prepArgs { $0.kind = .object; $0.model = "pixal3d-sv" }, base + object, "a Pixal3D object changed")
+        XCTAssertEqual(try prepArgs { $0.model = "pixal3d-sv" }, base, "a Pixal3D character changed")
+        XCTAssertEqual(try prepArgs { _ in }, base + turn, "the standard model, TRELLIS.2, is turned")
     }
 
     /// Kind, model and the helper's original description all survive a round trip through
@@ -178,15 +178,15 @@ final class JobTests: XCTestCase {
         let fx = try Fixture()
         let d = fx.install.runs.appendingPathComponent("mini")
         try FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
-        try MiniSettings.update(d) { $0.kind = .object; $0.model = "trellis2-q4"; $0.desc = "a teapot, rounded"; $0.descOriginal = "teapot" }
+        try MiniSettings.update(d) { $0.kind = .object; $0.model = "trellis2-q8"; $0.desc = "a teapot, rounded"; $0.descOriginal = "teapot" }
         let s = MiniSettings.load(d)
         XCTAssertEqual(s.kind, .object)
-        XCTAssertEqual(s.model, "trellis2-q4")
+        XCTAssertEqual(s.model, "trellis2-q8")
         XCTAssertEqual(s.desc, "a teapot, rounded")
         XCTAssertEqual(s.descOriginal, "teapot")
         let json = try JSONSerialization.jsonObject(with: Data(contentsOf: d.appendingPathComponent("settings.json"))) as! [String: Any]
         XCTAssertEqual(json["kind"] as? String, "object")
-        XCTAssertEqual(json["model"] as? String, "trellis2-q4")
+        XCTAssertEqual(json["model"] as? String, "trellis2-q8")
         XCTAssertEqual(json["descOriginal"] as? String, "teapot")
         XCTAssertFalse(MiniSettings().isObject)
         XCTAssertEqual(EngineDownload.model(MiniSettings().model), EngineDownload.standard)

@@ -26,7 +26,7 @@ final class EngineTests: XCTestCase {
                              output: URL(fileURLWithPath: "/m/runs/a/model.glb"),
                              models: URL(fileURLWithPath: "/m/engine/models/\(m.id)"), seed: 7)
         }
-        XCTAssertEqual(args(EngineDownload.standard), ["--sv-image", "/m/runs/a/source__matted.png", "--fov", "0.3490658503988659",
+        XCTAssertEqual(args(EngineDownload.model("pixal3d-sv")!), ["--sv-image", "/m/runs/a/source__matted.png", "--fov", "0.3490658503988659",
                                                         "--models", "/m/engine/models/pixal3d-sv", "--seed", "7", "--res", "1024",
                                                         "--pixal3d-weights", "sv", "--gss", "10", "/m/runs/a/model.glb"])
         for m in EngineDownload.catalogue where m.family == .trellis2 {
@@ -110,7 +110,7 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(args[1], "steps=8")
         XCTAssertEqual(Array(args.dropFirst(2)), Engine.arguments(model: EngineDownload.standard, image: f.root.appendingPathComponent("source.png"),
                                                                   output: glb, models: EngineDownload.standard.folder(in: f.install), seed: 5),
-                       "no --model is the standard model: jobs queued before 0.4.0 still run")
+                       "no --model is the standard model")
         let out = text(log)
         XCTAssertFalse(out.contains("ggml_metal"), "Metal noise reached the log")
         for line in ["PIXAL3D_STEPS=8 overrides 12 steps", "1/8", "8/8", "[6/6] writing"] { XCTAssertTrue(out.contains(line), line) }

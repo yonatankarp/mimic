@@ -19,7 +19,7 @@ final class SetupTests: XCTestCase {
     // MARK: The manifest
 
     func testEveryPinnedFileHasAURLASizeAndASha256() {
-        XCTAssertEqual(EngineDownload.standard.id, "pixal3d-sv", "the standard model is what every install before 0.4.0 has")
+        XCTAssertEqual(EngineDownload.standard.id, "trellis2-q8", "the standard model is TRELLIS.2")
         XCTAssertEqual(Set(EngineDownload.catalogue.map(\.id)).count, EngineDownload.catalogue.count, "two models share an id")
         XCTAssertEqual(Set(EngineDownload.catalogue.map(\.name)).count, EngineDownload.catalogue.count, "two models share a name")
         var shaOwner: [String: (name: String, bytes: Int64)] = [:]
@@ -49,7 +49,8 @@ final class SetupTests: XCTestCase {
             XCTAssertTrue(m.files.contains { $0.name == "DINOV3_LICENSE.md" }, "\(m.id): DINOv3's licence must travel with dinov3.gguf")
             XCTAssertEqual(m.weights.count, 9, "\(m.id): trellis-cli loads nine model files")
         }
-        XCTAssertEqual(Checks.gigabytes(EngineDownload.totalBytes(EngineDownload.standard)), "8.1", "the standard set is 8.1 GB")
+        XCTAssertEqual(Checks.gigabytes(EngineDownload.totalBytes(EngineDownload.standard)), "9.1", "the standard set is 9.1 GB")
+        XCTAssertEqual(Checks.gigabytes(EngineDownload.totalBytes(EngineDownload.model("pixal3d-sv")!)), "8.1", "the Pixal3D set is 8.1 GB")
     }
 
     // MARK: Where things live
@@ -57,7 +58,8 @@ final class SetupTests: XCTestCase {
     func testAMimicFolderHoldsEverything() {
         let i = Install(root: dir)
         XCTAssertEqual(i.runs, dir.appendingPathComponent("runs").standardizedFileURL)
-        XCTAssertEqual(EngineDownload.standard.folder(in: i), dir.appendingPathComponent("engine/models/pixal3d-sv").standardizedFileURL)
+        XCTAssertEqual(EngineDownload.standard.folder(in: i), dir.appendingPathComponent("engine/models/trellis2-q8").standardizedFileURL)
+        XCTAssertEqual(EngineDownload.model("pixal3d-sv")!.folder(in: i), dir.appendingPathComponent("engine/models/pixal3d-sv").standardizedFileURL)
         XCTAssertEqual(i.legacyLab, dir.appendingPathComponent("image-to-3dlab").standardizedFileURL)
     }
 

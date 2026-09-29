@@ -227,7 +227,7 @@ public enum Prep {
         if let longest = parts.map(Prep.longest).max() {
             let what = parts.count == 1 ? "A part came out separate from the \(thing) (about \(Int(longest.rounded())) mm long) and was left out."
                 : "\(parts.count) parts came out separate from the \(thing) (the largest about \(Int(longest.rounded())) mm long) and were left out."
-            lines.append(partWarning + what + " Try Make Another Version, or TRELLIS.2 in Settings → 3D model, which joins held things more reliably.")
+            lines.append(partWarning + what + " Try Make Another Version. If you use Pixal3D, TRELLIS.2 (Settings → 3D model) joins held things more reliably.")
         }
         return Result(mesh: out, dropped: dropped, footprint: footprint, lines: lines)
     }

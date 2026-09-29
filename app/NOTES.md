@@ -203,12 +203,21 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   travel with dinov3.gguf. Four TRELLIS.2 q8 files are byte for byte Pixal3D's (2.2 GB): setup
   clones them (APFS `clonefile`) instead of downloading, and Remove counts them as freeing
   nothing while their twin stays.
+- **TRELLIS.2 is the default; Lite is gone** (0.6.0, [#2](https://github.com/yonatankarp/mimic/issues/2)).
+  The table above is the 0.4.0 measurement, kept as history. #2 ran pictures with something
+  held or attached (the dwarf's hammer and shield, the elf's bow, the halfling's lute, the
+  tiefling's raven) through the models with several seeds, judged from the side and back
+  renders: TRELLIS.2 had the held part right 9 times out of 9, Pixal3D 4 out of 10 (bows lost
+  when not joined to the hands, the raven a blob from behind, the hammer pushed out in front).
+  Pixal3D keeps the crispest surface and is faster on bulky figures, so it stays as the second
+  choice. TRELLIS.2 Lite lost the elf's bow and was no faster than TRELLIS.2, so it was removed.
+  A mini or install with no model recorded now means TRELLIS.2 (alpha: no compatibility kept).
 - **Model files come straight from Hugging Face,** pinned to a revision, each file checked
   against its sha256; the app's check compares every file's size.
 - **Children get an explicit environment,** never the app's own: launched from the Dock, the
   app has launchd's bare PATH (`/usr/bin:/bin:/usr/sbin:/sbin`), which lost Blender once.
 - **Where things live (the disk image has no Mimic folder):** minis in `~/Documents/Mimic`,
-  where people look for their files; the engine and its models (5.7–9.1 GB) in
+  where people look for their files; the engine and its models (8.1–9.1 GB) in
   `~/Library/Application Support/Mimic/engine`, out of their way (and out of Documents, which
   iCloud may sync). `Install` keeps the two separate. An install made by the old `setup.sh` has
   one folder with `runs/` and `engine/` inside, stored as the `installDir` default: that still
@@ -377,7 +386,7 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   picker starting on the selected mini's project. The background automation's synthetic drags
   never started a drag session, and it can't open context menus.
 
-- Setup's full 8.1 GB download through the app, and closing the window mid-download: the
+- Setup's full download (8.1–9.1 GB) through the app, and closing the window mid-download: the
   download path is proven by tests against a local server and by a real run of the engine and
   the small files; the window close is `applicationShouldTerminateAfterLastWindowClosed`, and
   before it closing the setup window quit Mimic (seen).
