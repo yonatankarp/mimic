@@ -37,6 +37,7 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            if EngineDownload.catalogue.count > 1 { ModelsSection() }
             Section {
                 Picker("Open minis in", selection: slicerChoice) {
                     ForEach(slicers) { Text($0.name).tag($0.id) }
@@ -102,7 +103,7 @@ private struct CheckRow: View {
     /// What each part is for, in a sentence: the labels name the parts, this says why they matter.
     static let what: [String: String] = [
         "engine": "Turns your picture into a 3D shape, on your Mac's graphics chip.",
-        "models": "What the 3D engine has learned. Downloaded once, 8.1 GB.",
+        "models": "What the 3D engine has learned, for the 3D model in use. Downloaded once.",
         "space": "Each mini needs about 150 MB while it's being made.",
         "drawthings-app": "A free app that draws characters from a description and turns pictures into grey sculpts.",
         "drawthings-api": "Lets Mimic ask Draw Things for pictures. Draw Things has to be open.",
@@ -157,6 +158,65 @@ private struct CheckRow: View {
             .symbolEffect(.rotate, options: .repeat(.continuous), isActive: result == nil && !reduceMotion)
             .contentTransition(.symbolEffect(.replace))
             .animation(reduceMotion ? nil : .default.delay(stagger), value: result)
+    }
+}
+
+/// Which 3D model new minis are made with: switch to one that's here, download one that isn't
+/// (resumable and checked, as on first launch), or remove one that isn't in use.
+private struct ModelsSection: View {
+    @Environment(AppModel.self) private var model
+    @State private var removing: EngineModel?
+
+    var body: some View {
+        let setup = model.setup
+        let _ = setup.removals  // look at the disk again after a removal
+        Section {
+            ForEach(EngineDownload.catalogue) { row($0, setup) }
+        } header: {
+            Text("3D model")
+        } footer: {
+            Text("New minis are made with the model in use. Try Again uses the model a mini was first made with.")
+                .foregroundStyle(.secondary)
+        }
+        .confirmationDialog(removing.map { "Remove \($0.name)?" } ?? "", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
+                            presenting: removing) { m in
+            Button("Remove \(m.name)", role: .destructive) { setup.remove(m) }
+        } message: { m in
+            Text("This frees about \(Checks.gigabytes(EngineDownload.freed(by: m, in: model.install))) GB. Minis you made with it stay. You can download it again any time.")
+        }
+    }
+
+    private func row(_ m: EngineModel, _ setup: SetupModel) -> some View {
+        let complete = m.complete(in: model.install)
+        let downloading = setup.running && setup.target == m
+        return HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(m.name) · \(Checks.gigabytes(m.bytes)) GB")
+                Text(m.summary).font(.callout).foregroundStyle(.secondary)
+                if downloading {
+                    ProgressView(value: setup.fraction)
+                    Text(setup.status).font(.callout).foregroundStyle(.secondary).monospacedDigit()
+                } else if let problem = setup.problem, setup.target == m {
+                    Text(problem).font(.callout).foregroundStyle(.red)
+                }
+            }
+            Spacer()
+            if m == setup.chosen {
+                Label("In use", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+            } else {
+                if complete {
+                    Button("Use") { setup.use(m) }
+                } else if !downloading {
+                    Button(m.anyOnDisk(in: model.install) ? "Resume Download" : "Download") { setup.start(m) }
+                        .disabled(setup.running)
+                }
+                if m.anyOnDisk(in: model.install) {
+                    Button("Remove…") { removing = m }
+                        .disabled(model.running || downloading)
+                        .help(model.running ? "Wait for the mini being made to finish." : "")
+                }
+            }
+        }
     }
 }
 

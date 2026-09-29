@@ -56,6 +56,7 @@ public enum Pipeline {
         if kind == .prep { return [(3, prep)] }
 
         let seed = settings.seed ?? 42
+        guard let model = EngineDownload.model(settings.model) else { throw RequestError.unknownModel(settings.model ?? "") }
         let source = folder.appendingPathComponent("source.png")
         let picture: Step
         switch settings.source {
@@ -71,7 +72,7 @@ public enum Pipeline {
         }
         let mesh: Step = .run(executable: tools.mimic,
                               arguments: ["_engine", source.path, folder.appendingPathComponent("model.glb").path,
-                                          "--seed", String(seed), "--engine", tools.engine],
+                                          "--seed", String(seed), "--engine", tools.engine, "--model", model.id],
                               directory: nil, log: folder.appendingPathComponent("pixal3d.log"))
         return [(1, picture), (2, mesh), (3, prep)]
     }

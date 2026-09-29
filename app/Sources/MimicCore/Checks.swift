@@ -27,17 +27,20 @@ public struct Checks: Sendable {
     public typealias Runner = @Sendable (_ executable: String, _ arguments: [String], _ timeout: TimeInterval) -> (status: Int32, output: String)?
 
     public var install: Install
+    /// The model set minis are made with: its files are what the models check wants.
+    public var model: EngineModel
     public var appFolders: [URL]
     public var drawThings: DrawThings
     public var run: Runner
     public var freeBytes: @Sendable (URL) -> Int64?
 
     public init(install: Install,
+                model: EngineModel,
                 appFolders: [URL] = Slicer.appFolders(),
                 drawThings: DrawThings = DrawThings(),
                 run: @escaping Runner = Checks.execute,
                 freeBytes: @escaping @Sendable (URL) -> Int64? = Checks.freeBytes) {
-        self.install = install; self.appFolders = appFolders; self.drawThings = drawThings
+        self.install = install; self.model = model; self.appFolders = appFolders; self.drawThings = drawThings
         self.run = run; self.freeBytes = freeBytes
     }
 
@@ -48,8 +51,8 @@ public struct Checks: Sendable {
         return [
             check("engine", "3D engine", true,
                   "The 3D engine is missing or won't start. Repair downloads it again.") { s.engineStarts() },
-            check("models", "3D model files", true,
-                  "Some of the 3D model files are missing. Download fetches only what's missing (up to 8.1 GB).") { s.modelsComplete() },
+            check("models", "3D model files (\(model.name))", true,
+                  "Some of the 3D model files are missing. Download fetches only what's missing (up to \(Checks.gigabytes(model.bytes)) GB).") { s.modelsComplete() },
             Check(id: "space", label: "Free disk space", required: true,
                   fix: "Free up some space: each mini takes about 150 MB while it's being made.") {
                 let gb = Double(s.freeBytes(s.install.runs) ?? 0) / 1e9
@@ -88,10 +91,12 @@ public struct Checks: Sendable {
             && isFile(install.trellisCLI) && run(install.trellisCLI.path, ["--help"], 10)?.status == 0
     }
 
-    /// Every file trellis-cli loads, at its full size (setup checks their sha256 too).
-    func modelsComplete() -> Bool {
-        EngineDownload.weights.allSatisfy { EngineDownload.size(install.models.appendingPathComponent($0.name)) == $0.bytes }
-    }
+    /// Every file trellis-cli loads for the chosen model, at its full size (setup checks their
+    /// sha256 too).
+    func modelsComplete() -> Bool { model.complete(in: install) }
+
+    /// "8.1": sizes on screen are decimal GB, one place.
+    public static func gigabytes(_ bytes: Int64) -> String { String(format: "%.1f", Double(bytes) / 1e9) }
 
     private func isFile(_ u: URL) -> Bool {
         var dir: ObjCBool = false

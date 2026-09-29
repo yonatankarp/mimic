@@ -17,13 +17,22 @@ final class EngineTests: XCTestCase {
         return url
     }
 
-    func testTheExactEngineCommand() {
-        let args = Engine.arguments(image: URL(fileURLWithPath: "/m/runs/a/source__matted.png"),
-                                    output: URL(fileURLWithPath: "/m/runs/a/model.glb"),
-                                    models: URL(fileURLWithPath: "/m/engine/models/pixal3d-sv"), seed: 7)
-        XCTAssertEqual(args, ["--sv-image", "/m/runs/a/source__matted.png", "--fov", "0.3490658503988659",
-                              "--models", "/m/engine/models/pixal3d-sv", "--seed", "7", "--res", "1024",
-                              "--pixal3d-weights", "sv", "--gss", "10", "/m/runs/a/model.glb"])
+    /// The exact command line per model family, each the one proven end to end on this engine
+    /// build (app/NOTES.md). TRELLIS.2 names its output: a lone positional after `--image` is
+    /// read as a second picture.
+    func testTheExactEngineCommand() throws {
+        func args(_ m: EngineModel) -> [String] {
+            Engine.arguments(model: m, image: URL(fileURLWithPath: "/m/runs/a/source__matted.png"),
+                             output: URL(fileURLWithPath: "/m/runs/a/model.glb"),
+                             models: URL(fileURLWithPath: "/m/engine/models/\(m.id)"), seed: 7)
+        }
+        XCTAssertEqual(args(EngineDownload.standard), ["--sv-image", "/m/runs/a/source__matted.png", "--fov", "0.3490658503988659",
+                                                        "--models", "/m/engine/models/pixal3d-sv", "--seed", "7", "--res", "1024",
+                                                        "--pixal3d-weights", "sv", "--gss", "10", "/m/runs/a/model.glb"])
+        for m in EngineDownload.catalogue where m.family == .trellis2 {
+            XCTAssertEqual(args(m), ["--image", "/m/runs/a/source__matted.png", "--models", "/m/engine/models/\(m.id)",
+                                     "--seed", "7", "--res", "1024", "--output", "/m/runs/a/model.glb"], m.id)
+        }
         XCTAssertEqual(Engine.environment(["PATH": "/bin", "PIXAL3D_STEPS": "12"]), ["PATH": "/bin", "PIXAL3D_STEPS": "8"])
     }
 
@@ -60,15 +69,16 @@ final class EngineTests: XCTestCase {
 
     /// Runs `mimic _engine` on a cut-out picture with `body` as trellis-cli, in a session of its
     /// own like a job step. Returns the process and its log.
-    func engine(_ body: String) throws -> (GroupProcess, URL, URL) {
-        try FileManager.default.createDirectory(at: f.install.models, withIntermediateDirectories: true)
+    func engine(_ body: String, model: EngineModel? = nil) throws -> (GroupProcess, URL, URL) {
+        try FileManager.default.createDirectory(at: f.install.engine, withIntermediateDirectories: true)
         let cli = f.install.trellisCLI
         try "#!/bin/bash\n\(body)\n".write(to: cli, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: cli.path)
         let source = try picture("source.png") { x, _ in x < 50 ? 0 : 255 }
         let glb = f.install.runs.appendingPathComponent("mini/model.glb"), log = f.root.appendingPathComponent("pixal3d.log")
         let p = try GroupProcess(executable: mimic,
-                                 arguments: ["_engine", source.path, glb.path, "--seed", "5", "--engine", f.install.engine.path],
+                                 arguments: ["_engine", source.path, glb.path, "--seed", "5", "--engine", f.install.engine.path]
+                                    + (model.map { ["--model", $0.id] } ?? []),
                                  environment: ["PATH": "/usr/bin:/bin"], log: log.path)
         return (p, glb, log)
     }
@@ -98,12 +108,30 @@ final class EngineTests: XCTestCase {
         let args = text(URL(fileURLWithPath: seen)).split(separator: "\n").map(String.init)
         XCTAssertEqual(args.first.map { URL(fileURLWithPath: $0).resolvingSymlinksInPath() }, f.install.engine.resolvingSymlinksInPath(), "not run from the engine's folder")
         XCTAssertEqual(args[1], "steps=8")
-        XCTAssertEqual(Array(args.dropFirst(2)), Engine.arguments(image: f.root.appendingPathComponent("source.png"), output: glb,
-                                                                  models: f.install.models, seed: 5))
+        XCTAssertEqual(Array(args.dropFirst(2)), Engine.arguments(model: EngineDownload.standard, image: f.root.appendingPathComponent("source.png"),
+                                                                  output: glb, models: EngineDownload.standard.folder(in: f.install), seed: 5),
+                       "no --model is the standard model: jobs queued before 0.4.0 still run")
         let out = text(log)
         XCTAssertFalse(out.contains("ggml_metal"), "Metal noise reached the log")
         for line in ["PIXAL3D_STEPS=8 overrides 12 steps", "1/8", "8/8", "[6/6] writing"] { XCTAssertTrue(out.contains(line), line) }
         XCTAssertFalse(out.contains("cutting"), "an already cut-out picture was cut out again")
+    }
+
+    /// `--model` picks the command line and the model folder, and the fast-setting guard holds
+    /// for it too.
+    func testTheEngineRunsTheChosenModel() throws {
+        let m = try XCTUnwrap(EngineDownload.catalogue.first { $0.family == .trellis2 })
+        let seen = f.root.appendingPathComponent("seen").path
+        let (p, glb, log) = try engine("""
+            printf '%s\\n' "$@" > \(seen)
+            echo "      [flow] PIXAL3D_STEPS=$PIXAL3D_STEPS overrides 12 steps"
+            echo glb > "${@: -1}"
+            """, model: m)
+        XCTAssertEqual(p.wait(), 0, text(log))
+        XCTAssertEqual(text(URL(fileURLWithPath: seen)).split(separator: "\n").map(String.init),
+                       Engine.arguments(model: m, image: f.root.appendingPathComponent("source.png"), output: glb,
+                                        models: m.folder(in: f.install), seed: 5))
+        XCTAssertTrue(text(log).contains("model=\(m.id)"), "the log doesn't say which model made it")
     }
 
     func testAnEngineThatIgnoresTheFastSettingIsStopped() throws {

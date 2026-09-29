@@ -27,12 +27,20 @@ public enum Engine {
     /// packaged build reads this and says "PIXAL3D_STEPS=8 overrides 12 steps".
     static let steps = "8"
 
-    /// The trellis-cli command line. Paths must be absolute: it runs from its own folder so it
-    /// finds its Metal library, and a relative path would resolve against that.
-    /// Always `--sv-image` (the single-view weights need it) with an already cut-out picture.
-    public static func arguments(image: URL, output: URL, models: URL, seed: Int) -> [String] {
-        ["--sv-image", image.path, "--fov", fov, "--models", models.path, "--seed", String(seed),
-         "--res", "1024", "--pixal3d-weights", "sv", "--gss", gss, output.path]
+    /// The trellis-cli command line for `model`. Paths must be absolute: it runs from its own
+    /// folder so it finds its Metal library, and a relative path would resolve against that.
+    /// The picture is always cut out already, so neither pipeline removes a background.
+    /// - Pixal3D: `--sv-image` (the single-view weights need it), the gauge camera and gss 10.
+    /// - TRELLIS.2: the plain one-picture pipeline at its own defaults; gss 10 was tuned on
+    ///   Pixal3D only.
+    public static func arguments(model: EngineModel, image: URL, output: URL, models: URL, seed: Int) -> [String] {
+        switch model.family {
+        case .pixal3dSingleView:
+            ["--sv-image", image.path, "--fov", fov, "--models", models.path, "--seed", String(seed),
+             "--res", "1024", "--pixal3d-weights", "sv", "--gss", gss, output.path]
+        case .trellis2:
+            ["--image", image.path, "--models", models.path, "--seed", String(seed), "--res", "1024", "--output", output.path]
+        }
     }
 
     public static func environment(_ base: [String: String]) -> [String: String] {
@@ -146,9 +154,10 @@ public enum Engine {
     /// this trellis-cli ignores PIXAL3D_STEPS and would quietly run the slower 12 steps.
     static func samplingStarted(_ line: String) -> Bool { line.contains("[flow] [") }
 
-    /// Cuts the picture out if it needs it, then runs trellis-cli from `engine`, writing its
-    /// output (minus the noise) through `say`. Throws with a sentence for the log on failure.
-    public static func make(source: URL, output: URL, seed: Int, engine: URL,
+    /// Cuts the picture out if it needs it, then runs trellis-cli from `engine` with `model`,
+    /// writing its output (minus the noise) through `say`. Throws with a sentence for the log on
+    /// failure. PIXAL3D_STEPS applies to every flow of either pipeline, so the same guard holds.
+    public static func make(source: URL, output: URL, seed: Int, engine: URL, model: EngineModel,
                             environment: [String: String], say: (String) -> Void) throws {
         let source = source.standardizedFileURL, output = output.standardizedFileURL
         let cli = engine.appendingPathComponent("trellis-cli")
@@ -162,7 +171,7 @@ public enum Engine {
             image = try cutOut(source)
             say("[pixal3d] cut out: \(image.path)")
         }
-        say("[pixal3d] seed=\(seed) gss=\(gss) steps=\(steps)")
+        say("[pixal3d] model=\(model.id) seed=\(seed)\(model.family == .pixal3dSingleView ? " gss=\(gss)" : "") steps=\(steps)")
         try FileManager.default.createDirectory(at: output.deletingLastPathComponent(), withIntermediateDirectories: true)
 
         var fds: [Int32] = [0, 0]
@@ -171,8 +180,8 @@ public enum Engine {
         let process: GroupProcess
         do {
             process = try GroupProcess(executable: cli.path,
-                                       arguments: arguments(image: image, output: output,
-                                                            models: engine.appendingPathComponent("models/pixal3d-sv"), seed: seed),
+                                       arguments: arguments(model: model, image: image, output: output,
+                                                            models: engine.appendingPathComponent("models/\(model.id)"), seed: seed),
                                        environment: Self.environment(environment),
                                        workingDirectory: engine.path, output: (fds[1], fds[0]), newSession: false)
         } catch {

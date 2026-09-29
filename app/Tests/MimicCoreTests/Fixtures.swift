@@ -27,6 +27,20 @@ struct Fixture {
               environment: ["PATH": "/usr/bin:/bin"])
     }
 
+    /// Every weight file of `model` at its full size, sparse so gigabytes cost nothing; `short`
+    /// is left a byte short, as an interrupted download would.
+    func modelFiles(_ model: EngineModel = EngineDownload.standard, short: String? = nil) throws {
+        let folder = model.folder(in: install)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        for m in model.weights {
+            let url = folder.appendingPathComponent(m.name)
+            FileManager.default.createFile(atPath: url.path, contents: nil)
+            let h = try FileHandle(forWritingTo: url)
+            try h.truncate(atOffset: UInt64(m.name == short ? m.bytes - 1 : m.bytes))
+            try h.close()
+        }
+    }
+
     /// A mini folder with a 3D model, ready to resize.
     func mini(_ name: String) throws -> URL {
         let d = install.runs.appendingPathComponent(name)

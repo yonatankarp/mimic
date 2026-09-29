@@ -11,7 +11,8 @@ enum CLI {
       mimic resize <name> [options]
       mimic retry <name>
       mimic list
-    options: --height MM  --base MM  --nozzle 0.2|0.4|0.6  --inflate MM  --no-base  --seed N
+      mimic models
+    options: --height MM  --base MM  --nozzle 0.2|0.4|0.6  --inflate MM  --no-base  --seed N  --model ID
     """
 
     static func run(_ args: [String]) -> Int32 {
@@ -32,12 +33,24 @@ enum CLI {
                 print("\(m.name)\t\(m.stl == nil ? "unfinished" : "ready")\t\(m.madeAt)")
             }
             return 0
+        case "models":
+            // The app's choice, marked; downloading one is the app's job, where it shows progress.
+            let selected = EngineDownload.selected(defaults: defaults)
+            for m in EngineDownload.catalogue {
+                let state = m.complete(in: install) ? "downloaded" : "not downloaded"
+                print("\(m.id == selected.id ? "*" : " ") \(m.id)\t\(m.name)\t\(Checks.gigabytes(m.bytes)) GB\t\(state)\t\(m.summary)")
+            }
+            print("* = the one Mimic uses. Choose or download one in the Mimic app: Settings → 3D model.")
+            return 0
         case "make", "resize", "retry":
             guard let name = rest.first, !name.hasPrefix("-") else { return fail(usage) }
             // Setup downloads the engine in the app, where it can show its progress.
-            guard args[0] == "resize" || EngineDownload.present(install) else { return fail("Mimic needs to finish setting up. Open the Mimic app: it downloads what's missing.") }
+            guard args[0] == "resize" || FileManager.default.isExecutableFile(atPath: install.trellisCLI.path) else {
+                return fail("Mimic needs to finish setting up. Open the Mimic app: it downloads what's missing.")
+            }
             rest.removeFirst()
             var sizes = Sizes(), image: String?, restyle = false, seed = 42, description: String?
+            var model = EngineDownload.selected(defaults: defaults)
             while let a = rest.first {
                 rest.removeFirst()
                 func value() -> String? { rest.isEmpty ? nil : rest.removeFirst() }
@@ -50,6 +63,11 @@ enum CLI {
                 case "--image": image = value()
                 case "--restyle": restyle = true
                 case "--seed": guard let v = value().flatMap(Int.init) else { return fail("--seed needs a number") }; seed = v
+                case "--model":
+                    guard let v = value().flatMap(EngineDownload.model) else {
+                        return fail("--model needs one of: \(EngineDownload.catalogue.map(\.id).joined(separator: ", ")) (see mimic models)")
+                    }
+                    model = v
                 default:
                     guard description == nil, !a.hasPrefix("-") else { return fail("unknown option: \(a)\n\(usage)") }
                     description = a
@@ -63,7 +81,7 @@ enum CLI {
                     if let image { picture = .image(URL(fileURLWithPath: image)) }
                     else if let description { picture = .description(description) }
                     else { return fail(usage) }
-                    try jobs.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes)
+                    try jobs.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, model: model)
                 case "resize": try jobs.resize(name: name, sizes: sizes)
                 default: try jobs.retry(name: name)
                 }
@@ -100,14 +118,17 @@ enum CLI {
     }
 
     /// Step 2 of a job, run by the job itself (not for people, so not in the usage):
-    /// `mimic _engine <source.png> <model.glb> --seed N --engine <dir>`.
+    /// `mimic _engine <source.png> <model.glb> --seed N --engine <dir> [--model ID]`.
     private static func engine(_ args: [String]) -> Int32 {
-        var rest = args, seed = 42, engine: String?, files: [String] = []
+        var rest = args, seed = 42, engine: String?, files: [String] = [], model = EngineDownload.standard
         while let a = rest.first {
             rest.removeFirst()
             switch a {
             case "--seed": guard let v = rest.first.flatMap(Int.init) else { return fail("--seed needs a number") }; seed = v; rest.removeFirst()
             case "--engine": guard let v = rest.first else { return fail("--engine needs a folder") }; engine = v; rest.removeFirst()
+            case "--model":
+                guard let v = rest.first.flatMap(EngineDownload.model) else { return fail("--model needs a known model id") }
+                model = v; rest.removeFirst()
             default: files.append(a)
             }
         }
@@ -115,7 +136,7 @@ enum CLI {
         let out = FileHandle.standardOutput
         do {
             try Engine.make(source: URL(fileURLWithPath: files[0]), output: URL(fileURLWithPath: files[1]), seed: seed,
-                            engine: URL(fileURLWithPath: engine), environment: ProcessInfo.processInfo.environment) {
+                            engine: URL(fileURLWithPath: engine), model: model, environment: ProcessInfo.processInfo.environment) {
                 out.write(Data(($0 + "\n").utf8))
             }
             return 0

@@ -12,8 +12,14 @@ final class SetupModel {
     static let drawThingsStore = URL(string: "https://apps.apple.com/app/id6444050820")!
 
     let install: Install
-    /// The engine and every model file are there (not hashed: setup does that). Until they are,
-    /// the main window shows the setup screen.
+    /// The 3D model minis are made with: the `model` default (absent = the standard set, which
+    /// is every install before there was a choice). It only ever names a set that finished
+    /// downloading, except on a new Mac, where setup is showing.
+    private(set) var chosen: EngineModel
+    /// The set being downloaded, or the one the last download was for.
+    private(set) var target: EngineModel
+    /// The engine and every file of the chosen model are there (not hashed: setup does that).
+    /// Until they are, the main window shows the setup screen.
     private(set) var installed: Bool
     private(set) var running = false
     /// Why the last run stopped, in words for people.
@@ -26,36 +32,60 @@ final class SetupModel {
 
     init(install: Install) {
         self.install = install
-        installed = EngineDownload.present(install)
+        let chosen = EngineDownload.selected(defaults: .standard)
+        self.chosen = chosen
+        target = chosen
+        installed = EngineDownload.present(install, chosen)
     }
+
+    /// Makes minis with `model` from now on. Only a model that's all there: others download first.
+    func use(_ model: EngineModel) {
+        guard model.complete(in: install) else { return }
+        UserDefaults.standard.set(model.id, forKey: "model")
+        chosen = model
+        Health.shared.check(install)
+    }
+
+    /// Deletes a model set that isn't the one in use, freeing its space.
+    func remove(_ model: EngineModel) {
+        guard model != chosen, !(running && target == model) else { return }
+        try? FileManager.default.removeItem(at: model.folder(in: install))
+        removals += 1
+    }
+    /// Bumped by every removal, so views that show what's on disk look again.
+    private(set) var removals = 0
 
     /// An install from the old installer whose engine is still inside image-to-3dlab.
     var hasOldInstall: Bool { install.legacyLab.map { FileManager.default.fileExists(atPath: $0.path) } ?? false }
 
-    func start() {
+    /// Downloads what's missing of the engine and `model` (the chosen one if nil), then makes
+    /// minis with it.
+    func start(_ model: EngineModel? = nil) {
         guard !running else { return }
+        target = model ?? chosen
         running = true
         problem = nil
         progress = nil
         samples = []
         var setup = EngineSetup(install: install)
+        setup.model = target
         // Development: try setup against a local copy of the files instead of the internet.
         if let mirror = ProcessInfo.processInfo.environment["MIMIC_DOWNLOAD_MIRROR"].flatMap(URL.init(string:)) {
             let local = { (f: EngineFile) in EngineFile(name: f.name, url: mirror.appendingPathComponent(f.name), bytes: f.bytes, sha256: f.sha256) }
             setup.engineFile = local(setup.engineFile)
-            setup.models = setup.models.map(local)
+            setup.model.files = setup.model.files.map(local)
         }
         Task {
             #if DEBUG
             // Development: MIMIC_DEMO_SETUP plays a pretend download (about 30 s) and a finish,
             // to look at the setup screen's animations without downloading 8.1 GB.
             if ProcessInfo.processInfo.environment["MIMIC_DEMO_SETUP"] != nil {
-                let total = EngineDownload.totalBytes
+                let total = EngineDownload.totalBytes(target)
                 for i in 1...150 {
                     try? await Task.sleep(for: .seconds(0.2))
                     update(SetupProgress(activity: .downloading, done: total * Int64(i) / 150, total: total))
                 }
-                return await finish(present: true)
+                return await finish(downloaded: true, demo: true)
             }
             #endif
             do {
@@ -65,14 +95,19 @@ final class SetupModel {
             } catch {
                 problem = "Setup stopped (\(error.localizedDescription)). Press Try Again: it carries on where it stopped."
             }
-            await finish(present: EngineDownload.present(install))
+            await finish(downloaded: EngineDownload.present(install, target))
         }
     }
 
     /// On first launch a finished setup shows it's done for a moment, then the gallery fades in
     /// in its place. A Repair from Settings just ends.
-    private func finish(present: Bool) async {
+    private func finish(downloaded: Bool, demo: Bool = false) async {
         running = false
+        if downloaded && !demo && target != chosen {
+            UserDefaults.standard.set(target.id, forKey: "model")
+            chosen = target
+        }
+        let present = demo || EngineDownload.present(install, chosen)
         if present && !installed {
             justFinished = true
             try? await Task.sleep(for: .seconds(1.2))
@@ -131,10 +166,13 @@ struct SetupView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var setup: SetupModel { model.setup }
+    /// The 3D model to download: the standard one until another is picked.
+    @State private var pick: EngineModel?
+    private var picked: EngineModel { setup.running || setup.justFinished ? setup.target : pick ?? setup.chosen }
 
-    /// 8.1 GB at 100 Mbit/s, rounded to five minutes.
-    private var minutes: Int {
-        let at100Mbit = Double(EngineDownload.totalBytes) / 12.5e6 / 60
+    /// The download at 100 Mbit/s, rounded to five minutes.
+    private func minutes(_ m: EngineModel) -> Int {
+        let at100Mbit = Double(EngineDownload.totalBytes(m)) / 12.5e6 / 60
         return max(5, Int((at100Mbit / 5).rounded()) * 5)
     }
 
@@ -176,15 +214,20 @@ struct SetupView: View {
                     .frame(width: 40)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("The 3D engine").font(.headline)
-                    Text("\(gigabytes) GB, about \(minutes) minutes on a fast connection")
+                    Text("\(Checks.gigabytes(EngineDownload.totalBytes(picked))) GB, about \(minutes(picked)) minutes on a fast connection")
                         .foregroundStyle(.secondary)
+                        .contentTransition(.numericText())
+                        .animation(reduceMotion ? nil : .default, value: picked)
                 }
                 Spacer()
                 if !setup.running && !setup.justFinished {
-                    Button(setup.problem == nil ? "Download" : "Try Again") { setup.start() }
+                    Button(setup.problem == nil ? "Download" : "Try Again") { setup.start(picked) }
                         .glassButton(prominent: true)
                         .controlSize(.large)
                 }
+            }
+            if !setup.running && !setup.justFinished && EngineDownload.catalogue.count > 1 {
+                ModelChoice(selection: picked) { pick = $0 }
             }
             if setup.running || setup.justFinished {
                 ProgressView(value: setup.fraction)
@@ -194,7 +237,7 @@ struct SetupView: View {
                     .contentTransition(.numericText())
                     .animation(reduceMotion ? nil : .default, value: setup.status)
             }
-            // Told before the 8.1 GB download rather than after it: Mimic is only tested on 32 GB.
+            // Told before the download rather than after it: Mimic is only tested on 32 GB.
             if ProcessInfo.processInfo.physicalMemory < 30_000_000_000 && !setup.justFinished {
                 Label("This Mac has \(ProcessInfo.processInfo.physicalMemory / 1_073_741_824) GB of memory. Mimic is made for Macs with 32 GB, so making a mini may be very slow or fail here.",
                       systemImage: "memorychip")
@@ -224,6 +267,35 @@ struct SetupView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .glassCard(cornerRadius: 16)
     }
+}
 
-    private var gigabytes: String { String(format: "%.1f", Double(EngineDownload.totalBytes) / 1e9) }
+/// The 3D models to choose from, one row each with its size: before the first download, and
+/// nowhere else (Settings lists them with what each has on disk).
+struct ModelChoice: View {
+    let selection: EngineModel
+    let choose: (EngineModel) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Which 3D model?").font(.subheadline.weight(.semibold))
+            ForEach(EngineDownload.catalogue) { m in
+                Button { choose(m) } label: {
+                    HStack(alignment: .firstTextBaseline) {
+                        Image(systemName: m == selection ? "largecircle.fill.circle" : "circle")
+                            .foregroundStyle(m == selection ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(m == EngineDownload.standard ? "\(m.name) (recommended)" : m.name)
+                            Text(m.summary).font(.callout).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Text("\(Checks.gigabytes(m.bytes)) GB").foregroundStyle(.secondary).monospacedDigit()
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(m == selection ? .isSelected : [])
+            }
+            Text("You can switch later in Settings.").font(.footnote).foregroundStyle(.secondary)
+        }
+    }
 }

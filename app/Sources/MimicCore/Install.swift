@@ -1,7 +1,7 @@
 import Foundation
 
 /// Where Mimic keeps things: the minis (`runs`), the 3D engine (`engine`, trellis-cli and its
-/// libraries, with the model files in `engine/models/pixal3d-sv/`).
+/// libraries, with each model set's files in `engine/models/<id>/`).
 ///
 /// An app installed from the disk image has no Mimic folder, so by default the minis are in
 /// ~/Documents/Mimic, where people look for their files, and the engine in
@@ -15,7 +15,6 @@ public struct Install: Sendable, Equatable {
     /// Setup moves it out. nil for the default layout, which never had one.
     public let legacyLab: URL?
     public var trellisCLI: URL { engine.appendingPathComponent("trellis-cli") }
-    public var models: URL { engine.appendingPathComponent("models/pixal3d-sv") }
 
     /// A Mimic folder with everything inside it.
     public init(root: URL) {

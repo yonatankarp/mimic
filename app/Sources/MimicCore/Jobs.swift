@@ -58,10 +58,11 @@ public final class JobRunner: @unchecked Sendable {
 
     // MARK: Starting
 
-    /// Makes a new mini. Everything is checked before anything is written.
-    public func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes) throws {
+    /// Makes a new mini with `model`. Everything is checked before anything is written.
+    public func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes, model: EngineModel) throws {
         guard Rules.isValidName(name) else { throw RequestError.badName }
         _ = try sizes.flags()
+        guard model.complete(in: install) else { throw RequestError.modelNotDownloaded(model.name) }
         let folder = install.runs.appendingPathComponent(name)
         if FileManager.default.fileExists(atPath: folder.appendingPathComponent("model.glb").path) { throw RequestError.nameTaken(name) }
         try claim(name)
@@ -77,9 +78,9 @@ public final class JobRunner: @unchecked Sendable {
             case .description(let text):
                 settings.source = .desc; settings.desc = text
             }
-            settings.restyle = restyle; settings.seed = seed; settings.requested = sizes
             try MiniSettings.update(folder) { s in
                 s.source = settings.source; s.desc = settings.desc; s.restyle = restyle; s.seed = seed; s.requested = sizes
+                s.model = model.id
             }
             try begin(.generate, folder: folder)
         } catch { release(); throw error }
@@ -103,10 +104,16 @@ public final class JobRunner: @unchecked Sendable {
     public func retry(name: String) throws {
         guard Rules.isValidName(name) else { throw RequestError.badName }
         let folder = install.runs.appendingPathComponent(name)
-        guard MiniSettings.load(folder).requested != nil else { throw RequestError.nothingToRetry }
+        let settings = MiniSettings.load(folder)
+        guard settings.requested != nil else { throw RequestError.nothingToRetry }
+        let hasModel = FileManager.default.fileExists(atPath: folder.appendingPathComponent("model.glb").path)
+        if !hasModel {
+            // The same 3D model it was made with, and it has to be here: found out now, not minutes in.
+            guard let model = EngineDownload.model(settings.model) else { throw RequestError.unknownModel(settings.model ?? "") }
+            guard model.complete(in: install) else { throw RequestError.modelNotDownloaded(model.name) }
+        }
         try claim(name)
         do {
-            let hasModel = FileManager.default.fileExists(atPath: folder.appendingPathComponent("model.glb").path)
             try begin(hasModel ? .prep : .generate, folder: folder)
         } catch { release(); throw error }
     }

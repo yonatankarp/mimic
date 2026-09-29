@@ -34,19 +34,79 @@ final class JobTests: XCTestCase {
                             arguments: ["_prep", d.appendingPathComponent("model.glb").path,
                                         d.appendingPathComponent("mini.stl").path] + flags,
                             directory: nil, log: d.appendingPathComponent("prep.log"))
-        let mesh = Step.run(executable: "/app/mimic", arguments: ["_engine", src.path, d.appendingPathComponent("model.glb").path,
-                                                                  "--seed", "7", "--engine", fx.install.engine.path],
-                            directory: nil, log: d.appendingPathComponent("pixal3d.log"))
+        func mesh(_ model: String = "pixal3d-sv") -> Step {
+            .run(executable: "/app/mimic", arguments: ["_engine", src.path, d.appendingPathComponent("model.glb").path,
+                                                       "--seed", "7", "--engine", fx.install.engine.path, "--model", model],
+                 directory: nil, log: d.appendingPathComponent("pixal3d.log"))
+        }
         func settings(_ f: (inout MiniSettings) -> Void) -> MiniSettings { var s = MiniSettings(); s.seed = 7; s.requested = sizes; f(&s); return s }
         let cases: [(String, JobKind, MiniSettings, [Step])] = [
-            ("picture", .generate, settings { $0.source = .image; $0.restyle = false }, [.copyPicture(from: up, to: src), mesh, prep]),
-            ("picture, redrawn", .generate, settings { $0.source = .image; $0.restyle = true }, [.sculptPicture(from: up, seed: 7, to: src), mesh, prep]),
-            ("description", .generate, settings { $0.source = .desc; $0.desc = "a dwarf" }, [.drawCharacter(description: "a dwarf", seed: 7, to: src), mesh, prep]),
+            ("picture", .generate, settings { $0.source = .image; $0.restyle = false }, [.copyPicture(from: up, to: src), mesh(), prep]),
+            ("picture, redrawn", .generate, settings { $0.source = .image; $0.restyle = true }, [.sculptPicture(from: up, seed: 7, to: src), mesh(), prep]),
+            ("description", .generate, settings { $0.source = .desc; $0.desc = "a dwarf" }, [.drawCharacter(description: "a dwarf", seed: 7, to: src), mesh(), prep]),
+            ("another model", .generate, settings { $0.source = .image; $0.model = EngineDownload.catalogue.last!.id },
+             [.copyPicture(from: up, to: src), mesh(EngineDownload.catalogue.last!.id), prep]),
             ("resize", .prep, settings { _ in }, [prep]),
         ]
         for (label, kind, s, want) in cases {
             XCTAssertEqual(try Pipeline.plan(kind, folder: d, settings: s, tools: tools).map(\.step), want, label)
         }
+        XCTAssertThrowsError(try Pipeline.plan(.generate, folder: d, settings: settings { $0.source = .image; $0.model = "gone" }, tools: tools)) {
+            XCTAssertEqual($0 as? RequestError, .unknownModel("gone"))
+        }
+    }
+
+    /// A new mini records the model it's made with, so Try Again uses that one and not whatever
+    /// is in use by then; a model that isn't downloaded is refused before anything is written.
+    func testTheModelIsRecordedAndMustBeDownloaded() throws {
+        let fx = try Fixture()
+        let picture = fx.root.appendingPathComponent("pic.png")
+        FileManager.default.createFile(atPath: picture.path, contents: Data([1]))
+        let other = EngineDownload.catalogue.last!
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/false"))
+        XCTAssertThrowsError(try jobs.make(name: "mini", picture: .image(picture), restyle: false, seed: 1, sizes: sizes, model: other)) {
+            XCTAssertEqual($0 as? RequestError, .modelNotDownloaded(other.name))
+        }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fx.install.runs.appendingPathComponent("mini").path), "a refused mini left a folder")
+
+        try fx.modelFiles(other)
+        try jobs.make(name: "mini", picture: .image(picture), restyle: false, seed: 1, sizes: sizes, model: other)
+        jobs.waitUntilDone()
+        let folder = fx.install.runs.appendingPathComponent("mini")
+        XCTAssertEqual(MiniSettings.load(folder).model, other.id)
+
+        // Removed since: Try Again says so at once instead of failing minutes into the 3D step.
+        try FileManager.default.removeItem(at: other.folder(in: fx.install))
+        XCTAssertThrowsError(try jobs.retry(name: "mini")) { XCTAssertEqual($0 as? RequestError, .modelNotDownloaded(other.name)) }
+        try fx.modelFiles(other)
+        XCTAssertNoThrow(try jobs.retry(name: "mini"))
+        jobs.waitUntilDone()
+    }
+
+    /// A mini made before there was a choice has no `model` and is the standard one; an install
+    /// with nothing chosen uses the standard model, which it already has: nothing to download.
+    func testOlderMinisAndInstallsMeanTheStandardModel() throws {
+        XCTAssertEqual(EngineDownload.model(MiniSettings().model), EngineDownload.standard)
+        let old = try JSONDecoder().decode(MiniSettings.self, from: Data(#"{"requested": {"height": "32"}, "seed": 3}"#.utf8))
+        XCTAssertNil(old.model)
+        let suite = "mimic-test-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        XCTAssertEqual(EngineDownload.selected(defaults: defaults), EngineDownload.standard)
+        defaults.set("no-such-model", forKey: "model")
+        XCTAssertEqual(EngineDownload.selected(defaults: defaults), EngineDownload.standard, "an unknown choice must still make minis")
+        defaults.set(EngineDownload.catalogue.last!.id, forKey: "model")
+        XCTAssertEqual(EngineDownload.selected(defaults: defaults), EngineDownload.catalogue.last!)
+
+        let fx = try Fixture()
+        try FileManager.default.createDirectory(at: fx.install.engine, withIntermediateDirectories: true)
+        try "#!/bin/sh\n".write(to: fx.install.trellisCLI, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: fx.install.trellisCLI.path)
+        try fx.modelFiles()
+        XCTAssertEqual(EngineDownload.standard.folder(in: fx.install).lastPathComponent, "pixal3d-sv", "existing installs keep their folder")
+        defaults.removeObject(forKey: "model")
+        XCTAssertTrue(EngineDownload.present(fx.install, EngineDownload.selected(defaults: defaults)),
+                      "an install from before the choice would be sent to setup")
     }
 
     /// prep.log is appended to, so a warning from an earlier run must not follow the mini around.
@@ -66,12 +126,13 @@ final class JobTests: XCTestCase {
     func testStopEndsTheJobAndTrashesAHalfMadeMini() throws {
         let fx = try Fixture()
         let childFile = fx.root.appendingPathComponent("child.pid").path
-        let engine = try fx.script("engine", "sleep 60 & echo $! > \(childFile); wait")
+        let engine = try fx.script("fake-engine", "sleep 60 & echo $! > \(childFile); wait")
         let picture = fx.root.appendingPathComponent("pic.png")
         FileManager.default.createFile(atPath: picture.path, contents: Data([1]))
         let spy = TrashSpy()
         let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: engine), trash: { spy($0) })
-        try jobs.make(name: "mini", picture: .image(picture), restyle: false, seed: 1, sizes: sizes)
+        try fx.modelFiles()
+        try jobs.make(name: "mini", picture: .image(picture), restyle: false, seed: 1, sizes: sizes, model: EngineDownload.standard)
         var child: pid_t = 0
         for _ in 0..<100 {
             if let s = try? String(contentsOfFile: childFile, encoding: .utf8), let p = pid_t(s.trimmingCharacters(in: .whitespacesAndNewlines)) { child = p; break }

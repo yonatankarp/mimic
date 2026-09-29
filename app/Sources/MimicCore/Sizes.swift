@@ -63,6 +63,9 @@ public struct MiniSettings: Codable, Equatable, Sendable {
     public var desc: String?
     public var restyle: Bool?
     public var seed: Int?
+    /// The 3D model set it's made with (`EngineModel.id`), so Try Again uses the same one.
+    /// Absent (every mini before 0.4.0) means the standard set.
+    public var model: String?
     public var requested: Sizes?
     public var made: Sizes?
 

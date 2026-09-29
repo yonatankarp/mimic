@@ -13,6 +13,45 @@ public struct EngineFile: Sendable, Equatable {
     }
 }
 
+/// One set of model files the 3D engine can run, and how it runs them.
+public struct EngineModel: Sendable, Equatable, Identifiable {
+    /// Which of trellis-cli's pipelines the files are for.
+    public enum Family: Sendable, Equatable { case pixal3dSingleView, trellis2 }
+
+    public let id: String
+    /// Plain words, for the setup screen and Settings.
+    public let name: String
+    public let summary: String
+    public let family: Family
+    public var files: [EngineFile]
+
+    public init(id: String, name: String, summary: String, family: Family, files: [EngineFile]) {
+        self.id = id; self.name = name; self.summary = summary; self.family = family; self.files = files
+    }
+
+    public var bytes: Int64 { files.reduce(0) { $0 + $1.bytes } }
+
+    /// The files trellis-cli loads. The health check wants every one at its full size: any
+    /// missing file fails a run minutes in, and the size catches a download cut short.
+    public var weights: [EngineFile] { files.filter { $0.name.hasSuffix(".gguf") } }
+
+    public func folder(in install: Install) -> URL { install.engine.appendingPathComponent("models/\(id)") }
+
+    /// Every weight file at its full size (setup checks their sha256 too).
+    public func complete(in install: Install) -> Bool {
+        let folder = folder(in: install)
+        return weights.allSatisfy { EngineDownload.size(folder.appendingPathComponent($0.name)) == $0.bytes }
+    }
+
+    /// Whether any of its files, or a download of one, is on disk: something Remove can free.
+    public func anyOnDisk(in install: Install) -> Bool {
+        let folder = folder(in: install)
+        return files.contains { f in
+            [f.name, f.name + ".part"].contains { FileManager.default.fileExists(atPath: folder.appendingPathComponent($0).path) }
+        }
+    }
+}
+
 /// Everything the 3D engine needs, pinned. The one place to change when a new engine build or
 /// model revision is adopted.
 public enum EngineDownload {
@@ -26,39 +65,117 @@ public enum EngineDownload {
         bytes: 1_670_709,
         sha256: "58aa276c7605bddf250533c982ccd43c2e0791791b6cf2f5e2c777ff56c7dede")
 
-    /// Pixal3D's model files, from Hugging Face at a pinned revision (the big ones' sha256s are
+    /// The model sets Mimic can run, the default first. Each is downloaded into its own folder,
+    /// `engine/models/<id>`, from Hugging Face at a pinned revision (the big files' sha256s are
     /// Hugging Face's own LFS hashes). The licences travel with the weights.
-    static let modelsURL = URL(string: "https://huggingface.co/raven38/pixal3d-sv-q8_0-v1/resolve/46d399ac986f45a0d7f5b1ca5058614d8729a131")!
+    public static let catalogue: [EngineModel] = [pixal3d, trellis2Q8, trellis2Q4]
 
-    public static let models: [EngineFile] = [
-        ("dinov3.gguf", 323_657_920, "0dd4ffd4b46a248f5b7d49c35275d68461fbf73f57ddb4c1fa8afb4f7bb45a0d"),
-        ("pixal3d_naf.gguf", 1_334_656, "c4f6cd80e94c8d120360ba50a3633322e6ecce0163966e3b7650b24f99c18569"),
-        ("pixal3d_ss_flow_sv.gguf", 1_426_559_744, "75eeb538c5485e02f091d1fc8a55c8132035076a4e01b7e9607883deff3852c4"),
-        ("ss_dec.gguf", 147_379_392, "2790b5eecb261cc877d9bf175ce2bd6dd48cd65be8c042c5f5bc023dfca01cf7"),
-        ("pixal3d_shape_flow_512_sv.gguf", 1_476_761_760, "13f5df430ca49e6011827a3eeb208f047bdbad1fd4e52549809eaab63b83e19e"),
-        ("shape_dec.gguf", 881_361_568, "0de7c7a675022dd8696d526a9279e5a50b2a35c8a79452f434a72dc53d40f169"),
-        ("pixal3d_shape_flow_1024_sv.gguf", 1_476_761_760, "7cb1ecb189719edbbb991d16271ad0f8ab8bf54154df7795830aadba27f0efae"),
-        ("pixal3d_tex_flow_1024_sv.gguf", 1_476_813_984, "06ef23d3badafc6f8ffcecebbc2bd0297461852b6c125dc4448f80d78040ee17"),
-        ("tex_dec.gguf", 881_344_576, "88b4fced46455e02f316664d5c43584a311921dd9a1cdc1b7b7d981cca9214d4"),
-        ("pixal3d-models.json", 2_522, "e127c0f70e6dc43c07b4c1afc896a7e14353e5c2e7aa6ce0fd82406a6a94c61e"),
-        ("LICENSE.md", 2_129, "95774b0e9d74792a64ddbbd4c51388ea0df1c1a77f8fff0ebce7cb812822dbad"),
+    /// What an install with no choice recorded uses: the model set every Mimic before 0.4.0
+    /// downloaded, so those installs stay valid with nothing to download.
+    public static var standard: EngineModel { catalogue[0] }
+
+    public static func model(_ id: String?) -> EngineModel? {
+        guard let id else { return standard }
+        return catalogue.first { $0.id == id }
+    }
+
+    /// The model this Mac makes minis with: the `model` default, or the standard one when it's
+    /// unset or names a model this Mimic doesn't know.
+    public static func selected(defaults: UserDefaults) -> EngineModel {
+        model(defaults.string(forKey: "model")) ?? standard
+    }
+
+    static let pixal3dURL = URL(string: "https://huggingface.co/raven38/pixal3d-sv-q8_0-v1/resolve/46d399ac986f45a0d7f5b1ca5058614d8729a131")!
+    static let trellis2URL = URL(string: "https://huggingface.co/ilintar/trellis2-gguf/resolve/a57397bd3d351599d9729fc144b3f87c3f87d65b")!
+
+    static func files(_ base: URL, _ list: [(String, Int64, String)]) -> [EngineFile] {
+        list.map { EngineFile(name: ($0.0 as NSString).lastPathComponent, url: base.appendingPathComponent($0.0), bytes: $0.1, sha256: $0.2) }
+    }
+
+    /// dinov3.gguf is Meta's DINOv3 and its licence says the licence must go wherever it goes;
+    /// ilintar's repository ships none, so every set takes these two from raven38's.
+    static let licences = files(pixal3dURL, [
         ("MIT_LICENSE.md", 1_566, "8a37ac9d3587a7cec9bd64fe9043482de7ad53a461532faa3a9f4840cf3f7e59"),
         ("DINOV3_LICENSE.md", 7_503, "25d122eb8f5b880fd23c736fb6ea8018ee45c12237e00b8a86d14c653904999e"),
-        ("README.md", 5_201, "d9cda1603b2828844623817d892ac20ee30c775c519798d8f60329fbd49ca4cf"),
-    ].map { EngineFile(name: $0.0, url: modelsURL.appendingPathComponent($0.0), bytes: $0.1, sha256: $0.2) }
+    ])
 
-    /// Everything, as the setup screen counts it: 8.1 GB.
-    public static var totalBytes: Int64 { engine.bytes + models.reduce(0) { $0 + $1.bytes } }
+    /// Pixal3D single view, 8-bit: the set Mimic was tuned on.
+    static let pixal3d = EngineModel(
+        id: "pixal3d-sv", name: "Pixal3D",
+        summary: "The one Mimic was tuned on: keeps thin parts like blades and bows. About 5 minutes a mini.",
+        family: .pixal3dSingleView,
+        files: files(pixal3dURL, [
+            ("dinov3.gguf", 323_657_920, "0dd4ffd4b46a248f5b7d49c35275d68461fbf73f57ddb4c1fa8afb4f7bb45a0d"),
+            ("pixal3d_naf.gguf", 1_334_656, "c4f6cd80e94c8d120360ba50a3633322e6ecce0163966e3b7650b24f99c18569"),
+            ("pixal3d_ss_flow_sv.gguf", 1_426_559_744, "75eeb538c5485e02f091d1fc8a55c8132035076a4e01b7e9607883deff3852c4"),
+            ("ss_dec.gguf", 147_379_392, "2790b5eecb261cc877d9bf175ce2bd6dd48cd65be8c042c5f5bc023dfca01cf7"),
+            ("pixal3d_shape_flow_512_sv.gguf", 1_476_761_760, "13f5df430ca49e6011827a3eeb208f047bdbad1fd4e52549809eaab63b83e19e"),
+            ("shape_dec.gguf", 881_361_568, "0de7c7a675022dd8696d526a9279e5a50b2a35c8a79452f434a72dc53d40f169"),
+            ("pixal3d_shape_flow_1024_sv.gguf", 1_476_761_760, "7cb1ecb189719edbbb991d16271ad0f8ab8bf54154df7795830aadba27f0efae"),
+            ("pixal3d_tex_flow_1024_sv.gguf", 1_476_813_984, "06ef23d3badafc6f8ffcecebbc2bd0297461852b6c125dc4448f80d78040ee17"),
+            ("tex_dec.gguf", 881_344_576, "88b4fced46455e02f316664d5c43584a311921dd9a1cdc1b7b7d981cca9214d4"),
+            ("pixal3d-models.json", 2_522, "e127c0f70e6dc43c07b4c1afc896a7e14353e5c2e7aa6ce0fd82406a6a94c61e"),
+            ("LICENSE.md", 2_129, "95774b0e9d74792a64ddbbd4c51388ea0df1c1a77f8fff0ebce7cb812822dbad"),
+            ("README.md", 5_201, "d9cda1603b2828844623817d892ac20ee30c775c519798d8f60329fbd49ca4cf"),
+        ]) + licences)
 
-    /// The files trellis-cli loads. The health check wants every one at its full size: any
-    /// missing file fails a run minutes in, and the size catches a download cut short.
-    public static var weights: [EngineFile] { models.filter { $0.name.hasSuffix(".gguf") } }
+    /// Microsoft's TRELLIS.2, 8-bit, from one picture. Its dinov3, ss_dec, shape_dec and tex_dec
+    /// are byte for byte Pixal3D's, so on a Mac that has Pixal3D those 2.2 GB are copied, not
+    /// downloaded. birefnet.gguf is left out: Mimic always hands the engine a cutout.
+    static let trellis2Q8 = EngineModel(
+        id: "trellis2-q8", name: "TRELLIS.2",
+        summary: "Microsoft's original model, on which Pixal3D is built. PLACEHOLDER",
+        family: .trellis2,
+        files: files(trellis2URL, [
+            ("q8/dinov3.gguf", 323_657_920, "0dd4ffd4b46a248f5b7d49c35275d68461fbf73f57ddb4c1fa8afb4f7bb45a0d"),
+            ("q8/ss_flow.gguf", 1_376_059_040, "ea6d8a42b20661a5c6a52e5ffbdc1df7aca9b212792193873b418c69f871422c"),
+            ("q8/ss_dec.gguf", 147_379_392, "2790b5eecb261cc877d9bf175ce2bd6dd48cd65be8c042c5f5bc023dfca01cf7"),
+            ("q8/shape_flow_512.gguf", 1_376_125_952, "29b639f4ff22ded8f91b619376a835f64b9874b0ebcadb9ac6c305195bf5d1f9"),
+            ("q8/shape_flow_1024.gguf", 1_376_125_952, "997e9fc10ab95fda11c4cd1cbaf425101980ac36a2ef80e9c83e0b9c4bfc9680"),
+            ("q8/shape_dec.gguf", 881_361_568, "0de7c7a675022dd8696d526a9279e5a50b2a35c8a79452f434a72dc53d40f169"),
+            ("q8/tex_flow_512.gguf", 1_376_178_176, "389a2cbdda59d53b21e5989650d9d36b7ac603266eaef06712cd07a9fc377210"),
+            ("q8/tex_flow_1024.gguf", 1_376_178_176, "cb2cb3aee74ba09c018f918ed8c146bc7e4f96335b61fa0d1fc1ff1a7811e6da"),
+            ("q8/tex_dec.gguf", 881_344_576, "88b4fced46455e02f316664d5c43584a311921dd9a1cdc1b7b7d981cca9214d4"),
+        ]) + licences)
 
-    /// Quick (no hashing, no launching): whether the engine and its model files are there at all.
-    /// The main window shows the setup screen until they are.
-    public static func present(_ install: Install) -> Bool {
-        FileManager.default.isExecutableFile(atPath: install.trellisCLI.path)
-            && weights.allSatisfy { size(install.models.appendingPathComponent($0.name)) == $0.bytes }
+    /// TRELLIS.2 at 4 bits: the smallest set.
+    static let trellis2Q4 = EngineModel(
+        id: "trellis2-q4", name: "TRELLIS.2 Lite",
+        summary: "PLACEHOLDER",
+        family: .trellis2,
+        files: files(trellis2URL, [
+            ("q4/dinov3.gguf", 172_662_976, "6473cf96fd275bf84f5cc0556975a2abaa10b641e4a07101dcad561df1917ef2"),
+            ("q4/ss_flow.gguf", 730_496_672, "a43c6393ee4a763a03e382de750d4f62752bacf969940442fd856230e62b88c2"),
+            ("q4/ss_dec.gguf", 147_379_392, "2790b5eecb261cc877d9bf175ce2bd6dd48cd65be8c042c5f5bc023dfca01cf7"),
+            ("q4/shape_flow_512.gguf", 730_520_576, "de7b87a92280035258c94314258e3b8314de39e5f001eac1ada0b4087785fb63"),
+            ("q4/shape_flow_1024.gguf", 730_520_576, "54e49e3408b9f77bdc85c3f5a400a58a1d9fc091e111986eda7caeaea621b305"),
+            ("q4/shape_dec.gguf", 845_423_552, "79a52ddfed3454f724683940c11cfbfcf76c427ab3b7fdeb4c3cfc6d26647de4"),
+            ("q4/tex_flow_512.gguf", 730_548_224, "fff7bca6418ad607b8b9ff24034ff63f591d0a9b72f308960bffd6f5cd17390b"),
+            ("q4/tex_flow_1024.gguf", 730_548_224, "028d3be82075f8a4d8b4bd08985e1215ac3783ed332dbf7e8fd6535fcdd3d5a8"),
+            ("q4/tex_dec.gguf", 845_414_272, "20b208e402db907c6800dd4ad486a0d6e927e4511a6ff87fb51049794988927b"),
+        ]) + licences)
+
+    /// Everything a first launch with `model` downloads, as the setup screen counts it.
+    public static func totalBytes(_ model: EngineModel) -> Int64 { engine.bytes + model.bytes }
+
+    /// Quick (no hashing, no launching): whether the engine and `model`'s files are there at all.
+    /// The main window shows the setup screen until the chosen model's are.
+    public static func present(_ install: Install, _ model: EngineModel) -> Bool {
+        FileManager.default.isExecutableFile(atPath: install.trellisCLI.path) && model.complete(in: install)
+    }
+
+    /// About how much space removing `model`'s folder gives back: its files on disk, half
+    /// downloads included, less any another model on disk has byte for byte (setup clones
+    /// those, and a clone's space is only freed when its twin goes too).
+    public static func freed(by model: EngineModel, in install: Install, catalogue: [EngineModel] = catalogue) -> Int64 {
+        let kept = Set(catalogue.filter { $0.id != model.id }.flatMap { other in
+            other.files.filter { size(other.folder(in: install).appendingPathComponent($0.name)) == $0.bytes }.map(\.sha256)
+        })
+        let folder = model.folder(in: install)
+        return model.files.reduce(0) { total, f in
+            let whole = kept.contains(f.sha256) ? 0 : size(folder.appendingPathComponent(f.name)) ?? 0
+            return total + whole + (size(folder.appendingPathComponent(f.name + ".part")) ?? 0)
+        }
     }
 
     static func size(_ url: URL) -> Int64? {
@@ -125,7 +242,10 @@ public struct SetupProgress: Sendable, Equatable {
 public struct EngineSetup: Sendable {
     public var install: Install
     public var engineFile: EngineFile = EngineDownload.engine
-    public var models: [EngineFile] = EngineDownload.models
+    /// The model set to download. An old install's files are always the standard set's.
+    public var model: EngineModel = EngineDownload.standard
+    /// Where identical files may already be on disk, so they're copied instead of downloaded.
+    public var catalogue: [EngineModel] = EngineDownload.catalogue
     public var version: String = EngineDownload.version
     public var session: URLSession = .shared
     public var freeBytes: @Sendable (URL) -> Int64? = Checks.freeBytes
@@ -133,7 +253,8 @@ public struct EngineSetup: Sendable {
     public init(install: Install) { self.install = install }
 
     public func run(progress: @escaping @Sendable (SetupProgress) -> Void) async throws {
-        let total = engineFile.bytes + models.reduce(0) { $0 + $1.bytes }
+        let total = engineFile.bytes + model.bytes
+        let folder = model.folder(in: install)
         let tally = Tally()
         @Sendable func report(_ a: SetupProgress.Activity, _ extra: Int64 = 0) {
             progress(SetupProgress(activity: a, done: tally.done + extra, total: total))
@@ -143,12 +264,13 @@ public struct EngineSetup: Sendable {
             report(.moving)
             try migrate(from: lab)
         }
-        try FileManager.default.createDirectory(at: install.models, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        for file in model.files { reuse(file, in: folder) }
 
         // Room for what isn't here yet, and half a GB to spare, before anything starts.
         let engineOK = engineReady()
         let missing = (engineOK ? 0 : engineFile.bytes * 4)  // the tarball, then what it unpacks to
-            + models.reduce(0) { $0 + (EngineDownload.size(install.models.appendingPathComponent($1.name)) == $1.bytes ? 0 : $1.bytes) }
+            + model.files.reduce(0) { $0 + (EngineDownload.size(folder.appendingPathComponent($1.name)) == $1.bytes ? 0 : $1.bytes) }
         if missing > 0, let free = freeBytes(install.engine), free < missing + 500_000_000 {
             throw SetupError.diskFull(needGB: Int((Double(missing + 500_000_000) / 1e9).rounded(.up)), haveGB: Int(Double(free) / 1e9))
         }
@@ -165,10 +287,10 @@ public struct EngineSetup: Sendable {
         }
         report(.checking)
 
-        for file in models {
+        for file in model.files {
             try Task.checkCancellation()
             report(.checking)
-            try await fetch(file, to: install.models.appendingPathComponent(file.name)) { report(.downloading, $0) }
+            try await fetch(file, to: folder.appendingPathComponent(file.name)) { report(.downloading, $0) }
             tally.done += file.bytes
             report(.checking)
         }
@@ -203,13 +325,16 @@ public struct EngineSetup: Sendable {
     /// once everything worth keeping has moved.
     func migrate(from lab: URL) throws {
         let fm = FileManager.default
+        // Old installs only ever had the standard set (as this setup has it, when it's that one).
+        let standard = model.id == EngineDownload.standard.id ? model : EngineDownload.standard
+        let models = standard.folder(in: install)
         let old = lab.appendingPathComponent("vendor/pixal3d-cpp")
         let build = old.appendingPathComponent("build"), oldModels = old.appendingPathComponent("models/pixal3d-sv")
         func move(_ from: URL, _ to: URL) throws {
             do { try fm.moveItem(at: from, to: to) } catch { throw SetupError.couldntMove(from.lastPathComponent) }
         }
-        do { try fm.createDirectory(at: install.models, withIntermediateDirectories: true) } catch {
-            throw SetupError.couldntMove(install.models.path)
+        do { try fm.createDirectory(at: models, withIntermediateDirectories: true) } catch {
+            throw SetupError.couldntMove(models.path)
         }
         if fm.fileExists(atPath: old.path) {
             let oldVersion = (try? String(contentsOf: build.appendingPathComponent("VERSION"), encoding: .utf8)) ?? ""
@@ -222,12 +347,27 @@ public struct EngineSetup: Sendable {
                     try move(build.appendingPathComponent(name), to)
                 }
             }
-            for file in models {
-                let from = oldModels.appendingPathComponent(file.name), to = install.models.appendingPathComponent(file.name)
+            for file in standard.files {
+                let from = oldModels.appendingPathComponent(file.name), to = models.appendingPathComponent(file.name)
                 if fm.fileExists(atPath: from.path) && !fm.fileExists(atPath: to.path) { try move(from, to) }
             }
         }
         do { try fm.removeItem(at: lab) } catch { throw SetupError.couldntMove(lab.lastPathComponent) }
+    }
+
+    // MARK: Copying a file another model already has
+
+    /// Some sets share files byte for byte (TRELLIS.2's dinov3.gguf is Pixal3D's). When another
+    /// set's folder has one at the right size, it's cloned (APFS: instant, and no space until
+    /// either copy changes), and the download pass checks its sha256 like any other file.
+    func reuse(_ file: EngineFile, in folder: URL) {
+        let to = folder.appendingPathComponent(file.name)
+        guard !FileManager.default.fileExists(atPath: to.path) else { return }
+        for other in catalogue where other.id != model.id {
+            guard let same = other.files.first(where: { $0.sha256 == file.sha256 }) else { continue }
+            let from = other.folder(in: install).appendingPathComponent(same.name)
+            if EngineDownload.size(from) == file.bytes, clonefile(from.path, to.path, 0) == 0 { return }
+        }
     }
 
     // MARK: Downloading one file

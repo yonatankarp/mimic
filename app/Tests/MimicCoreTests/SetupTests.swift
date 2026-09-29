@@ -19,17 +19,37 @@ final class SetupTests: XCTestCase {
     // MARK: The manifest
 
     func testEveryPinnedFileHasAURLASizeAndASha256() {
-        let all = [EngineDownload.engine] + EngineDownload.models
-        for f in all {
-            XCTAssertEqual(f.url.scheme, "https", f.name)
-            XCTAssertEqual(f.url.lastPathComponent, f.name, "\(f.name) downloads from a URL named otherwise")
-            XCTAssertGreaterThan(f.bytes, 0, f.name)
-            XCTAssertNotNil(f.sha256.wholeMatch(of: /[0-9a-f]{64}/), "\(f.name): not a sha256")
+        XCTAssertEqual(EngineDownload.standard.id, "pixal3d-sv", "the standard model is what every install before 0.4.0 has")
+        XCTAssertEqual(Set(EngineDownload.catalogue.map(\.id)).count, EngineDownload.catalogue.count, "two models share an id")
+        XCTAssertEqual(Set(EngineDownload.catalogue.map(\.name)).count, EngineDownload.catalogue.count, "two models share a name")
+        var shaOwner: [String: (name: String, bytes: Int64)] = [:]
+        for m in EngineDownload.catalogue {
+            XCTAssertNotNil(m.id.wholeMatch(of: /[a-z0-9-]+/), "\(m.id): ids are folder names and command-line words")
+            XCTAssertFalse(m.summary.isEmpty, m.id)
+            let all = [EngineDownload.engine] + m.files
+            for f in all {
+                XCTAssertEqual(f.url.scheme, "https", f.name)
+                XCTAssertEqual(f.url.host, f == EngineDownload.engine ? "github.com" : "huggingface.co", f.name)
+                if f != EngineDownload.engine {
+                    XCTAssertNotNil(f.url.path.wholeMatch(of: /.*\/resolve\/[0-9a-f]{40}\/.+/), "\(f.name) isn't pinned to a revision")
+                }
+                XCTAssertEqual(f.url.lastPathComponent, f.name, "\(f.name) downloads from a URL named otherwise")
+                XCTAssertGreaterThan(f.bytes, 0, f.name)
+                XCTAssertNotNil(f.sha256.wholeMatch(of: /[0-9a-f]{64}/), "\(f.name): not a sha256")
+                // The same bytes may appear in two models (that's what setup copies), but never
+                // under two names or two sizes: that would be a pasted hash.
+                if let seen = shaOwner[f.sha256] {
+                    XCTAssertEqual(seen.name, f.name, "\(m.id): \(f.name) has the sha256 of \(seen.name)")
+                    XCTAssertEqual(seen.bytes, f.bytes, f.name)
+                }
+                shaOwner[f.sha256] = (f.name, f.bytes)
+            }
+            XCTAssertEqual(Set(all.map(\.name)).count, all.count, "\(m.id): a file is listed twice")
+            XCTAssertEqual(Set(all.map(\.sha256)).count, all.count, "\(m.id): two files share a sha256: one was pasted twice")
+            XCTAssertTrue(m.files.contains { $0.name == "DINOV3_LICENSE.md" }, "\(m.id): DINOv3's licence must travel with dinov3.gguf")
+            XCTAssertEqual(m.weights.count, 9, "\(m.id): trellis-cli loads nine model files")
         }
-        XCTAssertEqual(Set(all.map(\.name)).count, all.count, "a file is listed twice")
-        XCTAssertEqual(Set(all.map(\.sha256)).count, all.count, "two files share a sha256: one was pasted twice")
-        XCTAssertEqual(EngineDownload.weights.count, 9, "trellis-cli loads nine model files")
-        XCTAssertEqual(String(format: "%.1f", Double(EngineDownload.totalBytes) / 1e9), "8.1", "the screens say 8.1 GB")
+        XCTAssertEqual(Checks.gigabytes(EngineDownload.totalBytes(EngineDownload.standard)), "8.1", "the standard set is 8.1 GB")
     }
 
     // MARK: Where things live
@@ -37,7 +57,7 @@ final class SetupTests: XCTestCase {
     func testAMimicFolderHoldsEverything() {
         let i = Install(root: dir)
         XCTAssertEqual(i.runs, dir.appendingPathComponent("runs").standardizedFileURL)
-        XCTAssertEqual(i.models, dir.appendingPathComponent("engine/models/pixal3d-sv").standardizedFileURL)
+        XCTAssertEqual(EngineDownload.standard.folder(in: i), dir.appendingPathComponent("engine/models/pixal3d-sv").standardizedFileURL)
         XCTAssertEqual(i.legacyLab, dir.appendingPathComponent("image-to-3dlab").standardizedFileURL)
     }
 
@@ -165,12 +185,12 @@ final class SetupTests: XCTestCase {
         let install = Install.standard(home: dir.appendingPathComponent("home"))
         var setup = setup(install)
         setup.engineFile = server.file("/engine.tar.gz", tarball)
-        setup.models = [server.file("/a.gguf", models[0]), server.file("/b.json", models[1])]
+        setup.model.files = [server.file("/a.gguf", models[0]), server.file("/b.json", models[1])]
 
         let seen = ProgressLog()
         try await setup.run { seen.add($0) }
         XCTAssertTrue(setup.engineReady(), "the engine didn't unpack into place, or doesn't start")
-        XCTAssertEqual(try Data(contentsOf: install.models.appendingPathComponent("a.gguf")), models[0])
+        XCTAssertEqual(try Data(contentsOf: EngineDownload.standard.folder(in: install).appendingPathComponent("a.gguf")), models[0])
         XCTAssertFalse(FileManager.default.fileExists(atPath: install.engine.appendingPathComponent("engine.tar.gz").path),
                        "the tarball was left behind")
         XCTAssertEqual(seen.last?.done, seen.last?.total, "progress didn't reach the end")
@@ -180,13 +200,47 @@ final class SetupTests: XCTestCase {
         XCTAssertEqual(server.log.count, 0, "a second run downloaded again")
     }
 
+    /// Another model downloads into its own folder, beside the standard one, and a file the two
+    /// share byte for byte is copied from the one on disk rather than downloaded. Removing it
+    /// frees only what's its own.
+    func testAnotherModelDownloadsBesideAndReusesSharedFiles() async throws {
+        let (tarball, models) = try fakeEngine()
+        let own = Self.bytes(300_000)
+        let server = try FileServer(["/engine.tar.gz": tarball, "/a.gguf": models[0], "/b.json": models[1], "/c.gguf": own])
+        defer { server.stop() }
+        let install = Install.standard(home: dir.appendingPathComponent("home"))
+        var first = setup(install)
+        first.engineFile = server.file("/engine.tar.gz", tarball)
+        first.model.files = [server.file("/a.gguf", models[0]), server.file("/b.json", models[1])]
+        try await first.run { _ in }
+
+        let other = EngineModel(id: "other", name: "Other", summary: "test", family: .trellis2,
+                                files: [server.file("/a.gguf", models[0]), server.file("/c.gguf", own)])
+        var second = first
+        second.model = other
+        second.catalogue = [first.model, other]
+        server.log.removeAll()
+        try await second.run { _ in }
+        XCTAssertEqual(server.log.map(\.path), ["/c.gguf"], "a file already on disk was downloaded again")
+        let folder = install.engine.appendingPathComponent("models/other")
+        XCTAssertEqual(try Data(contentsOf: folder.appendingPathComponent("a.gguf")), models[0])
+        XCTAssertEqual(try Data(contentsOf: folder.appendingPathComponent("c.gguf")), own)
+        XCTAssertTrue(other.complete(in: install))
+        XCTAssertTrue(first.model.complete(in: install), "the first model's files were moved, not copied")
+
+        XCTAssertEqual(EngineDownload.freed(by: other, in: install, catalogue: second.catalogue), Int64(own.count),
+                       "the shared file frees nothing while its twin stays")
+        try FileManager.default.removeItem(at: first.model.folder(in: install))
+        XCTAssertEqual(EngineDownload.freed(by: other, in: install, catalogue: second.catalogue), Int64(own.count + models[0].count))
+    }
+
     func testTooLittleSpaceStopsBeforeDownloading() async throws {
         let (tarball, models) = try fakeEngine()
         let server = try FileServer(["/engine.tar.gz": tarball, "/a.gguf": models[0]])
         defer { server.stop() }
         var setup = setup(Install.standard(home: dir))
         setup.engineFile = server.file("/engine.tar.gz", tarball)
-        setup.models = [server.file("/a.gguf", models[0])]
+        setup.model.files = [server.file("/a.gguf", models[0])]
         setup.freeBytes = { _ in 100_000_000 }
         do { try await setup.run { _ in }; XCTFail() } catch {
             guard case .diskFull? = error as? SetupError else { return XCTFail("\(error)") }
@@ -215,7 +269,7 @@ final class SetupTests: XCTestCase {
 
         var setup = setup(install)
         setup.engineFile = server.file("/engine.tar.gz", tarball)
-        setup.models = [server.file("/a.gguf", models[0]), server.file("/b.json", models[1])]
+        setup.model.files = [server.file("/a.gguf", models[0]), server.file("/b.json", models[1])]
         try await setup.run { _ in }
 
         XCTAssertEqual(server.log.map(\.path), ["/b.json"], "only the damaged file should be downloaded")
@@ -223,8 +277,8 @@ final class SetupTests: XCTestCase {
         XCTAssertTrue(setup.engineReady())
         XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: install.engine.appendingPathComponent("libggml.dylib").path),
                        "libggml.0.dylib")
-        XCTAssertEqual(try Data(contentsOf: install.models.appendingPathComponent("a.gguf")), models[0])
-        XCTAssertEqual(try Data(contentsOf: install.models.appendingPathComponent("b.json")), models[1])
+        XCTAssertEqual(try Data(contentsOf: EngineDownload.standard.folder(in: install).appendingPathComponent("a.gguf")), models[0])
+        XCTAssertEqual(try Data(contentsOf: EngineDownload.standard.folder(in: install).appendingPathComponent("b.json")), models[1])
     }
 
     func testAnOldEngineOfAnotherBuildIsDownloadedFresh() async throws {
@@ -238,7 +292,7 @@ final class SetupTests: XCTestCase {
         try "pixal3d.cpp old999 (abc)\n".write(to: build.appendingPathComponent("VERSION"), atomically: true, encoding: .utf8)
         var setup = setup(Install(root: root))
         setup.engineFile = server.file("/engine.tar.gz", tarball)
-        setup.models = [server.file("/a.gguf", models[0])]
+        setup.model.files = [server.file("/a.gguf", models[0])]
         try await setup.run { _ in }
         XCTAssertEqual(server.log.map(\.path), ["/engine.tar.gz", "/a.gguf"])
         XCTAssertTrue(setup.engineReady())
@@ -250,12 +304,12 @@ final class SetupTests: XCTestCase {
     func testRealDownloadOfTheSmallFiles() async throws {
         guard let path = ProcessInfo.processInfo.environment["MIMIC_NETWORK_TEST"] else { throw XCTSkip("set MIMIC_NETWORK_TEST=<folder>") }
         var setup = EngineSetup(install: .standard(home: URL(fileURLWithPath: path)))
-        setup.models = EngineDownload.models.filter { $0.bytes < 1_000_000 }
-        XCTAssertEqual(setup.models.count, 5)
+        setup.model.files = EngineDownload.standard.files.filter { $0.bytes < 1_000_000 }
+        XCTAssertEqual(setup.model.files.count, 6)
         try await setup.run { _ in }
         XCTAssertTrue(setup.engineReady(), "the real engine didn't unpack or doesn't start")
-        for f in setup.models {
-            XCTAssertEqual(EngineDownload.sha256(setup.install.models.appendingPathComponent(f.name)), f.sha256, f.name)
+        for f in setup.model.files {
+            XCTAssertEqual(EngineDownload.sha256(EngineDownload.standard.folder(in: setup.install).appendingPathComponent(f.name)), f.sha256, f.name)
         }
     }
 

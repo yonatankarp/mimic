@@ -22,8 +22,8 @@ final class CheckTests: XCTestCase {
 
     /// No DRAWTHINGS_MODEL: a pinned model name is taken on trust, which would keep the model
     /// check green with nothing downloaded. Port 9 (discard) refuses the connection.
-    func checks(freeGB: Int64, drawThings: String = "http://127.0.0.1:9") -> Checks {
-        Checks(install: f.install, appFolders: [apps],
+    func checks(freeGB: Int64, drawThings: String = "http://127.0.0.1:9", model: EngineModel = EngineDownload.standard) -> Checks {
+        Checks(install: f.install, model: model, appFolders: [apps],
                drawThings: DrawThings(environment: ["DRAWTHINGS_URL": drawThings], home: home),
                freeBytes: { _ in freeGB * 1_000_000_000 })
     }
@@ -82,27 +82,33 @@ final class CheckTests: XCTestCase {
         try "\(v) (abc), Metal\n".write(to: f.install.engine.appendingPathComponent("VERSION"), atomically: true, encoding: .utf8)
     }
 
-    /// Every model file, at its full size (sparse here, so 8.1 GB costs nothing): one missing,
-    /// or one cut short by an interrupted download, is red.
-    func modelFiles(except short: String? = nil) throws {
-        try FileManager.default.createDirectory(at: f.install.models, withIntermediateDirectories: true)
-        for m in EngineDownload.weights {
-            let url = f.install.models.appendingPathComponent(m.name)
-            FileManager.default.createFile(atPath: url.path, contents: nil)
-            let h = try FileHandle(forWritingTo: url)
-            try h.truncate(atOffset: UInt64(m.name == short ? m.bytes - 1 : m.bytes))
-            try h.close()
-        }
-    }
+    /// Every model file, at its full size: one missing, or one cut short by an interrupted
+    /// download, is red.
+    func modelFiles(short: String? = nil) throws { try f.modelFiles(short: short) }
 
     func testModelFilesMustAllBeComplete() throws {
         try modelFiles()
         XCTAssertTrue(results(checks(freeGB: 100))["models"]!)
-        try modelFiles(except: "tex_dec.gguf")
+        try modelFiles(short: "tex_dec.gguf")
         XCTAssertFalse(results(checks(freeGB: 100))["models"]!, "a file cut short passed")
         try modelFiles()
-        try FileManager.default.removeItem(at: f.install.models.appendingPathComponent("ss_dec.gguf"))
+        try FileManager.default.removeItem(at: EngineDownload.standard.folder(in: f.install).appendingPathComponent("ss_dec.gguf"))
         XCTAssertFalse(results(checks(freeGB: 100))["models"]!, "a missing file passed")
+    }
+
+    /// The models check is about the model in use: another model's complete set doesn't make it
+    /// green, and its own set does, whatever else is missing.
+    func testTheModelsCheckFollowsTheModelInUse() throws {
+        let other = try XCTUnwrap(EngineDownload.catalogue.last)
+        try XCTSkipIf(other == EngineDownload.standard, "only one model ships")
+        try f.modelFiles()
+        XCTAssertFalse(results(checks(freeGB: 100, model: other))["models"]!, "the standard set counted for another model")
+        try f.modelFiles(other)
+        XCTAssertTrue(results(checks(freeGB: 100, model: other))["models"]!)
+        try FileManager.default.removeItem(at: EngineDownload.standard.folder(in: f.install))
+        XCTAssertTrue(results(checks(freeGB: 100, model: other))["models"]!, "a model not in use was required")
+        XCTAssertFalse(results(checks(freeGB: 100))["models"]!)
+        XCTAssertTrue(checks(freeGB: 100, model: other).all[1].label.contains(other.name), "the check doesn't say which model")
     }
 
     /// A program that hangs is killed and reads as not starting, instead of hanging Settings.

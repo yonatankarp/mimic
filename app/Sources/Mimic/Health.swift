@@ -25,7 +25,7 @@ final class Health {
         guard let install else { return }
         generation += 1
         let run = generation
-        checks = Checks(install: install).all
+        checks = Checks(install: install, model: EngineDownload.selected(defaults: .standard)).all
         results = [:]
         running = true
         Task {
@@ -49,7 +49,7 @@ final class Health {
             try? await Task.sleep(for: .seconds(drawThingsReady ? 15 : 4))
             guard !running else { continue }
             let run = generation
-            for c in Checks(install: install).all where Checks.drawThingsIDs.contains(c.id) {
+            for c in Checks(install: install, model: EngineDownload.selected(defaults: .standard)).all where Checks.drawThingsIDs.contains(c.id) {
                 let r = await Task.detached { c.run() }.value
                 guard run == generation, !Task.isCancelled else { break }
                 results[c.id] = r
