@@ -48,6 +48,18 @@ final class JobTests: XCTestCase {
         }
     }
 
+    /// prep.log is appended to, so a warning from an earlier run must not follow the mini around.
+    func testFragileIsThisRunsWarningOnly() throws {
+        let fx = try Fixture(); let d = try fx.mini("dwarf")
+        try "mini_prep: WARNING thin parts\n".write(to: d.appendingPathComponent("prep.log"), atomically: true, encoding: .utf8)
+        let quiet = JobRunner(install: fx.install, tools: fx.tools(blender: "/usr/bin/true"))
+        try quiet.resize(name: "dwarf", sizes: sizes); quiet.waitUntilDone()
+        XCTAssertEqual(quiet.status?.fragile, false)
+        let warns = JobRunner(install: fx.install, tools: fx.tools(blender: try fx.script("blender", "echo 'mini_prep: WARNING thin parts'")))
+        try warns.resize(name: "dwarf", sizes: sizes); warns.waitUntilDone()
+        XCTAssertEqual(warns.status?.fragile, true)
+    }
+
     func testNoBlenderIsRefusedUpFront() throws {
         let fx = try Fixture(); _ = try fx.mini("dwarf")
         let jobs = JobRunner(install: fx.install, tools: fx.tools(blender: nil))

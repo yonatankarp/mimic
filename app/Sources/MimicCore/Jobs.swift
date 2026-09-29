@@ -163,6 +163,9 @@ public final class JobRunner: @unchecked Sendable {
     private func execute(_ plan: [(number: Int, step: Step)], kind: JobKind, folder: URL, log: URL, requested: Sizes?) {
         var code: Int32 = 0
         var problem: String?
+        // prep.log is appended to on every run, so only this run's part says whether it's fragile.
+        let prepLog = folder.appendingPathComponent("prep.log")
+        let prepLogStart = (try? FileManager.default.attributesOfItem(atPath: prepLog.path)[.size] as? UInt64) ?? 0
         for (number, step) in plan {
             if status?.canceled == true { break }
             lock.withLock { current?.step = number }
@@ -183,8 +186,14 @@ public final class JobRunner: @unchecked Sendable {
         } else if code == 0, let requested {
             try? MiniSettings.update(folder) { $0.made = requested }  // "Now: …" shows only what a finished run made
         }
+        let thisRun: String = {
+            guard let h = try? FileHandle(forReadingFrom: prepLog) else { return "" }
+            defer { try? h.close() }
+            try? h.seek(toOffset: prepLogStart)
+            return String(decoding: h.readDataToEndOfFile(), as: UTF8.self)
+        }()
         let fragile = ((try? String(contentsOf: log, encoding: .utf8)) ?? "").contains("mini_prep: WARNING")
-            || ((try? String(contentsOf: folder.appendingPathComponent("prep.log"), encoding: .utf8)) ?? "").contains("mini_prep: WARNING")
+            || thisRun.contains("mini_prep: WARNING")
         lock.withLock {
             current?.running = false
             current?.exit = code
