@@ -85,8 +85,10 @@ input:hover, textarea:hover { border-color:var(--muted); }
 .check input { margin-top:4px; accent-color:var(--accent); }
 .slider { display:grid; grid-template-columns:1fr auto; gap:4px 10px; }
 .slider label { font-weight:500; }
-.slider output { font-variant-numeric:tabular-nums; color:var(--muted); }
-.slider input { grid-column:1 / -1; accent-color:var(--accent); width:100%; }
+.slider { align-items:center; }
+.slider input[type=range] { grid-column:1 / -1; accent-color:var(--accent); width:100%; }
+.slider .num { color:var(--muted); white-space:nowrap; }
+.slider .num input { width:72px; height:32px; padding:0 8px; text-align:right; font-variant-numeric:tabular-nums; }
 .btn { height:40px; border:1px solid var(--line); background:var(--panel-2); color:var(--text); padding:0 14px; border-radius:var(--r-sm); font:500 14px Inter, sans-serif; cursor:pointer; white-space:nowrap; }
 .btn:hover:not(:disabled) { border-color:var(--muted); }
 .btn.primary { background:var(--accent); color:var(--accent-ink); border-color:transparent; font-weight:700; box-shadow:0 2px 0 var(--brown); }
@@ -257,16 +259,16 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
         </div>
       </div>
       <div id="sizeNote" class="msg" role="status"></div>
-      <div class="slider"><label for="height">📏 Character height</label><output id="heightV"></output>
-        <input id="height" type="range" min="15" max="200" step="1" value="32">
-        <span class="hint" style="grid-column:1/-1">Set for you by the choices above; drag to change it. The base adds about 2 mm.</span></div>
-      <div class="slider"><label for="base">Base size</label><output id="baseV"></output>
-        <input id="base" type="range" min="20" max="80" step="1" value="25"></div>
+      <div class="slider"><label for="heightV">📏 Character height</label><span class="num"><input id="heightV" type="number" min="15" max="200" step="1" inputmode="decimal"> mm</span>
+        <input id="height" type="range" min="15" max="200" step="1" value="32" aria-label="Character height slider">
+        <span class="hint" style="grid-column:1/-1">Set for you by the choices above; type a value or drag to change it. The base adds about 2 mm.</span></div>
+      <div class="slider"><label for="baseV">Base size</label><span class="num"><input id="baseV" type="number" min="20" max="80" step="1" inputmode="decimal"> mm</span>
+        <input id="base" type="range" min="20" max="80" step="1" value="25" aria-label="Base size slider"></div>
       <details class="adv">
         <summary>⚙️ Advanced</summary>
         <div class="stack">
-          <div class="slider"><label for="inflate">Extra thickness for thin parts</label><output id="inflateV"></output>
-            <input id="inflate" type="range" min="0" max="0.4" step="0.01" value="0.16">
+          <div class="slider"><label for="inflateV">Extra thickness for thin parts</label><span class="num"><input id="inflateV" type="number" min="0" max="0.4" step="0.01" inputmode="decimal"> mm</span>
+            <input id="inflate" type="range" min="0" max="0.4" step="0.01" value="0.16" aria-label="Extra thickness slider">
             <span class="hint" style="grid-column:1/-1">Set by your nozzle. More keeps swords and capes in one piece, but softens faces.</span></div>
           <label class="check"><input id="nobase" type="checkbox"><span style="font-weight:400">Use the character's own base instead of a round one</span></label>
           <div class="row"><label for="seed" style="white-space:nowrap">Variation number</label><input id="seed" type="number" value="42" style="width:110px"></div>
@@ -410,9 +412,24 @@ const setNozzle = radios($("nozzle"), b => {
 
 $("dice").onclick = () => { $("seed").value = Math.floor(Math.random() * 1e6); say("🎲 Next version picked. Press ✨ Make my mini."); };
 
-const units = { height: " mm", base: " mm", inflate: " mm" };
-function showSlider(k) { $(k + "V").textContent = $(k).value + units[k]; }
-for (const k of Object.keys(units)) { $(k).addEventListener("input", () => showSlider(k)); showSlider(k); }
+// Each slider has a number box beside it. The box shows the slider's value; typing into it
+// moves the slider (kept within the slider's range) and counts as the user's own choice,
+// exactly like dragging, because it's sent through the slider's own "input" event.
+const SLIDERS = ["height", "base", "inflate"];
+function showSlider(k) { if (document.activeElement !== $(k + "V")) $(k + "V").value = $(k).value; }
+for (const k of SLIDERS) {
+  $(k).addEventListener("input", () => showSlider(k));
+  $(k + "V").addEventListener("change", () => {
+    const box = $(k + "V"), slider = $(k);
+    const n = parseFloat(box.value);
+    if (!Number.isFinite(n)) { box.value = slider.value; return; }
+    slider.value = Math.min(+slider.max, Math.max(+slider.min, n));
+    box.value = slider.value;  // shows the clamped value, e.g. 250 becomes 200
+    slider.dispatchEvent(new Event("input"));
+  });
+  $(k + "V").addEventListener("keydown", e => { if (e.key === "Enter") $(k + "V").blur(); });
+  showSlider(k);
+}
 $("inflate").addEventListener("input", () => inflateTouched = true);
 
 $("real").oninput = resuggest;
