@@ -14,8 +14,8 @@ LAB_TAG="v0.3.4"   # the release Mimic is built and tested against
 PIXAL3D_URL="https://github.com/yonatankarp/mimic/releases/download/pixal3d-d1b4926/pixal3d-metal-d1b4926-macos14.0.tar.gz"
 PIXAL3D_SHA256="58aa276c7605bddf250533c982ccd43c2e0791791b6cf2f5e2c777ff56c7dede"
 # The app itself, built and zipped by tools/package_app.sh.
-MIMIC_APP_URL="https://github.com/yonatankarp/mimic/releases/download/app-PENDING/Mimic-PENDING.zip"
-MIMIC_APP_SHA256="PENDING"
+MIMIC_APP_URL="https://github.com/yonatankarp/mimic/releases/download/app-6b921d4/Mimic-6b921d4.zip"
+MIMIC_APP_SHA256="631fda60f0abca4d0dba9048b9c9cf416465dbd6b64f5d6ed364328742f1a584"
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 LAB="$HERE/image-to-3dlab"
