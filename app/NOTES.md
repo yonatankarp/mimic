@@ -16,9 +16,7 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
 
 ## Decisions
 
-- **Swift owns everything except two Python pieces.** The 3D engine's wrapper
-  (image-to-3dlab's `pixal3d_generate.py`, third-party) and `pipeline/mini_prep.py` (it runs
-  inside Blender) stay Python. The terminal route is `mimic make …`, the same code as the app;
+- **Swift owns everything except print prep.** `pipeline/mini_prep.py` runs inside Blender. The terminal route is `mimic make …`, the same code as the app;
   the installer links the app's binary onto the PATH.
 - **Same data on disk.** `runs/<name>/` with `<name>.stl`, `<name>_{front,side,back}.png`,
   `source.png` and `settings.json` (`requested` / `made` / how it was made), so minis made by
@@ -34,6 +32,24 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
 - **Jobs run in their own session** (`GroupProcess`, `posix_spawn` + `POSIX_SPAWN_SETSID`),
   so Stop ends the whole chain. Foundation's `Process` can't do that. Proven by
   `GroupProcessTests`, including the test that shows the child surviving without a session.
+- **Step 2 is `mimic _engine`,** the app's own binary run as the job's program: it cuts the
+  picture out in-process, then runs `engine/trellis-cli` as a child *in its own group*, so
+  Stop's kill of the job's group ends both (`EngineTests.testStopEndsTheEngineToo`; making
+  trellis-cli a session of its own fails it). It replaced image-to-3dlab's Python wrapper and
+  keeps its settings: `--gss 10`, the 20° gauge camera, `PIXAL3D_STEPS=8`, a run stopped the
+  moment it samples without "PIXAL3D_STEPS=8 overrides", ggml's Metal noise dropped from the
+  log. It is handled before the CLI finds the Mimic folder: `.job.pid` names this very
+  program, and the leftover-job cleanup would otherwise stop it.
+- **Cutouts: Apple Vision, not rembg or trellis-cli's BiRefNet.** Measured on the four minis'
+  pictures against the u2net cutouts the Python wrapper made (`source__matted.png`): masks agree
+  97.4–99.5% (IoU), and where they differ Vision is right. It kept the elf's bow tips, which
+  u2net ate, and the dwarf's whole hammer head, which u2net punched a hole in. Halo-free once
+  the edges' colours are pulled in from the character (`cleanEdges`, ported). 0.7 s in a
+  release build. So `birefnet.gguf` (0.9 GB) is no longer downloaded. Whether a picture needs
+  cutting out is judged by how much of its alpha is actually clear (≥2%), not by it having
+  an alpha channel: an alpha of opaque noise once became two sheets of geometry.
+- **Model files come straight from Hugging Face,** pinned to a revision, each file checked
+  against its sha256; the app's check compares every file's size.
 - **Children get an explicit environment,** never the app's own: launched from the Dock, the
   app has launchd's bare PATH (`/usr/bin:/bin:/usr/sbin:/sbin`), which lost Blender once.
 - **Finding the Mimic folder:** the `installDir` default (written by the installer and by
