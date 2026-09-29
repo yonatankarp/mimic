@@ -7,8 +7,10 @@ public struct AppVersion: Comparable, CustomStringConvertible, Sendable {
 
     public init?(_ text: String) {
         let parts = text.split(separator: ".", omittingEmptySubsequences: false)
-        guard parts.count == 3, parts.allSatisfy({ !$0.isEmpty && $0.allSatisfy(\.isASCII) && $0.allSatisfy(\.isNumber) }) else { return nil }
-        self.parts = parts.map { Int($0)! }
+        // Int() refuses a number too big to hold, so a silly tag from the network can't crash this.
+        let numbers = parts.filter { $0.allSatisfy { $0.isASCII && $0.isNumber } }.compactMap { Int($0) }
+        guard parts.count == 3, numbers.count == 3 else { return nil }
+        self.parts = numbers
     }
 
     /// A release tag: "v0.4.2". The engine's pre-release ("pixal3d-d1b4926") is none.
@@ -64,9 +66,9 @@ public enum UpdateError: Error, Equatable, CustomStringConvertible {
         switch self {
         case .offline: "Mimic couldn't reach GitHub. Check your connection, then try again."
         case .server(let code): "GitHub had a problem (error \(code)). Try again in a few minutes."
-        case .notListed(let name): "The download's checksum isn't listed with the release (\(name)), so Mimic won't install it."
+        case .notListed: "This update came without the information Mimic needs to check it, so Mimic won't install it. Try again later."
         case .wrongApp(let why): "The downloaded Mimic doesn't look right (\(why)), so it wasn't installed. Your Mimic is unchanged."
-        case .notWritable(let folder): "Mimic can't replace itself in \(folder): your account can't change that folder. Open the disk image and drag Mimic onto Applications instead."
+        case .notWritable: "Mimic can't replace itself where it is: your account isn't allowed to change that folder. Open the disk image and drag Mimic onto Applications instead."
         case .failed(let what): "The update stopped (\(what)). Your Mimic is unchanged."
         }
     }
@@ -162,7 +164,7 @@ public enum Updates {
         do {
             try await setup.fetch(EngineFile(name: dmg.name, url: dmg.url, bytes: dmg.size, sha256: sha), to: dest) { progress(Double($0) / total) }
         } catch let e as SetupError {
-            throw e == .damaged(dmg.name) ? UpdateError.wrongApp("its checksum doesn't match") : UpdateError.failed(e.description)
+            throw e == .damaged(dmg.name) ? UpdateError.wrongApp("it came down damaged") : UpdateError.failed(e.description)
         }
         return dest
     }
@@ -202,7 +204,7 @@ public enum Updates {
         let found = info["CFBundleShortVersionString"] as? String ?? "none"
         guard found == version.description else { throw UpdateError.wrongApp("it's version \(found), not \(version)") }
         guard info["CFBundleIdentifier"] as? String == bundleID else { throw UpdateError.wrongApp("it isn't Mimic") }
-        do { try run("/usr/bin/codesign", ["--verify", "--deep", "--strict", app.path]) } catch { throw UpdateError.wrongApp("its signature is broken") }
+        do { try run("/usr/bin/codesign", ["--verify", "--deep", "--strict", app.path]) } catch { throw UpdateError.wrongApp("it has been changed since it was made") }
     }
 
     /// Swaps the staged app into `app`'s place in one step (the old app ends up at `staged`),

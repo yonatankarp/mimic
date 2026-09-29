@@ -115,8 +115,6 @@ final class Updater {
     /// Removes the old app (now at `old`) and quits; a small shell waits for this Mimic to be
     /// gone, then opens the new one, so the two never run at once. Mimic's own development
     /// variables (`MIMIC_HOME`, `MIMIC_FAKE_HOME`…) go with it, so a test copy stays a test copy.
-    /// (NSWorkspace.openApplication was tried first: with the bundle swapped under it, its
-    /// completion never came, so Mimic never quit.)
     private func relaunch(removing old: URL) {
         try? FileManager.default.removeItem(at: old)
         let env = ProcessInfo.processInfo.environment.filter { $0.key.hasPrefix("MIMIC_") }.sorted { $0.key < $1.key }
@@ -127,8 +125,9 @@ final class Updater {
                        "sh", String(getpid()), app.path] + env.flatMap { ["--env", "\($0.key)=\($0.value)"] }
         do { try p.run() } catch { phase = .failed("Mimic is updated. Open it again to use the new version."); return }
         // A window with a sheet up refuses to quit (seen: the old Mimic stayed open), so the
-        // sheet goes first.
-        model?.sheet = nil
+        // sheet goes first, and so do alerts and questions, which SwiftUI shows as sheets too.
+        notice = nil
+        model?.sheet = nil; model?.problem = nil; model?.trashing = nil; model?.deletingProject = nil
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(0.5))
             NSApp.terminate(nil)
@@ -215,7 +214,7 @@ struct UpdateSheet: View {
             if u.dmg != nil {
                 Text("The disk image is open: drag Mimic onto Applications, replacing the old one, then open it again.").foregroundStyle(.secondary)
             } else if !u.canReplace {
-                Text("Mimic can't replace itself where it is (\((u.app.deletingLastPathComponent().path as NSString).abbreviatingWithTildeInPath)): your account can't change that folder. Download the disk image and drag Mimic onto Applications instead.")
+                Text("Mimic can't replace itself where it is: your account isn't allowed to change that folder. Download the disk image and drag Mimic onto Applications instead.")
                     .foregroundStyle(.secondary)
             }
         }

@@ -29,7 +29,7 @@ final class UpdateTests: XCTestCase {
         XCTAssertLessThan(AppVersion("0.9.0")!, AppVersion("0.10.0")!, "numbers, not text")
         XCTAssertLessThan(AppVersion("0.4.9")!, AppVersion("1.0.0")!)
         XCTAssertEqual(AppVersion("0.4.2"), AppVersion(tag: "v0.4.2"))
-        for dev in ["dev", "0.4.2-3-gabc1234", "0.4.2-dirty", "0.4.2-3-gabc1234-dirty", "941a66c", "0.4", "0.4.2.1", "v0.4.2", "", "0.4.x", "0..2"] {
+        for dev in ["dev", "0.4.2-3-gabc1234", "0.4.2-dirty", "0.4.2-3-gabc1234-dirty", "941a66c", "0.4", "0.4.2.1", "v0.4.2", "", "0.4.x", "0..2", "99999999999999999999.0.0", "0.-1.2", "0.+1.2"] {
             XCTAssertNil(AppVersion(dev), "\(dev) is a development build, not a release")
         }
         XCTAssertNil(AppVersion(tag: "pixal3d-d1b4926"), "the engine's pre-release is no version")
@@ -120,7 +120,7 @@ final class UpdateTests: XCTestCase {
             _ = try await Updates.download(release, into: dir, version: "0.4.1") { _ in }
             XCTFail("a disk image that doesn't match its checksum was accepted")
         } catch {
-            XCTAssertEqual(error as? UpdateError, .wrongApp("its checksum doesn't match"))
+            XCTAssertEqual(error as? UpdateError, .wrongApp("it came down damaged"))
         }
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path).filter { $0.hasPrefix("Mimic") }, [], "the bad download is deleted")
     }
@@ -190,7 +190,7 @@ final class UpdateTests: XCTestCase {
         try fakeApp(at: broken, version: "0.4.2")
         try Data("changed".utf8).write(to: broken.appendingPathComponent("Contents/MacOS/mimic"))
         XCTAssertThrowsError(try Updates.check(broken, version: AppVersion("0.4.2")!)) {
-            XCTAssertEqual($0 as? UpdateError, .wrongApp("its signature is broken"))
+            XCTAssertEqual($0 as? UpdateError, .wrongApp("it has been changed since it was made"))
         }
         XCTAssertEqual(version(app), "0.4.1", "the app is untouched")
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: app.deletingLastPathComponent().path), ["Mimic.app"], "nothing left staged")

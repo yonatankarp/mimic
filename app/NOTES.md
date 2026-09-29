@@ -315,7 +315,8 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   thing it adds over what's here: it protects against someone who takes over the GitHub
   account and publishes a release, but only if the private key lives somewhere other than CI,
   which for a one-person hobby project it would not. Ours is a few hundred lines on what releases already
-  have: `releases/latest` (GitHub leaves pre-releases and drafts out of it, and `Updates.offer`
+  have: `releases/latest` (GitHub documents that it leaves pre-releases and drafts out; not
+  observable here, since the engine's pre-release predates 0.4.1; and `Updates.offer`
   also refuses them and any tag that isn't `vX.Y.Z`, so the engine's `pixal3d-d1b4926`
   pre-release is never an update), the disk image and its line in the release's `SHA256SUMS`.
   That checksum comes from the same release over TLS: it catches a damaged or cut-off download,
@@ -328,8 +329,9 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   without a Mimic there. The old app then sits at the hidden name and is removed; a launch
   sweeps any left over. Relaunch is a small `sh` that waits for this pid to end, then
   `open -n` the app with Mimic's own `MIMIC_*` variables, so a test copy stays a test copy.
-  `NSWorkspace.openApplication`'s completion never came once the bundle had been swapped under
-  it, and a window with a sheet up refuses to quit, so the sheet is closed first (both seen).
+  The shell means the old and new Mimic never run at once. A window with a sheet (or an alert,
+  which SwiftUI shows as one) up refuses to quit, so those are closed first (seen: with the
+  update sheet up, the old Mimic stayed open).
   Checked at launch and then from the queue's 3-second watch, at most once a day counted from
   the last *attempt* (an offline Mac doesn't retry every 3 seconds); "Last checked" is the last
   success. A development build (`AppVersion` parses only `X.Y.Z`) never checks by itself and a
@@ -369,6 +371,10 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
 - The queue's Dock badge and the quit question's queue sentence: both are one line each, but
   the test build ran in the background, where neither the Dock tile nor the modal alert could
   be seen.
+
+- Whether macOS's App Management protection steps in for an ad-hoc app in /Applications: if
+  it does, removing the old app fails quietly and a hidden `.Mimic-update-*.app` is left beside
+  the new one.
 
 - Updating from /Applications and ~/Applications, and the not-writable path (a standard
   account with Mimic installed by an administrator: disk image opened instead): the swap and
