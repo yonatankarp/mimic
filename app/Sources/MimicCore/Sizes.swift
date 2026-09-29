@@ -78,6 +78,9 @@ public struct MiniSettings: Codable, Equatable, Sendable {
     public var made: Sizes?
     /// nil is a character.
     public var kind: MiniKind?
+    /// The first of its versions, when Make Another Version made it: every version of a mini
+    /// names the same one, which is how they're found together (see `Gallery.versions`).
+    public var versionOf: String?
 
     public init() {}
 
