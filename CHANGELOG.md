@@ -9,6 +9,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 - **Drop several pictures on New Mini** and each becomes a mini in the queue, named after its file and made with the same settings. Rename them afterwards if you like.
 - `mimic --version` (also `-v` and `mimic version`) says which Mimic you have, and `mimic --help` lists it.
 - **Mimic checks for updates.** Once a day, and from Mimic → Check for Updates…: a new version shows as a small note in the toolbar with what's new, and Update downloads it, checks it, replaces Mimic and opens it again (never while a mini is being made or waiting). Turn it off in Settings → Updates. Only GitHub's public release information is read; nothing about your Mac or your minis is sent.
+- Your Mac no longer goes to sleep on its own while minis are being made or waiting, in the app or in Terminal. The screen can still turn off, and closing the lid still sleeps it.
 
 ### Changed
 - **TRELLIS.2 is now the default 3D model.** It keeps what a figure holds — a weapon, a bow, a pet on a shoulder — far more reliably (9 of 9 in testing, against 4 of 10). Pixal3D stays in Settings → 3D model for the crispest surface. TRELLIS.2 Lite is gone. First launch now downloads about 9.1 GB.
