@@ -46,17 +46,17 @@ every box is ticked, in the app (and the command line where marked).
 - [ ] Move to Trash, with a confirmation
 
 ## Settings
-- [ ] Nine health checks, run one at a time with a spinner each, required vs optional, "last checked"
-- [ ] Blender and the 3D engine are actually started, never assumed
+- [x] Nine health checks, run one at a time with a spinner each, required vs optional, "last checked"
+- [x] Blender and the 3D engine are actually started, never assumed
 - [ ] A warning on the Settings entry point when a required check fails
-- [ ] Draw Things setup steps while it isn't ready, watched continuously
-- [ ] Slicer: the detected ones, or the Mac's default app for STL files
-- [ ] Open the minis folder
+- [x] Draw Things setup steps while it isn't ready, watched continuously
+- [x] Slicer: the detected ones, or the Mac's default app for STL files
+- [x] Open the minis folder
 
 ## Tests ported from Python
 - [x] `test_cancel.py` → `GroupProcessTests`
 - [x] `test_settings.py` (made only on success; Try Again rebuilds the same command)
 - [x] `test_rename.py`
-- [ ] `test_checks.py` (every check red and green, with injectable paths and Draw Things address)
+- [x] `test_checks.py` (every check red and green, with injectable paths and Draw Things address)
 - [x] `test_serve.py` input checks (names, numbers, nozzle)
 - [ ] `test_prep.sh` stays (it tests the Blender script, not the app)
