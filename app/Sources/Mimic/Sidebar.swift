@@ -125,6 +125,8 @@ struct Sidebar: View {
         Button("New Mini in This Project…", systemImage: "plus") { model.makeInProject = project; model.sheet = .make }
             .disabled(!model.setup.installed)
         Button("Show in Finder", systemImage: "folder") { model.showInFinder(project: project) }
+        Button("Resize All…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resizeAll(project) }
+            .disabled(!model.minis.contains { $0.project == project && $0.hasModel } || model.cantStart != nil)
         Divider()
         Button("Rename Project…", systemImage: "pencil") { model.sheet = .renameProject(project) }
         Button("Delete Project…", systemImage: "trash", role: .destructive) { model.deletingProject = project }

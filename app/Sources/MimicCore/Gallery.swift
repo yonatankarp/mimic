@@ -67,6 +67,19 @@ public enum Gallery {
             .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
     }
 
+    /// Resize All on a project: which of its minis to resize to `sizes`. Those already made at
+    /// them are left out (`same`); those that can't be resized now (no 3D model yet, or `busy`:
+    /// waiting or being made) are `skipped`.
+    public static func toResize(_ minis: [Mini], to sizes: Sizes, busy: Set<String>) -> (resize: [Mini], same: Int, skipped: Int) {
+        var resize: [Mini] = [], same = 0, skipped = 0
+        for mini in minis {
+            if !mini.hasModel || busy.contains(mini.name) { skipped += 1 }
+            else if MiniSettings.load(mini.folder).made == sizes { same += 1 }
+            else { resize.append(mini) }
+        }
+        return (resize, same, skipped)
+    }
+
     /// A folder is a mini when it holds a file only Mimic writes there: settings.json (every
     /// mini since the web version, written the moment it's asked for), model.glb (older ones
     /// had no settings) or a print file named after the folder. Not any .stl: one dragged into

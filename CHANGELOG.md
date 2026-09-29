@@ -12,6 +12,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 - **Draw Things without its API server.** Mimic downloads Draw Things' command line tool with its 3D engine (178 MB, once) and draws with it: Draw Things doesn't have to be open, and there's no API server to turn back on after it restarts. Pictures are always made on your Mac.
 - **Pick the best version.** A mini's page shows its other versions side by side; click one to see it, and Keep This One moves the others to the Trash and can give it the plain name. Only versions made from now on are grouped.
 - Your Mac no longer goes to sleep on its own while minis are being made or waiting, in the app or in Terminal. The screen can still turn off, and closing the lid still sleeps it.
+- **Resize every mini in a project at once.** Right-click a project → Resize All…, choose one size, base and nozzle, and each mini waits its turn in the queue. Minis already that size are left out.
 
 ### Changed
 - **TRELLIS.2 is now the default 3D model.** It keeps what a figure holds — a weapon, a bow, a pet on a shoulder — far more reliably (9 of 9 in testing, against 4 of 10). Pixal3D stays in Settings → 3D model for the crispest surface. TRELLIS.2 Lite is gone. First launch now downloads about 9.3 GB.

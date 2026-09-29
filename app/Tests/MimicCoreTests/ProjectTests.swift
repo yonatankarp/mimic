@@ -187,6 +187,19 @@ final class ProjectTests: XCTestCase {
         XCTAssertEqual(Timings.importPast(runs: fx.install.runs).count, 1)
     }
 
+    /// Resize All leaves out minis already that size, and skips ones with no 3D model or busy.
+    func testResizeAllPicksWhichMinisToResize() throws {
+        let fx = try Fixture(), runs = fx.install.runs
+        for name in ["wizard", "raven", "rogue", "bard"] { _ = try fx.mini(name, in: "Party") }
+        try MiniSettings.update(runs.appendingPathComponent("Party/raven")) { $0.made = self.sizes }
+        try MiniSettings.update(runs.appendingPathComponent("Party/wizard")) { $0.made = Sizes(height: "28", nozzle: "0.4") }
+        try fm.removeItem(at: runs.appendingPathComponent("Party/bard/model.glb"))
+        let picked = Gallery.toResize(Gallery.list(runs), to: sizes, busy: ["rogue"])
+        XCTAssertEqual(picked.resize.map(\.name), ["wizard"])
+        XCTAssertEqual(picked.same, 1)
+        XCTAssertEqual(picked.skipped, 2)
+    }
+
     // MARK: Moving, renaming and deleting
 
     func testMovingAMiniTakesAllItsFilesAndIsRefusedWhileItsBusy() throws {

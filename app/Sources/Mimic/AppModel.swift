@@ -7,6 +7,8 @@ import UserNotifications
 /// change rather than a dismiss and a present racing each other.
 enum AppSheet: Identifiable, Equatable {
     case make, resize(Mini), rename(Mini), progress, update
+    /// Resize All on a project.
+    case resizeAll(String)
     /// A new project, and the mini to move into it when asked from Move to Project.
     case newProject(moving: Mini?)
     case renameProject(String)
@@ -14,6 +16,7 @@ enum AppSheet: Identifiable, Equatable {
         switch self {
         case .make: "make"
         case .resize(let m): "resize-\(m.name)"
+        case .resizeAll(let p): "resize-all-\(p)"
         case .rename(let m): "rename-\(m.name)"
         case .progress: "progress"
         case .update: "update"
@@ -303,6 +306,25 @@ final class AppModel {
 
     func resize(_ mini: Mini, sizes: Sizes) throws {
         try start(mini.name) { try $0.resize(name: mini.name, sizes: sizes) }
+    }
+
+    /// Resize All: every mini in `project` waits its turn to be resized to `sizes`, with one
+    /// note on the progress sheet like several dropped pictures. Returns why, in words, when
+    /// none could be added.
+    func resizeAll(_ project: String, sizes: Sizes) -> String? {
+        let busy = Set(queue.map(\.name) + [current?.name].compactMap { $0 })
+        let picked = Gallery.toResize(minis.filter { $0.project == project }, to: sizes, busy: busy)
+        var added: [String] = [], skipped = picked.skipped, why = "None of these minis can be resized right now."
+        for mini in picked.resize {
+            do { try resize(mini, sizes: sizes); added.append(mini.name) }
+            catch { skipped += 1; why = plainWords(error) }
+        }
+        let same = picked.same == 0 ? "" : " \(picked.same) \(picked.same == 1 ? "was" : "were") already that size."
+        let left = skipped == 0 ? "" : " Skipped \(skipped): not made yet, or already waiting or being made."
+        guard let last = added.last else { return picked.same > 0 && skipped == 0 ? "They're all already that size." : why + same + left }
+        let ready = queueTimes().first(where: { $0.entry.name == last })?.ready ?? runningLeft()
+        queuedNote = (last, "\(added.count) \(added.count == 1 ? "mini" : "minis") added to the queue — ready in \(JobProgress.about(ready)).\(same)\(left)")
+        return nil
     }
 
     /// Runs a failed mini again with the inputs it saved.
