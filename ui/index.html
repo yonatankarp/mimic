@@ -245,7 +245,7 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
           <button type="button" role="radio" data-v="0.4" aria-checked="true">0.4 mm<small>standard</small></button>
           <button type="button" role="radio" data-v="0.6" aria-checked="false">0.6 mm<small>fast</small></button>
         </div>
-        <div class="hint" style="margin-top:6px">Not sure? Most printers come with 0.4 mm. Choose the same nozzle in Bambu Studio.</div>
+        <div class="hint" style="margin-top:6px">Not sure? Most printers come with 0.4 mm. Choose the same nozzle in your slicer.</div>
       </div>
       <div class="slider"><label for="height">📏 Mini height</label><output id="heightV"></output>
         <input id="height" type="range" min="15" max="120" step="1" value="32"></div>
@@ -286,7 +286,7 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
         <div class="actions">
           <button class="btn" id="reprep" type="button" disabled title="Remakes the print file with your size and nozzle settings. About 30 seconds. The character itself doesn't change.">🔁 Apply new size</button>
           <button class="btn" id="reveal" type="button" disabled>📂 Show in Finder</button>
-          <button class="btn primary" id="open" type="button" disabled>🖨️ Open in Bambu Studio</button>
+          <button class="btn primary" id="open" type="button" disabled>🖨️ Open in your slicer</button>
         </div>
       </div>
       <div id="viewerWrap">
@@ -542,7 +542,7 @@ async function poll() {
   } else {
     $("jobTitle").textContent = `🎉 ${s.name} is ready!`;
     $("jobNote").textContent = "";
-    if (log.includes("WARNING")) say("⚠️ Your mini is ready, but some thin parts may be fragile. Check it in Bambu Studio before printing.", "warn");
+    if (log.includes("WARNING")) say("⚠️ Your mini is ready, but some thin parts may be fragile. Check it in your slicer before printing.", "warn");
   }
   if (wasRunning) { wasRunning = false; await loadRuns(); if (s.exit === 0) { select(s.name, true); $("name").value = ""; $("open").focus(); } }
 }

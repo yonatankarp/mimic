@@ -23,8 +23,8 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
      *Install Mimic.command*.
    - The installer asks once before it starts, and may ask for your Mac password.
 3. **Wait 20–60 minutes.** Most of that is downloading about 10 GB of AI models.
-4. **Mimic opens by itself.** A short checklist walks you through the last two clicks in
-   *Draw Things*, the free app Mimic uses to draw and redraw pictures.
+4. **Mimic opens by itself.** A short checklist shows how to finish setting up *Draw Things*,
+   the free app Mimic uses to draw and redraw pictures.
 
 After that, open **Mimic** from your Applications folder whenever you want to make a mini.
 
@@ -71,8 +71,7 @@ tall character) faces, small pets and props come out much better on a home print
 - **Small companions and props**, like a bird on a shoulder, can come out as blobs. The AI
   sees them at only a few pixels and has to guess their far side.
 - **Chunky, heroic-looking characters work best.** Realistic proportions make faces tiny.
-- Pictures you make are yours to print. If you want to sell prints, check the licences at the
-  bottom first.
+- Planning to sell prints? Check the licences at the bottom first.
 
 ---
 
@@ -102,10 +101,10 @@ flowchart TD
 3. **Print prep** (`pipeline/mini_prep.py`, Blender):
    - scales the figure and centres it on the solid cross-sections of its lower body;
    - fuses it to a round base and rebuilds it as one watertight solid;
-   - thickens thin parts by 0.4 × the nozzle, drops floating bits and slices the bottom flat;
+   - thickens thin parts by 0.4 × the nozzle, drops floating bits and slices the bottom flat.
+     More thickening keeps swords and capes whole but softens faces, which is why it follows
+     the nozzle rather than being fixed;
    - exports the STL plus front, side and back renders.
-
-![The dwarf's face with too much thickening (soft, melted) next to the current setting (crisp braids and brows)](docs/images/cleanup.jpg)
 
 ### From a terminal
 
@@ -126,7 +125,7 @@ Add `?run=<name>` to the page address to open a specific mini.
 | `Install Mimic.command` / `setup.sh` | the installer (`setup.sh --yes`, `--build-from-source`) |
 | `Mimic.command` | starts the app; the Mimic app in Applications runs it |
 | `make_mini.sh` | the pipeline: image → mesh → print prep |
-| `pipeline/` | `mini_prep.py` (Blender), `drawthings.py`, `gen_views.py` (multiview input, not wired in yet), `render_zoom.py` |
+| `pipeline/` | `mini_prep.py` (Blender), `drawthings.py`, `gen_views.py` (experimental, unused: side and back views for Pixal3D multiview), `render_zoom.py` |
 | `ui/` | the web app: `serve.py` (standard library only), `index.html`, logo and icon |
 | `tools/package_pixal3d.sh` | builds the relocatable Pixal3D download the installer uses |
 | `tests/` | `test_prep.sh` (print prep on a synthetic figure), `test_serve.py` (input checks), `test_checks.py` (Settings checks, both ways) |
