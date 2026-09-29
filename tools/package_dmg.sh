@@ -6,7 +6,7 @@
 set -euo pipefail
 out="$1"
 here="$(cd "$(dirname "$0")/.." && pwd)"
-version="$(git -C "$here" rev-parse --short HEAD)"
+version="${MIMIC_VERSION:-$(git -C "$here" rev-parse --short HEAD)}"
 app="$here/app/$("$here/app/bundle.sh" release)"
 stage="$(mktemp -d)/Mimic"
 mkdir -p "$stage" "$out"
