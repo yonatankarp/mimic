@@ -73,6 +73,7 @@ final class SetupModel {
         if let mirror = ProcessInfo.processInfo.environment["MIMIC_DOWNLOAD_MIRROR"].flatMap(URL.init(string:)) {
             let local = { (f: EngineFile) in EngineFile(name: f.name, url: mirror.appendingPathComponent(f.name), bytes: f.bytes, sha256: f.sha256) }
             setup.engineFile = local(setup.engineFile)
+            setup.drawThingsCLI = setup.drawThingsCLI.map(local)
             setup.model.files = setup.model.files.map(local)
         }
         Task {
@@ -141,7 +142,7 @@ final class SetupModel {
         return seconds >= 2 && last.done > first.done ? Double(last.done - first.done) / seconds : nil
     }
 
-    /// "2.1 of 9.1 GB · 24 MB/s · about 4 minutes left"
+    /// "2.1 of 9.3 GB · 24 MB/s · about 4 minutes left"
     var status: String {
         guard let p = progress else { return "Starting…" }
         switch p.activity {
@@ -259,7 +260,7 @@ struct SetupView: View {
                 Text("Optional").font(.caption).padding(.horizontal, 8).padding(.vertical, 2)
                     .background(.quaternary, in: Capsule())
             }
-            Text("A free app that lets Mimic draw a character from a description, and turn drawings into grey sculpts. Mimic opens it when it needs it. Your own pictures work without it, and you can set it up any time in Settings.")
+            Text("A free app that lets Mimic draw a character from a description, and turn drawings into grey sculpts. It doesn't even need to be open: Mimic uses its command line tool, which comes with the 3D engine. Your own pictures work without it, and you can set it up any time in Settings.")
                 .foregroundStyle(.secondary)
             DrawThingsSteps()
         }

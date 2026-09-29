@@ -4,18 +4,25 @@ import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
-/// Draw Things' HTTP API: draws a character from a description, or redraws a picture as a grey
+/// Draw Things: draws a character from a description, or redraws a picture as a grey
 /// sculpt. Every request names its model and sampler: left out, the API renders with whatever
 /// the app happens to have selected, and with SDXL selected an edit silently became plain
 /// text-to-image at strength 1, ignoring the picture.
+///
+/// With `draw-things-cli`, which setup downloads beside the 3D engine, it runs that instead: it
+/// needs neither the app open nor its API server on. The API is the fallback when it isn't there.
 public final class DrawThings: @unchecked Sendable {
     public let base: URL
     public let modelsDir: URL
     private let pinnedModel: String?
+    /// Mimic's `draw-things-cli`, when it's there: pictures are made with it instead of the API.
+    public let cli: String?
     /// Opens Draw Things when a picture needs it (`openIfNeeded`).
     public let app: DrawThingsApp
     private let lock = NSLock()
     private var task: URLSessionDataTask?
+    private var process: Process?
+    private var canceled = false
 
     /// FLUX.2 Klein is step-distilled: these are the settings it was made for.
     static var settings: [String: Any] { [
@@ -40,11 +47,19 @@ public final class DrawThings: @unchecked Sendable {
     public static func redrawPrompt(kind: MiniKind) -> String { kind == .object ? objectSculptPrompt : sculptPrompt }
 
     public init(environment: [String: String] = ProcessInfo.processInfo.environment,
-                home: URL = FileManager.default.homeDirectoryForCurrentUser, app: DrawThingsApp = .mac) {
+                home: URL = FileManager.default.homeDirectoryForCurrentUser, app: DrawThingsApp = .mac,
+                cli: String? = DrawThings.findCLI()) {
         base = URL(string: environment["DRAWTHINGS_URL"] ?? "http://127.0.0.1:7860")!
         modelsDir = home.appendingPathComponent("Library/Containers/com.liuliu.draw-things/Data/Documents/Models")
         pinnedModel = environment["DRAWTHINGS_MODEL"]
         self.app = app
+        self.cli = cli
+    }
+
+    /// Mimic's own copy of `draw-things-cli`, which setup downloads, when it's there.
+    public static func findCLI(_ install: Install = .locate()) -> String? {
+        let path = install.drawThingsCLI.path
+        return FileManager.default.isExecutableFile(atPath: path) ? path : nil
     }
 
     /// Before a picture step: when the API isn't answering and Draw Things isn't running, opens
@@ -55,7 +70,7 @@ public final class DrawThings: @unchecked Sendable {
     /// opens and never answers almost always has its API server off.
     public func openIfNeeded(cap: TimeInterval = 90, poll: TimeInterval = 0.5,
                              canceled: () -> Bool = { false }, opening: () -> Void = {}) throws -> DrawThingsApp.Instance? {
-        if reachable() { return nil }
+        if cli != nil || reachable() { return nil }
         guard app.enabled(), !app.running() else { return nil }
         opening()
         guard let opened = app.open() else { return nil }
@@ -125,9 +140,64 @@ public final class DrawThings: @unchecked Sendable {
         return b
     }
 
+    /// The `draw-things-cli generate` arguments for the same request. The pinned release only
+    /// generates locally and has no `--local` (it refuses it); later builds add cloud compute and
+    /// may use it unless given `--local`, so a new pin has to check its `generate --help`.
+    static func cliArguments(model: String, prompt: String, seed: Int, width: Int, height: Int,
+                             image: String? = nil, output: String) -> [String] {
+        var a = ["generate", "--no-download-missing", "--disable-preview", "--model", model, "--prompt", prompt,
+                 "--seed", String(seed), "--width", String(width), "--height", String(height), "--steps", "4", "--cfg", "1"]
+        if let image { a += ["--image", image, "--strength", "1"] }
+        return a + ["--output", output]
+    }
+
+    /// The file the CLI says it wrote ("Wrote: <path>"), from output full of progress lines.
+    static func wrotePath(_ output: String) -> String? {
+        lines(output).last { $0.contains("Wrote: ") }.map { String($0[$0.range(of: "Wrote: ")!.upperBound...]) }
+    }
+
+    /// The last lines of what the CLI printed: what went wrong.
+    static func tail(_ output: String) -> String { lines(output).suffix(3).joined(separator: " ") }
+
+    /// The CLI's output as lines, without its terminal codes or blank lines.
+    static func lines(_ output: String) -> [String] {
+        output.replacingOccurrences(of: "\u{1B}\\[[0-9;?]*[A-Za-z]", with: "", options: .regularExpression)
+            .components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+    }
+
+    private func runCLI(_ cli: String, model: String, prompt: String, seed: Int, width: Int, height: Int, image: Data? = nil) throws -> Data {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("mimic-dt-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let input = dir.appendingPathComponent("in.png"), output = dir.appendingPathComponent("out.png")
+        if let image { try image.write(to: input) }
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: cli)
+        p.arguments = Self.cliArguments(model: model, prompt: prompt, seed: seed, width: width, height: height,
+                                        image: image == nil ? nil : input.path, output: output.path)
+        let pipe = Pipe()
+        p.standardOutput = pipe; p.standardError = pipe
+        let stopNow = try lock.withLock { () -> Bool in
+            if !canceled { try p.run(); process = p }
+            return canceled
+        }
+        if stopNow { throw DrawThingsError.cancelled }
+        let text = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        p.waitUntilExit()
+        let wasCanceled = lock.withLock { () -> Bool in process = nil; return canceled }
+        if wasCanceled { throw DrawThingsError.cancelled }
+        guard p.terminationStatus == 0 else { throw DrawThingsError.refused(Self.tail(text)) }
+        guard let png = try? Data(contentsOf: URL(fileURLWithPath: Self.wrotePath(text) ?? output.path)) else {
+            throw DrawThingsError.refused("no picture in the reply")
+        }
+        return png
+    }
+
     /// Draws a character from a description. Returns PNG data.
     public func draw(description: String, seed: Int, kind: MiniKind = .character) throws -> Data {
         guard let model = model() else { throw DrawThingsError.noModel }
+        lock.withLock { canceled = false }
+        if let cli { return try runCLI(cli, model: model, prompt: Self.drawPrompt(description, kind: kind), seed: seed, width: 1024, height: 1024) }
         return try send("sdapi/v1/txt2img", body(model: model, prompt: Self.drawPrompt(description, kind: kind),
                                                  seed: seed, width: 1024, height: 1024))
     }
@@ -136,11 +206,13 @@ public final class DrawThings: @unchecked Sendable {
     public func sculpt(picture: URL, seed: Int, kind: MiniKind = .character) throws -> Data {
         guard let model = model() else { throw DrawThingsError.noModel }
         let (png, w, h) = try Self.fitForEdit(picture)
+        lock.withLock { canceled = false }
+        if let cli { return try runCLI(cli, model: model, prompt: Self.redrawPrompt(kind: kind), seed: seed, width: w, height: h, image: png) }
         return try send("sdapi/v1/img2img", body(model: model, prompt: Self.redrawPrompt(kind: kind), seed: seed, width: w, height: h, image: png))
     }
 
     /// Stops a request in flight (Stop during the picture step).
-    public func cancel() { lock.withLock { task?.cancel() } }
+    public func cancel() { lock.withLock { canceled = true; task?.cancel(); process?.terminate() } }
 
     private func send(_ path: String, _ body: [String: Any]) throws -> Data {
         var req = URLRequest(url: base.appendingPathComponent(path))

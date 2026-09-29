@@ -49,8 +49,8 @@ final class SetupTests: XCTestCase {
             XCTAssertTrue(m.files.contains { $0.name == "DINOV3_LICENSE.md" }, "\(m.id): DINOv3's licence must travel with dinov3.gguf")
             XCTAssertEqual(m.weights.count, 9, "\(m.id): trellis-cli loads nine model files")
         }
-        XCTAssertEqual(Checks.gigabytes(EngineDownload.totalBytes(EngineDownload.standard)), "9.1", "the standard set is 9.1 GB")
-        XCTAssertEqual(Checks.gigabytes(EngineDownload.totalBytes(EngineDownload.model("pixal3d-sv")!)), "8.1", "the Pixal3D set is 8.1 GB")
+        XCTAssertEqual(Checks.gigabytes(EngineDownload.totalBytes(EngineDownload.standard)), "9.3", "the standard set is 9.3 GB")
+        XCTAssertEqual(Checks.gigabytes(EngineDownload.totalBytes(EngineDownload.model("pixal3d-sv")!)), "8.3", "the Pixal3D set is 8.3 GB")
     }
 
     // MARK: Where things live
@@ -182,16 +182,19 @@ final class SetupTests: XCTestCase {
 
     func testFirstLaunchDownloadsAndUnpacksEverything() async throws {
         let (tarball, models) = try fakeEngine()
-        let server = try FileServer(["/engine.tar.gz": tarball, "/a.gguf": models[0], "/b.json": models[1]])
+        let cli = Data("#!/bin/sh\nexit 0\n".utf8)
+        let server = try FileServer(["/engine.tar.gz": tarball, "/a.gguf": models[0], "/b.json": models[1], "/draw-things-cli": cli])
         defer { server.stop() }
         let install = Install.standard(home: dir.appendingPathComponent("home"))
         var setup = setup(install)
         setup.engineFile = server.file("/engine.tar.gz", tarball)
+        setup.drawThingsCLI = server.file("/draw-things-cli", cli)
         setup.model.files = [server.file("/a.gguf", models[0]), server.file("/b.json", models[1])]
 
         let seen = ProgressLog()
         try await setup.run { seen.add($0) }
         XCTAssertTrue(setup.engineReady(), "the engine didn't unpack into place, or doesn't start")
+        XCTAssertEqual(DrawThings.findCLI(install), install.drawThingsCLI.path, "Draw Things' command line tool isn't there, or won't run")
         XCTAssertEqual(try Data(contentsOf: EngineDownload.standard.folder(in: install).appendingPathComponent("a.gguf")), models[0])
         XCTAssertFalse(FileManager.default.fileExists(atPath: install.engine.appendingPathComponent("engine.tar.gz").path),
                        "the tarball was left behind")
@@ -307,6 +310,7 @@ final class SetupTests: XCTestCase {
         guard let path = ProcessInfo.processInfo.environment["MIMIC_NETWORK_TEST"] else { throw XCTSkip("set MIMIC_NETWORK_TEST=<folder>") }
         var setup = EngineSetup(install: .standard(home: URL(fileURLWithPath: path)))
         setup.model.files = EngineDownload.standard.files.filter { $0.bytes < 1_000_000 }
+        setup.drawThingsCLI = nil
         XCTAssertEqual(setup.model.files.count, 6)
         try await setup.run { _ in }
         XCTAssertTrue(setup.engineReady(), "the real engine didn't unpack or doesn't start")
@@ -322,6 +326,7 @@ final class SetupTests: XCTestCase {
         s.session = URLSession(configuration: .ephemeral)
         s.version = "pixal3d.cpp test1"
         s.freeBytes = { _ in 1_000_000_000_000 }
+        s.drawThingsCLI = nil
         return s
     }
 
@@ -360,7 +365,7 @@ final class SetupTests: XCTestCase {
     /// `MIMIC_CHECK_DOWNLOADS=1` runs it; it asks for each file's size, downloading nothing.
     func testEveryPinnedDownloadIsReachable() async throws {
         guard ProcessInfo.processInfo.environment["MIMIC_CHECK_DOWNLOADS"] != nil else { throw XCTSkip("set MIMIC_CHECK_DOWNLOADS=1") }
-        var files = [EngineDownload.engine]
+        var files = [EngineDownload.engine, EngineDownload.drawThingsCLI]
         for model in EngineDownload.catalogue { files += model.files }
         var seen = Set<URL>()
         for file in files where seen.insert(file.url).inserted {

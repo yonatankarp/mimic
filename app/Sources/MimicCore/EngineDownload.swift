@@ -77,6 +77,14 @@ public enum EngineDownload {
         bytes: 1_670_709,
         sha256: "58aa276c7605bddf250533c982ccd43c2e0791791b6cf2f5e2c777ff56c7dede")
 
+    /// Draw Things' command line tool: pictures without the app open or its API server on.
+    /// One arm64 file linking only system frameworks (macOS 13+).
+    public static let drawThingsCLI = EngineFile(
+        name: "draw-things-cli",
+        url: URL(string: "https://github.com/drawthingsai/draw-things-community/releases/download/v1.20260430.0/draw-things-cli")!,
+        bytes: 178_391_312,
+        sha256: "7e5fb3af7dd99916d7671354a11fd40182bc6a0d16e7faf06fda7740c24915cd")
+
     /// The model sets Mimic can run, the default first. Each is downloaded into its own folder,
     /// `engine/models/<id>`, from Hugging Face at a pinned revision (the big files' sha256s are
     /// Hugging Face's own LFS hashes). The licences travel with the weights.
@@ -154,12 +162,13 @@ public enum EngineDownload {
         ]) + licences)
 
     /// Everything a first launch with `model` downloads, as the setup screen counts it.
-    public static func totalBytes(_ model: EngineModel) -> Int64 { engine.bytes + model.bytes }
+    public static func totalBytes(_ model: EngineModel) -> Int64 { engine.bytes + drawThingsCLI.bytes + model.bytes }
 
     /// Quick (no hashing, no launching): whether the engine and `model`'s files are there at all.
     /// The main window shows the setup screen until the chosen model's are.
     public static func present(_ install: Install, _ model: EngineModel) -> Bool {
-        FileManager.default.isExecutableFile(atPath: install.trellisCLI.path) && model.complete(in: install)
+        FileManager.default.isExecutableFile(atPath: install.trellisCLI.path)
+            && FileManager.default.isExecutableFile(atPath: install.drawThingsCLI.path) && model.complete(in: install)
     }
 
     /// About how much space removing `model`'s folder gives back: its files on disk, half
@@ -240,6 +249,8 @@ public struct SetupProgress: Sendable, Equatable {
 public struct EngineSetup: Sendable {
     public var install: Install
     public var engineFile: EngineFile = EngineDownload.engine
+    /// Draw Things' command line tool, downloaded beside the engine; nil leaves it out.
+    public var drawThingsCLI: EngineFile? = EngineDownload.drawThingsCLI
     /// The model set to download. An old install's files (Pixal3D's) are moved into it where
     /// it has files of the same name, and checked like any others.
     public var model: EngineModel = EngineDownload.standard
@@ -252,7 +263,8 @@ public struct EngineSetup: Sendable {
     public init(install: Install) { self.install = install }
 
     public func run(progress: @escaping @Sendable (SetupProgress) -> Void) async throws {
-        let total = engineFile.bytes + model.bytes
+        let cli = drawThingsCLI
+        let total = engineFile.bytes + (cli?.bytes ?? 0) + model.bytes
         let folder = model.folder(in: install)
         let tally = Tally()
         @Sendable func report(_ a: SetupProgress.Activity, _ extra: Int64 = 0) {
@@ -269,6 +281,7 @@ public struct EngineSetup: Sendable {
         // Room for what isn't here yet, and half a GB to spare, before anything starts.
         let engineOK = engineReady()
         let missing = (engineOK ? 0 : engineFile.bytes * 4)  // the tarball, then what it unpacks to
+            + (cli.map { EngineDownload.size(install.drawThingsCLI) == $0.bytes ? 0 : $0.bytes } ?? 0)
             + model.files.reduce(0) { $0 + (EngineDownload.size(folder.appendingPathComponent($1.name)) == $1.bytes ? 0 : $1.bytes) }
         if missing > 0, let free = freeBytes(install.engine), free < missing + 500_000_000 {
             throw SetupError.diskFull(needGB: Int((Double(missing + 500_000_000) / 1e9).rounded(.up)), haveGB: Int(Double(free) / 1e9))
@@ -283,6 +296,12 @@ public struct EngineSetup: Sendable {
             try? FileManager.default.removeItem(at: tarball)
             guard engineReady() else { throw SetupError.engineWontStart }
             tally.done += engineFile.bytes
+        }
+        if let cli {
+            report(.checking)
+            try await fetch(cli, to: install.drawThingsCLI) { report(.downloading, $0) }
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: install.drawThingsCLI.path)
+            tally.done += cli.bytes
         }
         report(.checking)
 

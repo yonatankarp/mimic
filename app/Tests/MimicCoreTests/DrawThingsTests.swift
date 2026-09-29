@@ -64,8 +64,65 @@ final class DrawThingsTests: XCTestCase {
     }
 
     func testUnreachableServerReadsAsNotRunning() {
-        let dt = DrawThings(environment: ["DRAWTHINGS_URL": "http://127.0.0.1:9", "DRAWTHINGS_MODEL": "x"])
+        let dt = DrawThings(environment: ["DRAWTHINGS_URL": "http://127.0.0.1:9", "DRAWTHINGS_MODEL": "x"], cli: nil)
         XCTAssertFalse(dt.reachable())
         XCTAssertThrowsError(try dt.draw(description: "a dwarf", seed: 1)) { XCTAssertEqual($0 as? DrawThingsError, .notRunning) }
+    }
+
+    /// The CLI gets the same request, and nothing that sends it to Draw Things' cloud.
+    func testCLIArguments() {
+        let draw = DrawThings.cliArguments(model: "m.ckpt", prompt: "a dwarf", seed: 7, width: 1024, height: 1024, output: "/o.png")
+        XCTAssertEqual(draw.first, "generate")
+        XCTAssertFalse(draw.contains { $0.hasPrefix("--cloud") || $0.hasPrefix("--remote") })
+        XCTAssertTrue(draw.contains("--no-download-missing"))
+        XCTAssertFalse(draw.contains("--image"))
+        for (flag, value) in [("--model", "m.ckpt"), ("--prompt", "a dwarf"), ("--seed", "7"), ("--width", "1024"), ("--output", "/o.png")] {
+            XCTAssertEqual(draw[draw.firstIndex(of: flag)! + 1], value, flag)
+        }
+        let edit = DrawThings.cliArguments(model: "m", prompt: "p", seed: 1, width: 704, height: 1536, image: "/in.png", output: "/o.png")
+        XCTAssertFalse(edit.contains { $0.hasPrefix("--cloud") || $0.hasPrefix("--remote") })
+        XCTAssertEqual(edit[edit.firstIndex(of: "--image")! + 1], "/in.png")
+        XCTAssertEqual(edit[edit.firstIndex(of: "--height")! + 1], "1536")
+    }
+
+    func testCLIOutput() {
+        let out = "\u{1B}[2K\rStep 1/4\n\u{1B}[2K\rStep 4/4\n\u{1B}[2KWrote: /tmp/a b.png\n"
+        XCTAssertEqual(DrawThings.wrotePath(out), "/tmp/a b.png")
+        XCTAssertNil(DrawThings.wrotePath("Step 1/4\n"))
+        XCTAssertEqual(DrawThings.tail("\u{1B}[1mError:\u{1B}[0m model not found\n\n"), "Error: model not found")
+    }
+
+    /// Stop ends the CLI, and reads as stopped, not as Draw Things refusing.
+    func testStopEndsTheCLI() throws {
+        let cli = FileManager.default.temporaryDirectory.appendingPathComponent("fake-dt-\(UUID().uuidString)")
+        try "#!/bin/sh\nsleep 30\n".write(to: cli, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: cli.path)
+        defer { try? FileManager.default.removeItem(at: cli) }
+        let dt = DrawThings(environment: ["DRAWTHINGS_MODEL": "x"], cli: cli.path)
+        XCTAssertNil(try dt.openIfNeeded(), "the CLI needs no app")
+        DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) { dt.cancel() }
+        let started = Date()
+        XCTAssertThrowsError(try dt.draw(description: "a dwarf", seed: 1)) { XCTAssertEqual($0 as? DrawThingsError, .cancelled) }
+        XCTAssertLessThan(Date().timeIntervalSince(started), 10)
+    }
+}
+
+/// A real drawing and sculpt through the draw-things-cli setup downloads, about a minute each:
+/// setup (the engine and the tool, not the 3D model files) into the folder MIMIC_LIVE_DRAW names,
+/// then a picture of a dwarf and its sculpt, left there.
+final class LiveDrawTests: XCTestCase {
+    func testDrawAndSculptThroughTheCLI() async throws {
+        guard let path = ProcessInfo.processInfo.environment["MIMIC_LIVE_DRAW"] else { throw XCTSkip("set MIMIC_LIVE_DRAW=<folder>") }
+        let folder = URL(fileURLWithPath: path)
+        var setup = EngineSetup(install: .standard(home: folder))
+        setup.model.files = []
+        try await setup.run { _ in }
+        let dt = DrawThings(cli: try XCTUnwrap(DrawThings.findCLI(setup.install), "setup left no draw-things-cli"))
+        let wasRunning = DrawThingsApp.mac.running()
+        let drawn = folder.appendingPathComponent("live-draw.png"), sculpt = folder.appendingPathComponent("live-sculpt.png")
+        try dt.draw(description: "stout dwarf warrior with an axe", seed: 7).write(to: drawn)
+        try dt.sculpt(picture: drawn, seed: 7).write(to: sculpt)
+        print("LIVE \(drawn.path) \(sculpt.path)")
+        if !wasRunning { XCTAssertFalse(DrawThingsApp.mac.running(), "the CLI path opened Draw Things") }
     }
 }

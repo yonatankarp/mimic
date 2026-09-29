@@ -245,7 +245,14 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   folder, and reading that makes macOS ask for access to another app's data and block until
   answered: Settings sat on a spinner. The API's selected model comes first; the folder is a
   fallback with a 3-second limit.
-- **Mimic opens Draw Things when a picture needs it** (`DrawThings.openIfNeeded`, called by
+- **`draw-things-cli` comes first** (`DrawThings.cli`): Mimic's own copy in `engine/`, pinned
+  by sha256 in `EngineDownload.drawThingsCLI` and downloaded by setup like the engine (an
+  install without it goes back to setup for it). PATH is never searched. With it, a picture
+  is a subprocess (`generate`; the pinned release only generates locally and refuses `--local`,
+  while newer builds may use Draw Things' cloud without it, so check that when re-pinning), the app
+  never opens, and the API server doesn't matter: the API check is green. Stop terminates it.
+  The API is only the fallback when the tool isn't installed, not a retry when it fails.
+- **Without it, Mimic opens Draw Things when a picture needs it** (`DrawThings.openIfNeeded`, called by
   the job runner around step 1, so the app and `mimic` both do it). Only when its API isn't
   answering and it isn't running at all: one that's open with its API server off isn't Mimic's
   to open or quit, and the request says how to turn the server on. Opened hidden without taking

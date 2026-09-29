@@ -15,6 +15,8 @@ public struct Install: Sendable, Equatable {
     /// Setup moves it out. nil for the default layout, which never had one.
     public let legacyLab: URL?
     public var trellisCLI: URL { engine.appendingPathComponent("trellis-cli") }
+    /// Draw Things' command line tool, which setup downloads beside the engine.
+    public var drawThingsCLI: URL { engine.appendingPathComponent("draw-things-cli") }
 
     /// A Mimic folder with everything inside it.
     public init(root: URL) {
