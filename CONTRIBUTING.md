@@ -8,7 +8,7 @@ difference.
 [Open an issue](https://github.com/yonatankarp/mimic/issues/new/choose) and pick **Something
 went wrong**. The form asks for what helps most:
 
-- Your Mimic version (Mimic → About Mimic), your Mac (Apple menu → About This Mac) and macOS version.
+- Your Mimic version (at the bottom of Settings, or Mimic → About Mimic), your Mac (Apple menu → About This Mac) and macOS version.
 - What you did, what you expected, and what happened instead.
 - For a mini that failed or came out wrong: its picture, and its log files. Right-click the mini
   → **Show in Finder**; the logs are `generate.job.log`, `pixal3d.log` and `prep.log` in its folder.

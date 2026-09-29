@@ -13,8 +13,8 @@ body:
     id: version
     attributes:
       label: Mimic version
-      description: Mimic → About Mimic
-      placeholder: "0.2.0"
+      description: At the bottom of Settings (⌘,), e.g. "Mimic 0.4.0 · build 128 · 941a66c"
+      placeholder: "Mimic 0.4.0 · build 128 · 941a66c"
     validations:
       required: true
   - type: input

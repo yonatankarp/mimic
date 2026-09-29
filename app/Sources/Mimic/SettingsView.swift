@@ -62,6 +62,12 @@ struct SettingsView: View {
                 }
             }
             TerminalSection()
+            Section {
+                // Selectable, so it can be copied into a bug report.
+                Text(BuildInfo.line).font(.callout.monospacedDigit()).foregroundStyle(.secondary).textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .help("Which Mimic this is. Include it when you report a problem.")
+            }
         }
         .formStyle(.grouped)
         .frame(width: 520, height: 640)

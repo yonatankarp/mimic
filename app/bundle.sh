@@ -15,6 +15,11 @@ if [ "$kind" = release ]; then name="Mimic"; id="com.mimic.app"; else name="Mimi
 # Record the SDK it was really built with: SwiftPM records the deployment target (15.0) as the
 # SDK, and macOS gives an app built "for 15" the old look instead of Liquid Glass.
 sdk="$(xcrun --show-sdk-version)"
+# What this build is, shown in About, Settings and `mimic --version`: a release's version comes
+# from its tag (MIMIC_VERSION); anything else says where it stands, e.g. 0.4.0-3-g941a66c.
+version="${MIMIC_VERSION:-$(git describe --tags --always --dirty 2>/dev/null | sed 's/^v//')}"
+build="$(git rev-list --count HEAD 2>/dev/null || echo 0)"  # grows with every commit
+commit="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 swift build -c release --product mimic -Xlinker -platform_version -Xlinker macos -Xlinker 15.0 -Xlinker "$sdk" >/dev/null
 bin="$(swift build -c release --show-bin-path)/mimic"
 app="build/$name.app"
@@ -34,8 +39,9 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key><string>mimic</string>
   <key>CFBundleIconFile</key><string>Mimic</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>${MIMIC_VERSION:-0.1}</string>
-  <key>CFBundleVersion</key><string>1</string>
+  <key>CFBundleShortVersionString</key><string>${version:-dev}</string>
+  <key>CFBundleVersion</key><string>$build</string>
+  <key>MimicCommit</key><string>$commit</string>
   <key>LSMinimumSystemVersion</key><string>15.0</string>
   <key>NSHighResolutionCapable</key><true/>
 </dict></plist>

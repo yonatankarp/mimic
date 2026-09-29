@@ -19,6 +19,7 @@ enum CLI {
 
     static func run(_ args: [String]) -> Int32 {
         if args.first == "--probe-notifications" { return probeNotifications() }
+        if args.first == "--version" { print(BuildInfo.line); return 0 }
         // The job's own steps, each run by a job as its own program: before finding the Mimic
         // folder or stopping leftovers, since this *is* the program named in runs/.job.pid.
         if args.first == "_engine" { return engine(Array(args.dropFirst())) }

@@ -8,6 +8,8 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: "17 6 * * *"  # daily: a download deleted by hand breaks installs without any push
 
 permissions:
   contents: read
@@ -22,6 +24,8 @@ jobs:
           fetch-depth: 0  # the packagers name builds by commit
       - name: Test
         working-directory: app
+        env:
+          MIMIC_CHECK_DOWNLOADS: "1"  # every pinned download is still there
         run: swift test
       - name: Package
         run: |

@@ -352,6 +352,28 @@ final class SetupTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: url) }
         return EngineDownload.sha256(url)!
     }
+    /// Every file Mimic downloads is still where it's pinned, at the size it's pinned at. A
+    /// release deleted by hand (the engine's was, on 2026-09-29) breaks every new install and
+    /// nothing else notices, so CI runs this on each push and once a day.
+    /// `MIMIC_CHECK_DOWNLOADS=1` runs it; it asks for each file's size, downloading nothing.
+    func testEveryPinnedDownloadIsReachable() async throws {
+        guard ProcessInfo.processInfo.environment["MIMIC_CHECK_DOWNLOADS"] != nil else { throw XCTSkip("set MIMIC_CHECK_DOWNLOADS=1") }
+        var files = [EngineDownload.engine]
+        for model in EngineDownload.catalogue { files += model.files }
+        var seen = Set<URL>()
+        for file in files where seen.insert(file.url).inserted {
+            var request = URLRequest(url: file.url)
+            request.httpMethod = "HEAD"
+            request.timeoutInterval = 60
+            let (_, response) = try await URLSession.shared.data(for: request)
+            let http = try XCTUnwrap(response as? HTTPURLResponse, file.name)
+            XCTAssertEqual(http.statusCode, 200, "\(file.name) is gone from \(file.url)")
+            if http.statusCode == 200, http.expectedContentLength > 0 {
+                XCTAssertEqual(http.expectedContentLength, file.bytes, "\(file.name) changed size")
+            }
+        }
+    }
+
 }
 
 final class ProgressLog: @unchecked Sendable {
