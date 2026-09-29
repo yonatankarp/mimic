@@ -194,6 +194,12 @@ struct SetupView: View {
                     .contentTransition(.numericText())
                     .animation(reduceMotion ? nil : .default, value: setup.status)
             }
+            // Told before the 8.1 GB download rather than after it: Mimic is only tested on 32 GB.
+            if ProcessInfo.processInfo.physicalMemory < 30_000_000_000 && !setup.justFinished {
+                Label("This Mac has \(ProcessInfo.processInfo.physicalMemory / 1_073_741_824) GB of memory. Mimic is made for Macs with 32 GB, so making a mini may be very slow or fail here.",
+                      systemImage: "memorychip")
+                    .font(.callout).foregroundStyle(.orange)
+            }
             if let problem = setup.problem {
                 Label(problem, systemImage: "exclamationmark.triangle.fill")
                     .font(.callout).foregroundStyle(.orange)

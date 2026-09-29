@@ -41,6 +41,7 @@ struct Sidebar: View {
             Section("Your Minis") {
                 ForEach(shown) { mini in
                     GalleryRow(mini: mini).contextMenu { menu(for: mini) }
+                        .help("Press space to preview it. Right-click for more.")
                 }
             }
         }

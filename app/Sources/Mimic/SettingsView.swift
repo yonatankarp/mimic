@@ -42,6 +42,7 @@ struct SettingsView: View {
                     ForEach(slicers) { Text($0.name).tag($0.id) }
                     Text("Mac's default app for 3D files").tag(Slicer.macDefault)
                 }
+                .help("Where Open in … sends a finished mini. The Mac's default app is whatever opens .stl files when you double-click one.")
             } footer: {
                 Text("Mimic lists the slicers it finds on this Mac. The Mac's default app works with any other slicer.")
                     .foregroundStyle(.secondary)
@@ -98,6 +99,16 @@ struct SettingsView: View {
 }
 
 private struct CheckRow: View {
+    /// What each part is for, in a sentence: the labels name the parts, this says why they matter.
+    static let what: [String: String] = [
+        "engine": "Turns your picture into a 3D shape, on your Mac's graphics chip.",
+        "models": "What the 3D engine has learned. Downloaded once, 8.1 GB.",
+        "space": "Each mini needs about 150 MB while it's being made.",
+        "drawthings-app": "A free app that draws characters from a description and turns pictures into grey sculpts.",
+        "drawthings-api": "Lets Mimic ask Draw Things for pictures. Draw Things has to be open.",
+        "drawthings-model": "The picture model Mimic asks Draw Things to use.",
+        "slicer": "Turns a mini into instructions for your printer.",
+    ]
     let check: Check
     let result: CheckResult?
     let setup: SetupModel
@@ -109,9 +120,14 @@ private struct CheckRow: View {
             mark.frame(width: 18)
             VStack(alignment: .leading, spacing: 2) {
                 Text(result?.label ?? check.label)
+                    .help(Self.what[check.id] ?? "")
                 if let result, !result.ok {
                     Text(setup.running && SetupModel.checkIDs.contains(check.id) ? setup.status : result.fix)
                         .font(.callout).foregroundStyle(.secondary)
+                    if check.id == "slicer" {
+                        Link("Get OrcaSlicer, a free slicer for most printers", destination: URL(string: "https://github.com/OrcaSlicer/OrcaSlicer/releases/latest")!)
+                            .font(.callout)
+                    }
                     if let problem = setup.problem, SetupModel.checkIDs.contains(check.id) {
                         Text(problem).font(.callout).foregroundStyle(.red)
                     }
