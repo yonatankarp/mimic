@@ -19,8 +19,10 @@ struct MiniDetail: View {
                     .disabled(!mini.hasModel || model.cantStart != nil)
                     .glassButton()
                 Button("Show in Finder") { model.showInFinder(mini) }
+                    .help("Shows the print file and the previews in Finder.")
                     .glassButton()
                 Button("Open in \(model.slicerName)") { if let stl = mini.stl { model.openInSlicer(stl) } }
+                    .help("Opens the print file in \(model.slicerName) to slice and print. Choose another slicer in Settings.")
                     .glassButton(prominent: true)
                     .disabled(mini.stl == nil)
             }
@@ -95,6 +97,7 @@ struct MiniDetail: View {
                     copied = true
                     Task { try? await Task.sleep(for: .seconds(1.5)); copied = false }
                 }
+                .help("Copies these settings as text, to keep in your slicer's notes.")
                 .glassButton()
                 .padding(.top, 4)
             }

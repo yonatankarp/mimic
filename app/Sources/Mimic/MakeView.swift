@@ -38,8 +38,10 @@ struct MakeView: View {
                         Text("✍️ Describe it").tag(Start.description)
                     }
                     .pickerStyle(.segmented)
+                    .help("From a picture: art or a photo of your character. Describe it: Draw Things draws the character from your words first.")
                     if start == .picture { picturePane } else { descriptionPane }
                     TextField("Name your mini", text: $name, prompt: Text("e.g. Dwarf Cleric"))
+                        .help("How it's listed in your minis. The print file is named after it too.")
                         .focused($nameFocused)
                         .onChange(of: name) { _, new in
                             if new != Mini.displayName(MakeAdvice.name(fromDescription: description)) { autoName = false }
@@ -73,6 +75,7 @@ struct MakeView: View {
                 Spacer()
                 Button("Cancel") { model.sheet = nil }.keyboardShortcut(.cancelAction)
                 Button("Make My Mini") { make() }
+                    .help("Takes about 7–10 minutes. You can keep using your Mac meanwhile.")
                     .keyboardShortcut(.defaultAction)
                     .disabled(model.cantStart != nil || takenName != nil || missing != nil)
             }
@@ -131,6 +134,7 @@ struct MakeView: View {
                 Text("Best for drawings and photos. Turn it off only if your picture is already a grey 3D model.")
             }
             .disabled(!health.drawThingsReady)
+            .help("Draw Things redraws your picture as a grey statue with the same pose and details. The 3D engine understands that far better than colourful art or photos.")
             if !health.drawThingsReady { needsDrawThings("The grey sculpt needs Draw Things.") }
         }
     }
@@ -344,6 +348,7 @@ struct SizeSection: View {
                 Text("✨ Best print").tag(SizeCard.Purpose.display)
             }
             .pickerStyle(.segmented)
+            .help("Game scale: the same size as the other minis on your table. Best print: as big as your nozzle needs for faces to come out clearly.")
             if card.purpose == .game {  // Best print explains itself in its note below
                 Text("Matches the other minis on your table.").font(.callout).foregroundStyle(.secondary)
             }
@@ -353,6 +358,7 @@ struct SizeSection: View {
                 Text("0.6 mm · fast").tag("0.6")
             }
             .pickerStyle(.segmented)
+            .help("The tip your printer prints through. Its size is usually marked on it, or listed in your printer's settings. Mimic thickens thin parts to suit it: finer nozzles keep more detail.")
             Text("Not sure? Most printers come with 0.4 mm. Choose the same nozzle in your slicer.")
                 .font(.callout).foregroundStyle(.secondary)
             if card.purpose == .game {
@@ -361,6 +367,7 @@ struct SizeSection: View {
                         HStack(spacing: 4) {
                             TextField("", text: bind(\.realHeight, { $0.setRealHeight($1) }), prompt: Text("1.80"))
                                 .labelsHidden().frame(width: 64).multilineTextAlignment(.trailing)
+                                .help("How tall the character would be in real life, in metres.")
                             Text("m")
                         }
                     }
@@ -374,6 +381,7 @@ struct SizeSection: View {
                     Text("54 mm").tag(54)
                 }
                 .pickerStyle(.segmented)
+                .help("The scale your other minis are made at: how tall an average human is on the table. 32 mm is the most common today.")
                 Text("Pick the scale your other minis use. At 32 mm scale, an average 1.8 m human stands 32 mm tall.")
                     .font(.callout).foregroundStyle(.secondary)
             }
@@ -383,11 +391,13 @@ struct SizeSection: View {
             slider("Character height", \.height, { $0.setHeight($1) }, SizeCard.heightRange, unit: "mm",
                    hint: "Set for you by the choices above; type a value or drag to change it. The base adds about 2 mm.")
             slider("Base size", \.base, { $0.setBase($1) }, SizeCard.baseRange, unit: "mm", hint: nil)
+                .help("How wide the round base is. 25 mm fits one square on a battle map.")
             // A plain button as the label, so a click or VoiceOver's press on the words opens it too.
             DisclosureGroup(isExpanded: $advanced) {
                 slider("Extra thickness for thin parts", \.inflate, { $0.setInflate($1) }, SizeCard.inflateRange, unit: "mm",
                        hint: "Set by your nozzle. More keeps swords and capes in one piece, but softens faces.", decimals: 2)
                 Toggle("Use the character's own base instead of a round one", isOn: $card.noBase)
+                    .help("For characters already standing on a base or a rock: Mimic flattens that instead of adding a round one.")
                 if let seed {
                     VStack(alignment: .leading, spacing: 4) {
                         LabeledContent("Variation number") {
