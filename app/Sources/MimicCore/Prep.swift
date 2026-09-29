@@ -135,6 +135,7 @@ public enum Prep {
             if turned > 0 { log(String(format: "prep: set on its most stable side (turned %.0f°)", turned)) }
         }
         let height = Float(o.height)
+        let thing = o.groundBottom ? "object" : "figure"
 
         // Ground is where most of the bottom is, not the lowest vertex: a trailing wisp or
         // hanging tassel is a sliver of the surface below the 0.5th percentile, and ends up
@@ -194,11 +195,15 @@ public enum Prep {
         mesh = Mesh()
         lap("solid \(solid.nx)x\(solid.ny)x\(solid.nz) grid, \(out.triangles.count) triangles")
 
-        // Keep only the largest connected piece: drops floating specks the generator left.
-        let (piece, dropped) = out.largestPiece()
+        // Keep only the largest connected piece: drops floating specks the generator left, and
+        // the inner walls of hollows (which fills them). A solid piece at least a tenth of the
+        // height long is no speck but a held thing the generator didn't join to the hands (a
+        // Pixal3D elf's bow): still left out, since it would print floating in mid-air, but said.
+        let (piece, kept, loose) = out.largestPiece()
         out = piece
-        let down = SIMD3<Float>(0, 0, Float(o.flatten))
-        for n in out.positions.indices { out.positions[n] -= down }
+        let dropped = loose.count
+        let parts = loose.filter { ($0.volume > 0) == (kept.volume > 0) && Prep.longest($0) >= Prep.partLength * height }
+        for n in out.positions.indices { out.positions[n] -= SIMD3(0, 0, Float(o.flatten)) }
         lap("largest piece")
 
         // A fine voxel keeps detail but makes millions of faces; collapsing a dense, even mesh
@@ -219,7 +224,24 @@ public enum Prep {
             lines.append(String(format: "mini_prep: WARNING footprint %.1f mm is wider than the %.0f mm base; raise the base to at least %d mm",
                                 footprint, o.base, Int((footprint + 1).rounded(.up))))
         }
+        if let longest = parts.map(Prep.longest).max() {
+            let what = parts.count == 1 ? "A part came out separate from the \(thing) (about \(Int(longest.rounded())) mm long) and was left out."
+                : "\(parts.count) parts came out separate from the \(thing) (the largest about \(Int(longest.rounded())) mm long) and were left out."
+            lines.append(partWarning + what + " Try Make Another Version, or TRELLIS.2 in Settings → 3D model, which joins held things more reliably.")
+        }
         return Result(mesh: out, dropped: dropped, footprint: footprint, lines: lines)
+    }
+
+    /// A dropped piece whose longest side is at least this share of the height is a part, not a
+    /// speck. Measured (NOTES.md): a lost bow was 93% of the height, the largest solid speck on
+    /// seven real minis under 1%.
+    static let partLength: Float = 0.1
+    /// Marks the warning for a part left out; what follows it is said to the person as it is.
+    public static let partWarning = "mini_prep: WARNING part: "
+
+    static func longest(_ p: Mesh.Piece) -> Float {
+        let e = p.hi - p.lo
+        return max(e.x, e.y, e.z)
     }
 }
 

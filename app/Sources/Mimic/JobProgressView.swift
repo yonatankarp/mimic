@@ -146,6 +146,7 @@ struct JobProgressView: View {
                 Text(s.kind == .prep ? "It keeps its previous size." : "Nothing was kept. It's in the Trash if you want the pieces.")
                     .foregroundStyle(.secondary)
             } else if s.succeeded {
+                ForEach(s.notes, id: \.self) { Label($0, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange) }
                 if s.fragile {
                     Label("Your mini is ready, but some thin parts may be fragile. Check it in your slicer before printing.",
                           systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)

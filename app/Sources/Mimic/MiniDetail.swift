@@ -28,9 +28,12 @@ struct MiniDetail: View {
                     .disabled(mini.stl == nil)
                     .tourCallout(.mini)
             }
-            if let job = model.job, job.name == mini.name, job.succeeded, job.fragile {
-                Label("Some thin parts may be fragile. Check it in your slicer before printing.", systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
+            if let job = model.job, job.name == mini.name, job.succeeded {
+                ForEach(job.notes, id: \.self) { Label($0, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange) }
+                if job.fragile {
+                    Label("Some thin parts may be fragile. Check it in your slicer before printing.", systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                }
             }
             if let stl = mini.stl {
                 MiniViewer(stl: stl, version: mini.madeAt, name: mini.displayName)

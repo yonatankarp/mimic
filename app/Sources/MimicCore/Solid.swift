@@ -383,9 +383,15 @@ extension Mesh {
         return out
     }
 
+    /// A connected piece of a solid: its volume and extents.
+    struct Piece { var volume: Float; var lo: SIMD3<Float>; var hi: SIMD3<Float> }
+
     /// The largest connected piece (by vertex count, as Blender's "separate by loose parts"
-    /// sorted it), and how many others were dropped.
-    func largestPiece() -> (Mesh, dropped: Int) {
+    /// sorted it), and the size of it and of each one dropped. Volume is signed: the divergence
+    /// theorem, a tetrahedron per triangle, exact for a closed surface (the solid's always is).
+    /// A solid piece is positive; the inner wall of a hollow (the generator's bodies often are
+    /// one) is a piece of its own and negative.
+    func largestPiece() -> (Mesh, kept: Piece, dropped: [Piece]) {
         var parent = Array(0..<Int32(positions.count))
         func find(_ x: Int32) -> Int32 {
             var x = x
@@ -396,13 +402,25 @@ extension Mesh {
             let a = find(Int32(t.x)), b = find(Int32(t.y)), c = find(Int32(t.z))
             parent[Int(b)] = a; parent[Int(c)] = a
         }
+        // Per root vertex: how many vertices its piece has, and its size.
+        var size = [Int](repeating: 0, count: positions.count)
+        var pieces = [Piece](repeating: Piece(volume: 0, lo: SIMD3(repeating: .infinity), hi: SIMD3(repeating: -.infinity)),
+                             count: positions.count)
         var used = [Bool](repeating: false, count: positions.count)
-        for t in triangles { used[Int(t.x)] = true; used[Int(t.y)] = true; used[Int(t.z)] = true }
-        var size: [Int32: Int] = [:]
-        for v in 0..<Int32(positions.count) where used[Int(v)] { size[find(v), default: 0] += 1 }
-        guard let keep = size.max(by: { $0.value < $1.value })?.key else { return (self, 0) }
-        let kept = Mesh(positions: positions, triangles: triangles.filter { find(Int32($0.x)) == keep }).compacted()
-        return (kept, size.count - 1)
+        for t in triangles {
+            let r = Int(find(Int32(t.x)))
+            let a = positions[Int(t.x)], b = positions[Int(t.y)], c = positions[Int(t.z)]
+            pieces[r].volume += simd_dot(a, simd_cross(b, c)) / 6
+            for v in [t.x, t.y, t.z] where !used[Int(v)] {
+                used[Int(v)] = true
+                size[r] += 1
+                pieces[r].lo = simd_min(pieces[r].lo, positions[Int(v)]); pieces[r].hi = simd_max(pieces[r].hi, positions[Int(v)])
+            }
+        }
+        let roots = size.indices.filter { size[$0] > 0 }
+        guard let keep = roots.max(by: { size[$0] < size[$1] }) else { return (self, Piece(volume: 0, lo: .zero, hi: .zero), []) }
+        let kept = Mesh(positions: positions, triangles: triangles.filter { Int(find(Int32($0.x))) == keep }).compacted()
+        return (kept, pieces[keep], roots.filter { $0 != keep }.map { pieces[$0] })
     }
 }
 
