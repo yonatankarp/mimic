@@ -181,6 +181,52 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   took up to about a minute, so the limit is 300 s. Cloud providers are proven against a local
   fake server only. Key reads happen off the main thread: an ad-hoc-signed update is a new
   identity to the Keychain, so macOS may ask once to let Mimic use the saved key.
+- **One job at a time, and a queue shared by every Mimic** (`MimicCore/Queue.swift`, `Jobs.swift`;
+  0.5.0). A job asked for while one runs, in this Mimic or another (the installed app, a dev
+  build, `mimic` in Terminal), joins `runs/.queue.json`: an array of `{name, job, added, sizes?}`,
+  oldest first, only ever replaced whole. Everything is checked when it's asked for, and a new
+  mini's folder, settings.json and picture are written then, so a queued job can't fail for a
+  reason knowable at that moment; a resize keeps its sizes in the entry until it starts, so the
+  mini keeps its size meanwhile. Every change to the queue happens under `runs/.queue.lock`
+  (flock, a fresh open per section, since flock doesn't keep apart two threads sharing one open
+  file), and so does every taking and letting go of `runs/.job.lock`. That one rule is what keeps
+  a job from being lost: a runner that finds nothing waiting releases the job lock *inside* the
+  queue lock, so a job added a moment later always finds the lock free and starts itself; a
+  runner that finishes a job with more waiting starts the next without letting go. Whoever holds
+  the job lock runs the queue: the app always carries on; `mimic make` carries on only until its
+  own mini is made, then leaves the rest; quitting the app stops carrying on (the queue waits
+  for the next launch, which starts it without asking). A crash lets go of the job lock outside
+  that rule, so the app looks every 3 seconds and at launch. `runs/.job.json` names the running
+  job and its holder's pid and start time, so another Mimic can show it (a record left by a
+  crash reads as nothing). Proven with two `JobRunner`s on one folder, which is exactly two
+  processes as far as flock is concerned: 16 jobs from two threads never overlap (a step that
+  fails if another is inside it) and none is lost; 300 additions from two threads all land.
+  Dropping the queue's flock fails both. Two things this fixed on the way: a job's leftover is
+  now stopped only by a Mimic that got the job lock (before, opening a second Mimic stopped a
+  live job it took for a crash's leftover), and the lock files are opened close-on-exec (a job's
+  programs inherited them, so after a crash a program still running would have held the lock).
+- **Learned time estimates** (`MimicCore/Timings.swift`). Every job a Mimic finishes on this Mac
+  is a line of `~/Library/Application Support/Mimic/timings.jsonl`: date, Mimic version, the Mac
+  (chip, memory, GPU cores), make or resize, character or object, model, where the picture came
+  from, sizes, each step's seconds, and finished, failed or stopped. Capped at 2,000 lines; kept
+  on this Mac only, never uploaded, and not in the minis folder, so sharing that shares none of
+  it. A development Mimic (`MIMIC_HOME`, `MIMIC_FAKE_HOME`) keeps its own; `MIMIC_TIMINGS` names
+  a file. Each step is estimated on its own, as the median of the 15 most recent similar jobs
+  that finished on this Mac (same chip and memory): the picture from jobs whose picture came the
+  same way (Draw Things takes a minute, a copy takes nothing); the 3D shape from makes with the
+  same model; the print file from makes and resizes alike at the same nozzle and a height within
+  30%, else any. Fewer than 3 and it's the fixed figure (the model's whole-mini minutes from the
+  table above, less a minute for the picture and 45 s for print prep). Failed and stopped jobs
+  never count. "Taking longer than usual" is 1.35× the estimate and "unusually slow" 2.8×, the
+  old 12 and 25 minutes against 9 as proportions, with a minute's slack so a short job isn't
+  called slow. Not measured: whether height and nozzle move print prep enough to matter here
+  (every mini on the Mac this was built on is 32 mm), so the size match is a guess that costs
+  nothing when it's wrong. The first run seeds the history from minis already made, only where
+  their files' times can be trusted: the job log's birth is the start, pixal3d.log's birth the
+  3D step's, the log's last change (the `[3/3]` line) print prep's, the print file's time the
+  end; skipped unless the log is exactly the three step lines, pixal3d.log is newer than the log
+  (Try Again appends to an old one), no resize came after, and the whole took 1 minute to 3
+  hours. On this Mac that took 2 of the 4 finished minis (6:19 and 9:04 for Pixal3D).
 - **Self-signed, by decision.** The disk image is downloaded through a browser, so macOS
   quarantines it and the first open needs System Settings → Privacy & Security → Open Anyway,
   once; the README and a note in the disk image say so. A Developer ID would remove that step.
@@ -194,3 +240,7 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
 
 - A notification arriving: the permission prompt is asked once after the first Make (seen:
   status went from "not asked" to "denied" on the dev app), but none has been seen delivered.
+
+- The queue's Dock badge and the quit question's queue sentence: both are one line each, but
+  the test build ran in the background, where neither the Dock tile nor the modal alert could
+  be seen.
