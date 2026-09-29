@@ -308,6 +308,47 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
 - **Self-signed, by decision.** The disk image is downloaded through a browser, so macOS
   quarantines it and the first open needs System Settings → Privacy & Security → Open Anyway,
   once; the README and a note in the disk image say so. A Developer ID would remove that step.
+- **Updates: our own updater, not Sparkle** (`MimicCore/Updates.swift`, `Mimic/UpdateView.swift`;
+  0.5.0). Sparkle would be Mimic's first third-party code, and would need its own framework and
+  XPC services copied into the hand-assembled bundle by `bundle.sh`, an EdDSA key pair, and an
+  appcast feed generated and published by the release workflow. Its EdDSA signature is the one
+  thing it adds over what's here: it protects against someone who takes over the GitHub
+  account and publishes a release, but only if the private key lives somewhere other than CI,
+  which for a one-person hobby project it would not. Ours is a few hundred lines on what releases already
+  have: `releases/latest` (GitHub leaves pre-releases and drafts out of it, and `Updates.offer`
+  also refuses them and any tag that isn't `vX.Y.Z`, so the engine's `pixal3d-d1b4926`
+  pre-release is never an update), the disk image and its line in the release's `SHA256SUMS`.
+  That checksum comes from the same release over TLS: it catches a damaged or cut-off download,
+  not a compromised account. The download reuses setup's `fetch` (resumes, deletes a file whose
+  sha256 is wrong). Then `hdiutil attach -nobrowse -readonly -noautoopen` at a mount point of
+  its own (an open disk image would push it to "Mimic 1"), `ditto` Mimic.app to a hidden
+  `.Mimic-update-<uuid>.app` beside the running app (same disk, so the swap is a rename), check
+  it (version equals the release's, bundle id `com.mimic.app` so settings carry over,
+  `codesign --verify --deep --strict`), and `renamex_np(RENAME_SWAP)`: one step, never a moment
+  without a Mimic there. The old app then sits at the hidden name and is removed; a launch
+  sweeps any left over. Relaunch is a small `sh` that waits for this pid to end, then
+  `open -n` the app with Mimic's own `MIMIC_*` variables, so a test copy stays a test copy.
+  `NSWorkspace.openApplication`'s completion never came once the bundle had been swapped under
+  it, and a window with a sheet up refuses to quit, so the sheet is closed first (both seen).
+  Checked at launch and then from the queue's 3-second watch, at most once a day counted from
+  the last *attempt* (an offline Mac doesn't retry every 3 seconds); "Last checked" is the last
+  success. A development build (`AppVersion` parses only `X.Y.Z`) never checks by itself and a
+  manual check says so. Never while a mini is being made (here or in another Mimic), waiting in
+  the queue, or the engine downloading: Update becomes "Update When the Queue Is Done", and the
+  rule is checked again after the download and after staging. Where the account can't write
+  the app's folder (another user's /Applications, a translocated copy, the disk image itself)
+  it downloads the disk image, checks it and opens it instead. Sent: a GET with User-Agent
+  `Mimic/<version>`, nothing else. Quarantine: URLSession sets none (Mimic's Info.plist has no
+  `LSFileQuarantineEnabled`), so the new app opens without Open Anyway; checked on the real
+  update below (`xattr`: no `com.apple.quarantine` anywhere in it; `com.apple.provenance` is
+  not quarantine). The Keychain (#13): an ad-hoc signature's identity is the binary's hash,
+  so after any update macOS may ask once to let Mimic use a saved AI key (see the AI helper
+  above); not seen, since the test copy had no saved keys. Seen end to end with a throwaway
+  "Mimic Update Test" (own bundle id, version 0.4.1, a debug build, in a scratch folder,
+  `MIMIC_FAKE_HOME` set): `MIMIC_UPDATE_NOW=1` (debug builds only) checked and pressed Update,
+  it downloaded the real 0.4.2 disk image, verified it, replaced itself with the real Mimic
+  0.4.2 (Info.plist 0.4.2, `com.mimic.app`, signature valid), quit, and the new one started
+  with the same `MIMIC_FAKE_HOME`, about 8 seconds in all.
 
 ## Not yet seen working
 
@@ -328,3 +369,9 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
 - The queue's Dock badge and the quit question's queue sentence: both are one line each, but
   the test build ran in the background, where neither the Dock tile nor the modal alert could
   be seen.
+
+- Updating from /Applications and ~/Applications, and the not-writable path (a standard
+  account with Mimic installed by an administrator: disk image opened instead): the swap and
+  the refusal are tested on temporary folders, and the real update ran in a scratch folder.
+  The update sheet, toolbar note and Settings section were not looked at: the test drove the
+  update through `MIMIC_UPDATE_NOW`, not the buttons.

@@ -452,6 +452,7 @@ struct MainWindowChrome: ViewModifier {
         @Bindable var model = model
         content
             .toolbar {
+                ToolbarItem(placement: .primaryAction) { UpdateToolbarItem() }
                 ToolbarItem(placement: .primaryAction) { JobToolbarItem() }
                 ToolbarItem(placement: .primaryAction) {
                     SettingsLink {
@@ -476,6 +477,7 @@ struct MainWindowChrome: ViewModifier {
                 case .newProject(let mini): ProjectNameSheet(renaming: nil, moving: mini)
                 case .renameProject(let p): ProjectNameSheet(renaming: p)
                 case .progress: JobProgressView()
+                case .update: UpdateSheet()
                 }
             }
             .confirmationDialog("Move “\(model.trashing?.displayName ?? "")” to the Trash?",
@@ -502,6 +504,9 @@ struct MainWindowChrome: ViewModifier {
                 let count = model.minis.filter { $0.project == project }.count
                 Text(count == 0 ? "The empty project goes to the Trash."
                      : "Its \(count == 1 ? "mini moves" : "\(count) minis move") to Unsorted, unless you choose to move \(count == 1 ? "it" : "them") to the Trash too. You can put anything back from the Trash.")
+            }
+            .alert(model.updates.notice ?? "", isPresented: Binding(get: { model.updates.notice != nil }, set: { if !$0 { model.updates.notice = nil } })) {
+                Button("OK") {}
             }
             .alert(model.problem ?? "", isPresented: Binding(get: { model.problem != nil }, set: { if !$0 { model.problem = nil } })) {
                 Button("OK") {}
