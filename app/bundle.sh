@@ -12,7 +12,10 @@ cd "$(dirname "$0")"
 kind="${1:-dev}"
 if [ "$kind" = release ]; then name="Mimic"; id="com.mimic.app"; else name="Mimic Dev"; id="com.mimic.app.dev"; fi
 
-swift build -c release --product mimic >/dev/null
+# Record the SDK it was really built with: SwiftPM records the deployment target (15.0) as the
+# SDK, and macOS gives an app built "for 15" the old look instead of Liquid Glass.
+sdk="$(xcrun --show-sdk-version)"
+swift build -c release --product mimic -Xlinker -platform_version -Xlinker macos -Xlinker 15.0 -Xlinker "$sdk" >/dev/null
 bin="$(swift build -c release --show-bin-path)/mimic"
 app="build/$name.app"
 rm -rf "$app"
