@@ -104,14 +104,59 @@ details.adv > div { padding-top:8px; }
 @media (prefers-reduced-motion: reduce) { details.adv > summary::before { transition:none; } }
 #offline { max-width:1392px; margin:4px auto 0; padding:12px 16px; border-radius:var(--r-sm); background:var(--warn-soft); color:var(--text); border:1px solid var(--warn); }
 @media (max-width: 900px) { #offline { margin:4px 16px 0; } }
-#jobCard { width:min(92vw,560px); max-width:none; padding:20px; }
-#jobCard::backdrop { background:rgba(20,15,10,.35); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
-.jobhead { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
-.jobhead h2 { font:600 16px Inter, sans-serif; margin:0; }
-.pill { height:32px; padding:0 12px; border-radius:999px; border:1px solid var(--accent); background:var(--panel); color:var(--text); font:500 13px Inter, sans-serif; cursor:pointer; font-variant-numeric:tabular-nums; white-space:nowrap; }
-.pill.done { border-color:var(--ok); }
-.pill.fail { border-color:var(--err); }
-.pill:hover { background:var(--panel-2); }
+
+/* ---- Mac-style windows, alerts and the menu-bar pill ---- */
+:root { --mac-win:rgba(248,245,240,.84); --mac-line:rgba(0,0,0,.12); --mac-text:#1d1d1f; --mac-btn:#fff;
+        --mac-btn-border:rgba(0,0,0,.16); --mac-accent:#007aff; --mac-danger:#ff3b30; --ring-track:rgba(0,0,0,.12); --light-off:#d9d4ce; }
+@media (prefers-color-scheme: dark) {
+  :root { --mac-win:rgba(40,36,33,.84); --mac-line:rgba(255,255,255,.1); --mac-text:#f5f5f7; --mac-btn:rgba(255,255,255,.14);
+          --mac-btn-border:rgba(255,255,255,.08); --mac-accent:#0a84ff; --mac-danger:#ff453a; --ring-track:rgba(255,255,255,.18); --light-off:#4b4540; }
+}
+@supports (color: AccentColor) { :root { --mac-accent:AccentColor; } }
+.mac-window, .mac-alert, .pill, .mac-btn { font-family:-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
+dialog.mac-window, dialog.mac-alert {
+  padding:0; border:.5px solid var(--mac-line); border-radius:12px; background:var(--mac-win); color:var(--mac-text);
+  -webkit-backdrop-filter:blur(30px) saturate(180%); backdrop-filter:blur(30px) saturate(180%);
+  box-shadow:0 0 0 .5px rgba(0,0,0,.12), 0 24px 70px rgba(0,0,0,.35); overflow:hidden;
+}
+#jobCard { width:min(92vw,520px); max-width:none; }
+#jobCard::backdrop { background:rgba(20,15,10,.25); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+.mac-titlebar { height:38px; display:flex; align-items:center; padding:0 14px; position:relative; }
+.mac-title { position:absolute; inset:0; display:grid; place-items:center; font-weight:600; font-size:13px; opacity:.85; pointer-events:none; }
+.lights { display:flex; gap:8px; position:relative; z-index:1; }
+.light { width:12px; height:12px; border-radius:50%; border:.5px solid rgba(0,0,0,.18); padding:0; cursor:default; display:grid; place-items:center; }
+.light span { font:700 10px/1 -apple-system, sans-serif; color:rgba(0,0,0,.55); opacity:0; }
+.lights:hover .light:not(:disabled) span, .light:focus-visible span { opacity:1; }
+.light.red { background:#ff5f57; } .light.yellow { background:#febc2e; } .light.green { background:#28c840; }
+.light:disabled { background:var(--light-off); border-color:transparent; }
+.mac-body { padding:4px 20px 18px; }
+.mac-body > h2 { font:600 15px -apple-system, BlinkMacSystemFont, system-ui, sans-serif; margin:0 0 4px; }
+.mac-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
+.mac-btn { height:26px; min-width:76px; padding:0 14px; border-radius:6px; font-size:13px; font-weight:400; background:var(--mac-btn); color:var(--mac-text);
+           border:.5px solid var(--mac-btn-border); box-shadow:0 .5px 1px rgba(0,0,0,.12); cursor:default; }
+.mac-btn:active { filter:brightness(.93); }
+.mac-btn.default { background:var(--mac-accent); color:#fff; border-color:transparent; box-shadow:0 .5px 1px rgba(0,0,0,.2), inset 0 .5px 0 rgba(255,255,255,.25); }
+.mac-btn.danger { color:var(--mac-danger); }
+#jobCard .bar { background:var(--ring-track); }
+#jobCard .bar > i { background:var(--mac-accent); }
+#jobCard .steps li.active .dot { background:var(--mac-accent); border-color:var(--mac-accent); color:#fff; box-shadow:0 0 0 3px color-mix(in srgb, var(--mac-accent) 25%, transparent); }
+dialog.mac-alert { width:260px; padding:20px 16px 16px; text-align:center; }
+.mac-alert::backdrop { background:rgba(0,0,0,.2); }
+.mac-alert img { width:64px; height:64px; display:block; margin:0 auto 10px; }
+.mac-alert h3 { font-size:13px; font-weight:600; margin:0 0 6px; }
+.mac-alert p { font-size:11.5px; line-height:1.4; margin:0 0 16px; opacity:.85; }
+.mac-alert form { display:flex; gap:8px; }
+.mac-alert form .mac-btn { flex:1; min-width:0; height:28px; }
+.pill { height:26px; padding:0 10px 0 7px; display:inline-flex; align-items:center; gap:7px; border-radius:999px; border:.5px solid var(--mac-line);
+        background:var(--mac-win); -webkit-backdrop-filter:blur(20px) saturate(180%); backdrop-filter:blur(20px) saturate(180%);
+        color:var(--mac-text); font-size:12px; font-weight:500; box-shadow:0 1px 3px rgba(0,0,0,.1); cursor:default; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.ring { width:14px; height:14px; border-radius:50%; flex:none; display:grid; place-items:center; color:#fff; font:700 9px/1 -apple-system, sans-serif;
+        background:conic-gradient(var(--mac-accent) calc(var(--p, 0) * 1%), var(--ring-track) 0);
+        -webkit-mask:radial-gradient(circle at center, transparent 4px, #000 4.5px); mask:radial-gradient(circle at center, transparent 4px, #000 4.5px); }
+.pill.done .ring, .pill.fail .ring, .pill.stopped .ring { -webkit-mask:none; mask:none; }
+.pill.done .ring { background:#28c840; } .pill.done .ring::after { content:"✓"; }
+.pill.fail .ring { background:#ff5f57; } .pill.fail .ring::after { content:"✕"; }
+.pill.stopped .ring { background:#8e8e93; } .pill.stopped .ring::after { content:"■"; font-size:7px; }
 /* setup checklist */
 #setup { border-left:4px solid var(--gold); }
 #setup h2 { font:600 15px Inter, sans-serif; }
@@ -124,6 +169,7 @@ details.adv > div { padding-top:8px; }
 .steps li { display:flex; gap:10px; align-items:center; padding:6px 0; color:var(--muted); position:relative; }
 .steps li + li::before { content:""; position:absolute; left:10px; top:-8px; height:14px; width:2px; background:var(--line); }
 .steps li.done + li::before { background:var(--ok); }
+.steps li[hidden] + li::before { display:none; }  /* a resize shows only step 3: no line into it */
 .steps .dot { width:22px; height:22px; border-radius:50%; border:2px solid var(--line); flex:none; display:grid; place-items:center; font:700 12px Inter, sans-serif; }
 .steps li.active { color:var(--text); font-weight:600; }
 .steps li.active .dot { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); box-shadow:0 0 0 3px var(--gold-soft); animation:pulse 1.2s infinite; }
@@ -179,6 +225,7 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
   .thumbs img { width:96px; height:96px; }
 }
 @media (max-width: 480px) { header .tag { display:none; } }
+@media (max-width: 1100px) { header:has(#jobPill:not([hidden])) .tag { display:none; } }  /* room for the pill */
 </style>
 <script type="importmap">
 { "imports": {
@@ -192,32 +239,38 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
   <img src="/logo.png" alt="">
   <h1>Mimic</h1><span class="tag">Turn any character into a miniature you can print</span>
   <div class="hdr">
-    <button class="pill" id="jobPill" type="button" hidden aria-live="polite"></button>
+    <button class="pill" id="jobPill" type="button" hidden aria-live="polite"><span class="ring" aria-hidden="true"></span><span id="pillText"></span></button>
     <button class="ghost" id="settingsBtn" type="button">⚙️ Settings<span id="warnDot" hidden> ⚠️</span></button>
     <button id="quit" type="button">⏻ Quit Mimic</button>
   </div>
 </header>
 <div id="offline" role="alert" hidden>⚠️ <b>Mimic has stopped running.</b> Open Mimic from your Applications folder, then reload this page.</div>
-<dialog id="jobCard" class="jobdlg" aria-labelledby="jobTitle">
-  <div class="jobhead">
+<dialog id="jobCard" class="mac-window" aria-labelledby="jobTitle">
+  <div class="mac-titlebar">
+    <div class="lights">
+      <button class="light red" id="jobX" type="button" aria-label="Stop or close"><span>×</span></button>
+      <button class="light yellow" id="jobMin" aria-label="Minimize" type="button"><span>−</span></button>
+      <button class="light green" type="button" disabled aria-hidden="true" tabindex="-1"></button>
+    </div>
+    <div class="mac-title">Mimic</div>
+  </div>
+  <div class="mac-body">
     <h2 id="jobTitle"></h2>
-    <div class="row">
-      <button class="ghost" id="jobStop" type="button">⏹ Stop</button>
-      <button class="ghost" id="jobMin" type="button" title="Keep it as a small badge at the top">— Minimize</button>
-      <button class="ghost" id="jobClose" type="button" hidden>✕ Close</button>
+    <ol class="steps" id="steps">
+      <li data-s="1"><span class="dot">1</span>🖼️ Getting the picture ready</li>
+      <li data-s="2"><span class="dot">2</span>🧊 Building the 3D shape (the long part)</li>
+      <li data-s="3"><span class="dot">3</span>🖨️ Making the print-ready file</li>
+    </ol>
+    <div class="bar"><i id="barFill"></i></div>
+    <p class="hint" id="jobNote" style="margin:8px 0 0"></p>
+    <details class="adv" style="margin-top:10px"><summary class="hint">Technical details (for troubleshooting)</summary><pre class="log" id="log"></pre></details>
+    <div class="mac-actions">
+      <button class="mac-btn" id="jobStop" type="button">Stop…</button>
+      <button class="mac-btn default" id="jobBg" type="button">Run in Background</button>
+      <button class="mac-btn" id="jobClose" type="button" hidden>Close</button>
+      <button class="mac-btn default" id="jobOpen" type="button" hidden>Open in your slicer</button>
     </div>
   </div>
-  <ol class="steps" id="steps">
-    <li data-s="1"><span class="dot">1</span>🖼️ Getting the picture ready</li>
-    <li data-s="2"><span class="dot">2</span>🧊 Building the 3D shape (the long part)</li>
-    <li data-s="3"><span class="dot">3</span>🖨️ Making the print-ready file</li>
-  </ol>
-  <div class="bar"><i id="barFill"></i></div>
-  <p class="hint" id="jobNote" style="margin:8px 0 0"></p>
-  <div class="row" id="jobDone" hidden style="justify-content:flex-end;margin-top:14px">
-    <button class="btn primary" id="jobOpen" type="button">🖨️ Open in your slicer</button>
-  </div>
-  <details class="adv" style="margin-top:10px"><summary class="hint">Technical details (for troubleshooting)</summary><pre class="log" id="log"></pre></details>
 </dialog>
 <main>
   <section id="left">
@@ -337,34 +390,38 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
   </section>
 </main>
 <dialog class="zoom" id="zoom"><img alt=""></dialog>
-<dialog id="settingsDlg">
+<dialog id="settingsDlg" class="mac-window" aria-label="Settings">
+  <div class="mac-titlebar">
+    <div class="lights">
+      <button class="light red" id="settingsX" type="button" aria-label="Close"><span>×</span></button>
+      <button class="light yellow" disabled aria-hidden="true" tabindex="-1" type="button"><span>−</span></button>
+      <button class="light green" type="button" disabled aria-hidden="true" tabindex="-1"></button>
+    </div>
+    <div class="mac-title">Settings</div>
+  </div>
+  <div class="mac-body">
   <h3>🩺 Is everything set up?</h3>
   <div id="checks" aria-live="polite"><p class="hint">Checking…</p></div>
-  <button class="btn" id="recheck" type="button" style="margin-top:8px">🔄 Check again</button>
+  <button class="mac-btn" id="recheck" type="button" style="margin-top:8px">Check Again</button>
   <h3>🖨️ Open minis in</h3>
   <select id="slicer" aria-label="App to open minis in"></select>
   <p class="hint" style="margin:6px 0 0">Mimic lists the slicers it finds on this Mac. "Your Mac's default app" works with any other slicer.</p>
   <h3>📁 Where your minis are saved</h3>
-  <button class="btn" id="openFolder" type="button">📂 Open the minis folder</button>
-  <form method="dialog" class="row" style="justify-content:flex-end;margin-top:18px"><button class="btn primary">Done</button></form>
+  <button class="mac-btn" id="openFolder" type="button">Open the Minis Folder</button>
+  <form method="dialog" class="mac-actions"><button class="mac-btn default">Done</button></form>
+  </div>
 </dialog>
-<dialog id="delDlg">
-  <p id="delText" style="margin:0 0 16px"></p>
-  <form method="dialog" class="row" style="justify-content:flex-end">
-    <button class="btn" value="no">Keep it</button><button class="btn primary" value="yes">🗑️ Move to Trash</button>
-  </form>
+<dialog id="delDlg" class="mac-alert">
+  <img src="/logo.png" alt=""><h3 id="delTitle"></h3><p id="delText"></p>
+  <form method="dialog"><button class="mac-btn" value="no">Keep It</button><button class="mac-btn danger" value="yes">Move to Trash</button></form>
 </dialog>
-<dialog id="stopDlg">
-  <p id="stopText" style="margin:0 0 16px"></p>
-  <form method="dialog" class="row" style="justify-content:flex-end">
-    <button class="btn" value="no">Keep going</button><button class="btn primary" value="yes">⏹ Stop it</button>
-  </form>
+<dialog id="stopDlg" class="mac-alert">
+  <img src="/logo.png" alt=""><h3 id="stopTitle"></h3><p id="stopText"></p>
+  <form method="dialog"><button class="mac-btn default" value="no">Keep Going</button><button class="mac-btn danger" value="yes">Stop</button></form>
 </dialog>
-<dialog id="quitDlg">
-  <p id="quitText" style="margin:0 0 16px">Quit Mimic? Your minis are saved.</p>
-  <form method="dialog" class="row" style="justify-content:flex-end">
-    <button class="btn" value="no">Keep going</button><button class="btn primary" value="yes">Quit</button>
-  </form>
+<dialog id="quitDlg" class="mac-alert">
+  <img src="/logo.png" alt=""><h3 id="quitTitle">Quit Mimic?</h3><p id="quitText">Your minis are saved.</p>
+  <form method="dialog"><button class="mac-btn" value="no" id="quitNo">Cancel</button><button class="mac-btn default" value="yes" id="quitYes">Quit</button></form>
 </dialog>
 
 <script type="module">
@@ -588,7 +645,12 @@ function layoutJob(running) {
   if (!want && dlg.open) { ourClose = true; dlg.close(); ourClose = false; }
   $("jobPill").hidden = !jobShown || !jobMin;
   $("jobClose").hidden = running;
-  $("jobStop").hidden = !running;
+  $("jobStop").hidden = $("jobBg").hidden = !running;
+}
+function setPill(kind, text, pct) {
+  $("jobPill").className = "pill " + kind;
+  $("pillText").textContent = text;
+  $("jobPill").style.setProperty("--p", pct);
 }
 // Minimize flies the popup into its pill in the header, so you see where it went; opening it
 // from the pill plays the same flight backwards. Skipped when the Mac asks for less motion.
@@ -629,11 +691,15 @@ function restore() {
 }
 $("jobMin").onclick = () => { minimize(); $("jobPill").focus(); };
 $("jobPill").onclick = restore;
+$("jobBg").onclick = () => { minimize(); $("jobPill").focus(); };
+// Red light: like closing a Mac window that's busy, it asks before stopping; once finished it closes.
+$("jobX").onclick = () => (jobRunning ? $("jobStop") : $("jobClose")).click();
+$("settingsX").onclick = () => $("settingsDlg").close("");
 $("jobClose").onclick = () => { jobShown = false; layoutJob(false); };
 $("jobStop").onclick = () => {
-  $("stopText").textContent = jobKind === "prep"
-    ? `Stop resizing ${jobName}? It keeps its previous size.`
-    : `Stop making ${jobName}? What's been made so far is thrown away.`;
+  const resize = jobKind === "prep";
+  $("stopTitle").textContent = resize ? `Stop resizing “${jobName}”?` : `Stop making “${jobName}”?`;
+  $("stopText").textContent = resize ? "It keeps its previous size." : "What's been made so far will be thrown away.";
   ask($("stopDlg"));
 };
 $("stopDlg").onclose = async () => {
@@ -673,9 +739,8 @@ async function poll() {
   if (s.running) {
     $("jobTitle").textContent = prep ? `🔁 Updating ${s.name}'s size… about 30 seconds` : `⏳ Making ${s.name}… this takes about 7–10 minutes`;
     $("jobNote").textContent = prep ? "" : `${mm}:${ss} so far. You can leave this page open and come back. Your Mac will be busy, and the fan may get loud.`;
-    $("jobDone").hidden = true;
-    $("jobPill").className = "pill";
-    $("jobPill").textContent = `⏳ ${prep ? "Updating" : "Making"} ${s.name} · ${mm}:${ss}`;
+    $("jobOpen").hidden = true;
+    setPill("run", `${prep ? "Updating" : "Making"} ${s.name} · ${mm}:${ss}`, Math.min(95, 100 * s.elapsed / total));
     $("jobPill").title = "Show progress";
     layoutJob(true);
     // Dim the viewer only when it shows the mini being made, not another one you're looking at.
@@ -689,23 +754,22 @@ async function poll() {
     return;
   }
   $("busy").hidden = true;
+  if ($("stopDlg").open) $("stopDlg").close("");  // it finished while you were deciding: nothing left to stop
   if (s.canceled) {
-    $("jobPill").className = "pill";
-    $("jobPill").textContent = `⏹ Stopped ${s.name}`;
+    setPill("stopped", `Stopped ${s.name}`, 0);
     $("jobTitle").textContent = prep ? `⏹ Stopped resizing ${s.name}.` : `⏹ Stopped making ${s.name}.`;
     $("jobNote").textContent = prep ? "It keeps its previous size." : "Nothing was kept. It's in the Trash if you want the pieces.";
     for (const li of $("steps").children) li.className = "";
     $("barFill").style.width = "0%";
-    $("jobDone").hidden = true;
+    $("jobOpen").hidden = true;
     layoutJob(false);
     $("go").disabled = false; $("reprep").disabled = !selected;
     if (wasRunning) { wasRunning = false; await loadRuns(); if (!runs.some(r => r.name === selected)) { selected = null; if (runs[0]) select(runs[0].name); } }
     return;
   }
-  $("jobPill").className = "pill " + (failed ? "fail" : "done");
-  $("jobPill").textContent = failed ? `❌ ${s.name} didn't finish` : `🎉 ${s.name} is ready`;
-  $("jobDone").hidden = failed;
-  $("jobOpen").textContent = $("open").textContent;
+  setPill(failed ? "fail" : "done", failed ? `${s.name} didn't finish` : `${s.name} is ready`, 100);
+  $("jobOpen").hidden = failed;
+  $("jobOpen").textContent = $("open").textContent.replace(/^\S+\s+/, "");  // no emoji on a Mac button
   layoutJob(false);
   $("go").disabled = false;
   $("reprep").disabled = !selected;
@@ -805,7 +869,8 @@ $("recheck").onclick = loadChecks;
 $("openFolder").onclick = () => post("/api/reveal-folder");
 
 $("del").onclick = () => {
-  $("delText").textContent = `Move ${selected} to the Trash? If you change your mind, you can put it back from the Trash.`;
+  $("delTitle").textContent = `Move “${selected}” to the Trash?`;
+  $("delText").textContent = "You can put it back from the Trash if you change your mind.";
   ask($("delDlg"));
 };
 $("delDlg").onclose = async () => {
@@ -899,7 +964,10 @@ const ask = dlg => { dlg.returnValue = ""; dlg.showModal(); };
 // ---- quit ----
 $("quit").onclick = async () => {
   const s = await getJSON("/api/job").catch(() => ({}));
-  $("quitText").textContent = s.running ? `Mimic is still making ${s.name}. You can quit once it's finished.` : "Quit Mimic? Your minis are saved.";
+  $("quitTitle").textContent = s.running ? `Mimic is still making “${s.name}”` : "Quit Mimic?";
+  $("quitText").textContent = s.running ? "You can quit once it's finished, or stop it first." : "Your minis are saved.";
+  $("quitYes").hidden = !!s.running;
+  $("quitNo").textContent = s.running ? "OK" : "Cancel";
   ask($("quitDlg"));
 };
 $("quitDlg").onclose = async () => {
