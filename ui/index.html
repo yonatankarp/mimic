@@ -193,6 +193,11 @@ pre.log { max-height:220px; overflow:auto; font:11.5px/1.4 ui-monospace, Menlo, 
 #busy { background:color-mix(in srgb, var(--viewer) 82%, transparent); color:var(--text); }
 #busy .big { font-size:40px; }
 #busy .name { font-weight:600; font-size:16px; }
+.viewbtn { position:absolute; top:10px; right:10px; z-index:1; height:28px; padding:0 10px; border-radius:8px; cursor:default;
+           border:.5px solid var(--mac-line); background:var(--mac-win); color:var(--mac-text);
+           -webkit-backdrop-filter:blur(20px) saturate(180%); backdrop-filter:blur(20px) saturate(180%);
+           box-shadow:0 1px 3px rgba(0,0,0,.1); font:500 12px -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
+.viewbtn[aria-pressed=false] { color:var(--mac-accent); }
 .dims { position:absolute; left:12px; bottom:10px; font:12px ui-monospace, Menlo, monospace; color:var(--muted); background:color-mix(in srgb, var(--panel) 80%, transparent); padding:3px 8px; border-radius:6px; }
 .thumbs { display:flex; gap:10px; margin-top:12px; overflow-x:auto; }
 .thumbs figure { margin:0; flex:none; }
@@ -375,7 +380,8 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
         </div>
       </div>
       <div id="viewerWrap">
-        <canvas id="viewer" aria-label="3D view of the mini: drag to turn it, scroll to zoom"></canvas>
+        <canvas id="viewer" aria-label="3D view of the mini: drag to turn it"></canvas>
+        <button class="viewbtn" id="zoomLock" type="button" aria-pressed="true" title="When locked, scrolling moves the page instead of zooming the mini">🔒 Zoom locked</button>
         <div class="overlay" id="overlay">✨ Make your first mini on the left.<br>It will show up here, ready to spin around.</div>
         <div class="overlay" id="busy" hidden><div><div class="big" id="busyEm">🧊</div><div class="name" id="busyStep"></div><div class="hint" id="busyTime"></div></div></div>
         <div class="dims" id="dims" hidden></div>
@@ -984,6 +990,17 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 2000);
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
+// Zoom is locked by default: with it off, OrbitControls leaves wheel events alone, so scrolling
+// over the viewer scrolls the page instead of resizing the mini. Dragging still turns it.
+function setZoom(on) {
+  controls.enableZoom = on;
+  $("zoomLock").setAttribute("aria-pressed", String(!on));
+  $("zoomLock").textContent = on ? "🔍 Zoom on" : "🔒 Zoom locked";
+  canvas.setAttribute("aria-label", "3D view of the mini: drag to turn it" + (on ? ", scroll to zoom" : ""));
+  store.set("zoom", on ? "on" : "locked");
+}
+$("zoomLock").onclick = () => setZoom(!controls.enableZoom);
+setZoom(store.get("zoom") === "on");
 scene.add(new THREE.HemisphereLight(0xfff4e8, 0x3a3530, 1.4));
 const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(40, 80, 60); scene.add(key);
 const rim = new THREE.DirectionalLight(0xffd9c0, 0.8); rim.position.set(-60, 30, -50); scene.add(rim);
