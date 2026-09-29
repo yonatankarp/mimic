@@ -440,11 +440,19 @@ final class FileServer: @unchecked Sendable {
                     }
                 }
                 var reply = Data("HTTP/1.1 \(status)\r\nContent-Length: \(body.count)\r\n\(extra)Connection: close\r\n\r\n".utf8)
-                if let cut = cuts.removeValue(forKey: path) { body = body.prefix(cut) }
+                let cut = cuts.removeValue(forKey: path)
+                if let cut { body = body.prefix(cut) }
                 reply.append(body)
+                // A cut download trickles out in small chunks first, like a real one over the
+                // internet: sent in one burst with the close, URLSession reports the lost
+                // connection without ever handing over the data (seen on the CI runner).
+                let chunk = cut == nil ? reply.count : 64 * 1024
                 let written = reply.withUnsafeBytes { p -> Int in
                     var off = 0
-                    while off < p.count { let n = write(c, p.baseAddress! + off, p.count - off); if n <= 0 { break }; off += n }
+                    while off < p.count {
+                        let n = write(c, p.baseAddress! + off, min(chunk, p.count - off)); if n <= 0 { break }; off += n
+                        if cut != nil { usleep(2_000) }
+                    }
                     return off
                 }
                 lock.withLock { sent += max(0, written - (reply.count - body.count)) }
