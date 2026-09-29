@@ -13,9 +13,15 @@ let package = Package(
         // Everything that isn't UI: jobs, the pipeline, Draw Things, checks, the gallery on disk.
         // Optimised in debug builds too: print prep's loops run ~30x slower unoptimised, which
         // made its tests take minutes.
-        .target(name: "MimicCore", swiftSettings: [.unsafeFlags(["-O"], .when(configuration: .debug))]),
+        .target(name: "MimicCore", swiftSettings: [.unsafeFlags(["-O"], .when(configuration: .debug)), slowCode]),
         // The app and the `mimic` command-line tool: one binary, same code.
-        .executableTarget(name: "Mimic", dependencies: ["MimicCore"], resources: [.copy("Resources/sample-dwarf.png")]),
+        .executableTarget(name: "Mimic", dependencies: ["MimicCore"], resources: [.copy("Resources/sample-dwarf.png")],
+                          swiftSettings: [slowCode]),
         .testTarget(name: "MimicCoreTests", dependencies: ["MimicCore"], exclude: ["Fixtures"]),
     ]
 )
+
+/// Warns about any expression that takes long to type-check. CI builds with an older Swift that
+/// gives up on some expressions this Mac's compiler handles in time (three failed CI runs), so a
+/// slow one is flagged here, before it's pushed.
+var slowCode: SwiftSetting { .unsafeFlags(["-Xfrontend", "-warn-long-expression-type-checking=300"]) }
