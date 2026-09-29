@@ -78,6 +78,16 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   with one of either can't be deleted. Deleting keeps the minis by default (moved to Unsorted);
   the project's folder goes to the Trash either way, never removed, since it may hold files of
   the person's own.
+- **Make Another Version** (`MimicCore/Versions.swift`) is `make` with the mini's own saved
+  source and settings and a new random seed (1–999,999, never the old one; absent means 42),
+  named `<name>-2`, then the next number free anywhere (`raven-2` → `raven-3`; a suffix of 1000
+  or more is a year, not a version), in the same project. The seed is what step 1 draws a
+  description or the grey sculpt from and what `_engine --seed` hands trellis-cli, so a new one
+  changes the shape even when the picture is reused unchanged (a picture without the sculpt).
+  The issue this came from: the tiefling wizard's raven was a blob at seeds 42 and 1234 and a
+  folded wing at 7. A picture mini from before `upload.img` was kept has only source.png, which
+  is what its 3D step saw, so that is used without the sculpt; a mini with no settings can't be
+  made again and the menu item is off.
 - **Same data on disk.** `runs/<name>/` (or `runs/<project>/<name>/`) with `<name>.stl`, `<name>_{front,side,back}.png`,
   `source.png` and `settings.json` (`requested` / `made` / how it was made), so minis made by
   the web version appear in the app unchanged.

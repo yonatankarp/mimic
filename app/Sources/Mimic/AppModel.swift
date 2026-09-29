@@ -216,6 +216,14 @@ final class AppModel {
         askForNotifications()
     }
 
+    /// A sibling of `mini` in its project, from the same picture or description, with a new
+    /// seed; it waits its turn like any other.
+    func makeAnotherVersion(_ mini: Mini) {
+        let new = Gallery.nextVersionName(install.runs, mini.name)
+        do { try start(new) { try $0.makeAnotherVersion(of: mini.name, as: new).ahead } }
+        catch { problem = plainWords(error, else: "Couldn't make another version. Try again.") }
+    }
+
     // MARK: Projects
 
     /// Why `mini` can't be moved to another project right now, or nil.

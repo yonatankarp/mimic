@@ -65,8 +65,10 @@ struct MiniCommands: Commands {
                 .disabled(mini == nil || !free || mini.flatMap { model.waiting($0.name) } != nil)
             Divider()
             if let mini, free {
+                AnotherVersionButton(mini: mini).environment(model)
                 MoveToProjectMenu(mini: mini).environment(model)
             } else {
+                Button("Make Another Version") {}.disabled(true)
                 Button("Move to Project") {}.disabled(true)
             }
             // ⌘N is New Mini; ⇧⌘N a new project, as a new folder is in Finder.

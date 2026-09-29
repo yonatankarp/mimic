@@ -69,6 +69,10 @@ Your minis are saved in **Documents → Mimic**.
 at the bottom of the list (⇧⌘N), then drag minis onto it or right-click a mini → **Move to
 Project**. New Mini puts a mini in the project you're looking at, or any one you pick.
 
+A small detail came out as a blob? Right-click the mini → **Make Another Version**: the same
+picture and settings with a different variation number, next to it. Line up two or three and
+keep the best.
+
 ---
 
 ## 🛠️ For developers
@@ -111,6 +115,7 @@ mimic make tiefling --image art.png --restyle --height 38 --nozzle 0.2
 mimic resize tiefling --height 32 --base 25
 mimic make teapot "a round teapot with a curved spout" --object --size 80
 mimic retry tiefling
+mimic make-another tiefling                        # the same, with a new seed: "tiefling-2"
 mimic make raven --image raven.png --project "Tiefling Party"
 mimic move tiefling --project "Tiefling Party"     # or --unsorted
 mimic projects

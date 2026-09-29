@@ -8,6 +8,7 @@ enum CLI {
     usage:
       mimic make <name> "<description>" [--improve] [options]
       mimic make <name> --image <picture> [--restyle] [options]
+      mimic make-another <name> [--seed N]
       mimic resize <name> [options]
       mimic retry <name>
       mimic list
@@ -19,6 +20,7 @@ enum CLI {
     options: --height MM  --base MM  --nozzle 0.2|0.4|0.6  --inflate MM  --no-base  --seed N  --model ID
     anything that isn't a character: make … --object  [--size MM (longest side)]  [--add-base]
     make … --project "<project>": into that project (made if it's new); a project is a folder in the minis folder
+    make-another: the same picture or description and settings with a new seed, next to it ("<name>-2")
     --improve: the AI helper chosen in Settings writes a fuller description first
     --wait: while another mini is being made, make, resize and retry join the queue and return;
             --wait stays until this one is made
@@ -99,8 +101,10 @@ enum CLI {
             }
             guard rest.isEmpty else { return fail(usage) }
             return listQueue(jobs, history: timings.load())
-        case "make", "resize", "retry":
-            guard let name = rest.first, !name.hasPrefix("-") else { return fail(usage) }
+        case "make", "resize", "retry", "make-another":
+            guard let of = rest.first, !of.hasPrefix("-") else { return fail(usage) }
+            // make-another makes a new mini, next to `of`.
+            let name = args[0] == "make-another" ? Gallery.nextVersionName(install.runs, of) : of
             // Setup downloads the engine in the app, where it can show its progress.
             guard args[0] == "resize" || FileManager.default.isExecutableFile(atPath: install.trellisCLI.path) else {
                 return fail("Mimic needs to finish setting up. Open the Mimic app: it downloads what's missing.")
@@ -108,7 +112,7 @@ enum CLI {
             rest.removeFirst()
             var sizes = Sizes(), image: String?, restyle = false, seed = 42, description: String?, improve = false
             var model = EngineDownload.selected(defaults: defaults)
-            var object = false, addBase = false, wait = false, projectName: String?
+            var object = false, addBase = false, wait = false, projectName: String?, seedGiven = false
             while let a = rest.first {
                 rest.removeFirst()
                 func value() -> String? { rest.isEmpty ? nil : rest.removeFirst() }
@@ -124,7 +128,7 @@ enum CLI {
                 case "--restyle": restyle = true
                 case "--improve": improve = true
                 case "--wait": wait = true
-                case "--seed": guard let v = value().flatMap(Int.init) else { return fail("--seed needs a number") }; seed = v
+                case "--seed": guard let v = value().flatMap(Int.init) else { return fail("--seed needs a number") }; seed = v; seedGiven = true
                 case "--project": guard let v = value() else { return fail("--project needs a project's name") }; projectName = v
                 case "--model":
                     guard let v = value().flatMap(EngineDownload.model) else {
@@ -166,6 +170,9 @@ enum CLI {
                     let into = try projectName.map { try project($0, install) }
                     ahead = try jobs.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes,
                                           kind: object ? .object : .character, model: model, project: into)
+                case "make-another":
+                    ahead = try jobs.makeAnotherVersion(of: of, as: name, seed: seedGiven ? seed : nil).ahead
+                    print("Making \(name), another version of \(of).")
                 case "resize": ahead = try jobs.resize(name: name, sizes: sizes)
                 default: ahead = try jobs.retry(name: name)
                 }

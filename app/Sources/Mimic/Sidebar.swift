@@ -132,6 +132,7 @@ struct Sidebar: View {
         .disabled(mini.stl == nil)  // not made yet: nothing to print
         Button("Show in Finder", systemImage: "folder") { model.showInFinder(mini) }
         Divider()
+        AnotherVersionButton(mini: mini)
         MoveToProjectMenu(mini: mini)
         Divider()
         Button("Rename…", systemImage: "pencil") { model.sheet = .rename(mini) }
@@ -209,6 +210,18 @@ struct GalleryRow: View {
         .padding(.vertical, 2)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(mini.displayName), \(status ?? "made \(mini.madeAt.formatted(.relative(presentation: .named)))")")
+    }
+}
+
+/// Make Another Version, for the right-click menu and the Mini menu.
+struct AnotherVersionButton: View {
+    let mini: Mini
+    @Environment(AppModel.self) private var model
+    var body: some View {
+        Button("Make Another Version", systemImage: "square.on.square") { model.makeAnotherVersion(mini) }
+            .help("Makes it again from the same picture or description, with a different variation number: "
+                  + "a detail that came out as a blob may come out right. It goes next to this one, and waits its turn if Mimic is busy.")
+            .disabled(model.cantStart != nil || !JobRunner.canMakeAnotherVersion(mini))
     }
 }
 
