@@ -6,7 +6,7 @@ import UserNotifications
 enum CLI {
     static let usage = """
     usage:
-      mimic make <name> "<description>" [options]
+      mimic make <name> "<description>" [--improve] [options]
       mimic make <name> --image <picture> [--restyle] [options]
       mimic resize <name> [options]
       mimic retry <name>
@@ -14,6 +14,7 @@ enum CLI {
       mimic models
     options: --height MM  --base MM  --nozzle 0.2|0.4|0.6  --inflate MM  --no-base  --seed N  --model ID
     anything that isn't a character: make … --object  [--size MM (longest side)]  [--add-base]
+    --improve: the AI helper chosen in Settings writes a fuller description first
     """
 
     static func run(_ args: [String]) -> Int32 {
@@ -50,7 +51,7 @@ enum CLI {
                 return fail("Mimic needs to finish setting up. Open the Mimic app: it downloads what's missing.")
             }
             rest.removeFirst()
-            var sizes = Sizes(), image: String?, restyle = false, seed = 42, description: String?
+            var sizes = Sizes(), image: String?, restyle = false, seed = 42, description: String?, improve = false
             var model = EngineDownload.selected(defaults: defaults)
             var object = false, addBase = false
             while let a = rest.first {
@@ -66,6 +67,7 @@ enum CLI {
                 case "--no-base": sizes.noBase = true
                 case "--image": image = value()
                 case "--restyle": restyle = true
+                case "--improve": improve = true
                 case "--seed": guard let v = value().flatMap(Int.init) else { return fail("--seed needs a number") }; seed = v
                 case "--model":
                     guard let v = value().flatMap(EngineDownload.model) else {
@@ -92,8 +94,9 @@ enum CLI {
                 switch args[0] {
                 case "make":
                     let picture: PictureSource
+                    if improve && image != nil { return fail("--improve works on a description, not --image") }
                     if let image { picture = .image(URL(fileURLWithPath: image)) }
-                    else if let description { picture = .description(description) }
+                    else if let description { picture = improve ? improved(description, defaults, kind: object ? .object : .character) : .description(description) }
                     else { return fail(usage) }
                     try jobs.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes,
                                   kind: object ? .object : .character, model: model)
@@ -106,6 +109,24 @@ enum CLI {
             return follow(jobs)
         default:
             return fail(usage)
+        }
+    }
+
+    /// The helper's description, or the original with a quiet note when it can't help: a failed
+    /// helper never stops a mini.
+    private static func improved(_ description: String, _ defaults: UserDefaults, kind: MiniKind) -> PictureSource {
+        guard let helper = DescriptionHelper.configured(defaults: defaults) else {
+            print("No AI helper is set up (Mimic → Settings). Using your description as it is.")
+            return .description(description)
+        }
+        print("Improving the description…")
+        do {
+            let better = try helper.improve(description, kind: kind.rawValue)
+            print("✨ Improved description: \(better)")
+            return .description(better, original: description)
+        } catch {
+            print("Couldn't improve it: \(error) Using your description as it is.")
+            return .description(description)
         }
     }
 

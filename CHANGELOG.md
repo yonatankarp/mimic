@@ -2,6 +2,24 @@
 
 What's new in each version of Mimic. The release workflow publishes a version's section here as its release notes, so write it for people who use Mimic, not for developers.
 
+## 0.4.0
+
+Choose the 3D model Mimic uses, and let an AI helper flesh out your descriptions.
+
+### New
+- **Choose your 3D model.** Before the first download, and any time in Settings → 3D model. Each was timed making the same 32 mm dwarf on an M2 Max:
+  - **Pixal3D** (the default, and what Mimic has always used): the sharpest faces and finest detail, and the fastest, about 8 minutes a mini. 8.1 GB.
+  - **TRELLIS.2**: Microsoft's model that Pixal3D grew from. It can place things in depth better, like a hammer resting on a shoulder. About 14 minutes a mini. 9.1 GB.
+  - **TRELLIS.2 Lite**: TRELLIS.2 made smaller, with nearly the same look and the smallest download. About 12 minutes a mini. 5.7 GB.
+- **Switch, download or remove models in Settings.** Downloads pick up where they stopped, and Remove says how much space it frees first.
+- **An optional AI helper for descriptions.** Type a short idea, press ✨, and get a fuller description to edit before Mimic draws it. Use Claude or any OpenAI-compatible service with your own key (kept in your Mac's Keychain), or Ollama running on your Mac. It's off until you choose one in Settings, and only the description is sent.
+
+### Good to know
+- Your existing install keeps Pixal3D and downloads nothing new.
+- Each mini remembers its model, so Try Again uses the same one.
+- Some files are shared between TRELLIS.2 and Pixal3D, so adding TRELLIS.2 next to Pixal3D downloads 2.2 GB less.
+- In Terminal: `mimic models` lists them, `mimic make dwarf "a dwarf" --model trellis2-q4` uses one, and `--improve` asks the helper first.
+
 ## 0.3.0
 
 Mimic now shows you around, and makes more than characters.

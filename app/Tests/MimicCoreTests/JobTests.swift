@@ -178,14 +178,16 @@ final class JobTests: XCTestCase {
         let fx = try Fixture()
         let d = fx.install.runs.appendingPathComponent("mini")
         try FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
-        try MiniSettings.update(d) { $0.kind = .object; $0.model = "trellis2-q4"; $0.desc = "a teapot, rounded" }
+        try MiniSettings.update(d) { $0.kind = .object; $0.model = "trellis2-q4"; $0.desc = "a teapot, rounded"; $0.descOriginal = "teapot" }
         let s = MiniSettings.load(d)
         XCTAssertEqual(s.kind, .object)
         XCTAssertEqual(s.model, "trellis2-q4")
         XCTAssertEqual(s.desc, "a teapot, rounded")
+        XCTAssertEqual(s.descOriginal, "teapot")
         let json = try JSONSerialization.jsonObject(with: Data(contentsOf: d.appendingPathComponent("settings.json"))) as! [String: Any]
         XCTAssertEqual(json["kind"] as? String, "object")
         XCTAssertEqual(json["model"] as? String, "trellis2-q4")
+        XCTAssertEqual(json["descOriginal"] as? String, "teapot")
         XCTAssertFalse(MiniSettings().isObject)
         XCTAssertEqual(EngineDownload.model(MiniSettings().model), EngineDownload.standard)
     }

@@ -54,6 +54,11 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
 5. Press **Open in …** to open it in your slicer, and print. Each mini's page shows the slicer
    settings to use.
 
+Want a fuller description from a few words? Choose an **AI helper for descriptions** in
+Settings (Claude or another service with your own API key, or Ollama on your Mac), then press
+**✨ Improve Description**. You can edit what it writes or go back to yours. It's off unless you
+turn it on, and a cloud service only ever sees the description you typed.
+
 > [!TIP]
 > Mimic explains each choice as you make it. If something isn't set up, **Settings** (⌘,)
 > tells you what's missing and how to fix it.
@@ -109,6 +114,7 @@ mimic list
 |---|---|
 | `--image FILE` | Start from your own picture instead of a description |
 | `--restyle` | Redraw that picture as a grey sculpt first |
+| `--improve` | Let the AI helper chosen in Settings write a fuller description first |
 | `--height MM` | How tall the character is, feet to top; the base adds about 2 mm |
 | `--base MM` | Size of the round base |
 | `--nozzle 0.2` / `0.4` / `0.6` | Your printer's nozzle |

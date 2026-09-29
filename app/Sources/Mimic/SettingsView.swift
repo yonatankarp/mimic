@@ -38,6 +38,7 @@ struct SettingsView: View {
                 }
             }
             if EngineDownload.catalogue.count > 1 { ModelsSection() }
+            HelperSection()
             Section {
                 Picker("Open minis in", selection: slicerChoice) {
                     ForEach(slicers) { Text($0.name).tag($0.id) }

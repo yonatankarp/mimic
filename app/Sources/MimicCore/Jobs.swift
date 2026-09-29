@@ -25,7 +25,8 @@ extension JobStatus {
 /// Where the picture for a new mini comes from.
 public enum PictureSource: Sendable {
     case image(URL)
-    case description(String)
+    /// The text to draw from, and what the person typed when the AI helper improved it.
+    case description(String, original: String? = nil)
 }
 
 /// Runs one job at a time: making a mini (three steps) or resizing one (print prep only).
@@ -76,11 +77,11 @@ public final class JobRunner: @unchecked Sendable {
                 try? FileManager.default.removeItem(at: upload)
                 try FileManager.default.copyItem(at: url, to: upload)
                 settings.source = .image
-            case .description(let text):
-                settings.source = .desc; settings.desc = text
+            case .description(let text, let original):
+                settings.source = .desc; settings.desc = text; settings.descOriginal = original
             }
             try MiniSettings.update(folder) { s in
-                s.source = settings.source; s.desc = settings.desc; s.restyle = restyle; s.seed = seed; s.requested = sizes
+                s.source = settings.source; s.desc = settings.desc; s.descOriginal = settings.descOriginal; s.restyle = restyle; s.seed = seed; s.requested = sizes
                 s.kind = kind == .object ? .object : nil  // always set: a failed attempt's folder may say otherwise
                 s.model = model.id
             }

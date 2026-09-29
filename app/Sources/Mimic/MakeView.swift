@@ -16,6 +16,8 @@ struct MakeView: View {
     @State private var dropTargeted = false
     @State private var restyle = true
     @State private var description = ""
+    /// The AI helper's version of `description`, used instead of it while shown.
+    @State private var improved: String?
     @State private var name = ""
     @State private var seed = 42
     @State private var card = SizeCard.remembered()
@@ -104,7 +106,10 @@ struct MakeView: View {
         // The tour's "Use the Sample": its picture and name, ready to make.
         .onAppear { if let url = TourGuide.shared.takeSample() { name = TourGuide.sampleName; take(url) } }
         .frame(width: 580, height: 640)  // fits under the toolbar of the smallest main window; the form scrolls
-        .onChange(of: card.kind) { _, k in UserDefaults.standard.set(k.rawValue, forKey: "kind") }
+        .onChange(of: card.kind) { _, k in
+            UserDefaults.standard.set(k.rawValue, forKey: "kind")
+            improved = nil  // written for the other kind
+        }
         .task {
             // Describe it and the grey sculpt need Draw Things, and Make needs every required
             // part: check them once if nothing has yet, then keep watching Draw Things.
@@ -181,6 +186,7 @@ struct MakeView: View {
                     name = Mini.displayName(MakeAdvice.name(fromDescription: text))
                     autoName = true
                 }
+            ImproveBox(description: description, kind: card.kind.rawValue, improved: $improved)
             if !health.drawThingsReady { needsDrawThings("✍️ Describe it needs Draw Things.") }
         }
     }
@@ -252,7 +258,8 @@ struct MakeView: View {
             guard let picture else { return }
             source = .image(picture.url)
         case .description:
-            source = .description(trimmedDescription)
+            let better = improved?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            source = better.isEmpty ? .description(trimmedDescription) : .description(better, original: trimmedDescription)
         }
         do {
             try model.make(name: slug, picture: source, restyle: start == .picture && restyle && health.drawThingsReady,
