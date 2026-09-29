@@ -98,7 +98,8 @@ final class JobTests: XCTestCase {
         let slow = try fx.script("slow-blender", "sleep 5")
         let jobs = JobRunner(install: fx.install, tools: fx.tools(blender: slow))
         try jobs.resize(name: "a", sizes: sizes)
-        XCTAssertThrowsError(try jobs.resize(name: "b", sizes: sizes)) { XCTAssertEqual($0 as? RequestError, .busy("a")) }
+        XCTAssertThrowsError(try jobs.resize(name: "b", sizes: sizes)) { XCTAssertEqual($0 as? RequestError, .busy("a", .prep)) }
+        XCTAssertEqual(RequestError.busy("a", .prep).description, "Mimic is still resizing A. Wait for it to finish.")
         jobs.cancel(); jobs.waitUntilDone()
     }
 
@@ -110,6 +111,7 @@ final class JobTests: XCTestCase {
         defer { close(fd) }
         let jobs = JobRunner(install: fx.install, tools: fx.tools())
         XCTAssertThrowsError(try jobs.resize(name: "a", sizes: sizes)) { XCTAssertEqual($0 as? RequestError, .busy("another Mimic window")) }
+        XCTAssertEqual(RequestError.busy("another Mimic window").description, "Another Mimic is making a mini right now. Wait for it to finish.")
     }
 
     /// A job orphaned by a crash is stopped on the next launch; a stale record naming a pid that

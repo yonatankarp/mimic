@@ -82,13 +82,18 @@ public struct SizeCard: Equatable, Sendable {
         case .game:
             h = Self.gameHeight(real: realHeight, scale: scale)
             note = ""
-            if nozzle != "0.2" && h < 50 {
+            // The default (32 mm on a 0.4 nozzle) gets a tip, not a warning: it prints fine,
+            // faces just come out a little soft. Only really small sizes, or a 0.6 nozzle under
+            // its 54 mm sweet spot (see PrintTips), turn faces into bumps.
+            if (nozzle == "0.4" && h < 28) || (nozzle == "0.6" && h < 50) {
                 note = "⚠️ At \(Int(h)) mm, a \(nozzle) mm nozzle turns faces into bumps. Use a 0.2 mm nozzle, or choose ✨ Best print."
                 warns = true
+            } else if nozzle == "0.4" && h < 50 {
+                note = "💡 At \(Int(h)) mm, a 0.4 mm nozzle softens faces a little. For sharper faces, use a 0.2 mm nozzle or choose ✨ Best print."
             }
         case .display:
             h = Self.bestPrint[nozzle] ?? 100
-            note = "Sized so faces come out clearly with a \(nozzle) mm nozzle. Chunky characters also look good a bit smaller."
+            note = "✨ Sized so faces come out clearly on a \(nozzle) mm nozzle: about \(Int(h)) mm tall. Chunky characters also look good a bit smaller."
         }
         // The note names the height as worked out; the slider can only hold its own range.
         if !heightTouched { height = Self.clamp(h, Self.heightRange, step: 1) }

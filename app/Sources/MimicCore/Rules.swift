@@ -21,14 +21,16 @@ public enum Rules {
 }
 
 public enum RequestError: Error, Equatable, CustomStringConvertible {
-    case badName, badNumber(String), badNozzle, nameTaken(String), busy(String), nothingToRetry, noModelYet, notFound, missing(String)
+    case badName, badNumber(String), badNozzle, nameTaken(String), busy(String, JobKind = .generate), nothingToRetry, noModelYet, notFound, missing(String)
     public var description: String {
         switch self {
         case .badName: "Names can only use lowercase letters, numbers and dashes."
         case .badNumber(let k): "The \(k) must be a number of 0 or more."
         case .badNozzle: "The nozzle must be 0.2, 0.4 or 0.6 mm."
         case .nameTaken(let n): "You already have a mini called \(Mini.displayName(n))."
-        case .busy(let n): "Mimic is still making \(Mini.displayName(n)). Wait for it to finish."
+        // The lock held elsewhere comes with no mini's name: a second Mimic or `mimic` in Terminal.
+        case .busy("another Mimic window", _): "Another Mimic is making a mini right now. Wait for it to finish."
+        case .busy(let n, let kind): "Mimic is still \(kind == .prep ? "resizing" : "making") \(Mini.displayName(n)). Wait for it to finish."
         case .nothingToRetry: "This mini can't be retried: its picture or description wasn't saved."
         case .noModelYet: "This mini isn't made yet."
         case .notFound: "That mini doesn't exist."

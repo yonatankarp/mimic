@@ -11,6 +11,8 @@ public struct Mini: Identifiable, Hashable, Sendable {
     public var renders: [(view: String, url: URL)] {
         ["front", "side", "back"].compactMap { v in existing("\(name)_\(v).png").map { (v, $0) } }
     }
+    /// The 3D model a resize starts from: without it only a full Make can finish the mini.
+    public var hasModel: Bool { existing("model.glb") != nil }
     /// "dwarf-cleric" is shown as "Dwarf Cleric".
     public var displayName: String { Mini.displayName(name) }
     public static func displayName(_ name: String) -> String {

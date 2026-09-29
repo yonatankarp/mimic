@@ -78,7 +78,7 @@ public final class JobRunner: @unchecked Sendable {
         } catch { release(); throw error }
     }
 
-    /// Remakes the print file of an existing mini with new sizes (about 30 seconds).
+    /// Remakes the print file of an existing mini with new sizes (about a minute).
     public func resize(name: String, sizes: Sizes) throws {
         guard Rules.isValidName(name) else { throw RequestError.badName }
         _ = try sizes.flags()
@@ -128,7 +128,7 @@ public final class JobRunner: @unchecked Sendable {
 
     private func claim(_ name: String) throws {
         try lock.withLock {
-            if let c = current, c.running { throw RequestError.busy(c.name) }
+            if let c = current, c.running { throw RequestError.busy(c.name, c.kind) }
             try? FileManager.default.createDirectory(at: install.runs, withIntermediateDirectories: true)
             let fd = open(install.runs.appendingPathComponent(".job.lock").path, O_CREAT | O_RDWR, 0o644)
             guard fd >= 0, flock(fd, LOCK_EX | LOCK_NB) == 0 else {
