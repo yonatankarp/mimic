@@ -23,9 +23,9 @@ final class CheckTests: XCTestCase {
     /// No DRAWTHINGS_MODEL: a pinned model name is taken on trust, which would keep the model
     /// check green with nothing downloaded. Port 9 (discard) refuses the connection.
     func checks(freeGB: Int64, drawThings: String = "http://127.0.0.1:9", model: EngineModel = EngineDownload.standard,
-                autoOpen: Bool = false) -> Checks {
+                autoOpen: Bool = false, cli: String? = nil) -> Checks {
         Checks(install: f.install, model: model, appFolders: [apps],
-               drawThings: DrawThings(environment: ["DRAWTHINGS_URL": drawThings], home: home), autoOpen: autoOpen,
+               drawThings: DrawThings(environment: ["DRAWTHINGS_URL": drawThings], home: home, cli: cli), autoOpen: autoOpen,
                freeBytes: { _ in freeGB * 1_000_000_000 })
     }
 
@@ -77,6 +77,14 @@ final class CheckTests: XCTestCase {
         defer { server.stop() }
         XCTAssertEqual(api(checks(freeGB: 100, drawThings: "http://127.0.0.1:\(server.port)", autoOpen: true)).label,
                        "Draw Things is open and connected")
+    }
+
+    /// With draw-things-cli, neither the app nor its API server is needed.
+    func testTheCommandLineToolIsEnough() {
+        let c = checks(freeGB: 100, cli: "/usr/bin/true")
+        let got = Dictionary(uniqueKeysWithValues: c.all.map { ($0.id, $0.run()) })
+        XCTAssertTrue(got["drawthings-api"]!.ok)
+        XCTAssertEqual(got["drawthings-api"]!.label, Checks.commandLine)
     }
 
     /// Present but broken, like a copy whose libraries went missing: exists is not enough.

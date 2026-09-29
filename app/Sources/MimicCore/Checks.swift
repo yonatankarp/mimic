@@ -69,6 +69,10 @@ public struct Checks: Sendable {
                 s.drawThingsInstalled()
             },
             Check(id: "drawthings-api", label: "Draw Things is open and connected", required: false, fix: Self.apiFix) {
+                // With the command line tool, the app and its API server aren't needed at all.
+                if s.drawThings.cli != nil {
+                    return CheckResult(id: "drawthings-api", label: Self.commandLine, required: false, ok: true, fix: Self.apiFix)
+                }
                 // Closed is fine when Mimic opens it: informative, not something to fix.
                 let connected = s.drawThings.reachable()
                 let ok = connected || (s.autoOpen && s.drawThingsInstalled())
@@ -85,6 +89,8 @@ public struct Checks: Sendable {
         ]
     }
 
+    /// The API check's label when Mimic's `draw-things-cli` makes the pictures.
+    public static let commandLine = "Draw Things connected through its command line tool"
     static let apiFix = "Open Draw Things, then Settings → Advanced → API Server: turn it on, choose HTTP, port 7860."
 
     func drawThingsInstalled() -> Bool { appFolders.contains { isDirectory($0.appendingPathComponent("Draw Things.app")) } }

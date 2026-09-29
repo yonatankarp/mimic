@@ -55,7 +55,7 @@ final class OpenDrawThingsTests: XCTestCase {
     }
 
     func drawThings(_ app: FakeApp) -> DrawThings {
-        DrawThings(environment: ["DRAWTHINGS_URL": "http://127.0.0.1:\(server.port)"], app: app.app)
+        DrawThings(environment: ["DRAWTHINGS_URL": "http://127.0.0.1:\(server.port)"], app: app.app, cli: nil)
     }
 
     func testOpensItWhenItIsNotAnswering() throws {
