@@ -431,7 +431,10 @@ final class AppModel {
         content.title = s.succeeded ? "\(who) is ready" : "\(who) didn't finish"
         content.body = s.succeeded ? "Your mini is ready to print." : "Open Mimic to try again."
         content.sound = .default
-        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "job", content: content, trigger: nil))
+        // One identifier per mini: a shared one made each notification replace the last, so of
+        // three minis finishing from the queue only the last "ready" was left.
+        let id = "job-\(s.name)-\(Int(Date().timeIntervalSince1970))"
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: id, content: content, trigger: nil))
     }
 
     // MARK: Slicer
