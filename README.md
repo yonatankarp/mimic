@@ -12,31 +12,29 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
 
 ### Prerequisites
 
-**Your Mac**
-- **An Apple chip (M1 or newer).** To check: the Apple menu (top-left) → **About This Mac**. It should say
-  *Chip: Apple M…*.
-- **macOS 15 (Sequoia) or newer.** Update in **System Settings → General → Software Update**.
-- **About 25 GB of free space**, and an internet connection for the install.
-- **A 3D printer.**
+**Minimum hardware**
+- A Mac with Apple silicon (M1 or newer), running macOS 15 (Sequoia) or newer
+- 32 GB of memory (what Mimic is tested on)
+- 25 GB of free disk space
+- A 3D printer
 
 **Install these yourself**
 
-| What | What it's for | Where to get it |
+| What | What it's for | Get it |
 |---|---|---|
-| A slicer | Turns your mini into instructions for your printer | [Bambu Studio](https://bambulab.com/en/download/studio), [OrcaSlicer](https://github.com/SoftFever/OrcaSlicer/releases/latest), [PrusaSlicer](https://www.prusa3d.com/page/prusaslicer_424/), [UltiMaker Cura](https://ultimaker.com/software/ultimaker-cura/), or the one your printer came with |
-| FLUX.2 Klein, inside Draw Things | Draws and redraws character pictures. Only needed for ✍️ Describe it and the grey-sculpt step | After installing, in Draw Things' model list. Mimic's setup checklist shows you where |
+| A slicer | Turns your mini into instructions for your printer | [Bambu Studio](https://github.com/bambulab/BambuStudio), [OrcaSlicer](https://github.com/OrcaSlicer/OrcaSlicer), [PrusaSlicer](https://github.com/prusa3d/PrusaSlicer), [UltiMaker Cura](https://github.com/Ultimaker/Cura) |
+| FLUX.2 Klein | Draws and redraws character pictures. Only needed for ✍️ Describe it and the grey-sculpt step | Inside Draw Things' model list; Mimic's setup checklist shows where |
 
-**The installer sets these up for you**
+**The installer sets these up for you** (it uses any you already have)
 
-You don't need to do anything for these. If you already have one, the installer uses it.
-
-| What | What it's for | More about it |
+| What | What it's for | Get it |
 |---|---|---|
-| Homebrew | Installs the tools below | [brew.sh](https://brew.sh) |
-| Blender | Makes the print-ready file | [blender.org](https://www.blender.org/download/) |
-| Draw Things | The free app Mimic uses to draw pictures | [drawthings.ai](https://drawthings.ai), or the [App Store](https://apps.apple.com/app/id6444050820) |
-| git and uv | Fetch and run Mimic's 3D engine | |
-| Pixal3D and its 3D model (8.4 GB) | Turns a picture into a 3D model | [pixal3d.cpp](https://github.com/raven38/pixal3d.cpp) |
+| Homebrew | Installs the tools below | [Homebrew/brew](https://github.com/Homebrew/brew) |
+| Blender | Makes the print-ready file | [blender/blender](https://github.com/blender/blender) |
+| Draw Things | Draws the pictures | [App Store](https://apps.apple.com/app/id6444050820) |
+| git | Fetches Mimic's 3D engine | [git/git](https://github.com/git/git) |
+| uv | Runs Mimic's 3D engine | [astral-sh/uv](https://github.com/astral-sh/uv) |
+| Pixal3D and its 3D model (8.4 GB) | Turns a picture into a 3D model | [raven38/pixal3d.cpp](https://github.com/raven38/pixal3d.cpp) |
 
 ### Install
 
