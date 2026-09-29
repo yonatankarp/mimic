@@ -84,7 +84,7 @@ class Checks(unittest.TestCase):
         models.mkdir(parents=True)
         (models / "pixal3d_shape_flow_1024_sv.gguf").write_bytes(b"x")
         self.executable(self.lab / ".venv" / "bin" / "python", "exit 0")
-        self.executable(self.bin / "blender", "exit 0")
+        self.executable(self.bin / "blender", "echo Blender 5.2.2")
         (self.apps / "Draw Things.app").mkdir()
         (self.apps / "OrcaSlicer.app").mkdir()
         self.dt_models.mkdir()
@@ -97,6 +97,11 @@ class Checks(unittest.TestCase):
         finally:
             server.shutdown()
         self.assertEqual([i for i in IDS if not got[i]], [], "these stayed red with everything there")
+
+    def test_a_blender_launcher_whose_app_is_gone_is_red(self):
+        # Homebrew's launcher outlives the app it points at: exists, but can't start Blender.
+        self.executable(self.bin / "blender", 'exec "/Applications/Gone.app/Contents/MacOS/Blender" "$@"')
+        self.assertFalse(self.results(free_gb=100)["blender"])
 
     def test_an_engine_that_does_not_start_is_red(self):
         # Present but broken, like a copy whose libraries went missing: exists is not enough.

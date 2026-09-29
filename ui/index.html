@@ -130,8 +130,9 @@ dialog.mac-window, dialog.mac-alert {
 .light.red { background:#ff5f57; } .light.yellow { background:#febc2e; } .light.green { background:#28c840; }
 .light:disabled { background:var(--light-off); border-color:transparent; }
 .mac-body { padding:4px 20px 18px; }
+#jobTitle, .mac-alert h3 { overflow-wrap:anywhere; }
 .mac-body > h2 { font:600 15px -apple-system, BlinkMacSystemFont, system-ui, sans-serif; margin:0 0 4px; }
-.mac-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
+.mac-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:8px; margin-top:16px; }
 .mac-btn { height:26px; min-width:76px; padding:0 14px; border-radius:6px; font-size:13px; font-weight:400; background:var(--mac-btn); color:var(--mac-text);
            border:.5px solid var(--mac-btn-border); box-shadow:0 .5px 1px rgba(0,0,0,.12); cursor:default; }
 .mac-btn:active { filter:brightness(.93); }
@@ -193,7 +194,8 @@ pre.log { max-height:220px; overflow:auto; font:11.5px/1.4 ui-monospace, Menlo, 
 #busy { background:color-mix(in srgb, var(--viewer) 82%, transparent); color:var(--text); }
 #busy .big { font-size:40px; }
 #busy .name { font-weight:600; font-size:16px; }
-.viewbtn { position:absolute; top:10px; right:10px; z-index:1; height:28px; padding:0 10px; border-radius:8px; cursor:default;
+.viewtools { position:absolute; top:10px; right:10px; z-index:1; display:flex; gap:6px; }
+.viewbtn { height:28px; padding:0 10px; border-radius:8px; cursor:default;
            border:.5px solid var(--mac-line); background:var(--mac-win); color:var(--mac-text);
            -webkit-backdrop-filter:blur(20px) saturate(180%); backdrop-filter:blur(20px) saturate(180%);
            box-shadow:0 1px 3px rgba(0,0,0,.1); font:500 12px -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
@@ -272,7 +274,9 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
     <div class="mac-actions">
       <button class="mac-btn" id="jobStop" type="button">Stop…</button>
       <button class="mac-btn default" id="jobBg" type="button">Run in Background</button>
+      <button class="mac-btn" id="jobSetup" type="button" hidden>Open Setup</button>
       <button class="mac-btn" id="jobClose" type="button" hidden>Close</button>
+      <button class="mac-btn default" id="jobRetry" type="button" hidden>Try Again</button>
       <button class="mac-btn default" id="jobOpen" type="button" hidden>Open in your slicer</button>
     </div>
   </div>
@@ -300,9 +304,10 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
       </div>
       <div id="imagePane" class="stack">
         <div id="drop" class="drop" tabindex="0" role="button" aria-label="Choose a picture">
-          <div id="dropInner">Drop a picture here, or click to choose<br><span class="hint">Full body, head to feet, plain background</span></div>
+          <div id="dropInner">Drop a picture, paste it (⌘V), or click to choose<br><span class="hint">Full body, head to feet, plain background</span></div>
         </div>
         <input id="file" type="file" accept="image/*" hidden>
+        <div class="msg warn" id="picNote" hidden></div>
         <label class="check"><input id="restyle" type="checkbox" checked><span>Turn it into a grey sculpt first (recommended)<br><span class="hint" style="font-weight:400">Best for drawings and photos. Turn it off only if your picture is already a grey 3D model.</span></span></label>
         <div class="hint needsDT" hidden>Needs Draw Things (see setup above).</div>
       </div>
@@ -374,14 +379,18 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
         <div class="titlewrap"><h2 id="title">Your mini will appear here</h2>
           <button class="ghost" id="del" type="button" hidden>🗑️ Delete</button></div>
         <div class="actions">
-          <button class="btn" id="reprep" type="button" disabled title="Remakes the print file with your size and nozzle settings. About 30 seconds. The character itself doesn't change.">🔁 Apply new size</button>
+          <button class="btn" id="reprep" type="button" disabled title="Remakes the print file with the size and nozzle settings on the left. About 30 seconds. The character itself doesn't change.">🔁 Resize this mini</button>
           <button class="btn" id="reveal" type="button" disabled>📂 Show in Finder</button>
           <button class="btn primary" id="open" type="button" disabled>🖨️ Open in your slicer</button>
         </div>
       </div>
+      <p class="hint" id="nowLine" hidden style="margin:-4px 0 10px"></p>
       <div id="viewerWrap">
         <canvas id="viewer" aria-label="3D view of the mini: drag to turn it"></canvas>
-        <button class="viewbtn" id="zoomLock" type="button" aria-pressed="true" title="When locked, scrolling moves the page instead of zooming the mini">🔒 Zoom locked</button>
+        <div class="viewtools">
+          <button class="viewbtn" id="viewFront" type="button" title="Back to the front view (or double-click the mini)">↺ Front</button>
+          <button class="viewbtn" id="zoomLock" type="button" aria-pressed="true" title="When locked, scrolling moves the page instead of zooming the mini">🔒 Zoom locked</button>
+        </div>
         <div class="overlay" id="overlay">✨ Make your first mini on the left.<br>It will show up here, ready to spin around.</div>
         <div class="overlay" id="busy" hidden><div><div class="big" id="busyEm">🧊</div><div class="name" id="busyStep"></div><div class="hint" id="busyTime"></div></div></div>
         <div class="dims" id="dims" hidden></div>
@@ -424,6 +433,10 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
 <dialog id="stopDlg" class="mac-alert">
   <img src="/logo.png" alt=""><h3 id="stopTitle"></h3><p id="stopText"></p>
   <form method="dialog"><button class="mac-btn default" value="no">Keep Going</button><button class="mac-btn danger" value="yes">Stop</button></form>
+</dialog>
+<dialog id="notifyDlg" class="mac-alert">
+  <img src="/logo.png" alt=""><h3>Get a notification when it's ready?</h3><p>Mimic can tell you when your mini is done, even while you're in another app.</p>
+  <form method="dialog"><button class="mac-btn" value="no">Not Now</button><button class="mac-btn default" value="yes">Notify Me</button></form>
 </dialog>
 <dialog id="quitDlg" class="mac-alert">
   <img src="/logo.png" alt=""><h3 id="quitTitle">Quit Mimic?</h3><p id="quitText">Your minis are saved.</p>
@@ -525,23 +538,50 @@ $("height").addEventListener("input", () => heightTouched = true);
 $("base").addEventListener("input", () => baseTouched = true);
 
 // ---- picture ----
+// Folder names are slugs ("dwarf-cleric"); people see "Dwarf Cleric".
+const pretty = n => (n || "").replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
-function takeFile(f) {
+function takeFile(f, pasted = false) {
   if (!f || !f.type.startsWith("image/")) return;
   file = f;
   const url = URL.createObjectURL(f);
   $("dropInner").innerHTML = `<img alt="Your picture"><span class="hint"></span>`;
   $("dropInner").querySelector("img").src = url;
   $("dropInner").querySelector(".hint").textContent = f.name;
-  if (!$("name").value) $("name").value = slug(f.name.replace(/\.[^.]+$/, ""));
+  if (!pasted && !$("name").value) $("name").value = slug(f.name.replace(/\.[^.]+$/, ""));
+  if (pasted && !$("name").value) { say("📋 Picture pasted. Give your mini a name."); $("name").focus(); }
+  // Catch a poor picture before a 10-minute wait rather than after it.
+  const probe = new Image();
+  probe.onload = () => {
+    const w = probe.naturalWidth, h = probe.naturalHeight, notes = [];
+    if (Math.max(w, h) < 512) notes.push("⚠️ This picture is small, so the mini may come out blobby. A bigger picture works better.");
+    if (w > h * 1.15) notes.push("⚠️ This picture is wider than it is tall, so it may not show the whole body. A full-body picture works best.");
+    $("picNote").textContent = notes.join(" ");
+    $("picNote").hidden = !notes.length;
+  };
+  probe.src = url;
 }
 $("drop").onclick = () => $("file").click();
 $("drop").onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("file").click(); } };
 $("file").onchange = e => takeFile(e.target.files[0]);
 $("drop").ondragover = e => { e.preventDefault(); $("drop").classList.add("over"); };
 $("drop").ondragleave = () => $("drop").classList.remove("over");
+document.addEventListener("paste", e => {
+  const item = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith("image/"));
+  if (!item) return;  // plain text pastes into fields as usual
+  e.preventDefault();
+  $("modeImage").click();
+  takeFile(item.getAsFile(), true);
+});
 $("drop").ondrop = e => { e.preventDefault(); $("drop").classList.remove("over"); takeFile(e.dataTransfer.files[0]); };
 $("name").onblur = () => $("name").value = slug($("name").value);
+let autoName = false;  // the name came from the description, so it may follow it
+$("name").addEventListener("input", () => autoName = false);
+$("desc").addEventListener("input", () => {
+  if ($("name").value && !autoName) return;
+  $("name").value = slug($("desc").value.replace(/^\s*(a|an|the)\s+/i, "").split(/\s+/).slice(0, 4).join(" "));
+  autoName = true;
+});
 
 // ---- messages: server errors in plain words ----
 function say(text, kind = "") { $("msg").textContent = text; $("msg").className = "msg" + (kind ? " " + kind : ""); }
@@ -551,6 +591,7 @@ function plain(err, name) {
   if (m.includes("already exists")) return `You already have a mini called ${name}. Pick a new name, or use 🔁 Apply new size to change it.`;
   if (m.startsWith("name:")) return "Names can only use lowercase letters, numbers and dashes.";
   if (m.includes("must be numbers")) return "Sizes must be numbers.";
+  if (m.includes("nothing to retry")) return "This mini can't be retried: its picture or description wasn't saved. Make it again from the start.";
   if (m.includes("no model yet")) return "This mini isn't made yet. Press ✨ Make my mini first.";
   if (m.includes("no STL")) return "This mini's print file isn't ready yet.";
   if (m.includes("describe")) return "Describe the character first.";
@@ -585,8 +626,7 @@ async function post(url, body) {
 }
 
 $("go").onclick = async () => {
-  const missing = lastChecks.filter(c => c.required && !c.ok);
-  if (missing.length) return say(`Mimic isn't fully set up yet: ${missing.map(c => c.label).join(", ")}. Open ⚙️ Settings to see how to fix it.`, "err");
+  if (notReady()) return;
   const name = slug($("name").value);
   if (!name) return say("Give your mini a name first.", "err");
   $("name").value = name;
@@ -603,10 +643,11 @@ $("go").onclick = async () => {
     if (!d) return say("Describe the character first.", "err");
     p.set("desc", d);
   }
-  try { await post("/api/generate?" + p, body); say(""); selected = name; poll(); }
+  try { await post("/api/generate?" + p, body); say(""); selected = name; await poll(); askToNotify(); }
   catch (e) { say(plain(e, name), "err"); }
 };
 $("reprep").onclick = async () => {
+  if (notReady()) return;
   try { await post("/api/prep?" + prepParams(selected)); say(""); poll(); }
   catch (e) { say(plain(e, selected), "err"); }
 };
@@ -701,10 +742,16 @@ $("jobBg").onclick = () => { minimize(); $("jobPill").focus(); };
 // Red light: like closing a Mac window that's busy, it asks before stopping; once finished it closes.
 $("jobX").onclick = () => (jobRunning ? $("jobStop") : $("jobClose")).click();
 $("settingsX").onclick = () => $("settingsDlg").close("");
-$("jobClose").onclick = () => { jobShown = false; layoutJob(false); };
+$("jobClose").onclick = () => { jobShown = false; layoutJob(false); tabTitle(); };
+$("jobRetry").onclick = async () => {
+  if (notReady()) { $("jobClose").click(); return; }
+  try { await post("/api/retry?name=" + encodeURIComponent(jobName)); poll(); }
+  catch (e) { say(plain(e, jobName), "err"); }
+};
+$("jobSetup").onclick = () => { $("jobClose").click(); $("settingsBtn").click(); };
 $("jobStop").onclick = () => {
   const resize = jobKind === "prep";
-  $("stopTitle").textContent = resize ? `Stop resizing “${jobName}”?` : `Stop making “${jobName}”?`;
+  $("stopTitle").textContent = resize ? `Stop resizing “${pretty(jobName)}”?` : `Stop making “${pretty(jobName)}”?`;
   $("stopText").textContent = resize ? "It keeps its previous size." : "What's been made so far will be thrown away.";
   ask($("stopDlg"));
 };
@@ -743,16 +790,23 @@ async function poll() {
   $("barFill").style.width = (s.running ? Math.min(95, 100 * s.elapsed / total) : s.exit === 0 ? 100 : 0) + "%";
   $("log").textContent = log;
   if (s.running) {
-    $("jobTitle").textContent = prep ? `🔁 Updating ${s.name}'s size… about 30 seconds` : `⏳ Making ${s.name}… this takes about 7–10 minutes`;
-    $("jobNote").textContent = prep ? "" : `${mm}:${ss} so far. You can leave this page open and come back. Your Mac will be busy, and the fan may get loud.`;
+    const who = pretty(s.name);
+    $("jobTitle").textContent = prep ? `🔁 Resizing ${who}` : `⏳ Making ${who}`;
+    // The estimate is a fixed ~9 minutes; say so plainly when a slower Mac runs past it.
+    $("jobNote").textContent = prep ? `About 30 seconds · ${mm}:${ss} so far.`
+      : s.elapsed > 25 * 60 ? `${mm}:${ss} so far. This is unusually slow. You can keep waiting, or stop and try again.`
+      : s.elapsed > 12 * 60 ? `${mm}:${ss} so far. Taking longer than usual. Still working, nothing's wrong.`
+      : `About 7–10 minutes · ${mm}:${ss} so far. You can leave this page and come back. Your Mac will be busy, and the fan may get loud.`;
+    tabTitle(`⏳ ${mm}:${ss} · ${prep ? "Resizing" : "Making"} ${who}`);
+    $("jobRetry").hidden = $("jobSetup").hidden = true;
     $("jobOpen").hidden = true;
-    setPill("run", `${prep ? "Updating" : "Making"} ${s.name} · ${mm}:${ss}`, Math.min(95, 100 * s.elapsed / total));
+    setPill("run", `${prep ? "Resizing" : "Making"} ${who} · ${mm}:${ss}`, Math.min(95, 100 * s.elapsed / total));
     $("jobPill").title = "Show progress";
     layoutJob(true);
     // Dim the viewer only when it shows the mini being made, not another one you're looking at.
     const here = selected === s.name;
     $("busy").hidden = !here; if (here) $("overlay").hidden = true;
-    $("busyEm").textContent = STEP[step][0]; $("busyStep").textContent = `${s.name}: ${STEP[step][1].toLowerCase()}`;
+    $("busyEm").textContent = STEP[step][0]; $("busyStep").textContent = `${who}: ${STEP[step][1].toLowerCase()}`;
     $("busyTime").textContent = `${mm}:${ss}` + (prep ? "" : ` · about ${Math.max(1, Math.round((total - s.elapsed) / 60))} min left`);
     wasRunning = true;
     for (const b of ["go", "reprep"]) $(b).disabled = true;
@@ -762,8 +816,10 @@ async function poll() {
   $("busy").hidden = true;
   if ($("stopDlg").open) $("stopDlg").close("");  // it finished while you were deciding: nothing left to stop
   if (s.canceled) {
-    setPill("stopped", `Stopped ${s.name}`, 0);
-    $("jobTitle").textContent = prep ? `⏹ Stopped resizing ${s.name}.` : `⏹ Stopped making ${s.name}.`;
+    setPill("stopped", `Stopped ${pretty(s.name)}`, 0);
+    $("jobTitle").textContent = prep ? `⏹ Stopped resizing ${pretty(s.name)}` : `⏹ Stopped making ${pretty(s.name)}`;
+    tabTitle();
+    $("jobRetry").hidden = $("jobSetup").hidden = true;
     $("jobNote").textContent = prep ? "It keeps its previous size." : "Nothing was kept. It's in the Trash if you want the pieces.";
     for (const li of $("steps").children) li.className = "";
     $("barFill").style.width = "0%";
@@ -773,7 +829,10 @@ async function poll() {
     if (wasRunning) { wasRunning = false; await loadRuns(); if (!runs.some(r => r.name === selected)) { selected = null; if (runs[0]) select(runs[0].name); } }
     return;
   }
-  setPill(failed ? "fail" : "done", failed ? `${s.name} didn't finish` : `${s.name} is ready`, 100);
+  const who = pretty(s.name);
+  setPill(failed ? "fail" : "done", failed ? `${who} didn't finish` : `${who} is ready`, 100);
+  tabTitle(failed ? `❌ ${who} didn't finish` : `✅ ${who} is ready`);
+  if (wasRunning) notify(failed ? `${who} didn't finish` : `${who} is ready`, failed ? "Open Mimic to try again." : "Your mini is ready to print.");
   $("jobOpen").hidden = failed;
   $("jobOpen").textContent = $("open").textContent.replace(/^\S+\s+/, "");  // no emoji on a Mac button
   layoutJob(false);
@@ -781,17 +840,45 @@ async function poll() {
   $("reprep").disabled = !selected;
   if (failed) {
     const stepName = STEP[step][1].toLowerCase();
-    $("jobTitle").textContent = `❌ Something went wrong while ${stepName}.`;
-    $("jobNote").textContent = /Draw Things/.test(log)
-      ? "Is Draw Things still open? Check the setup steps, then try again."
-      : "Try again, or try a clearer, full-body picture.";
+    const drawThings = /Draw Things/.test(log);
+    $("jobTitle").textContent = `❌ Something went wrong while ${stepName}`;
+    $("jobNote").textContent = drawThings
+      ? "Draw Things didn't answer. Check the setup steps, then try again."
+      : "Try again, or use a clearer, full-body picture.";
+    $("jobRetry").hidden = false;
+    $("jobSetup").hidden = !drawThings;
   } else {
-    $("jobTitle").textContent = `🎉 ${s.name} is ready!`;
+    $("jobTitle").textContent = `🎉 ${who} is ready!`;
     $("jobNote").textContent = "";
+    $("jobRetry").hidden = $("jobSetup").hidden = true;
     if (log.includes("WARNING")) say("⚠️ Your mini is ready, but some thin parts may be fragile. Check it in your slicer before printing.", "warn");
   }
   if (wasRunning) { wasRunning = false; await loadRuns(); if (s.exit === 0) { select(s.name, true); $("name").value = ""; $("open").focus(); } }
 }
+
+// Anything that starts a job checks the required parts first, so a missing piece is named
+// up front instead of failing a few seconds in.
+function notReady() {
+  const missing = lastChecks.filter(c => c.required && !c.ok);
+  if (!missing.length) return false;
+  say(`Mimic isn't fully set up yet: ${missing.map(c => c.label).join(", ")}. Open ⚙️ Settings to see how to fix it.`, "err");
+  return true;
+}
+
+// ---- telling you it's done: the tab title, and a Mac notification if you allowed one ----
+function askToNotify() {
+  if (!("Notification" in window) || Notification.permission !== "default" || store.get("notifyAsked")) return;
+  ask($("notifyDlg"));
+}
+$("notifyDlg").onclose = () => {
+  store.set("notifyAsked", "1");
+  if ($("notifyDlg").returnValue === "yes") Notification.requestPermission();
+};
+function notify(title, body) {
+  if ("Notification" in window && Notification.permission === "granted" && document.hidden)
+    new Notification(title, { body, icon: "/logo.png" });
+}
+const tabTitle = t => document.title = t ? `${t} — Mimic` : "Mimic";
 
 // ---- settings: health checks and slicer ----
 let lastChecks = [], slicers = [];
@@ -875,7 +962,7 @@ $("recheck").onclick = loadChecks;
 $("openFolder").onclick = () => post("/api/reveal-folder");
 
 $("del").onclick = () => {
-  $("delTitle").textContent = `Move “${selected}” to the Trash?`;
+  $("delTitle").textContent = `Move “${pretty(selected)}” to the Trash?`;
   $("delText").textContent = "You can put it back from the Trash if you change your mind.";
   ask($("delDlg"));
 };
@@ -903,7 +990,15 @@ function tips() {
   $("tips").innerHTML = `<b>🖨️ Print tips for a ${n} mm nozzle</b><ul>
     <li>${layer}. Supports: Tree (auto). Walls: ${walls}.</li>
     <li>Stand the mini upright on its base. No brim needed.</li>
-    <li>${expect}</li></ul>`;
+    <li>${expect}</li></ul>
+    <button class="btn" id="copyTips" type="button" style="height:32px;margin-top:8px">📋 Copy settings</button>`;
+  $("copyTips").onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(`${layer} · Supports: Tree (auto) · Walls: ${walls} · Upright on its base, no brim`);
+      $("copyTips").textContent = "✓ Copied";
+      setTimeout(() => { if ($("copyTips")) $("copyTips").textContent = "📋 Copy settings"; }, 1500);
+    } catch { say("Couldn't copy. Select the tips and copy them instead.", "err"); }
+  };
 }
 
 // ---- runs ----
@@ -917,17 +1012,35 @@ async function loadRuns() {
     const img = r.renders.includes("front") ? `/runs/${r.name}/${r.name}_front.png?${r.mtime}` : r.source ? `/runs/${r.name}/source.png` : null;
     b.innerHTML = img ? `<img alt="">` : `<span class="ph"></span>`;
     if (img) b.querySelector("img").src = img;
-    const t = document.createElement("div"); t.textContent = r.name; b.append(t);
+    const t = document.createElement("div"); t.textContent = pretty(r.name); b.append(t);
     b.onclick = () => select(r.name);
     return b;
   }));
   if (!runs.length) $("gallery").innerHTML = `<p class="hint" style="margin:0">Your finished minis will be collected here.</p>`;
 }
+// Picking a mini puts the sizes it was made with into the size card, so Resize starts from
+// what it is now rather than from whatever was last on screen.
+function loadSizes(m) {
+  if (m.nozzle && m.nozzle !== value($("nozzle"))) setNozzle(String(m.nozzle));
+  for (const k of ["height", "base"]) if (m[k]) { $(k).value = m[k]; showSlider(k); }
+  heightTouched = baseTouched = true;
+  inflateTouched = !!m.inflate;
+  $("inflate").value = m.inflate || (0.4 * (m.nozzle || value($("nozzle")))).toFixed(2);
+  showSlider("inflate");
+  $("nobase").checked = !!m.nobase;
+  suggest();  // refreshes the size note; touched values stay
+}
 function select(name, force = false) {
   if (name === selected && !force && currentStl) return;
   selected = name;
   const r = runs.find(x => x.name === name);
-  $("title").textContent = name;
+  $("title").textContent = pretty(name);
+  const made = r && r.made;
+  $("nowLine").hidden = !made;
+  if (made) {
+    $("nowLine").textContent = `Now: ${Math.round(made.height || 32)} mm character · ${Math.round(made.base || 25)} mm base · made for a ${made.nozzle || "0.4"} mm nozzle`;
+    loadSizes(made);
+  }
   for (const el of $("gallery").querySelectorAll(".run")) el.setAttribute("aria-current", el.dataset.name === name);
   const has = !!(r && r.stl);
   $("open").disabled = $("reveal").disabled = !has;
@@ -970,7 +1083,7 @@ const ask = dlg => { dlg.returnValue = ""; dlg.showModal(); };
 // ---- quit ----
 $("quit").onclick = async () => {
   const s = await getJSON("/api/job").catch(() => ({}));
-  $("quitTitle").textContent = s.running ? `Mimic is still making “${s.name}”` : "Quit Mimic?";
+  $("quitTitle").textContent = s.running ? `Mimic is still making “${pretty(s.name)}”` : "Quit Mimic?";
   $("quitText").textContent = s.running ? "You can quit once it's finished, or stop it first." : "Your minis are saved.";
   $("quitYes").hidden = !!s.running;
   $("quitNo").textContent = s.running ? "OK" : "Cancel";
@@ -1000,6 +1113,10 @@ function setZoom(on) {
   store.set("zoom", on ? "on" : "locked");
 }
 $("zoomLock").onclick = () => setZoom(!controls.enableZoom);
+let home = null;
+function frontView() { if (!home) return; camera.position.copy(home.pos); controls.target.copy(home.target); controls.update(); }
+$("viewFront").onclick = frontView;
+canvas.addEventListener("dblclick", frontView);
 setZoom(store.get("zoom") === "on");
 scene.add(new THREE.HemisphereLight(0xfff4e8, 0x3a3530, 1.4));
 const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(40, 80, 60); scene.add(key);
@@ -1028,6 +1145,7 @@ function loadStl(url) {
     controls.target.set(0, size.y / 2, 0);
     camera.position.set(0, size.y * 0.65, -r * 2.0);  // minis face -Z here
     controls.update();
+    home = { pos: camera.position.clone(), target: controls.target.clone() };
     $("dims").textContent = `${Math.round(size.y)} mm tall · ${Math.round(size.x)} × ${Math.round(size.z)} mm`;
     $("dims").hidden = false;
     $("overlay").hidden = true;

@@ -95,7 +95,7 @@ def _kill_group(p):
             pass
 
 
-def run_job(name, kind, cmd, env=None):
+def run_job(name, kind, cmd, env=None, made=None):
     log = RUNS / name / f"{kind}.job.log"
     with lock:
         job.update(running=True, name=name, kind=kind, log="", exit=None, started=time.time(), canceled=False)
@@ -113,9 +113,44 @@ def run_job(name, kind, cmd, env=None):
     if canceled and kind == "generate":
         # A half-made new mini is clutter, not a result: to the Trash, where it can be recovered.
         subprocess.run(["/usr/bin/trash", str(RUNS / name)], capture_output=True)
+    if code == 0 and not canceled and made is not None:
+        write_settings(RUNS / name, made=made)  # "Now:" shows only what a finished run produced
     text = "Stopped.\n" if canceled else (log.read_text(errors="replace") if log.exists() else "")
     with lock:
         job.update(running=False, exit=code, log=text)
+
+
+SIZE_KEYS = ("height", "base", "nozzle", "inflate", "nobase")
+
+
+def read_settings(d):
+    """A mini's settings.json: how it was made (source, desc, restyle, seed), the sizes last
+    `requested` (what Try Again reuses) and the sizes it was actually `made` with."""
+    try:
+        return json.loads((d / "settings.json").read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def write_settings(d, **updates):
+    (d / "settings.json").write_text(json.dumps({**read_settings(d), **updates}, indent=1))
+
+
+def sizes_from(q):
+    """The size settings in a request, validated by prep_flags before anything is saved."""
+    return {k: q[k] for k in SIZE_KEYS if q.get(k) not in (None, "")}
+
+
+def job_cmd(d, kind, st):
+    """The command that makes (or resizes) the mini in folder d from its saved settings."""
+    flags = prep_flags(st.get("requested", {}))
+    if kind == "prep":
+        return ["blender", "-b", "-P", str(ROOT / "pipeline" / "mini_prep.py"), "--",
+                str(d / "model.glb"), str(d / f"{d.name}.stl"), *flags]
+    if st.get("source") == "image":
+        restyle = ["--restyle"] if st.get("restyle") else []
+        return [str(ROOT / "make_mini.sh"), d.name, "--image", str(d / "upload.img"), *restyle, *flags]
+    return [str(ROOT / "make_mini.sh"), d.name, st["desc"], *flags]
 
 
 def cancel_job():
@@ -178,6 +213,20 @@ def engine_starts():
         return False
 
 
+def blender_starts():
+    """Whether Blender actually runs, not just whether a `blender` exists on the PATH: Homebrew's
+    launcher outlives the app, so after Blender.app was removed the old check still said yes
+    while every print prep died at start-up."""
+    exe = shutil.which("blender")
+    if not exe:
+        return False
+    try:
+        r = subprocess.run([exe, "--version"], capture_output=True, timeout=30)
+        return r.returncode == 0 and b"Blender" in r.stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
 REINSTALL = "Run Install Mimic again: it only adds what's missing."
 
 
@@ -194,8 +243,8 @@ CHECKS = [
      lambda: (ENGINE / "models" / "pixal3d-sv" / "pixal3d_shape_flow_1024_sv.gguf").is_file(),
      REINSTALL + " This part downloads 8.4 GB."),
     ("helpers", "Mimic's helper tools", True, lambda: (LAB / ".venv" / "bin" / "python").is_file(), REINSTALL),
-    ("blender", "Blender (makes the print file)", True, lambda: shutil.which("blender") is not None,
-     "Install Blender from blender.org, or run Install Mimic again."),
+    ("blender", "Blender (makes the print file)", True, blender_starts,
+     "Blender is missing or won't start. Run Install Mimic again, or install Blender from blender.org."),
     ("space", "Free disk space", True, lambda: _free_gb() >= 5,
      "Free up some space: each mini takes about 150 MB while it's being made."),
     ("drawthings-app", "Draw Things app", False,
@@ -233,6 +282,8 @@ def list_runs():
         out.append({"name": d.name, "stl": stl if stl in files else None,
                     "source": "source.png" in files,
                     "renders": [v for v in ("front", "side", "back") if f"{d.name}_{v}.png" in files],
+                    "made": read_settings(d).get("made"),
+                    "retry": bool(read_settings(d).get("requested")),
                     "mtime": int(d.stat().st_mtime)})
     return out
 
@@ -320,48 +371,53 @@ class H(BaseHTTPRequestHandler):
             return
         name = d.name
 
-        if path in ("/api/generate", "/api/prep"):
+        if path in ("/api/generate", "/api/prep", "/api/retry"):
             with lock:
                 if job["running"]:
                     return self.send(409, {"error": f"busy with {job['name']}"})
                 job["running"] = True  # claim before the thread starts
-            try:
-                flags = prep_flags(q)
-            except ValueError:
+
+            def refuse(code, error):
                 with lock:
                     job["running"] = False
-                return self.send(400, {"error": "height/base/inflate must be numbers"})
+                return self.send(code, {"error": error})
 
-            if path == "/api/prep":
+            try:
+                requested = sizes_from(q)
+                prep_flags(requested)  # validates; nothing is saved from a bad request
+            except ValueError:
+                return refuse(400, "height/base/inflate must be numbers")
+
+            if path == "/api/retry":
+                st = read_settings(d)
+                if not st.get("requested"):
+                    return refuse(404, "nothing to retry")
+                kind = "prep" if (d / "model.glb").exists() else "generate"
+                if kind == "generate" and not ((st.get("source") == "image" and (d / "upload.img").exists()) or st.get("desc")):
+                    return refuse(404, "nothing to retry")
+            elif path == "/api/prep":
                 if not (d / "model.glb").exists():
-                    with lock:
-                        job["running"] = False
-                    return self.send(400, {"error": "no model yet: generate first"})
-                cmd = ["blender", "-b", "-P", str(ROOT / "pipeline" / "mini_prep.py"), "--",
-                       str(d / "model.glb"), str(d / f"{name}.stl"), *flags]
-                env = None
+                    return refuse(400, "no model yet: generate first")
+                kind = "prep"
+                write_settings(d, requested=requested)
             else:
                 if (d / "model.glb").exists():
-                    with lock:
-                        job["running"] = False
-                    return self.send(409, {"error": f"'{name}' already exists: pick a new name, or Re-prep it"})
-                d.mkdir(parents=True, exist_ok=True)
+                    return refuse(409, f"'{name}' already exists: pick a new name, or Re-prep it")
+                kind = "generate"
                 length = int(self.headers.get("Content-Length") or 0)
-                env = {**os.environ, "SEED": str(int(q.get("seed") or 42))}
+                desc = q.get("desc", "").strip()
+                if not length and not desc:
+                    return refuse(400, "describe the character or add an image")
+                d.mkdir(parents=True, exist_ok=True)
                 if length:
-                    upload = d / "upload.img"
-                    upload.write_bytes(self.rfile.read(length))
-                    restyle = ["--restyle"] if q.get("restyle") == "1" else []
-                    cmd = [str(ROOT / "make_mini.sh"), name, "--image", str(upload), *restyle, *flags]
-                else:
-                    desc = q.get("desc", "").strip()
-                    if not desc:
-                        with lock:
-                            job["running"] = False
-                        return self.send(400, {"error": "describe the character or add an image"})
-                    cmd = [str(ROOT / "make_mini.sh"), name, desc, *flags]
-            kind = path.rsplit("/", 1)[1]
-            threading.Thread(target=run_job, args=(name, kind, cmd, env), daemon=True).start()
+                    (d / "upload.img").write_bytes(self.rfile.read(length))
+                write_settings(d, source="image" if length else "desc", desc=desc,
+                               restyle=q.get("restyle") == "1", seed=int(q.get("seed") or 42),
+                               requested=requested)
+            st = read_settings(d)
+            cmd = job_cmd(d, kind, st)
+            env = {**os.environ, "SEED": str(st.get("seed", 42))} if kind == "generate" else None
+            threading.Thread(target=run_job, args=(name, kind, cmd, env, st["requested"]), daemon=True).start()
             return self.send(202, {"ok": True})
 
         if path in ("/api/open", "/api/reveal"):
