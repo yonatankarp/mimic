@@ -2,20 +2,23 @@ import MimicCore
 import SwiftUI
 
 struct MimicApp: App {
-    @State private var model: AppModel
-
-    init() {
-        // A job left running by a Mimic that crashed (or was force-quit) is stopped first:
-        // otherwise a 14 GB Blender could run on with nothing watching it.
-        if let install = Install.locate() { Leftover.stop(install.runs) }
-        _model = State(initialValue: AppModel())
-    }
+    // The delegate owns the model: it has to ask about a running job when the app quits.
+    @NSApplicationDelegateAdaptor private var delegate: AppDelegate
+    private var model: AppModel { delegate.model }
 
     var body: some Scene {
         WindowGroup("Mimic") {
             ContentView()
+                .modifier(MainWindowChrome())
                 .frame(minWidth: 900, minHeight: 600)
                 .environment(model)
+        }
+        .commands {
+            CommandGroup(replacing: .newItem) {
+                Button("New Mini…") { model.sheet = .make }
+                    .keyboardShortcut("n")
+                    .disabled(model.install == nil)
+            }
         }
         Settings {
             SettingsView().environment(model)

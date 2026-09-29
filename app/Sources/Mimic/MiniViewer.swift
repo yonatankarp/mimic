@@ -5,20 +5,94 @@ import SwiftUI
 /// The 3D view of a mini's print file. RealityKit can't open STL, so Model I/O reads it and
 /// its triangles become a RealityKit mesh: 0.37 s for a 40 MB, 2.4M-vertex print file in the
 /// milestone-0 measurement (SceneKit was faster, but Apple has stopped developing it).
+///
+/// Dragging turns the mini itself rather than orbiting a camera, so turning, zooming and Front
+/// are all one transform this view owns. Zoom is a pinch, locked by default like the web page's.
 struct MiniViewer: View {
     let stl: URL
+    /// The print file's date: a resize rewrites the file under the same name.
+    let version: Date
+    @State private var mini: Entity?
+    @State private var size: String?
     @State private var failed = false
+    @State private var turn = SIMD2<Float>.zero  // yaw, pitch
+    @State private var turnStart: SIMD2<Float>?
+    @State private var zoom: Float = 1
+    @State private var zoomStart: Float?
+    @AppStorage("zoomOn") private var zoomOn = false
 
     var body: some View {
         RealityView { content in
             content.add(Self.lights())
+            // A camera of our own: without camera controls, the default one sits too close.
+            let camera = PerspectiveCamera()
+            camera.camera.fieldOfViewInDegrees = 45
+            camera.position = [0, 0, 1.7]
+            content.add(camera)
         } update: { content in
-            content.entities.filter { $0.name == "mini" }.forEach { content.remove($0) }
-            if let mini = try? Self.load(stl) { content.add(mini) }
+            guard let mini else { return }
+            if mini.parent == nil {
+                content.entities.filter { $0.name == "mini" }.forEach { content.remove($0) }
+                content.add(mini)
+            }
+            mini.transform = Transform(scale: SIMD3(repeating: zoom),
+                                       rotation: simd_quatf(angle: turn.y, axis: [1, 0, 0]) * simd_quatf(angle: turn.x, axis: [0, 1, 0]),
+                                       translation: .zero)
         }
-        .realityViewCameraControls(.orbit)
+        .realityViewCameraControls(.none)
         .background(Color(nsColor: .windowBackgroundColor).opacity(0.6))
+        .contentShape(Rectangle())
+        .gesture(DragGesture(minimumDistance: 3).onChanged { g in
+            let start = turnStart ?? turn
+            turnStart = start
+            turn = SIMD2(start.x + Float(g.translation.width) * 0.01,
+                         min(1.1, max(-1.1, start.y + Float(g.translation.height) * 0.01)))
+        }.onEnded { _ in turnStart = nil })
+        .simultaneousGesture(MagnifyGesture().onChanged { g in
+            guard zoomOn else { return }
+            let start = zoomStart ?? zoom
+            zoomStart = start
+            zoom = min(4, max(0.4, start * Float(g.magnification)))
+        }.onEnded { _ in zoomStart = nil })
+        .onTapGesture(count: 2) { front() }
+        .overlay(alignment: .topTrailing) {
+            HStack(spacing: 6) {
+                Button { front() } label: { Label("Front", systemImage: "arrow.counterclockwise") }
+                    .help("Back to the front view (or double-click the mini)")
+                Toggle(isOn: $zoomOn) { Label(zoomOn ? "Zoom On" : "Zoom Locked", systemImage: zoomOn ? "plus.magnifyingglass" : "lock") }
+                    .toggleStyle(.button)
+                    .help("When unlocked, pinch on the trackpad to zoom the mini")
+                    .onChange(of: zoomOn) { _, on in if !on { zoom = 1 } }
+            }
+            .controlSize(.small)
+            .padding(8)
+        }
+        .overlay(alignment: .bottomLeading) {
+            if let size {
+                Text(size).font(.caption.monospaced()).foregroundStyle(.secondary)
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+                    .padding(10)
+            }
+        }
+        .overlay {
+            if failed {
+                Text("Couldn't show this mini. Try Show in Finder.").foregroundStyle(.secondary)
+            } else if mini == nil {
+                ProgressView("Loading your mini…")
+            }
+        }
+        .task(id: [stl.path, version.description]) {
+            failed = false
+            mini = nil; size = nil
+            front()
+            // ponytail: loads on the main actor (about 0.4 s for the biggest print file); move the
+            // file reading off it if bigger minis make that noticeable.
+            if let (entity, mm) = try? Self.load(stl) { mini = entity; size = mm } else { failed = true }
+        }
     }
+
+    private func front() { turn = .zero; zoom = 1 }
 
     static func lights() -> Entity {
         let key = DirectionalLight()
@@ -32,9 +106,10 @@ struct MiniViewer: View {
         return rig
     }
 
-    /// Print files are Z-up millimetres; the scene is Y-up metres. The mini is centred on its
-    /// base and scaled so the orbit camera's default framing fits it.
-    static func load(_ url: URL) throws -> Entity {
+    /// Print files are Z-up millimetres; the scene is Y-up metres. The mini is centred and
+    /// scaled so the default camera's framing fits it. Also returns its size in millimetres,
+    /// "34 mm tall · 25 × 33 mm".
+    static func load(_ url: URL) throws -> (Entity, String) {
         let asset = MDLAsset(url: url)
         guard let mesh = asset.childObjects(of: MDLMesh.self).first as? MDLMesh else { throw CocoaError(.fileReadCorruptFile) }
         let desc = mesh.vertexDescriptor
@@ -46,13 +121,15 @@ struct MiniViewer: View {
         for i in 0..<mesh.vertexCount {
             let p = buf.bytes.advanced(by: i * layout.stride + pos.offset).assumingMemoryBound(to: Float.self)
             // Z-up → Y-up, turned to face the camera: minis face +Y in the print file, and the
-            // orbit camera looks along -Z.
+            // camera looks along -Z.
             let v = SIMD3<Float>(-p[0], p[2], p[1])
             points.append(v); lo = simd_min(lo, v); hi = simd_max(hi, v)
         }
-        let centre = SIMD3<Float>((lo.x + hi.x) / 2, lo.y, (lo.z + hi.z) / 2)
-        let scale = 1 / max(hi.y - lo.y, 1)  // 1 m tall: fills the orbit camera's default view
-        points = points.map { ($0 - centre) * scale - SIMD3(0, 0.5, 0) }
+        let dims = hi - lo
+        let size = "\(Int(dims.y.rounded())) mm tall · \(Int(dims.x.rounded())) × \(Int(dims.z.rounded())) mm"
+        let centre = (lo + hi) / 2  // the middle of the mini, so it turns in place
+        let scale = 1 / max(dims.y, 1)  // 1 m tall: fills the default camera's view
+        points = points.map { ($0 - centre) * scale }
         // An STL is a list of separate triangles, so one normal per triangle gives the
         // flat-shaded look every slicer shows.
         var normals = [SIMD3<Float>](repeating: .zero, count: points.count)
@@ -67,6 +144,6 @@ struct MiniViewer: View {
         let material = SimpleMaterial(color: .init(white: 0.66, alpha: 1), roughness: 0.75, isMetallic: false)
         let entity = ModelEntity(mesh: try MeshResource.generate(from: [d]), materials: [material])
         entity.name = "mini"
-        return entity
+        return (entity, size)
     }
 }

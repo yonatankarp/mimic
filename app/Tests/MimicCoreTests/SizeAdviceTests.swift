@@ -115,3 +115,32 @@ final class SizeAdviceTests: XCTestCase {
         XCTAssertEqual(PrintTips.nowLine(Sizes()), "Now: 32 mm character · 25 mm base · made for a 0.4 mm nozzle")
     }
 }
+
+final class JobProgressTests: XCTestCase {
+    func testNotes() {
+        XCTAssertEqual(JobProgress.note(.prep, elapsed: 12), "About 30 seconds · 0:12 so far.")
+        XCTAssertTrue(JobProgress.note(.generate, elapsed: 12 * 60).hasPrefix("About 7–10 minutes · 12:00 so far."))
+        XCTAssertTrue(JobProgress.note(.generate, elapsed: 12 * 60 + 1).contains("Taking longer than usual"))
+        XCTAssertTrue(JobProgress.note(.generate, elapsed: 25 * 60 + 1).contains("unusually slow"))
+    }
+
+    func testBar() {
+        let start = Date(timeIntervalSince1970: 0)
+        var s = JobStatus(name: "a", kind: .generate, step: 2, started: start)
+        XCTAssertEqual(JobProgress.fraction(s, now: start.addingTimeInterval(270)), 0.5)
+        XCTAssertEqual(JobProgress.fraction(s, now: start.addingTimeInterval(3000)), 0.95)
+        s.kind = .prep
+        XCTAssertEqual(JobProgress.fraction(s, now: start.addingTimeInterval(20)), 0.5)
+        s.running = false; s.exit = 0
+        XCTAssertEqual(JobProgress.fraction(s), 1)
+        s.exit = 1
+        XCTAssertEqual(JobProgress.fraction(s), 0)
+    }
+
+    func testDrawThingsCause() {
+        var s = JobStatus(name: "a", kind: .generate, step: 1, started: Date(), running: false, exit: 1)
+        XCTAssertFalse(JobProgress.drawThingsCaused(s))
+        s.problem = DrawThingsError.notRunning.description
+        XCTAssertTrue(JobProgress.drawThingsCaused(s))
+    }
+}
