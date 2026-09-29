@@ -40,7 +40,8 @@ downloads the real engine and the small model files, never the 8 GB of weights.
 ## Releasing
 
 1. Add a `## 0.3.0` section to `CHANGELOG.md`, written for people who use Mimic. It becomes the
-   release notes; a tag without one fails before anything is published.
+   release notes; a tag without one fails before anything is published. Keep each bullet on one line:
+   GitHub shows line breaks in release notes as they are.
 2. Push a version tag:
 
    ```bash
