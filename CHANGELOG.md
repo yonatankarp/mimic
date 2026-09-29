@@ -9,6 +9,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 - `mimic --version` (also `-v` and `mimic version`) says which Mimic you have, and `mimic --help` lists it.
 - **Mimic checks for updates.** Once a day, and from Mimic → Check for Updates…: a new version shows as a small note in the toolbar with what's new, and Update downloads it, checks it, replaces Mimic and opens it again (never while a mini is being made or waiting). Turn it off in Settings → Updates. Only GitHub's public release information is read; nothing about your Mac or your minis is sent.
 - **Draw Things without its API server.** Mimic downloads Draw Things' command line tool with its 3D engine (178 MB, once) and draws with it: Draw Things doesn't have to be open, and there's no API server to turn back on after it restarts. Pictures are always made on your Mac.
+- **Pick the best version.** A mini's page shows its other versions side by side; click one to see it, and Keep This One moves the others to the Trash and can give it the plain name. Only versions made from now on are grouped.
 - Your Mac no longer goes to sleep on its own while minis are being made or waiting, in the app or in Terminal. The screen can still turn off, and closing the lid still sleeps it.
 
 ### Changed

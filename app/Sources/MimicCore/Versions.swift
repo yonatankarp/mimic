@@ -19,7 +19,8 @@ extension JobRunner {
         let project = folder.deletingLastPathComponent().standardizedFileURL == install.runs.standardizedFileURL
             ? nil : folder.deletingLastPathComponent().lastPathComponent
         let ahead = try make(name: new, picture: picture, restyle: restyle, seed: s, sizes: settings.requested ?? Sizes(),
-                             kind: settings.kind ?? .character, model: model, project: project)
+                             kind: settings.kind ?? .character, model: model, project: project,
+                             versionOf: settings.versionOf ?? name)
         return (new, ahead)
     }
 
@@ -49,6 +50,15 @@ extension JobRunner {
 
 
 extension Gallery {
+    /// The versions of `mini` among `minis`, itself included, by name: the first one and every
+    /// mini in the same project that names it as `versionOf`. Just `mini` when it has none;
+    /// minis made before versions were recorded have none.
+    public static func versions(of mini: Mini, in minis: [Mini]) -> [Mini] {
+        let root = MiniSettings.load(mini.folder).versionOf ?? mini.name
+        return minis.filter { $0.project == mini.project && ($0.name == root || MiniSettings.load($0.folder).versionOf == root) }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
     /// "tiefling-wizard" → "tiefling-wizard-2", or the next number free anywhere in the minis
     /// folder; "raven-2" → "raven-3".
     public static func nextVersionName(_ runs: URL, _ name: String) -> String {
