@@ -1,0 +1,31 @@
+diff --git a/src/flow_runner.cpp b/src/flow_runner.cpp
+index 6399e69..a286991 100644
+--- a/src/flow_runner.cpp
++++ b/src/flow_runner.cpp
+@@ -439,11 +439,25 @@ static void apply_guidance_rescale(const std::vector<float>& sample, const std::
+     for (size_t k = 0; k < Nst; ++k) { float x0r = x0c[k]*ratio; float x0 = gr*x0r + (1-gr)*x0c[k]; pred[k] = (a*sample[k] - x0) / b; }
+ }
+ 
++// i2l_steps: parse PIXAL3D_STEPS. Anything but a whole number 1..50 keeps the default.
++static int i2l_steps_override(int fallback, const char* raw) {
++    if (!raw || !*raw) return fallback;
++    char* end = nullptr;
++    const long v = std::strtol(raw, &end, 10);
++    if (*end != '\0' || v < 1 || v > 50) return fallback;
++    return (int)v;
++}
++
+ std::vector<float> sample_flow(const FlowFwdProj& fwd, std::vector<float> sample,
+                                const float* cond, const float* neg_cond,
+                                const float* proj, const float* neg_proj,
+-                               const SamplerParams& sp,
++                               const SamplerParams& sp_in,
+                                std::vector<std::vector<float>>* trace) {
++    // i2l_steps: PIXAL3D_STEPS=N overrides the stage's hard-coded step count.
++    SamplerParams sp = sp_in;
++    sp.steps = i2l_steps_override(sp_in.steps, std::getenv("PIXAL3D_STEPS"));
++    if (sp.steps != sp_in.steps)
++        printf("      [flow] PIXAL3D_STEPS=%d overrides %d steps\n", sp.steps, sp_in.steps);
+     const float sm = sp.sigma_min;
+     const size_t Nst = sample.size();
+     const std::vector<double> ts = flow_t_schedule(sp.steps, sp.rescale_t);

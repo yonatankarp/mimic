@@ -60,7 +60,10 @@ The app downloads a pre-built Pixal3D so that nobody needs Xcode.
 1. Build it as the header of `tools/package_pixal3d.sh` describes. It has to target macOS 14,
    and it has to map the source path away so your home folder doesn't end up in the files.
    It also has to honour `PIXAL3D_STEPS` (its log says "PIXAL3D_STEPS=8 overrides 12 steps"):
-   stock pixal3d.cpp ignores it, and Mimic stops any run whose engine does.
+   stock pixal3d.cpp ignores it, and Mimic stops any run whose engine does. Apply
+   `tools/pixal3d-steps.patch` to the pixal3d.cpp checkout first (`git apply`); it's the change
+   image-to-3dlab's `scripts/patch_pixal3d_steps.py` made (Apache-2.0), kept here since Mimic
+   no longer uses image-to-3dlab.
 2. Run the script to package it.
 3. Upload the tarball to a GitHub release.
 4. Update `EngineDownload.version` and `EngineDownload.engine` (URL, size, sha256) in
