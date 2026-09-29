@@ -39,13 +39,15 @@ final class Health {
         }
     }
 
-    /// While the window that calls this is open: re-checks Draw Things every few seconds for
-    /// as long as any of its checks fails, so the setup steps tick off as they're done.
+    /// While the window that calls this is open: re-checks Draw Things every few seconds while
+    /// any of its checks fails, so the setup steps tick off as they're done. Once ready it keeps
+    /// asking, less often: Draw Things can be quit at any moment, and the web page once stopped
+    /// asking after it had seen it ready.
     func watchDrawThings(_ install: Install?) async {
         guard let install else { return }
         while !Task.isCancelled {
-            try? await Task.sleep(for: .seconds(4))
-            guard !running, !drawThingsReady else { continue }
+            try? await Task.sleep(for: .seconds(drawThingsReady ? 15 : 4))
+            guard !running else { continue }
             let run = generation
             for c in Checks(install: install).all where Checks.drawThingsIDs.contains(c.id) {
                 let r = await Task.detached { c.run() }.value
