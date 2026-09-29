@@ -265,7 +265,7 @@ private struct Stage: NSViewRepresentable {
 
         /// Soft light from all round, as RealityView gives by default: without it the lamps
         /// leave the shadows black. A plain studio, lighter overhead than underfoot.
-        static let ambience: Float = 2
+        static let ambience: Float = 0
         static func studio() -> EnvironmentResource? {
             let (width, height) = (64, 32)
             let pixels = (0..<height).flatMap { y in
