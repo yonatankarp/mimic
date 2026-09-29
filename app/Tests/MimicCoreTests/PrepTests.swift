@@ -336,13 +336,15 @@ final class PrepTests: XCTestCase {
         return (out, logged.contains { $0.hasPrefix("prep: set on its most stable side") })
     }
 
-    /// A box lying at 50°, past what levelling straightens, comes to rest on its biggest face.
+    /// A box lying at 50°, past what levelling straightens, comes to rest on its biggest face: of
+    /// the two, the one 50° from down rather than 130°, so it's the same turn every run.
     func testABoxOnItsEdgeIsSetOnItsBiggestFace() throws {
         var m = Mesh()
         m.add(Self.box(half: [1, 0.6, 0.4]), at: [0, 0, 0])
         let (out, turned) = try prepObject(Self.turned(m, 50, about: [1, 0, 0]))
         let scale: Float = 60 / 2
         XCTAssertTrue(turned, "\(logged)")
+        XCTAssertTrue(logged.contains("prep: set on its most stable side (turned 50°)"), "\(logged)")
         XCTAssertGreaterThan(out.flatBottom, 0.9 * 2 * 1.2 * scale * scale, "on its 2 x 1.2 face")
         XCTAssertEqual(out.bounds.hi.z - out.bounds.lo.z, 0.8 * scale + 0.16 - 0.4, accuracy: 0.4)
         XCTAssertTrue(out.watertight)
@@ -350,7 +352,7 @@ final class PrepTests: XCTestCase {
 
     /// A box 4 times as tall as wide stands on its end, and stays standing: it can be tilted
     /// 14° before it tips, and a vase or a tower is meant to stand. Past levelling's reach it
-    /// lies on its long side; and one 6 times as tall (9.5°) is too easily knocked over to print
+    /// lies on its long side; and one 8 times as tall (7.1°) is too easily knocked over to print
     /// standing, so it is laid down.
     func testATallBoxStandsButATippedOrSpindlyOneLiesDown() throws {
         var tall = Mesh()
@@ -364,10 +366,10 @@ final class PrepTests: XCTestCase {
         XCTAssertEqual(out.bounds.hi.z - out.bounds.lo.z, 0.5 * 30 + 0.16 - 0.4, accuracy: 0.4, "on its long side")
 
         var spindly = Mesh()
-        spindly.add(Self.box(half: [0.25, 0.25, 1.5]), at: [0, 0, 1.5])
+        spindly.add(Self.box(half: [0.25, 0.25, 2]), at: [0, 0, 2])
         (out, turned) = try prepObject(spindly)
         XCTAssertTrue(turned, "\(logged)")
-        XCTAssertEqual(out.bounds.hi.z - out.bounds.lo.z, 0.5 * 20 + 0.16 - 0.4, accuracy: 0.4, "on its long side")
+        XCTAssertEqual(out.bounds.hi.z - out.bounds.lo.z, 0.5 * 15 + 0.16 - 0.4, accuracy: 0.4, "on its long side")
     }
 
     /// A teapot upside down on its lid's knob (it tips at 5°) is set back on its base; a cup

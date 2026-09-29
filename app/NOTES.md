@@ -62,20 +62,25 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   1/256 grid cell of the main pieces, so floating specks don't hold it up), a side being the hull
   faces lying flat together within 3°. Counting every point near the floor instead made a round
   body a small flat disc, and every real model "stood" at every angle. It stands on a side if it
-  survives a 10° tilt there: atan(r/h), r from its centre of mass (the volume centroid when the
+  survives an 8° tilt there: atan(r/h), r from its centre of mass (the volume centroid when the
   surface closes, else the area centroid, since the generator's winding isn't reliable) in to the
-  side's nearest edge, h its height. Measured: the real bases 14° (teapot2), 16° (vase), 24°
-  (teapot); round sides at most 6.5°; a vase upside down on its mouth's rim 7.5°; a 4:1 box on
-  its end 14°, so it stands, where a 6:1 one (9.5°) is laid down. Standing on a side within 10°
-  of down, it is left alone however much steadier lying would be: a vase, a pillar or a statue
-  with a flat back is never laid down, so "much more stable elsewhere" is deliberately not a
-  reason. Otherwise it goes onto the steadiest side (most lift, sqrt(r² + h²) − h, to tip it)
-  within 30° of down, else of all. The real teapot had been levelled 2.8° onto the edge of its
-  foot and printed 20° askew; it is now set on its foot. The other real objects, and every
-  character, give the same bytes as before; turned 90° either way or 180°, the teapots and the
-  vase all came back upright on their bases (0.3–0.5 s for a million triangles, release build).
-  Limit: a thin part hanging below the base (the test fixture's wisp) is something it rests on,
-  so such an object reads as unable to stand and is laid down.
+  side's nearest edge, h its height. Measured on real models, after levelling: bases 13–26°
+  (teapot2, vase, teapot, and figures run as objects down to the elf on its feet at 8.4°); the
+  teapots and the vase on their sides or upside down, nothing within 30° of down above 6.1°. A
+  box 4 or 6 times as tall as wide stands (14°, 9.5°), 8 times (7.1°) is laid down. Standing on
+  a side within 10° of down, it is left alone however much steadier lying would be: a vase, a
+  pillar or a statue with a flat back is never laid down, so "much more stable elsewhere" is
+  deliberately not a reason. Otherwise it goes onto the steadiest side (most lift,
+  sqrt(r² + h²) − h, to tip it; nearest to down on a tie) within 30° of down, else of all. It
+  runs after levelling and nothing levels after it: the side's facing is already exact. The
+  real teapot had been levelled 2.8° onto the edge of its foot and printed 20° askew; it now
+  stands on its foot. teapot2, the vase and every character give the same bytes as before;
+  turned 90° either way or 180°, the teapots and the vase came back upright on their bases,
+  except the vase upside down, which stands on its mouth's rim (9.2°) and so stays. 0.3–0.5 s
+  for a million triangles in a release build. Limits: a figure that only stands on a base (the
+  halfling bard and a tiefling, centre of mass outside their feet) is laid down if made as an
+  object, and so is one with a thin part hanging below its base (the test fixture's wisp).
+  Characters never go through this.
 - **Same data on disk.** `runs/<name>/` with `<name>.stl`, `<name>_{front,side,back}.png`,
   `source.png` and `settings.json` (`requested` / `made` / how it was made), so minis made by
   the web version appear in the app unchanged.
