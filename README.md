@@ -30,7 +30,6 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
 | What | What it's for | Get it |
 |---|---|---|
 | Homebrew | Installs the tools below | [Homebrew/brew](https://github.com/Homebrew/brew) |
-| Blender | Makes the print-ready file | [blender/blender](https://github.com/blender/blender) |
 | Draw Things | Draws the pictures | [App Store](https://apps.apple.com/app/id6444050820) |
 | git | Fetches Mimic's 3D engine | [git/git](https://github.com/git/git) |
 | uv | Runs Mimic's 3D engine | [astral-sh/uv](https://github.com/astral-sh/uv) |
@@ -113,7 +112,7 @@ flowchart TD
   redraw --> image["Character image"]
   draw --> image
   image --> mesh["🧊 3D model<br/><i>Pixal3D</i>"]
-  mesh --> prep["🖨️ Print prep<br/><i>Blender</i>"]
+  mesh --> prep["🖨️ Print prep<br/><i>Mimic</i>"]
   prep --> out["STL + front, side and back previews"]
   out --> slicer["Your slicer"]
 ```
@@ -123,7 +122,7 @@ flowchart TD
 2. **The 3D model.** [Pixal3D](https://github.com/raven38/pixal3d.cpp), through
    [image-to-3dlab](https://github.com/Bingeljell/image-to-3dlab), builds a 3D model from the
    picture on your Mac's graphics chip.
-3. **Print prep.** Blender sizes the model, centres it on a round base, makes it one solid
+3. **Print prep.** Mimic sizes the model, centres it on a round base, makes it one solid
    piece, thickens thin parts to suit your nozzle, and flattens the bottom so it sits on the
    print bed.
 

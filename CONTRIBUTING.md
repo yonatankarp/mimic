@@ -5,22 +5,17 @@
 | Path | What |
 |---|---|
 | `Install Mimic.command`, `setup.sh` | The installer. `setup.sh --yes` skips the question; `--build-from-source` compiles Pixal3D instead of downloading it (needs Xcode). |
-| `app/` | The Mac app, a Swift package. `MimicCore` is everything but the windows (jobs, Draw Things, checks, the gallery on disk); `Mimic` is one binary that is the app, or the `mimic` command with arguments. `app/NOTES.md` has the design decisions and why. |
-| `pipeline/mini_prep.py` | Print prep in Blender. The comment at its top lists every tuning option. |
-| `pipeline/gen_views.py` | Experimental and unused: side and back views for Pixal3D's multiview mode. |
-| `pipeline/render_zoom.py` | Close-up render, for judging small details. |
+| `app/` | The Mac app, a Swift package. `MimicCore` is everything but the windows (jobs, Draw Things, checks, the gallery on disk); `Mimic` is one binary that is the app, or the `mimic` command with arguments. `app/NOTES.md` has the design decisions and why. Print prep is `MimicCore/Prep.swift`; its header lists every tuning option (`mimic _prep in.glb out.stl …` runs it by hand). |
 | `tools/package_app.sh`, `tools/package_pixal3d.sh` | Build the app and Pixal3D downloads the installer uses. |
-| `tests/` | Print-prep tests (the app's own tests are in `app/Tests`). |
 | `runs/`, `image-to-3dlab/` | Generated minis, and the 3D engine with its models. Both are git-ignored. |
 
 ## Building and testing
 
 ```bash
 cd app
-swift test                         # the engine: jobs, Stop, sizes, checks, rename, Draw Things
+swift test                         # the engine: jobs, Stop, sizes, checks, rename, Draw Things, print prep
 ./bundle.sh && open "build/Mimic Dev.app"
 MIMIC_HOME=.. swift run mimic list # the command line, without the app
-cd .. && tests/test_prep.sh        # print prep: watertight, flat bottom, right height, centred, one piece
 ```
 
 `bundle.sh` makes *Mimic Dev*, a separate app with its own settings, so it never replaces the

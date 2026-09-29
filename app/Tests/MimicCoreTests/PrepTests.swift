@@ -211,7 +211,7 @@ final class PrepTests: XCTestCase {
 
     /// The generated cube table on a random field, far harder than any figure: every one of the
     /// 256 corner patterns next to every other. (At 14³ it missed a fan whose diagonal lay on a
-    /// cube face, which the dwarf hit 39 times; 40³ catches it.)
+    /// cube face, which gave the dwarf 78 edges of four triangles; 40³ catches it.)
     func testTheCubeTableIsClosedForAnyField() {
         var rng = SplitMix(seed: 7)
         let n = 40

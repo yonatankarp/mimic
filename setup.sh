@@ -75,7 +75,6 @@ ok "Homebrew"
 # --- Tools and apps --------------------------------------------------------------------------
 step "Tools and apps"
 for f in git uv; do brew list --formula "$f" >/dev/null 2>&1 || brew install "$f"; done
-[ -d /Applications/Blender.app ] || brew install --cask blender
 [ -d "/Applications/Draw Things.app" ] || brew install --cask draw-things
 ok "git, uv, Blender, Draw Things"
 

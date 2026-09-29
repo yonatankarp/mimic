@@ -36,7 +36,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
 </dict></plist>
 PLIST
 codesign --force --deep -s - "$app" 2>/dev/null
-# Where the Mimic folder is (runs/, the 3D engine, the Blender script). The installer writes it
+# Where the Mimic folder is (runs/ and the 3D engine). The installer writes it
 # for the release build, which is packaged and so mustn't carry this checkout's path.
 [ "$kind" = release ] || defaults write "$id" installDir "$(cd .. && pwd)"
 echo "$app"
