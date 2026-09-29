@@ -96,9 +96,17 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   mesh takes 0.37 s (573 MB). Both are fine; SceneKit is no longer developed, so RealityKit.
   RealityKit can't open STL, so Model I/O reads it and the triangles become a `MeshResource`,
   flat-shaded (one normal per triangle, like every slicer).
-- **The 3D view turns the mini, not a camera.** RealityKit's orbit controls always zoom on
-  scroll and can't be told not to, so dragging rotates the mini and a pinch zooms it once
-  unlocked; Front and double-click reset that one transform. Scroll-wheel zoom isn't offered.
+- **The 3D view turns the mini, not a camera.** Dragging rotates the mini; a pinch, a
+  trackpad scroll or a mouse wheel zooms it toward the pointer (the maths is
+  `MimicCore/ViewerZoom.swift`, tested); Face Front and double-click reset turn, zoom and offset.
+  Zoom listens to the window's pinch and scroll events while the pointer is over the view:
+  a SwiftUI MagnifyGesture never fired, because the 3D view kept pinches to itself.
+- **The 3D view draws only when something changes.** SwiftUI's `RealityView` redraws every
+  display frame and has no public way to pause, which cost about 20% of a core with a mini just
+  standing there. `RealityRenderer` (public, macOS 15) drawing into a paused Metal view redraws
+  on a turn, zoom, resize or new mini, and every frame only while a glide plays: about 1% of a
+  core idle in front, 0% behind. It has no default ambient light, so it carries its own grey
+  studio light, matched to the old look by brightness.
 - **Jobs run in their own session** (`GroupProcess`, `posix_spawn` + `POSIX_SPAWN_SETSID`),
   so Stop ends the whole chain. Foundation's `Process` can't do that. Proven by
   `GroupProcessTests`, including the test that shows the child surviving without a session.

@@ -1,0 +1,60 @@
+import XCTest
+import simd
+@testable import MimicCore
+
+final class ViewerZoomTests: XCTestCase {
+    func testAWheelClickInAndOutCancel() {
+        let click = ViewerZoom.factor(scroll: 1, precise: false)
+        XCTAssertEqual(click, 1.105, accuracy: 0.001, "about 10% a click")
+        XCTAssertEqual(click * ViewerZoom.factor(scroll: -1, precise: false), 1, accuracy: 1e-6)
+        XCTAssertEqual(ViewerZoom.factor(scroll: 40, precise: false), ViewerZoom.factor(scroll: 3, precise: false),
+                       "a hard spin is capped at three clicks an event")
+    }
+
+    func testATrackpadSwipeDoublesAndAPinchFollowsTheFingers() {
+        // A long swipe arrives as many small events; together they about double it.
+        let swipe = (0..<30).reduce(Float(1)) { z, _ in z * ViewerZoom.factor(scroll: 10, precise: true) }
+        XCTAssertEqual(swipe, 2, accuracy: 0.05)
+        XCTAssertEqual(ViewerZoom.factor(magnification: 0.02), 1.02, accuracy: 0.001)
+        XCTAssertEqual(ViewerZoom.factor(magnification: 0.1) * ViewerZoom.factor(magnification: -0.1), 1, accuracy: 1e-6)
+    }
+
+    func testThePointUnderThePointerStaysUnderIt() {
+        // Model point m is drawn at offset + scale × m (turning doesn't change the argument).
+        let anchor = SIMD2<Float>(0.3, 0.2)
+        let offset = SIMD2<Float>(0.1, -0.05), scale: Float = 2
+        let m = (anchor - offset) / scale  // the point of the mini under the pointer
+        let z = ViewerZoom.zoomed(scale: scale, offset: offset, by: 1.25, toward: anchor)
+        XCTAssertEqual(z.scale, 2.5)
+        XCTAssertLessThan(simd_distance(z.offset + z.scale * m, anchor), 1e-6, "still under the pointer")
+    }
+
+    func testZoomingAtTheMiddleOnlyScales() {
+        let z = ViewerZoom.zoomed(scale: 1, offset: .zero, by: 3, toward: .zero)
+        XCTAssertEqual(z.scale, 3)
+        XCTAssertEqual(z.offset, .zero)
+    }
+
+    func testClampsTheZoomAndKeepsTheMiniInView() {
+        XCTAssertEqual(ViewerZoom.zoomed(scale: 3.9, offset: .zero, by: 2, toward: .zero).scale, 4)
+        XCTAssertEqual(ViewerZoom.zoomed(scale: 0.5, offset: .zero, by: 0.1, toward: .zero).scale, 0.4)
+        // Zooming in at a far corner grows it away from that corner, but by at most half the extra size.
+        let corner = ViewerZoom.zoomed(scale: 1, offset: .zero, by: 2, toward: [5, 5])
+        XCTAssertEqual(corner.offset, [-0.5, -0.5])
+        // Back at the default size (or smaller) it's in the middle again, wherever the pointer is.
+        let back = ViewerZoom.zoomed(scale: 2, offset: [0.5, 0.5], by: 0.5, toward: [0.7, -0.3])
+        XCTAssertEqual(back.scale, 1)
+        XCTAssertEqual(back.offset, .zero)
+    }
+
+    func testThePointerMapsOntoTheMinisPlane() {
+        let size = CGSize(width: 800, height: 400)
+        XCTAssertEqual(ViewerZoom.anchor(at: CGPoint(x: 400, y: 200), in: size, distance: 1.7, fieldOfView: 45), .zero)
+        let halfHeight = 1.7 * tan(Float.pi / 8)
+        let top = ViewerZoom.anchor(at: CGPoint(x: 400, y: 0), in: size, distance: 1.7, fieldOfView: 45)
+        XCTAssertEqual(top.y, halfHeight, accuracy: 1e-5, "the top edge is up, not down")
+        let left = ViewerZoom.anchor(at: CGPoint(x: 0, y: 200), in: size, distance: 1.7, fieldOfView: 45)
+        XCTAssertEqual(left.x, -2 * halfHeight, accuracy: 1e-5, "twice as wide as tall")
+        XCTAssertEqual(ViewerZoom.anchor(at: .zero, in: .zero, distance: 1.7, fieldOfView: 45), .zero)
+    }
+}

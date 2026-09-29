@@ -1,3 +1,5 @@
+import MetalKit
+import MimicCore
 import ModelIO
 import RealityKit
 import SwiftUI
@@ -7,7 +9,10 @@ import SwiftUI
 /// milestone-0 measurement (SceneKit was faster, but Apple has stopped developing it).
 ///
 /// Dragging turns the mini itself rather than orbiting a camera, so turning, zooming and Front
-/// are all one transform this view owns. Zoom is a pinch, locked by default like the web page's.
+/// are all one transform this view owns. Pinch or scroll zooms toward the pointer.
+///
+/// The scene is drawn only when something changes (see `Stage`): RealityView redraws every
+/// frame, 20% of a core with a mini just standing there.
 struct MiniViewer: View {
     let stl: URL
     /// The print file's date: a resize rewrites the file under the same name.
@@ -20,7 +25,11 @@ struct MiniViewer: View {
     @State private var turn = SIMD2<Float>.zero  // yaw, pitch
     @State private var turnStart: SIMD2<Float>?
     @State private var zoom: Float = 1
-    @State private var hovering = false
+    /// Where zooming toward the pointer has moved the mini, in the scene's metres.
+    @State private var offset = SIMD2<Float>.zero
+    /// The pointer, while it's over the view.
+    @State private var pointer: CGPoint?
+    @State private var viewSize = CGSize.zero
     @State private var zoomEvents: Any?
     /// While Front plays its animation, the view leaves the transform to it.
     @State private var gliding = false
@@ -30,27 +39,10 @@ struct MiniViewer: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        RealityView { content in
-            content.add(Self.lights())
-            // A camera of our own: without camera controls, the default one sits too close.
-            let camera = PerspectiveCamera()
-            camera.camera.fieldOfViewInDegrees = 45
-            camera.position = [0, 0, 1.7]
-            content.add(camera)
-        } update: { content in
-            guard let mini else { return }
-            if mini.parent == nil {
-                content.entities.filter { $0.name == "mini" }.forEach { content.remove($0) }
-                content.add(mini)
-                // Grows the last few percent into place as it fades in (the task set it smaller).
-                if gliding { mini.move(to: Transform(), relativeTo: mini.parent, duration: 0.5, timingFunction: .easeOut) }
-            }
-            guard !gliding else { return }
-            mini.transform = Transform(scale: SIMD3(repeating: zoom),
-                                       rotation: simd_quatf(angle: turn.y, axis: [1, 0, 0]) * simd_quatf(angle: turn.x, axis: [0, 1, 0]),
-                                       translation: .zero)
-        }
-        .realityViewCameraControls(.none)
+        Stage(mini: mini, gliding: gliding,
+              transform: Transform(scale: SIMD3(repeating: zoom),
+                                   rotation: simd_quatf(angle: turn.y, axis: [1, 0, 0]) * simd_quatf(angle: turn.x, axis: [0, 1, 0]),
+                                   translation: SIMD3(offset, 0)))
         .opacity(shown ? 1 : 0)
         .accessibilityElement()
         .accessibilityLabel(size.map { "3D view of \(name), \($0)" } ?? "3D view of \(name)")
@@ -65,19 +57,24 @@ struct MiniViewer: View {
                          min(1.1, max(-1.1, start.y + Float(g.translation.height) * 0.01)))
         }.onEnded { _ in turnStart = nil })
         .onTapGesture(count: 2) { front() }
-        // Pinch and scroll zoom while the pointer is over the mini. Watched as window events, not
-        // a SwiftUI gesture: the 3D view kept pinches to itself, so a MagnifyGesture never fired.
-        .onContinuousHover { phase in if case .active = phase { hovering = true } else { hovering = false } }
+        // Pinch and scroll zoom toward the pointer while it's over the mini. Watched as window
+        // events: SwiftUI has no gesture for a scroll wheel, and one monitor handles both.
+        .onContinuousHover { phase in if case .active(let at) = phase { pointer = at } else { pointer = nil } }
+        .onGeometryChange(for: CGSize.self, of: \.size) { viewSize = $0 }
         .onAppear {
             zoomEvents = NSEvent.addLocalMonitorForEvents(matching: [.magnify, .scrollWheel]) { event in
                 // A pinch reports how much it grew; a scroll how far it moved, in fine steps on a
-                // trackpad or Magic Mouse and coarse ones on a mouse wheel.
-                let factor: Float = event.type == .magnify
-                    ? 1 + Float(event.magnification)
-                    : 1 + Float(event.scrollingDeltaY) * (event.hasPreciseScrollingDeltas ? 0.004 : 0.04)
+                // trackpad or Magic Mouse and in lines on a mouse wheel. The glide a trackpad adds
+                // after the fingers lift is ignored: zooming stops when you stop.
+                let factor: Float? = event.type == .magnify ? ViewerZoom.factor(magnification: event.magnification)
+                    : event.momentumPhase.isEmpty ? ViewerZoom.factor(scroll: event.scrollingDeltaY, precise: event.hasPreciseScrollingDeltas)
+                    : nil
                 let used = MainActor.assumeIsolated { () -> Bool in
-                    guard hovering, !gliding else { return false }
-                    zoom = min(4, max(0.4, zoom * factor))
+                    guard let pointer, !gliding else { return false }
+                    if let factor {
+                        let anchor = ViewerZoom.anchor(at: pointer, in: viewSize, distance: Stage.distance, fieldOfView: Stage.fieldOfView)
+                        (zoom, offset) = ViewerZoom.zoomed(scale: zoom, offset: offset, by: factor, toward: anchor)
+                    }
                     return true
                 }
                 return used ? nil : event
@@ -129,7 +126,7 @@ struct MiniViewer: View {
                 guard !Task.isCancelled else { return }
             }
             shown = false
-            turn = .zero; zoom = 1
+            turn = .zero; zoom = 1; offset = .zero
             // ponytail: loads on the main actor (about 0.4 s for the biggest print file); move the
             // file reading off it if bigger minis make that noticeable.
             guard let (entity, mm) = try? Self.load(stl) else { mini = nil; size = nil; failed = true; return }
@@ -151,14 +148,14 @@ struct MiniViewer: View {
     private func front() {
         let seconds = 0.45
         guard let mini, !gliding, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
-            turn = .zero; zoom = 1
+            turn = .zero; zoom = 1; offset = .zero
             return
         }
         gliding = true
         mini.move(to: Transform(), relativeTo: mini.parent, duration: seconds, timingFunction: .easeInOut)
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(seconds))
-            turn = .zero; zoom = 1
+            turn = .zero; zoom = 1; offset = .zero
             gliding = false
         }
     }
@@ -215,4 +212,118 @@ struct MiniViewer: View {
         entity.name = "mini"
         return (entity, size)
     }
+}
+
+/// The 3D scene, drawn by RealityKit's renderer into a Metal view that redraws only when asked:
+/// when the mini turns, zooms, loads or the view resizes, and every frame only while a glide
+/// (Face Front, the grow-in on load) plays. RealityView can't be paused and drew every frame,
+/// about 20% of a core with nothing moving.
+private struct Stage: NSViewRepresentable {
+    static let distance: Float = 1.7
+    static let fieldOfView: Float = 45  // degrees, top to bottom
+    let mini: Entity?
+    let gliding: Bool
+    let transform: Transform
+
+    func makeCoordinator() -> Painter { Painter() }
+    func makeNSView(context: Context) -> MTKView { context.coordinator.view }
+    func updateNSView(_ view: MTKView, context: Context) { context.coordinator.show(mini, transform, gliding: gliding) }
+
+    /// Passes the mouse through to the SwiftUI gestures around it.
+    final class PassThrough: MTKView {
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    }
+
+    @MainActor final class Painter: NSObject, MTKViewDelegate {
+        let view = PassThrough(frame: .zero, device: MTLCreateSystemDefaultDevice())
+        private let renderer = try? RealityRenderer()
+        private var mini: Entity?
+        private var drawn: Transform?
+        private var lastFrame: CFTimeInterval?
+
+        override init() {
+            super.init()
+            view.delegate = self
+            view.isPaused = true
+            view.enableSetNeedsDisplay = true
+            view.framebufferOnly = false  // RealityKit renders into the drawable's texture
+            view.colorPixelFormat = .bgra8Unorm_srgb
+            view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
+            view.layer?.isOpaque = false  // the stage's backdrop shows through
+            guard let renderer else { return }
+            // A camera of our own: the default one sits too close.
+            let camera = PerspectiveCamera()
+            camera.camera.fieldOfViewInDegrees = Stage.fieldOfView
+            camera.camera.fieldOfViewOrientation = .vertical
+            camera.position = [0, 0, Stage.distance]
+            renderer.entities.append(contentsOf: [MiniViewer.lights(), camera])
+            renderer.activeCamera = camera
+            renderer.cameraSettings.colorBackground = .color(CGColor(gray: 0, alpha: 0))
+            renderer.lighting.resource = Self.studio()
+            renderer.lighting.intensityExponent = Self.ambience
+        }
+
+        /// Soft light from all round, as RealityView gives by default: without it the lamps
+        /// leave the shadows black. A plain studio, lighter overhead than underfoot.
+        static let ambience: Float = 2
+        static func studio() -> EnvironmentResource? {
+            let (width, height) = (64, 32)
+            let pixels = (0..<height).flatMap { y in
+                [UInt8](repeating: UInt8(235 - 120 * y / (height - 1)), count: width)
+            }
+            guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width,
+                                          space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue) else { return nil }
+            context.data?.copyMemory(from: pixels, byteCount: pixels.count)
+            return context.makeImage().flatMap { try? EnvironmentResource(equirectangular: $0) }
+        }
+
+        func show(_ entity: Entity?, _ transform: Transform, gliding: Bool) {
+            if entity !== mini, let renderer {
+                if let mini { renderer.entities.remove(mini) }
+                if let entity {
+                    renderer.entities.append(contentsOf: [entity])
+                    // Grows the last few percent into place as it fades in (the task set it smaller).
+                    if gliding { entity.move(to: Transform(), relativeTo: nil, duration: 0.5, timingFunction: .easeOut) }
+                }
+                mini = entity
+                drawn = nil
+                view.needsDisplay = true
+            }
+            view.isPaused = !gliding
+            guard !gliding else { drawn = nil; return }  // the animation owns the transform, drawn every frame
+            if lastFrame != nil {
+                // A glide just ended. Its animation may be a frame short of the end, and would
+                // keep putting its last value back; stop it so the view's transform wins.
+                mini?.stopAllAnimations()
+                try? renderer?.update(0)  // the stop takes effect at the next update
+                lastFrame = nil
+            }
+            // SwiftUI asks again whenever anything on the page changes; redraw only for the mini.
+            guard let mini, transform != drawn || mini.transform != transform else { return }
+            mini.transform = transform
+            drawn = transform
+            view.needsDisplay = true
+        }
+
+        func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) { view.needsDisplay = true }
+
+        func draw(in view: MTKView) {
+            guard let renderer, let drawable = view.currentDrawable else { return }
+            // Animations advance by the time since the last frame; a redraw while still is a
+            // step of zero.
+            let now = CACurrentMediaTime()
+            let step = view.isPaused ? 0 : lastFrame.map { now - $0 } ?? 0
+            lastFrame = view.isPaused ? nil : now
+            let frame = Frame(drawable: drawable)
+            do {
+                let output = try RealityRenderer.CameraOutput(.singleProjection(colorTexture: drawable.texture))
+                try renderer.updateAndRender(deltaTime: step, cameraOutput: output, onComplete: { _ in frame.drawable.present() })
+            } catch {
+                // Nothing to show this frame; the next change draws again.
+            }
+        }
+    }
+
+    /// The drawable, handed to the renderer's completion, which runs off the main actor.
+    private struct Frame: @unchecked Sendable { let drawable: any CAMetalDrawable }
 }

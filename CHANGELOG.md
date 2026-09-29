@@ -12,13 +12,14 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 - The queue is shared by every Mimic on your Mac, including `mimic` in Terminal: `mimic make` while Mimic is busy adds to the queue and tells you its place (`--wait` waits until it's made), `mimic queue` lists it, and `mimic queue remove <name>` takes one out.
 - **Times that fit your Mac.** Mimic times every mini it makes and estimates the next from the ones like it: in New Mini ("about 8 minutes on this Mac"), in the progress window (time left for each step), for the queue, and for each 3D model in Settings. Until you've made a few, it uses its own figures.
 - Settings → Time estimates says how many minis the estimates are based on, with Clear to start over. The times are kept on your Mac only and never sent anywhere.
-- **Zoom with your mouse.** Scroll the wheel, or pinch or two-finger scroll on a trackpad, over the 3D view. The "Pinch to Zoom" switch is gone; Face Front zooms back out.
+- **Zoom with your mouse, where you point.** Scroll the wheel, or pinch or two-finger scroll on a trackpad, over the 3D view: it zooms toward the spot under the pointer, the same amount in as out. The "Pinch to Zoom" switch is gone; Face Front or a double-click puts it back.
 - **Draw Things opens by itself.** When a mini needs a picture drawn, Mimic opens Draw Things in the background and quits it afterwards if it opened it, so you no longer have to open it first. Turn this off in Settings → Open Draw Things when needed.
 - **Better AI descriptions.** Glowing, sparks and smoke are taken out of improved descriptions (they don't print), and Settings suggests the best local model you have installed.
 - **Projects.** Group your minis into folders (the same folders in Finder): New Project at the bottom of the list (⇧⌘N), drag minis onto one or right-click → Move to Project, and rename or delete a project from its right-click menu. Deleting one asks whether to keep its minis (in Unsorted) or move them to the Trash too. New Mini asks which project it goes in; in Terminal, `mimic make … --project "Name"`, `mimic move`, `mimic projects`, and `mimic list` shows each project.
 - **Make Another Version.** Right-click a mini (or the Mini menu) to make it again from the same picture or description and settings with a different variation number, next to it in the same project: a pet on a shoulder that came out as a blob may come out right. It waits its turn in the queue, so you can line up a few and keep the best. In Terminal: `mimic make-another <name>`.
 
 ### Fixed
+- The 3D view no longer keeps your Mac busy while the mini just stands there: it used about a fifth of a processor core the whole time a mini was open, and now close to none.
 - Opening a second Mimic (or running `mimic` in Terminal) while one was making a mini could stop that mini.
 
 ## 0.4.2
