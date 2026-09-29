@@ -259,7 +259,7 @@ struct SetupView: View {
                 Text("Optional").font(.caption).padding(.horizontal, 8).padding(.vertical, 2)
                     .background(.quaternary, in: Capsule())
             }
-            Text("A free app that lets Mimic draw a character from a description, and turn drawings into grey sculpts. Your own pictures work without it, and you can set it up any time in Settings.")
+            Text("A free app that lets Mimic draw a character from a description, and turn drawings into grey sculpts. Mimic opens it when it needs it. Your own pictures work without it, and you can set it up any time in Settings.")
                 .foregroundStyle(.secondary)
             DrawThingsSteps()
         }

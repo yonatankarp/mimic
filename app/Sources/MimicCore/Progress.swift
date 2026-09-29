@@ -52,6 +52,7 @@ public enum JobProgress {
 
     /// Beside a step: how long the one running has left, or how long one to come should take.
     public static func stepNote(_ step: Int, of s: JobStatus, estimate: Estimate, now: Date = Date()) -> String? {
+        if s.running, step == s.step, s.openingDrawThings { return "Opening Draw Things…" }
         guard s.running, step >= s.step, let e = estimate.steps[step] else { return nil }
         if step > s.step { return e < 45 ? "seconds" : about(e) }
         let left = e - now.timeIntervalSince(s.stepStarted ?? s.started)

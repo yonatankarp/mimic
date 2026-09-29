@@ -59,8 +59,13 @@ final class Health {
 
     func ok(_ id: String) -> Bool { results[id]?.ok == true }
 
-    /// False until every Draw Things check has come back green.
+    /// False until every Draw Things check has come back green. Closed counts as green when
+    /// Mimic opens it (Settings → Open Draw Things when needed).
     var drawThingsReady: Bool { Checks.drawThingsIDs.allSatisfy(ok) }
+    /// Ready, and closed: Mimic opens it when a mini needs it.
+    var drawThingsOpensWhenNeeded: Bool { results["drawthings-api"]?.label == Checks.opensWhenNeeded }
+    /// Its API has answered in this check, so its connection is known to be on.
+    var drawThingsConnected: Bool { ok("drawthings-api") && !drawThingsOpensWhenNeeded }
 
     /// Why a mini can't be made right now, or nil. Only known failures count: a check still
     /// running doesn't block.

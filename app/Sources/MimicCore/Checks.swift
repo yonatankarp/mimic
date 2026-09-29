@@ -31,6 +31,8 @@ public struct Checks: Sendable {
     public var model: EngineModel
     public var appFolders: [URL]
     public var drawThings: DrawThings
+    /// Settings → Open Draw Things when needed: then Draw Things being closed is fine.
+    public var autoOpen: Bool
     public var run: Runner
     public var freeBytes: @Sendable (URL) -> Int64?
 
@@ -38,11 +40,15 @@ public struct Checks: Sendable {
                 model: EngineModel,
                 appFolders: [URL] = Slicer.appFolders(),
                 drawThings: DrawThings = DrawThings(),
+                autoOpen: Bool = DrawThingsApp.enabled(),
                 run: @escaping Runner = Checks.execute,
                 freeBytes: @escaping @Sendable (URL) -> Int64? = Checks.freeBytes) {
-        self.install = install; self.model = model; self.appFolders = appFolders; self.drawThings = drawThings
+        self.install = install; self.model = model; self.appFolders = appFolders; self.drawThings = drawThings; self.autoOpen = autoOpen
         self.run = run; self.freeBytes = freeBytes
     }
+
+    /// The API check's label while Draw Things is closed and Mimic will open it.
+    public static let opensWhenNeeded = "Draw Things opens when needed"
 
     public static let drawThingsIDs: Set<String> = ["drawthings-app", "drawthings-api", "drawthings-model"]
 
@@ -60,11 +66,14 @@ public struct Checks: Sendable {
                                    fix: "Free up some space: each mini takes about 150 MB while it's being made.")
             },
             check("drawthings-app", "Draw Things app", false, "Install Draw Things from the Mac App Store. It's free.") {
-                s.appFolders.contains { s.isDirectory($0.appendingPathComponent("Draw Things.app")) }
+                s.drawThingsInstalled()
             },
-            check("drawthings-api", "Draw Things is open and connected", false,
-                  "Open Draw Things, then Settings → Advanced → API Server: turn it on, choose HTTP, port 7860.") {
-                s.drawThings.reachable()
+            Check(id: "drawthings-api", label: "Draw Things is open and connected", required: false, fix: Self.apiFix) {
+                // Closed is fine when Mimic opens it: informative, not something to fix.
+                let connected = s.drawThings.reachable()
+                let ok = connected || (s.autoOpen && s.drawThingsInstalled())
+                return CheckResult(id: "drawthings-api", label: connected || !ok ? "Draw Things is open and connected" : Self.opensWhenNeeded,
+                                   required: false, ok: ok, fix: Self.apiFix)
             },
             check("drawthings-model", "FLUX.2 Klein model in Draw Things", false,
                   "In Draw Things' model list, search for FLUX.2 Klein and download it.") { s.drawThings.model() != nil },
@@ -75,6 +84,10 @@ public struct Checks: Sendable {
             },
         ]
     }
+
+    static let apiFix = "Open Draw Things, then Settings → Advanced → API Server: turn it on, choose HTTP, port 7860."
+
+    func drawThingsInstalled() -> Bool { appFolders.contains { isDirectory($0.appendingPathComponent("Draw Things.app")) } }
 
     private func check(_ id: String, _ label: String, _ required: Bool, _ fix: String,
                        _ test: @escaping @Sendable () -> Bool) -> Check {
