@@ -87,14 +87,16 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   proven end to end with this engine build are offered. Measured on the dwarf (seed 42, M2 Max
   32 GB, `mimic make … --model <id>` through the app's own `_engine` and `_prep`):
 
-  | Model | Download | 3D step | Whole mini | Peak RSS |
+  | Model | Download | Flows (sum) | Whole mini | Max RSS of any step |
   |---|---|---|---|---|
-  | Pixal3D (`pixal3d-sv`, default) | 8.1 GB | 7.5 min | ~9 min | 4.7 GB |
-  | TRELLIS.2 (`trellis2-q8`) | 9.1 GB | ~12 min | 13.5 min | 6.9 GB |
-  | TRELLIS.2 Lite (`trellis2-q4`) | 5.7 GB | ~11 min | 12.3 min | 8.1 GB |
+  | Pixal3D (`pixal3d-sv`, default) | 8.1 GB | 5.5 min | 7.5 min | 5.1 GB |
+  | TRELLIS.2 (`trellis2-q8`) | 9.1 GB | 11.5 min | 13.5 min | 6.9 GB |
+  | TRELLIS.2 Lite (`trellis2-q4`) | 5.7 GB | 9.7 min | 12.3 min | 8.1 GB |
 
-  TRELLIS.2's high-resolution shape pass is the difference (13,600 tokens, 5–6 minutes,
-  against Pixal3D's 45 s). Look: Pixal3D has the sharpest face and rivets; both TRELLIS.2 sets
+  (`/usr/bin/time -l` on `mimic make`: its RSS is the largest step it waited for, so the
+  Lite figure isn't the engine's alone.) TRELLIS.2's high-resolution shape pass is the
+  difference: 13,600 tokens, 5–6 minutes, against Pixal3D's 2.8. One picture and one seed,
+  so the look below is a first impression, not a ranking. Look: Pixal3D has the sharpest face and rivets; both TRELLIS.2 sets
   put the hammer on the shoulder where the picture has it, where Pixal3D pushed it out towards
   the viewer (see the side renders), and q4 is hard to tell from q8. TRELLIS.2 runs the plain
   one-picture pipeline at its own defaults (`--image … --output …`: a lone positional after
