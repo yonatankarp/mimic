@@ -44,7 +44,7 @@ public enum Step: Equatable, Sendable {
     case run(executable: String, arguments: [String], directory: String?, log: URL)
 }
 
-public enum JobKind: String, Sendable { case generate, prep }
+public enum JobKind: String, Codable, Sendable { case generate, prep }
 
 public enum Pipeline {
     /// The steps that make (or resize) the mini in `folder`, from its saved settings. Built from

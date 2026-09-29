@@ -2,6 +2,20 @@
 
 What's new in each version of Mimic. The release workflow publishes a version's section here as its release notes, so write it for people who use Mimic, not for developers.
 
+## 0.5.0
+
+### New
+- **A queue.** Press Make My Mini, Resize or Try Again while a mini is being made and it waits its turn instead of being refused: "Added to the queue — 1 ahead of it, ready in about 8 minutes".
+- **See what's waiting** in the progress window and the toolbar: each mini with how long it takes and when it should be ready. Move one up, or take it out (a new mini's picture and settings go to the Trash).
+- Minis waiting to be made show in your gallery as "Waiting (2nd)", with their picture. The Dock icon shows how many are waiting.
+- **Stop ends only the mini being made**; the queue carries on with the next one. Quit and the queue waits: it starts again the next time you open Mimic, without asking.
+- The queue is shared by every Mimic on your Mac, including `mimic` in Terminal: `mimic make` while Mimic is busy adds to the queue and tells you its place (`--wait` waits until it's made), `mimic queue` lists it, and `mimic queue remove <name>` takes one out.
+- **Times that fit your Mac.** Mimic times every mini it makes and estimates the next from the ones like it: in New Mini ("about 8 minutes on this Mac"), in the progress window (time left for each step), for the queue, and for each 3D model in Settings. Until you've made a few, it uses its own figures.
+- Settings → Time estimates says how many minis the estimates are based on, with Clear to start over. The times are kept on your Mac only and never sent anywhere.
+
+### Fixed
+- Opening a second Mimic (or running `mimic` in Terminal) while one was making a mini could stop that mini.
+
 ## 0.4.2
 
 ### New

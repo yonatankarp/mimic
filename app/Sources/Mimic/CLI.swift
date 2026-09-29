@@ -12,9 +12,13 @@ enum CLI {
       mimic retry <name>
       mimic list
       mimic models
+      mimic queue
+      mimic queue remove <name>
     options: --height MM  --base MM  --nozzle 0.2|0.4|0.6  --inflate MM  --no-base  --seed N  --model ID
     anything that isn't a character: make … --object  [--size MM (longest side)]  [--add-base]
     --improve: the AI helper chosen in Settings writes a fuller description first
+    --wait: while another mini is being made, make, resize and retry join the queue and return;
+            --wait stays until this one is made
     """
 
     static func run(_ args: [String]) -> Int32 {
@@ -28,12 +32,15 @@ enum CLI {
         // its app, so it would read its own empty settings rather than the app's.
         let defaults = Bundle.main.bundleIdentifier == nil ? UserDefaults(suiteName: "com.mimic.app") ?? .standard : .standard
         let install = Install.locate(defaults: defaults)
-        Leftover.stop(install.runs)
+        let timings = Timings.standard()
         var rest = Array(args.dropFirst())
         switch args.first {
         case "list":
+            JobRunner(install: install).cleanUpLeftovers()
+            let queue = JobQueue(runs: install.runs).entries()
             for m in Gallery.list(install.runs) {
-                print("\(m.name)\t\(m.stl == nil ? "unfinished" : "ready")\t\(m.madeAt)")
+                let state = queue.contains { $0.name == m.name } ? "waiting" : m.stl == nil ? "unfinished" : "ready"
+                print("\(m.name)\t\(state)\t\(m.madeAt)")
             }
             return 0
         case "models":
@@ -41,10 +48,23 @@ enum CLI {
             let selected = EngineDownload.selected(defaults: defaults)
             for m in EngineDownload.catalogue {
                 let state = m.complete(in: install) ? "downloaded" : "not downloaded"
-                print("\(m.id == selected.id ? "*" : " ") \(m.id)\t\(m.name)\t\(Checks.gigabytes(m.bytes)) GB\t\(state)\t\(m.summary)")
+                print("\(m.id == selected.id ? "*" : " ") \(m.id)\t\(m.name)\t\(Checks.gigabytes(m.bytes)) GB\t\(state)\t\(m.described())")
             }
             print("* = the one Mimic uses. Choose or download one in the Mimic app: Settings → 3D model.")
             return 0
+        case "queue":
+            let jobs = JobRunner(install: install)
+            jobs.cleanUpLeftovers()
+            if rest.first == "remove" {
+                guard rest.count == 2 else { return fail("usage: mimic queue remove <name>") }
+                do {
+                    guard try jobs.remove(rest[1]) else { return fail("\(rest[1]) isn't waiting in the queue.") }
+                } catch { return fail("\(error)") }
+                print("Took \(Mini.displayName(rest[1])) out of the queue.")
+                return 0
+            }
+            guard rest.isEmpty else { return fail(usage) }
+            return listQueue(jobs, history: timings.load())
         case "make", "resize", "retry":
             guard let name = rest.first, !name.hasPrefix("-") else { return fail(usage) }
             // Setup downloads the engine in the app, where it can show its progress.
@@ -54,7 +74,7 @@ enum CLI {
             rest.removeFirst()
             var sizes = Sizes(), image: String?, restyle = false, seed = 42, description: String?, improve = false
             var model = EngineDownload.selected(defaults: defaults)
-            var object = false, addBase = false
+            var object = false, addBase = false, wait = false
             while let a = rest.first {
                 rest.removeFirst()
                 func value() -> String? { rest.isEmpty ? nil : rest.removeFirst() }
@@ -69,6 +89,7 @@ enum CLI {
                 case "--image": image = value()
                 case "--restyle": restyle = true
                 case "--improve": improve = true
+                case "--wait": wait = true
                 case "--seed": guard let v = value().flatMap(Int.init) else { return fail("--seed needs a number") }; seed = v
                 case "--model":
                     guard let v = value().flatMap(EngineDownload.model) else {
@@ -90,7 +111,14 @@ enum CLI {
                 }
                 if sizes.height == nil { sizes.height = SizeCard.text(SizeCard.objectSize[sizes.nozzle ?? "0.4"] ?? 80) }
             }
-            let jobs = JobRunner(install: install)
+            timings.seedIfNeeded(runs: install.runs)  // before the first record marks it done
+            let jobs = JobRunner(install: install, timings: timings, version: BuildInfo.version)
+            // This terminal runs the queue only until its own mini is made; the app runs the rest.
+            jobs.keepGoing = { $0.contains { $0.name == name } }
+            let mine = Mine(name: name)
+            jobs.onChange = { mine.saw($0) }
+            let added = Date()
+            let ahead: Int?
             do {
                 switch args[0] {
                 case "make":
@@ -99,15 +127,26 @@ enum CLI {
                     if let image { picture = .image(URL(fileURLWithPath: image)) }
                     else if let description { picture = improve ? improved(description, defaults, kind: object ? .object : .character) : .description(description) }
                     else { return fail(usage) }
-                    try jobs.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes,
-                                  kind: object ? .object : .character, model: model)
-                case "resize": try jobs.resize(name: name, sizes: sizes)
-                default: try jobs.retry(name: name)
+                    ahead = try jobs.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes,
+                                          kind: object ? .object : .character, model: model)
+                case "resize": ahead = try jobs.resize(name: name, sizes: sizes)
+                default: ahead = try jobs.retry(name: name)
                 }
             } catch {
                 return fail("\(error)")
             }
-            return follow(jobs)
+            if let ahead {
+                let ready = jobs.queueTimes(jobs.queue.entries(), running: jobs.running(), history: timings.load())
+                    .first { $0.entry.name == name }?.ready ?? 0
+                print("Added to the queue — \(ahead) ahead of it, ready in \(JobProgress.about(ready)).")
+            }
+            // Running here (this one, or one that was waiting before it): see it through.
+            if jobs.status?.running == true { return follow(jobs, mine) }
+            guard wait else {
+                print("It starts when the one before it is done, in whichever Mimic is making that. If none is open by then, it starts the next time you open Mimic. See the queue: mimic queue")
+                return 0
+            }
+            return watch(jobs, mine, added: added)
         default:
             return fail(usage)
         }
@@ -131,19 +170,42 @@ enum CLI {
         }
     }
 
-    /// Prints each step as it starts; Ctrl-C stops the job and everything it started.
-    private static func follow(_ jobs: JobRunner) -> Int32 {
+    /// The latest status of this command's own mini, as the runner reports it.
+    final class Mine: @unchecked Sendable {
+        let name: String
+        private let lock = NSLock()
+        private var last: JobStatus?
+        private var shown: (String, Int)?
+        init(name: String) { self.name = name }
+        var status: JobStatus? { lock.withLock { last } }
+
+        /// Prints each step as it starts, naming the mini when it isn't this one.
+        func saw(_ s: JobStatus) {
+            let line: String? = lock.withLock {
+                if s.name == name { last = s }
+                guard s.running, shown.map({ $0 != (s.name, s.step) }) ?? true else { return nil }
+                shown = (s.name, s.step)
+                let who = s.name == name ? "" : "\(Mini.displayName(s.name)) (waiting before yours): "
+                return "[\(s.step)/3] \(who)\(JobRunner.label(s.step))"
+            }
+            if let line { print(line) }
+        }
+    }
+
+    /// Runs this terminal's jobs to the end of its own mini; Ctrl-C stops the running job and
+    /// everything it started, and leaves the queue to the app.
+    private static func follow(_ jobs: JobRunner, _ mine: Mine) -> Int32 {
         signal(SIGINT, SIG_IGN)
         let interrupt = DispatchSource.makeSignalSource(signal: SIGINT)
-        interrupt.setEventHandler { print("\nStopping…"); jobs.cancel() }
+        interrupt.setEventHandler { print("\nStopping…"); jobs.keepGoing = { _ in false }; jobs.cancel() }
         interrupt.resume()
-        nonisolated(unsafe) var shown = 0
-        jobs.onChange = { s in
-            if s.running, s.step != shown { shown = s.step; print("[\(s.step)/3] \(JobRunner.label(s.step))") }
-        }
-        if let s = jobs.status { shown = s.step; print("[\(s.step)/3] \(JobRunner.label(s.step))") }
+        if let s = jobs.status { mine.saw(s) }
         jobs.waitUntilDone()
-        guard let s = jobs.status else { return 1 }
+        guard let s = mine.status else {
+            // Stopped (Ctrl-C) before its turn came: it's still waiting.
+            print("Stopped. \(Mini.displayName(mine.name)) is still in the queue (mimic queue remove \(mine.name) takes it out).")
+            return 130
+        }
         let folder = jobs.install.runs.appendingPathComponent(s.name)
         if s.canceled { print("Stopped."); return 130 }
         if s.succeeded {
@@ -152,6 +214,52 @@ enum CLI {
             return 0
         }
         return fail("It didn't finish: \(s.problem ?? "a step failed (exit \(s.exit ?? -1))"). See the logs in \(folder.path)")
+    }
+
+    /// `--wait` while another Mimic runs the queue: shows its progress until it's made there, or
+    /// runs it here if that Mimic goes away first. Ctrl-C leaves it in the queue.
+    private static func watch(_ jobs: JobRunner, _ mine: Mine, added: Date) -> Int32 {
+        print("Waiting for it. Ctrl-C stops waiting; it stays in the queue.")
+        var seen = false
+        var idleSince: Date?
+        while true {
+            let running = jobs.running()
+            let queue = jobs.queue.entries()
+            let waiting = queue.contains { $0.name == mine.name }
+            idleSince = running == nil ? idleSince ?? Date() : nil
+            // Its own turn, or nobody has picked the queue up for a while (no Mimic open): run
+            // here. Otherwise the app runs the jobs ahead of it, where they can be stopped.
+            if waiting, queue.first?.name == mine.name || idleSince.map({ Date().timeIntervalSince($0) > 10 }) == true {
+                jobs.pump()
+                if jobs.status?.running == true { return follow(jobs, mine) }
+            }
+            if let r = running, r.name == mine.name { seen = true; mine.saw(r) }
+            if !waiting && running?.name != mine.name {
+                // Made (or not) by another Mimic: its folder says which.
+                let folder = jobs.install.runs.appendingPathComponent(mine.name)
+                let stl = folder.appendingPathComponent("\(mine.name).stl")
+                let at = (try? FileManager.default.attributesOfItem(atPath: stl.path))?[.modificationDate] as? Date
+                if let at, at >= added { print("Done: \(stl.path)"); return 0 }
+                if !FileManager.default.fileExists(atPath: folder.path) { print("Stopped, or taken out of the queue."); return 130 }
+                return fail(seen ? "It didn't finish. See the logs in \(folder.path)" : "It was taken out of the queue.")
+            }
+            Thread.sleep(forTimeInterval: 1)
+        }
+    }
+
+    /// `mimic queue`: what's running and what's waiting, with times.
+    private static func listQueue(_ jobs: JobRunner, history: [TimingRecord]) -> Int32 {
+        let running = jobs.running(), queue = jobs.queue.entries()
+        if let r = running {
+            let left = jobs.estimate(r.name, r.kind, history: history).left(r)
+            print("Now: \(r.kind == .prep ? "resizing" : "making") \(r.name), step \(r.step) of 3, \(JobProgress.about(left)) left")
+        } else {
+            print(queue.isEmpty ? "Nothing is being made." : "Nothing is being made right now: the queue starts when you open Mimic.")
+        }
+        for (i, row) in jobs.queueTimes(queue, running: running, history: history).enumerated() {
+            print("\(i + 1). \(row.entry.name)\t\(row.entry.job == .prep ? "resize" : "make")\ttakes \(JobProgress.about(row.estimate.total))\tready in \(JobProgress.about(row.ready))")
+        }
+        return 0
     }
 
     /// Step 2 of a job, run by the job itself (not for people, so not in the usage):

@@ -1,13 +1,12 @@
 import Foundation
 
-/// What the progress window says while a job runs, ported from the web page. The estimate is a
-/// fixed ~9 minutes (a minute for a resize); a slower Mac running past it is told so plainly.
+/// What the progress window says while a job runs, ported from the web page. Times come from an
+/// `Estimate`: this Mac's own history when it has one, else Mimic's fixed figures. A job running
+/// well past it is told so plainly.
 public enum JobProgress {
-    /// Seconds the bar takes to reach 95%: it never claims to be done before it is.
-    public static func expected(_ kind: JobKind) -> Double { kind == .prep ? 60 : 540 }
-
-    public static func fraction(_ s: JobStatus, now: Date = Date()) -> Double {
-        if s.running { return min(0.95, now.timeIntervalSince(s.started) / expected(s.kind)) }
+    /// The bar never claims to be done before it is.
+    public static func fraction(_ s: JobStatus, estimate: Estimate, now: Date = Date()) -> Double {
+        if s.running { return min(0.95, estimate.fraction(s, now: now)) }
         return s.succeeded ? 1 : 0
     }
 
@@ -17,14 +16,52 @@ public enum JobProgress {
         return "\(e / 60):" + String(format: "%02d", e % 60)
     }
 
-    public static func note(_ kind: JobKind, elapsed: TimeInterval) -> String {
-        let t = clock(elapsed)
-        if kind == .prep { return "About a minute · \(t) so far." }
-        if elapsed > 25 * 60 { return "\(t) so far. This is unusually slow. You can keep waiting, or stop and try again." }
-        if elapsed > 12 * 60 { return "\(t) so far. Taking longer than usual. Still working, nothing's wrong." }
-        return "About 7–10 minutes · \(t) so far. You can use other apps meanwhile. Your Mac will be busy, and the fan may get loud."
+    /// "about 8 minutes", "about a minute", "about 1 hour 20 minutes".
+    public static func about(_ seconds: TimeInterval) -> String {
+        if seconds < 45 { return "less than a minute" }
+        if seconds < 90 { return "about a minute" }
+        let minutes = Int((seconds / 60).rounded())
+        if minutes < 60 { return "about \(minutes) minutes" }
+        let h = minutes / 60, m = minutes % 60
+        return "about \(h) hour\(h > 1 ? "s" : "")" + (m == 0 ? "" : " \(m) minute\(m > 1 ? "s" : "")")
+    }
+
+    public enum Pace { case usual, slow, verySlow }
+
+    /// Against the estimate, with some slack: a job a little over isn't "slow". The thresholds
+    /// are the old fixed ones (12 and 25 minutes against 9) as proportions.
+    public static func pace(_ s: JobStatus, estimate: Estimate, now: Date = Date()) -> Pace {
+        let elapsed = now.timeIntervalSince(s.started), total = estimate.total
+        if elapsed > total * 2.8 && elapsed - total > 300 { return .verySlow }
+        if elapsed > total * 1.35 && elapsed - total > 60 { return .slow }
+        return .usual
+    }
+
+    public static func note(_ s: JobStatus, estimate: Estimate, now: Date = Date()) -> String {
+        let t = clock(now.timeIntervalSince(s.started))
+        switch pace(s, estimate: estimate, now: now) {
+        case .verySlow: return "\(t) so far. This is unusually slow. You can keep waiting, or stop and try again."
+        case .slow: return "\(t) so far. Taking longer than usual. Still working, nothing's wrong."
+        case .usual: break
+        }
+        let left = estimate.left(s, now: now)
+        let head = left < 15 ? "Nearly done" : "\(about(left).capitalizedFirst) left"
+        if s.kind == .prep { return "\(head) · \(t) so far." }
+        return "\(head) · \(t) so far. You can use other apps meanwhile. Your Mac will be busy, and the fan may get loud."
+    }
+
+    /// Beside a step: how long the one running has left, or how long one to come should take.
+    public static func stepNote(_ step: Int, of s: JobStatus, estimate: Estimate, now: Date = Date()) -> String? {
+        guard s.running, step >= s.step, let e = estimate.steps[step] else { return nil }
+        if step > s.step { return e < 45 ? "seconds" : about(e) }
+        let left = e - now.timeIntervalSince(s.stepStarted ?? s.started)
+        return left < 15 ? "nearly done" : "\(about(left)) left"
     }
 
     /// The web version's test: a failure whose reason names Draw Things is fixed in Setup.
     public static func drawThingsCaused(_ s: JobStatus) -> Bool { s.problem?.contains("Draw Things") == true }
+}
+
+extension String {
+    public var capitalizedFirst: String { prefix(1).uppercased() + dropFirst() }
 }

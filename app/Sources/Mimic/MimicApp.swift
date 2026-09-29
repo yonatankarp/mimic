@@ -60,9 +60,9 @@ struct MiniCommands: Commands {
             Divider()
             Button("Resize This Mini…") { if let mini { model.sheet = .resize(mini) } }
                 .keyboardShortcut("r")
-                .disabled(mini?.hasModel != true || model.cantStart != nil || !free)
+                .disabled(mini?.hasModel != true || model.cantStart != nil || !free || mini.flatMap { model.waiting($0.name) } != nil)
             Button("Rename…") { if let mini { model.sheet = .rename(mini) } }
-                .disabled(mini == nil || !free)
+                .disabled(mini == nil || !free || mini.flatMap { model.waiting($0.name) } != nil)
             Divider()
             Button("Move to Trash…") { model.trashing = mini }
                 .keyboardShortcut(.delete)

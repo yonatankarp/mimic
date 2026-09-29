@@ -17,7 +17,7 @@ struct MiniDetail: View {
                 Spacer()
                 Button("Resize This Mini…") { model.sheet = .resize(mini) }
                     .help("Remakes the print file with new sizes. About a minute. The \(kind == .object ? "object" : "character") itself doesn't change.")
-                    .disabled(!mini.hasModel || model.cantStart != nil)
+                    .disabled(!mini.hasModel || model.cantStart != nil || model.waiting(mini.name) != nil)
                     .glassButton()
                 Button("Show in Finder") { model.showInFinder(mini) }
                     .help("Shows the print file and the previews in Finder.")
@@ -36,7 +36,12 @@ struct MiniDetail: View {
                 MiniViewer(stl: stl, version: mini.madeAt, name: mini.displayName)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
             } else {
-                ContentUnavailableView("This mini isn't finished yet.", systemImage: "hourglass")
+                if let n = model.waiting(mini.name) {
+                    ContentUnavailableView("Waiting to be made (\(AppModel.ordinal(n)) in the queue).", systemImage: "hourglass",
+                                           description: Text("Ready in \(JobProgress.about(model.queueTimes()[n - 1].ready))."))
+                } else {
+                    ContentUnavailableView("This mini isn't finished yet.", systemImage: "hourglass")
+                }
             }
             // Tips beside the previews when the window is wide enough, under them otherwise.
             if mini.stl == nil {
@@ -70,7 +75,7 @@ struct MiniDetail: View {
 
     private var previews: some View {
         HStack(alignment: .top, spacing: 10) {
-            ForEach([("Your picture", mini.source)] + mini.renders.map { ($0.view.capitalized, Optional($0.url)) },
+            ForEach([("Your picture", mini.source ?? mini.upload)] + mini.renders.map { ($0.view.capitalized, Optional($0.url)) },
                     id: \.0) { caption, url in
                 Button { enlarged = url.map { Enlarged(caption: caption, url: $0) } } label: {
                     VStack(spacing: 4) {
