@@ -81,16 +81,16 @@ tall character) faces, small pets and props come out much better on a home print
 ### How it works
 
 ```mermaid
-flowchart LR
-  pic["🖼️ Picture"] --> choice{"Grey sculpt<br/>first?"}
+flowchart TD
+  pic["🖼️ Picture"] --> choice{"Grey sculpt first?"}
+  text["✍️ Description"] --> draw["Draw the character<br/><i>FLUX.2 Klein in Draw Things</i>"]
   choice -- yes --> redraw["Redraw as a grey sculpt<br/><i>FLUX.2 Klein in Draw Things</i>"]
   choice -- no --> image
   redraw --> image["Character image"]
-  text["✍️ Description"] --> draw["Draw the character<br/><i>FLUX.2 Klein in Draw Things</i>"]
   draw --> image
   image --> mesh["🧊 3D model<br/><i>Pixal3D</i>"]
   mesh --> prep["🖨️ Print prep<br/><i>Blender</i>"]
-  prep --> out["STL + front, side<br/>and back previews"]
+  prep --> out["STL + front, side and back previews"]
   out --> slicer["Your slicer"]
 ```
 
