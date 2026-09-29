@@ -49,3 +49,20 @@ final class GalleryTests: XCTestCase {
         XCTAssertEqual(Mini.displayName("tiefling-wizard"), "Tiefling Wizard")
     }
 }
+
+final class SlicerTests: XCTestCase {
+    func testFindsInstalledSlicersAndHonoursThePick() throws {
+        let apps = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        for b in ["OrcaSlicer.app", "BambuStudio.app"] {
+            try FileManager.default.createDirectory(at: apps.appendingPathComponent(b), withIntermediateDirectories: true)
+        }
+        XCTAssertEqual(Slicer.installed(in: [apps]).map(\.id), ["bambu", "orca"])
+        let d = UserDefaults(suiteName: UUID().uuidString)!
+        XCTAssertEqual(Slicer.preferred(defaults: d, in: [apps])?.id, "bambu", "the first installed when none is picked")
+        d.set("orca", forKey: "slicer")
+        XCTAssertEqual(Slicer.preferred(defaults: d, in: [apps])?.id, "orca")
+        d.set("cura", forKey: "slicer")
+        XCTAssertEqual(Slicer.preferred(defaults: d, in: [apps])?.id, "bambu", "a picked slicer that's gone falls back")
+        XCTAssertNil(Slicer.preferred(defaults: d, in: [apps.appendingPathComponent("none")]))
+    }
+}
