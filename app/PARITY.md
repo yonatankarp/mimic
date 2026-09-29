@@ -15,10 +15,10 @@ every box is ticked, in the app (and the command line where marked).
 - [ ] Character height and base size: slider plus typed value, clamped
 - [ ] Advanced: extra thickness, keep the character's own base, variation number
 - [ ] Make is blocked, with the reason, when a required check fails
-- [ ] Command line: `mimic make <name> "<description>" | --image <file> [--restyle] [--height …]`
+- [x] Command line: `mimic make <name> "<description>" | --image <file> [--restyle] [--height …]`, plus `mimic resize` and `mimic retry`; Ctrl-C stops the job
 
 ## While it's being made
-- [ ] One job at a time
+- [x] One job at a time
 - [ ] Progress window: three steps, bar, elapsed time, the 7–10 minute note
 - [ ] "Taking longer than usual" after 12 minutes, "unusually slow" after 25
 - [ ] Run in Background / minimize, with progress still visible (Dock, and wherever the pill went)
@@ -42,7 +42,7 @@ every box is ticked, in the app (and the command line where marked).
 - [x] Newest first, dated by the print file, "_" folders hidden
 - [ ] Search past six minis
 - [ ] Context menu: Open in <slicer>, Show in Finder, Rename…, Move to Trash…
-- [ ] Rename renames the folder and every file named after it; keeps the date
+- [x] Rename renames the folder and every file named after it; keeps the date
 - [ ] Move to Trash, with a confirmation
 
 ## Settings
@@ -55,8 +55,8 @@ every box is ticked, in the app (and the command line where marked).
 
 ## Tests ported from Python
 - [x] `test_cancel.py` → `GroupProcessTests`
-- [ ] `test_settings.py` (made only on success; Try Again rebuilds the same command)
-- [ ] `test_rename.py`
+- [x] `test_settings.py` (made only on success; Try Again rebuilds the same command)
+- [x] `test_rename.py`
 - [ ] `test_checks.py` (every check red and green, with injectable paths and Draw Things address)
-- [ ] `test_serve.py` input checks (names, numbers, nozzle)
+- [x] `test_serve.py` input checks (names, numbers, nozzle)
 - [ ] `test_prep.sh` stays (it tests the Blender script, not the app)

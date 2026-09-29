@@ -6,6 +6,7 @@
 Stdlib only. One job at a time: Pixal3D and Blender both want the whole machine.
 """
 
+import fcntl
 import json
 import math
 import os
@@ -95,7 +96,20 @@ def _kill_group(p):
             pass
 
 
-def run_job(name, kind, cmd, env=None, made=None):
+def take_job_lock():
+    """runs/.job.lock, which the native app holds while it makes a mini too: without it the
+    two could run jobs at once on the same folder. Returns the open file, or None if taken."""
+    RUNS.mkdir(exist_ok=True)
+    fh = open(RUNS / ".job.lock", "a")
+    try:
+        fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return fh
+    except OSError:
+        fh.close()
+        return None
+
+
+def run_job(name, kind, cmd, env=None, made=None, job_lock=None):
     log = RUNS / name / f"{kind}.job.log"
     with lock:
         job.update(running=True, name=name, kind=kind, log="", exit=None, started=time.time(), canceled=False)
@@ -116,6 +130,8 @@ def run_job(name, kind, cmd, env=None, made=None):
     if code == 0 and not canceled and made is not None:
         write_settings(RUNS / name, made=made)  # "Now:" shows only what a finished run produced
     text = "Stopped.\n" if canceled else (log.read_text(errors="replace") if log.exists() else "")
+    if job_lock:
+        job_lock.close()  # closing releases the flock
     with lock:
         job.update(running=False, exit=code, log=text)
 
@@ -405,10 +421,17 @@ class H(BaseHTTPRequestHandler):
                     return self.send(409, {"error": f"busy with {job['name']}"})
                 job["running"] = True  # claim before the thread starts
 
+            job_lock = take_job_lock()
+
             def refuse(code, error):
+                if job_lock:
+                    job_lock.close()
                 with lock:
                     job["running"] = False
                 return self.send(code, {"error": error})
+
+            if job_lock is None:
+                return refuse(409, "busy with another Mimic window")
 
             try:
                 requested = sizes_from(q)
@@ -445,7 +468,7 @@ class H(BaseHTTPRequestHandler):
             st = read_settings(d)
             cmd = job_cmd(d, kind, st)
             env = {**os.environ, "SEED": str(st.get("seed", 42))} if kind == "generate" else None
-            threading.Thread(target=run_job, args=(name, kind, cmd, env, st["requested"]), daemon=True).start()
+            threading.Thread(target=run_job, args=(name, kind, cmd, env, st["requested"], job_lock), daemon=True).start()
             return self.send(202, {"ok": True})
 
         if path in ("/api/open", "/api/reveal"):

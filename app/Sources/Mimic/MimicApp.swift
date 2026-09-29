@@ -2,6 +2,12 @@ import MimicCore
 import SwiftUI
 
 struct MimicApp: App {
+    init() {
+        // A job left running by a Mimic that crashed (or was force-quit) is stopped first:
+        // otherwise a 14 GB Blender could run on with nothing watching it.
+        if let install = Install.locate() { Leftover.stop(install.runs) }
+    }
+
     var body: some Scene {
         WindowGroup("Mimic") {
             ContentView()

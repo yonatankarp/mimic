@@ -49,3 +49,33 @@ public enum Gallery {
         return (try? FileManager.default.attributesOfItem(atPath: folder.path)[.modificationDate] as? Date) ?? .distantPast
     }
 }
+
+extension Gallery {
+    /// Renames a mini: its folder and every file named after it (the print file and the three
+    /// previews), which is how the app finds them. Its date is the print file's, so it keeps its
+    /// place in the gallery.
+    public static func rename(_ runs: URL, from old: String, to new: String, busyWith: String? = nil) throws {
+        guard Rules.isValidName(old), Rules.isValidName(new) else { throw RequestError.badName }
+        guard old != new else { return }
+        let fm = FileManager.default
+        let src = runs.appendingPathComponent(old), dst = runs.appendingPathComponent(new)
+        guard fm.fileExists(atPath: src.path) else { throw RequestError.notFound }
+        guard !fm.fileExists(atPath: dst.path) else { throw RequestError.nameTaken(new) }
+        guard busyWith != old else { throw RequestError.busy(old) }
+        try fm.moveItem(at: src, to: dst)
+        for suffix in [".stl", "_front.png", "_side.png", "_back.png"] {
+            let f = dst.appendingPathComponent(old + suffix)
+            if fm.fileExists(atPath: f.path) { try fm.moveItem(at: f, to: dst.appendingPathComponent(new + suffix)) }
+        }
+    }
+
+    /// Moves a mini to the Trash, where it can be put back.
+    public static func moveToTrash(_ runs: URL, name: String, busyWith: String? = nil,
+                                   trash: (URL) throws -> Void = { try FileManager.default.trashItem(at: $0, resultingItemURL: nil) }) throws {
+        guard Rules.isValidName(name) else { throw RequestError.badName }
+        guard busyWith != name else { throw RequestError.busy(name) }
+        let folder = runs.appendingPathComponent(name)
+        guard FileManager.default.fileExists(atPath: folder.path) else { throw RequestError.notFound }
+        try trash(folder)
+    }
+}
