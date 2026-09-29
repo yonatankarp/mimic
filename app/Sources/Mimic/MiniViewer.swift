@@ -20,6 +20,8 @@ struct MiniViewer: View {
     @State private var zoom: Float = 1
     @State private var zoomStart: Float?
     @AppStorage("zoomOn") private var zoomOn = false
+    /// While Front plays its animation, the view leaves the transform to it.
+    @State private var gliding = false
 
     var body: some View {
         RealityView { content in
@@ -35,6 +37,7 @@ struct MiniViewer: View {
                 content.entities.filter { $0.name == "mini" }.forEach { content.remove($0) }
                 content.add(mini)
             }
+            guard !gliding else { return }
             mini.transform = Transform(scale: SIMD3(repeating: zoom),
                                        rotation: simd_quatf(angle: turn.y, axis: [1, 0, 0]) * simd_quatf(angle: turn.x, axis: [0, 1, 0]),
                                        translation: .zero)
@@ -85,14 +88,29 @@ struct MiniViewer: View {
         .task(id: [stl.path, version.description]) {
             failed = false
             mini = nil; size = nil
-            front()
+            turn = .zero; zoom = 1
             // ponytail: loads on the main actor (about 0.4 s for the biggest print file); move the
             // file reading off it if bigger minis make that noticeable.
             if let (entity, mm) = try? Self.load(stl) { mini = entity; size = mm } else { failed = true }
         }
     }
 
-    private func front() { turn = .zero; zoom = 1 }
+    /// Turns the mini back to face you, gliding there rather than jumping, so you can see which
+    /// way it went. Jumps instead when the Mac is set to reduce motion.
+    private func front() {
+        let seconds = 0.45
+        guard let mini, !gliding, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
+            turn = .zero; zoom = 1
+            return
+        }
+        gliding = true
+        mini.move(to: Transform(), relativeTo: mini.parent, duration: seconds, timingFunction: .easeInOut)
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(seconds))
+            turn = .zero; zoom = 1
+            gliding = false
+        }
+    }
 
     static func lights() -> Entity {
         let key = DirectionalLight()
