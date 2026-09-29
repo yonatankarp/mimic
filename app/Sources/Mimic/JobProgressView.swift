@@ -349,8 +349,8 @@ struct MainWindowChrome: ViewModifier {
                 ToolbarItem(placement: .primaryAction) {
                     Button { model.sheet = .make } label: { Label("New Mini", systemImage: "plus") }
                         .help("Make a new mini (⌘N)")
-                        .tourStop(.newMini)  // before .disabled, which its popover would inherit
                         .disabled(!model.setup.installed)
+                        .tourCallout(.newMini)
                 }
             }
             .sheet(item: $model.sheet) { sheet in

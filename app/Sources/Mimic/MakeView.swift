@@ -97,8 +97,8 @@ struct MakeView: View {
                 Button("Make My Mini") { make() }
                     .help("Takes about 7–10 minutes. You can keep using your Mac meanwhile.")
                     .keyboardShortcut(.defaultAction)
-                    .tourStop(.make, arrow: .top)  // before .disabled, which its popover would inherit
                     .disabled(model.cantStart != nil || takenName != nil || missing != nil)
+                    .tourCallout(.make, arrow: .top)
             }
             .padding(16)
             .fixedSize(horizontal: false, vertical: true)

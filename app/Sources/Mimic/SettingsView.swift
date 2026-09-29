@@ -62,6 +62,7 @@ struct SettingsView: View {
                 }
             }
             TerminalSection()
+            ResetSection()
             Section {
                 // Selectable, so it can be copied into a bug report.
                 Text(BuildInfo.line).font(.callout.monospacedDigit()).foregroundStyle(.secondary).textSelection(.enabled)
@@ -295,6 +296,50 @@ private struct TerminalSection: View {
         } footer: {
             Text("Paste this into Terminal once, then type mimic to make minis from there. It asks for your Mac password, because it adds mimic to a folder every account on this Mac uses.")
                 .foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// Back to how Mimic was when first installed: see the tour, or with the engine removed the
+/// whole setup, again. The minis always stay.
+private struct ResetSection: View {
+    @Environment(AppModel.self) private var model
+    @State private var asking = false
+    @State private var problem: String?
+
+    var body: some View {
+        Section {
+            LabeledContent("Start over") {
+                Button("Reset Mimic…") { asking = true }
+                    .disabled(model.running)
+                    .help(model.running ? "Wait for the mini being made to finish." : "Forget Mimic's settings and show the tour again. Your minis stay.")
+            }
+            if let problem { Text(problem).font(.callout).foregroundStyle(.red) }
+        } footer: {
+            Text("Mimic forgets its settings and saved keys, then opens again as it did the first time. Your minis are kept.")
+                .foregroundStyle(.secondary)
+        }
+        .confirmationDialog("Reset Mimic?", isPresented: $asking) {
+            Button("Reset") { reset(removeEngine: false) }
+            Button("Reset and Remove the 3D Engine", role: .destructive) { reset(removeEngine: true) }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Mimic forgets its settings and any saved AI keys, and shows the tour again. Your minis are kept.\n\nAlso removing the 3D engine shows the first-launch setup again, and downloads the engine again (about 8 GB).")
+        }
+    }
+
+    private func reset(removeEngine: Bool) {
+        do {
+            try Reset.run(install: model.install, domain: Bundle.main.bundleIdentifier ?? "com.mimic.app", removeEngine: removeEngine)
+        } catch {
+            problem = "Couldn't remove the 3D engine. \(model.plainWords(error, else: "Check that Mimic can write to its folder, then try again."))"
+            return
+        }
+        // Opens again as a fresh launch would: a new copy of the app, then this one quits.
+        let config = NSWorkspace.OpenConfiguration()
+        config.createsNewApplicationInstance = true
+        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: config) { _, _ in
+            Task { @MainActor in NSApp.terminate(nil) }
         }
     }
 }

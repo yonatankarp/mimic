@@ -42,9 +42,17 @@ final class TourGuide {
     func next(_ model: AppModel) {
         guard let step else { return }
         let after = Tour.next(after: step, onScreen: onScreen)
-        if step == .newMini { model.sheet = .make }                    // the next stops are inside it
+        if step == .newMini {
+            // The next stops are inside New Mini. The callout closes first and New Mini opens a
+            // moment later: both at once left an empty glass panel of the callout on screen.
+            visible = false
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(0.3))
+                model.sheet = .make
+            }
+        }
         if step == .make, model.sheet == .make { model.sheet = nil; usingSample = false }
-        after.map { go(to: $0, wait: step == .newMini || step == .make ? 0.5 : 0.2) } ?? leave()
+        after.map { go(to: $0, wait: step == .newMini ? 0.8 : step == .make ? 0.5 : 0.2) } ?? leave()
     }
 
     func useSample(_ model: AppModel) {
@@ -106,6 +114,13 @@ final class TourGuide {
 extension View {
     /// Attaches the tour's callout for `stop` to this control.
     func tourStop(_ stop: TourStep, arrow: Edge = .bottom) -> some View { modifier(TourStopModifier(stop: stop, arrow: arrow)) }
+
+    /// The same, for a control that can be disabled: a disabled control disables everything
+    /// attached to it, the callout's Next and Skip included (step 5 got stuck on a greyed-out
+    /// Make My Mini). The callout hangs on a clear layer behind it instead, outside `.disabled`.
+    func tourCallout(_ stop: TourStep, arrow: Edge = .bottom) -> some View {
+        background { Color.clear.tourStop(stop, arrow: arrow) }
+    }
 }
 
 private struct TourStopModifier: ViewModifier {
@@ -143,16 +158,20 @@ struct TourCallout: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title).font(.headline).accessibilityAddTraits(.isHeader)
             Text(text).fixedSize(horizontal: false, vertical: true)
+            // A row of its own: beside Skip and Next it was squeezed to "Use the S…".
+            if offersSample {
+                Button { guide.useSample(model) } label: { Text("Use the Sample 🧙").frame(maxWidth: .infinity) }
+                    .help("Opens New Mini with a sample picture of a dwarf, ready to make.")
+            }
             HStack {
                 Text(guide.position).font(.caption).foregroundStyle(.secondary).monospacedDigit()
                     .accessibilityLabel("Step \(guide.position)")
                 Spacer()
                 Button("Skip Tour") { guide.leave() }
-                if offersSample {
-                    Button("Use the Sample 🧙") { guide.useSample(model) }
-                        .help("Opens New Mini with a sample picture of a dwarf, ready to make.")
+                // Learning by doing waits here for Make My Mini: the tour carries on once it's pressed.
+                if !(guide.step == .make && guide.usingSample) {
+                    Button(last ? "Done" : "Next") { guide.next(model) }.keyboardShortcut(.defaultAction)
                 }
-                Button(last ? "Done" : "Next") { guide.next(model) }.keyboardShortcut(.defaultAction)
             }
         }
         .padding(16)
@@ -197,8 +216,9 @@ struct TourCallout: View {
         case .size:
             "Game scale matches the other minis on your table; Best print goes for detail. Pick the nozzle your printer uses. Not sure? It's most likely 0.4 mm."
         case .make:
-            "Make My Mini takes about 7–10 minutes. Press Run in Background to keep using your Mac: the toolbar and the Dock icon show how far along it is."
-                + (guide.usingSample ? " Go ahead and press it when you're ready! 🎉" : "")
+            guide.usingSample
+                ? "Press Make My Mini to make your dwarf 🎉 It takes about 7–10 minutes. Press Run in Background to keep using your Mac, and the tour carries on from there."
+                : "Make My Mini takes about 7–10 minutes. Press Run in Background to keep using your Mac: the toolbar and the Dock icon show how far along it is."
         case .mini:
             "Drag it to turn it around. Open in \(model.slicerName) sends it to your slicer to print, and the print tips below are for your nozzle."
         case .gallery:
