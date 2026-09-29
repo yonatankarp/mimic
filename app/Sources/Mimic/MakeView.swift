@@ -177,7 +177,7 @@ struct MakeView: View {
             .accessibilityLabel("Choose a picture")
             .dropDestination(for: URL.self) { urls, _ in
                 guard let url = urls.first else { return false }
-                take(url)
+                if urls.count > 1 { make(urls) } else { take(url) }
                 return true
             } isTargeted: { dropTargeted = $0 }
             ForEach(picture.map { MakeAdvice.pictureWarnings(width: $0.width, height: $0.height, kind: card.kind) } ?? [], id: \.self) { Text($0).font(.callout).foregroundStyle(.orange) }
@@ -315,6 +315,21 @@ struct MakeView: View {
             if project == Self.newProject { project = try model.createProject(newProjectName) }
             try model.make(name: slug, picture: source, restyle: start == .picture && restyle && health.drawThingsReady,
                            seed: seed, sizes: card.sizes, kind: card.kind, project: project.isEmpty ? nil : project)
+        } catch {
+            say(model.plainWords(error), error: true)
+            messageDetail = "\(error)"
+        }
+    }
+
+    /// Several pictures dropped at once: a mini each, with this card's settings, named after its
+    /// file. Names can be changed afterwards.
+    private func make(_ pictures: [URL]) {
+        guard model.cantStart == nil else { return }
+        if project == Self.newProject && Rules.projectName(newProjectName) == nil { return say("Name the new project, then drop the pictures again.", error: true) }
+        do {
+            if project == Self.newProject { project = try model.createProject(newProjectName) }
+            if let why = model.make(pictures: pictures, restyle: restyle && health.drawThingsReady, seed: seed,
+                                    sizes: card.sizes, kind: card.kind, project: project.isEmpty ? nil : project) { say(why, error: true) }
         } catch {
             say(model.plainWords(error), error: true)
             messageDetail = "\(error)"
