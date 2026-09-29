@@ -38,14 +38,18 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   trellis-cli a session of its own fails it). It replaced image-to-3dlab's Python wrapper and
   keeps its settings: `--gss 10`, the 20° gauge camera, `PIXAL3D_STEPS=8`, a run stopped the
   moment it samples without "PIXAL3D_STEPS=8 overrides", ggml's Metal noise dropped from the
-  log. It is handled before the CLI finds the Mimic folder: `.job.pid` names this very
+  log. Proven faithful: the wrapper's own cutout of the dwarf through `mimic _engine` gave a
+  byte-identical mesh (PLY) and texture to the wrapper's run of the same build and seed. It is
+  handled before the CLI finds the Mimic folder: `.job.pid` names this very
   program, and the leftover-job cleanup would otherwise stop it.
 - **Cutouts: Apple Vision, not rembg or trellis-cli's BiRefNet.** Measured on the four minis'
   pictures against the u2net cutouts the Python wrapper made (`source__matted.png`): masks agree
   97.4–99.5% (IoU), and where they differ Vision is right. It kept the elf's bow tips, which
   u2net ate, and the dwarf's whole hammer head, which u2net punched a hole in. Halo-free once
   the edges' colours are pulled in from the character (`cleanEdges`, ported). 0.7 s in a
-  release build. So `birefnet.gguf` (0.9 GB) is no longer downloaded. Whether a picture needs
+  release build. Through the whole pipeline (dwarf, seed 42) the Vision cutout gave a solid
+  hammer head and no hole in the kilt where u2net's gave both; that run lost the hip satchel,
+  which one seed can't pin on either cutout. So `birefnet.gguf` (0.9 GB) is no longer downloaded. Whether a picture needs
   cutting out is judged by how much of its alpha is actually clear (≥2%), not by it having
   an alpha channel: an alpha of opaque noise once became two sheets of geometry.
 - **Model files come straight from Hugging Face,** pinned to a revision, each file checked
