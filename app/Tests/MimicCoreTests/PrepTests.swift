@@ -195,6 +195,19 @@ final class PrepTests: XCTestCase {
         XCTAssertGreaterThan(out.flatBottom, 0.95 * .pi * 12.5 * 12.5)
     }
 
+    /// A TRELLIS.2 model faces away from the front render; --turn 180 turns it round without
+    /// mirroring it: the blade that reached out to +x reaches to -x, and it's still one sound solid.
+    func testTurningFacesTheFigureTheOtherWay() throws {
+        let (_, out, _) = try prep(["--turn", "180", "--faces", "20000"])
+        let ground = out.bounds.lo.z + 2
+        let above = out.positions.filter { $0.z > ground + 10 && $0.z < ground + 20 }
+        XCTAssertLessThan(above.map(\.x).min()!, -9, "the blade didn't come round to -x")
+        XCTAssertLessThan(above.map(\.x).max()!, 6, "something still reaches out to +x")
+        XCTAssertTrue(out.watertight, "a mirror instead of a turn would turn the triangles inside out")
+        XCTAssertEqual(out.pieces, 1)
+        XCTAssertEqual(try PrepOptions.parse(["a.glb", "b.stl", "--turn", "180"]).turn, 180)
+    }
+
     /// JobRunner marks a mini fragile when it reads this marker.
     func testAFootprintWiderThanTheBaseWarns() throws {
         let (result, _, stl) = try prep(["--base", "8", "--faces", "20000"])

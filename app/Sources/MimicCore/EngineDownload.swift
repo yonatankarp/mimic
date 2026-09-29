@@ -24,6 +24,9 @@ public struct EngineModel: Sendable, Equatable, Identifiable {
     public let summary: String
     public let family: Family
     public var files: [EngineFile]
+    /// Degrees print prep turns the engine's model so the figure faces the front render: the
+    /// TRELLIS.2 pipeline writes it facing away (seen on every TRELLIS.2 run of the dwarf).
+    public var turn: Int { family == .trellis2 ? 180 : 0 }
 
     public init(id: String, name: String, summary: String, family: Family, files: [EngineFile]) {
         self.id = id; self.name = name; self.summary = summary; self.family = family; self.files = files
@@ -212,7 +215,7 @@ public enum SetupError: Error, Equatable, CustomStringConvertible {
         case .diskFull(let need, let have):
             "Mimic needs about \(need) GB of free space for its 3D engine, and this Mac has \(have) GB. Free up some space, then press Try Again."
         case .ranOutOfSpace:
-            "Your Mac ran out of space during the download. Free up about 9 GB, then press Try Again."
+            "Your Mac ran out of space during the download. Free up some space (the setup screen shows how big the download is), then press Try Again."
         case .damaged(let name):
             "A file came down damaged (\(name)). Press Try Again to download it once more."
         case .engineWontStart:

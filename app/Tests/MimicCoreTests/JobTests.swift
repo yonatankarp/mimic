@@ -39,13 +39,18 @@ final class JobTests: XCTestCase {
                                                        "--seed", "7", "--engine", fx.install.engine.path, "--model", model],
                  directory: nil, log: d.appendingPathComponent("pixal3d.log"))
         }
+        let turned = Step.run(executable: "/app/mimic",
+                              arguments: ["_prep", d.appendingPathComponent("model.glb").path,
+                                          d.appendingPathComponent("mini.stl").path] + flags + ["--turn", "180"],
+                              directory: nil, log: d.appendingPathComponent("prep.log"))
         func settings(_ f: (inout MiniSettings) -> Void) -> MiniSettings { var s = MiniSettings(); s.seed = 7; s.requested = sizes; f(&s); return s }
         let cases: [(String, JobKind, MiniSettings, [Step])] = [
             ("picture", .generate, settings { $0.source = .image; $0.restyle = false }, [.copyPicture(from: up, to: src), mesh(), prep]),
             ("picture, redrawn", .generate, settings { $0.source = .image; $0.restyle = true }, [.sculptPicture(from: up, seed: 7, to: src), mesh(), prep]),
             ("description", .generate, settings { $0.source = .desc; $0.desc = "a dwarf" }, [.drawCharacter(description: "a dwarf", seed: 7, to: src), mesh(), prep]),
-            ("another model", .generate, settings { $0.source = .image; $0.model = EngineDownload.catalogue.last!.id },
-             [.copyPicture(from: up, to: src), mesh(EngineDownload.catalogue.last!.id), prep]),
+            ("TRELLIS.2, turned to face the front", .generate, settings { $0.source = .image; $0.model = "trellis2-q8" },
+             [.copyPicture(from: up, to: src), mesh("trellis2-q8"), turned]),
+            ("TRELLIS.2 resize, turned too", .prep, settings { $0.model = "trellis2-q8" }, [turned]),
             ("resize", .prep, settings { _ in }, [prep]),
         ]
         for (label, kind, s, want) in cases {

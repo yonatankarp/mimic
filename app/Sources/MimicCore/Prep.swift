@@ -4,7 +4,7 @@ import simd
 /// Print prep: turns the 3D engine's model into a printable mini, plus preview renders.
 ///
 ///     mimic _prep in.glb out.stl [--height 32] [--base 25] [--base-height 3] [--nozzle 0.4]
-///         [--inflate MM] [--voxel MM] [--faces 800000] [--no-base] [--flatten 0.4]
+///         [--inflate MM] [--voxel MM] [--faces 800000] [--no-base] [--flatten 0.4] [--turn DEG]
 ///
 /// Units are millimetres. Steps: scale to --height, centre on what the figure stands on,
 /// inflate the surface by --inflate (thickens blades and staffs by twice that), stand it on a
@@ -38,6 +38,9 @@ public struct PrepOptions: Equatable, Sendable {
     public var flatten = 0.4
     /// Trim to about this many triangles.
     public var faces = 800_000
+    /// Turn the model this many degrees about its vertical axis first, so it faces the front:
+    /// TRELLIS.2 writes its figures facing away from where Pixal3D's face (EngineModel.turn).
+    public var turn = 0.0
 
     public init(glb: String, stl: String) { self.glb = glb; self.stl = stl }
 
@@ -61,6 +64,7 @@ public struct PrepOptions: Equatable, Sendable {
             case "--voxel": o.voxel = try number(a)
             case "--flatten": o.flatten = try number(a)
             case "--faces": o.faces = Int(try number(a))
+            case "--turn": o.turn = try number(a)
             case "--no-base": o.noBase = true
             default:
                 guard !a.hasPrefix("-") else { throw PrepError("unknown option \(a)") }
@@ -89,6 +93,14 @@ public enum Prep {
 
         var mesh = try GLB.read(URL(fileURLWithPath: o.glb))
         lap("read \(mesh.triangles.count) triangles")
+        if o.turn != 0 {
+            // A rotation, not a mirror, so the triangles keep their winding.
+            let a = Float(o.turn * .pi / 180), c = cos(a), s = sin(a)
+            for n in mesh.positions.indices {
+                let p = mesh.positions[n]
+                mesh.positions[n] = SIMD3(c * p.x - s * p.y, s * p.x + c * p.y, p.z)
+            }
+        }
         let height = Float(o.height)
 
         // Ground is where most of the bottom is, not the lowest vertex: a trailing wisp or

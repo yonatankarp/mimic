@@ -48,7 +48,8 @@ public enum Pipeline {
     /// settings.json alone, so Try Again rebuilds exactly the job that failed.
     public static func plan(_ kind: JobKind, folder: URL, settings: MiniSettings, tools: Tools) throws -> [(number: Int, step: Step)] {
         let name = folder.lastPathComponent
-        let flags = try (settings.requested ?? Sizes()).flags()
+        guard let model = EngineDownload.model(settings.model) else { throw RequestError.unknownModel(settings.model ?? "") }
+        let flags = try (settings.requested ?? Sizes()).flags() + (model.turn == 0 ? [] : ["--turn", String(model.turn)])
         let prep: Step = .run(executable: tools.mimic,
                               arguments: ["_prep", folder.appendingPathComponent("model.glb").path,
                                           folder.appendingPathComponent("\(name).stl").path] + flags,
@@ -56,7 +57,6 @@ public enum Pipeline {
         if kind == .prep { return [(3, prep)] }
 
         let seed = settings.seed ?? 42
-        guard let model = EngineDownload.model(settings.model) else { throw RequestError.unknownModel(settings.model ?? "") }
         let source = folder.appendingPathComponent("source.png")
         let picture: Step
         switch settings.source {
