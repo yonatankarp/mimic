@@ -20,6 +20,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 - **Make Another Version.** Right-click a mini (or the Mini menu) to make it again from the same picture or description and settings with a different variation number, next to it in the same project: a pet on a shoulder that came out as a blob may come out right. It waits its turn in the queue, so you can line up a few and keep the best. In Terminal: `mimic make-another <name>`.
 
 ### Fixed
+- Mimic no longer asks again for your saved AI keys after an update: releases are now signed by the same signer every time.
 - The 3D view no longer keeps your Mac busy while the mini just stands there: it used about a fifth of a processor core the whole time a mini was open, and now close to none.
 - Opening a second Mimic (or running `mimic` in Terminal) while one was making a mini could stop that mini.
 

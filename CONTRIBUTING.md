@@ -87,6 +87,23 @@ The workflow tests, builds `Mimic-0.3.0.dmg` and publishes it as a GitHub releas
 section as its notes. The README's install steps link to the latest release, so nothing else
 needs updating.
 
+## Signing
+
+Releases are signed with Mimic's own code-signing certificate ("Mimic", made by the maintainer,
+valid to 2036), not by Apple. It doesn't avoid the one-time Open Anyway step, which only an Apple
+Developer ID would, but every release has the same signer, so macOS treats an update as the same
+app and doesn't ask again for saved AI keys.
+
+- CI reads it from the repository secrets `MIMIC_SIGNING_P12` (the certificate and its key, as
+  base64) and `MIMIC_SIGNING_PASSWORD`, trusts it on the runner and signs with it. A tag that
+  builds without it fails instead of shipping an ad hoc build. Pull requests from forks are
+  signed ad hoc.
+- The maintainer's copy is `~/.config/mimic/` (`signing.p12`, `signing.password`,
+  `signing.crt`), readable only by its owner. Keep a backup: a new certificate works, but every
+  user's Mac would ask once more for saved keys after that update.
+- Local builds (`bundle.sh`, `package_dmg.sh`) are ad hoc unless `MIMIC_SIGN_IDENTITY` names the
+  certificate in a keychain that trusts it.
+
 ## Releasing a new Pixal3D build
 
 The app downloads a pre-built Pixal3D so that nobody needs Xcode.

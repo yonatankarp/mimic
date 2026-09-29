@@ -46,7 +46,14 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>NSHighResolutionCapable</key><true/>
 </dict></plist>
 PLIST
-codesign --force --deep -s - "$app" 2>/dev/null
+# Releases are signed with Mimic's own certificate (MIMIC_SIGN_IDENTITY, set up by CI): the same
+# signer every version, so macOS knows an update is the same app and doesn't ask again for saved
+# AI keys. Anything else is signed ad hoc, which is enough to run on this Mac.
+if [ -n "${MIMIC_SIGN_IDENTITY:-}" ]; then
+  codesign --force --deep --timestamp=none -s "$MIMIC_SIGN_IDENTITY" ${MIMIC_SIGN_KEYCHAIN:+--keychain "$MIMIC_SIGN_KEYCHAIN"} "$app"
+else
+  codesign --force --deep -s - "$app" 2>/dev/null
+fi
 # The dev build uses this checkout as its Mimic folder (runs/ and engine/). The release build
 # finds its own: ~/Documents/Mimic and ~/Library/Application Support/Mimic.
 [ "$kind" = release ] || defaults write "$id" installDir "$(cd .. && pwd)"
