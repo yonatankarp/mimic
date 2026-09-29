@@ -16,23 +16,14 @@ struct Sidebar: View {
     private var busyWith: String? { model.job?.running == true ? model.job?.name : nil }
 
     var body: some View {
-        // Same threshold as the filter, so the field and the filtering never disagree.
-        if model.minis.count > Gallery.searchAfter {
-            list.searchable(text: $query, placement: .sidebar, prompt: "Find a mini")
-        } else {
-            list
-        }
-    }
-
-    private var list: some View {
-        @Bindable var model = model
-        let shown = Gallery.search(model.minis, query)
-        return List(shown, selection: $model.selection) { mini in
-            GalleryRow(mini: mini).contextMenu { menu(for: mini) }
-        }
-        .overlay {
-            if shown.isEmpty && !model.minis.isEmpty {
-                ContentUnavailableView.search(text: query)
+        // Only the search field sits inside the branch: a sheet or dialog on the other side
+        // would close, losing what was typed, when a mini comes or goes past the seventh.
+        Group {
+            // Same threshold as the filter, so the field and the filtering never disagree.
+            if model.minis.count > Gallery.searchAfter {
+                list.searchable(text: $query, placement: .sidebar, prompt: "Find a mini")
+            } else {
+                list
             }
         }
         .navigationSplitViewColumnWidth(min: 200, ideal: 240)
@@ -62,6 +53,19 @@ struct Sidebar: View {
         }
         .alert(problem ?? "", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
             Button("OK") {}
+        }
+    }
+
+    private var list: some View {
+        @Bindable var model = model
+        let shown = Gallery.search(model.minis, query)
+        return List(shown, selection: $model.selection) { mini in
+            GalleryRow(mini: mini).contextMenu { menu(for: mini) }
+        }
+        .overlay {
+            if shown.isEmpty && !model.minis.isEmpty {
+                ContentUnavailableView.search(text: query)
+            }
         }
     }
 
@@ -103,7 +107,7 @@ private struct RenameSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Rename “\(mini.displayName)”").font(.headline)
-            TextField("New name", text: $text).onSubmit(rename)
+            TextField("New name", text: $text)  // Return presses Rename
             if let problem {
                 Text(problem).foregroundStyle(.red).font(.callout)
             }
