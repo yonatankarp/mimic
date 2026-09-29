@@ -235,16 +235,18 @@ final class PrepTests: XCTestCase {
     }
 
     /// An object lying flat: a long box with a spout sticking out of one end at mid-height, and
-    /// a speck floating far off to the side. Sized by its longest side (box and spout, not the
-    /// speck), standing on its whole bottom, centred on its whole shadow, spout included.
+    /// a thin tip on that, and a speck floating far off to the side. Sized by its longest side
+    /// (box, spout and tip, not the speck; a percentile of the surface trimmed the tip), standing
+    /// on its whole bottom, centred on its whole shadow, spout included.
     func testAnObjectLyingFlatIsSizedByItsLongestSideAndStandsOnItsWholeBottom() throws {
         var m = Mesh()
         m.add(Self.box(half: [1, 0.25, 0.15]), at: [0, 0, 0.15])       // 2 x 0.5 x 0.3, lying flat
         m.add(Self.box(half: [0.3, 0.05, 0.05]), at: [1.25, 0, 0.2])   // spout: shadow reaches x = 1.55
         m.add(Self.sphere(radius: 0.02), at: [0, 3, 1])                // speck, 3 units off in y
-        let (result, out, _) = try prep(["--fit", "longest", "--ground", "bottom", "--height", "60", "--no-base", "--faces", "20000"], mesh: m)
+        m.add(Self.box(half: [0.08, 0.015, 0.015]), at: [1.6, 0, 0.2]) // a thin tip, its own piece: shadow reaches x = 1.68
+        let (result, out, _) = try prep(["--fit", "longest", "--ground", "bottom", "--height", "60", "--no-base"], mesh: m)
         let (lo, hi) = out.bounds
-        let scale: Float = 60 / 2.55
+        let scale: Float = 60 / 2.68
         XCTAssertEqual(hi.x - lo.x, 60 + 2 * 0.16, accuracy: 0.6, "the longest side is 60 mm (plus the inflate)")
         XCTAssertEqual(hi.z - lo.z, 0.3 * scale + 0.16 - 0.4, accuracy: 0.3, "lying flat: its height is the box's, not 60 mm")
         XCTAssertEqual((lo.x + hi.x) / 2, 0, accuracy: 0.3, "centred on its whole shadow, spout included")

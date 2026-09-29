@@ -24,8 +24,11 @@ public final class DrawThings: @unchecked Sendable {
     public static let characterPrompt = "full-body fantasy tabletop miniature of a %@, heroic proportions, compact pose, limbs and weapons held close to the body, bold chunky details, entire figure visible from head to feet, standing on nothing, no base, no pedestal, front view, centered, plain light grey studio background, unpainted grey 3D render"
     public static let sculptPrompt = "Turn this character into an unpainted grey plastic tabletop miniature sculpt. Keep the same character, pose, face, clothing, weapons and accessories. Clean sculpted forms, bold readable shapes, slightly larger head and hands, feet or hem resting on the ground, no base. Plain light grey studio background, soft even lighting, 3D render."
 
-    /// For anything that isn't a character: one object, whole and unpainted, on nothing.
-    public static let objectPrompt = "%@. One single object on its own, the whole object fully visible and centered with space around it, nothing cut off, three-quarter view from slightly above, solid simple forms, unpainted grey 3D render, smooth matte grey clay material, plain light grey studio background, soft even lighting, no added base or pedestal, no text"
+    /// For anything that isn't a character: one object, whole and unpainted, on nothing. Eye
+    /// level, like the character's front view: drawn "slightly from above", a teapot came out
+    /// of the 3D engine tipped about 20° and stood on its belly (seen once; the eye-level
+    /// wording is not yet seen through the engine).
+    public static let objectPrompt = "%@. One single object on its own, the whole object fully visible and centered with space around it, nothing cut off, front view at eye level, solid simple forms, unpainted grey 3D render, smooth matte grey clay material, plain light grey studio background, soft even lighting, no added base or pedestal, no text"
     public static let objectSculptPrompt = "Turn this object into an unpainted grey plastic 3D sculpt. Keep the same object, shape, proportions and details. Only this one object, whole and fully visible, centered. Clean sculpted forms, bold readable shapes, no base unless it is part of the object. Plain light grey studio background, soft even lighting, 3D render."
 
     public static func drawPrompt(_ description: String, kind: MiniKind) -> String {

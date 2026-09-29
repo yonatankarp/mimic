@@ -117,11 +117,10 @@ public enum Prep {
         let top = mesh.bounds.hi.z
         var samples = mesh.surfaceSamples()
         let ground0 = Mesh.percentileZ(samples, 0.005)
-        // An object's extents skip the same sliver at each end, so a floating speck the
-        // generator left (dropped later) can't count as part of its longest side.
-        let extent: (lo: SIMD3<Float>, hi: SIMD3<Float>)? = o.fitLongest || o.groundBottom
-            ? (SIMD3((0..<3).map { Mesh.percentile(samples, 0.005, axis: $0) }), SIMD3((0..<3).map { Mesh.percentile(samples, 0.995, axis: $0) }))
-            : nil
+        // An object's extents leave out the floating specks the generator left (dropped later),
+        // so one can't count as part of its longest side. Not a percentile of the surface, like
+        // the ground: that trims thin tips, and a teapot's spouts came out 90 mm long, not 80.
+        let extent = o.fitLongest || o.groundBottom ? mesh.mainBounds() : nil
         let span: Float
         if o.fitLongest, let e = extent { span = max(e.hi.x - e.lo.x, e.hi.y - e.lo.y, e.hi.z - ground0) } else { span = top - ground0 }
         let scale = height / span
@@ -222,20 +221,44 @@ extension Mesh {
         return out
     }
 
-    /// The coordinate on `axis` (0 x, 1 y, 2 z) below which `fraction` of the surface area lies.
-    static func percentile(_ samples: [SIMD4<Float>], _ fraction: Float, axis: Int) -> Float {
-        let sorted = samples.sorted { $0[axis] < $1[axis] }
+    /// The bounds of every connected piece holding at least `share` of the surface area: the
+    /// object with its overlapping parts (a separate spout or blade), without the specks. A
+    /// mesh with no such piece (not welded, say) gives its whole bounds.
+    func mainBounds(share: Float = 0.002) -> (lo: SIMD3<Float>, hi: SIMD3<Float>) {
+        var parent = Array(0..<Int32(positions.count))
+        func find(_ x: Int32) -> Int32 {
+            var x = x
+            while parent[Int(x)] != x { parent[Int(x)] = parent[Int(parent[Int(x)])]; x = parent[Int(x)] }
+            return x
+        }
+        for t in triangles {
+            let a = find(Int32(t.x)), b = find(Int32(t.y)), c = find(Int32(t.z))
+            parent[Int(b)] = a; parent[Int(c)] = a
+        }
+        var area: [Int32: Float] = [:], total: Float = 0
+        for t in triangles {
+            let a = positions[Int(t.x)], b = positions[Int(t.y)], c = positions[Int(t.z)]
+            let da = simd_length(simd_cross(b - a, c - a)) / 2
+            area[find(Int32(t.x)), default: 0] += da; total += da
+        }
+        var lo = SIMD3<Float>(repeating: .infinity), hi = -lo
+        for t in triangles where area[find(Int32(t.x)), default: 0] >= share * total {
+            for v in [t.x, t.y, t.z] { lo = simd_min(lo, positions[Int(v)]); hi = simd_max(hi, positions[Int(v)]) }
+        }
+        return lo.x <= hi.x ? (lo, hi) : bounds
+    }
+
+    /// The z below which `fraction` of the surface area lies.
+    static func percentileZ(_ samples: [SIMD4<Float>], _ fraction: Float) -> Float {
+        let sorted = samples.sorted { $0.z < $1.z }
         let goal = sorted.reduce(0) { $0 + $1.w } * fraction
         var below: Float = 0
         for s in sorted {
             below += s.w
-            if below >= goal { return s[axis] }
+            if below >= goal { return s.z }
         }
-        return sorted.last?[axis] ?? 0
+        return sorted.last?.z ?? 0
     }
-
-    /// The z below which `fraction` of the surface area lies.
-    static func percentileZ(_ samples: [SIMD4<Float>], _ fraction: Float) -> Float { percentile(samples, fraction, axis: 2) }
 
     /// Area and area centroid (x, y) of the solid's horizontal cross-section at height z, from
     /// the loops where the plane cuts the surface (Green's theorem). Sign-agnostic: a mesh wound
