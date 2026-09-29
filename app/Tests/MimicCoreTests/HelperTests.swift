@@ -222,7 +222,7 @@ final class HelperTests: XCTestCase {
 
         let f = try Fixture()
         let jobs = JobRunner(install: f.install, tools: f.tools(mimic: "/usr/bin/false"),
-                             drawThings: DrawThings(environment: ["DRAWTHINGS_URL": "http://127.0.0.1:9", "DRAWTHINGS_MODEL": "x"]))
+                             drawThings: DrawThings(environment: ["DRAWTHINGS_URL": "http://127.0.0.1:9", "DRAWTHINGS_MODEL": "x"], app: FakeApp().app))
         try f.modelFiles()
         try jobs.make(name: "dwarf", picture: .description(improved, original: "a dwarf"), restyle: false, seed: 1, sizes: Sizes(),
                       model: EngineDownload.standard)

@@ -7,6 +7,7 @@ struct SettingsView: View {
     @Environment(AppModel.self) private var model
     private var health: Health { .shared }
     @AppStorage("slicer") private var slicer = ""
+    @AppStorage(DrawThingsApp.enabledKey) private var openDrawThings = true
     @State private var slicers: [Slicer] = []
 
     var body: some View {
@@ -18,6 +19,9 @@ struct SettingsView: View {
             }
             Section {
                 ForEach(health.checks.filter { !$0.required }) { row($0) }
+                Toggle("Open Draw Things when needed", isOn: $openDrawThings)
+                    .help("When a mini needs a picture drawn, Mimic opens Draw Things in the background, and quits it afterwards if Mimic was the one that opened it.")
+                    .onChange(of: openDrawThings) { if !model.running { health.check(model.install) } }
             } header: {
                 Text("Optional")
             } footer: {
@@ -115,7 +119,7 @@ private struct CheckRow: View {
         "models": "What the 3D engine has learned, for the 3D model in use. Downloaded once.",
         "space": "Each mini needs about 150 MB while it's being made.",
         "drawthings-app": "A free app that draws characters from a description and turns pictures into grey sculpts.",
-        "drawthings-api": "Lets Mimic ask Draw Things for pictures. Draw Things has to be open.",
+        "drawthings-api": "Lets Mimic ask Draw Things for pictures. Mimic opens Draw Things when it needs it, unless you turn that off below.",
         "drawthings-model": "The picture model Mimic asks Draw Things to use.",
         "slicer": "Turns a mini into instructions for your printer.",
     ]
@@ -131,6 +135,10 @@ private struct CheckRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(result?.label ?? check.label)
                     .help(Self.what[check.id] ?? "")
+                if result?.label == Checks.opensWhenNeeded {
+                    Text("Its API server has to be on: in Draw Things, Settings → Advanced → API Server, HTTP, port 7860.")
+                        .font(.callout).foregroundStyle(.secondary)
+                }
                 if let result, !result.ok {
                     Text(setup.running && SetupModel.checkIDs.contains(check.id) ? setup.status : result.fix)
                         .font(.callout).foregroundStyle(.secondary)
@@ -260,8 +268,8 @@ struct DrawThingsSteps: View {
     var body: some View {
         SetupStep(done: health.ok("drawthings-app"), title: "Get Draw Things from the App Store.",
                   detail: "It's free.", link: ("Open the App Store", SetupModel.drawThingsStore))
-        SetupStep(done: health.ok("drawthings-api"), title: "Open Draw Things.")
-        SetupStep(done: health.ok("drawthings-api"), title: "Turn on its connection.",
+        SetupStep(done: health.drawThingsConnected, title: "Open Draw Things.")
+        SetupStep(done: health.drawThingsConnected, title: "Turn on its connection.",
                   detail: "In Draw Things: Settings → Advanced → API Server. Turn it on, choose HTTP, set the port to 7860.")
         SetupStep(done: health.ok("drawthings-model"), title: "Download FLUX.2 Klein.",
                   detail: "In Draw Things' model list, search for FLUX.2 Klein and download it. It's big, so give it a few minutes.")

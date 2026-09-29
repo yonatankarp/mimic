@@ -168,7 +168,7 @@ struct MakeView: View {
             }
             .disabled(!health.drawThingsReady)
             .help("Draw Things redraws your picture as a grey statue with the same pose and details. The 3D engine understands that far better than colourful art or photos.")
-            if !health.drawThingsReady { needsDrawThings("The grey sculpt needs Draw Things.") }
+            if !health.drawThingsReady { needsDrawThings("The grey sculpt needs Draw Things.") } else { opensWhenNeeded }
         }
     }
 
@@ -191,8 +191,12 @@ struct MakeView: View {
                     autoName = true
                 }
             ImproveBox(description: description, kind: card.kind.rawValue, improved: $improved)
-            if !health.drawThingsReady { needsDrawThings("✍️ Describe it needs Draw Things.") }
+            if !health.drawThingsReady { needsDrawThings("✍️ Describe it needs Draw Things.") } else { opensWhenNeeded }
         }
+    }
+
+    @ViewBuilder private var opensWhenNeeded: some View {
+        if health.drawThingsOpensWhenNeeded { Text("Mimic opens Draw Things when it needs it.").font(.callout).foregroundStyle(.secondary) }
     }
 
     private func needsDrawThings(_ text: String) -> some View {

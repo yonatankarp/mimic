@@ -14,6 +14,8 @@ public struct JobStatus: Equatable, Sendable {
     public var fragile = false
     /// When the step it's on began: time left is counted per step.
     public var stepStarted: Date?
+    /// Step 1 is waiting for Draw Things to open.
+    public var openingDrawThings = false
     public var succeeded: Bool { !running && !canceled && exit == 0 }
 }
 
@@ -53,6 +55,8 @@ public final class JobRunner: @unchecked Sendable {
     private var current: JobStatus?
     private var process: GroupProcess?
     private var lockFD: Int32 = -1
+    /// The Draw Things Mimic opened and hasn't quit yet: left open while the next job needs it.
+    private var openedDrawThings: DrawThingsApp.Instance?
     /// Entered while this runner holds the job lock: waitUntilDone waits for it to go idle.
     private let idle = DispatchGroup()
     private var continues: @Sendable ([QueueEntry]) -> Bool = { _ in true }
@@ -284,6 +288,7 @@ public final class JobRunner: @unchecked Sendable {
     private func releaseJobLock() {
         let fd: Int32 = lock.withLock { let fd = lockFD; lockFD = -1; return fd }
         guard fd >= 0 else { return }
+        quitDrawThings()
         SharedJob.clear(install.runs)
         flock(fd, LOCK_UN); close(fd)
         idle.leave()
@@ -373,16 +378,16 @@ public final class JobRunner: @unchecked Sendable {
             try FileManager.default.copyItem(at: from, to: to)
             return 0
         case let .drawCharacter(description, seed, to):
-            try drawThings.draw(description: description, seed: seed).write(to: to, options: .atomic)
+            try picture { try drawThings.draw(description: description, seed: seed) }.write(to: to, options: .atomic)
             return 0
         case let .sculptPicture(from, seed, to):
-            try drawThings.sculpt(picture: from, seed: seed).write(to: to, options: .atomic)
+            try picture { try drawThings.sculpt(picture: from, seed: seed) }.write(to: to, options: .atomic)
             return 0
         case let .drawObject(description, seed, to):
-            try drawThings.draw(description: description, seed: seed, kind: .object).write(to: to, options: .atomic)
+            try picture { try drawThings.draw(description: description, seed: seed, kind: .object) }.write(to: to, options: .atomic)
             return 0
         case let .sculptObject(from, seed, to):
-            try drawThings.sculpt(picture: from, seed: seed, kind: .object).write(to: to, options: .atomic)
+            try picture { try drawThings.sculpt(picture: from, seed: seed, kind: .object) }.write(to: to, options: .atomic)
             return 0
         case let .run(executable, arguments, directory, log):
             let p = try GroupProcess(executable: executable, arguments: arguments, environment: tools.environment,
@@ -392,6 +397,35 @@ public final class JobRunner: @unchecked Sendable {
             if stopNow { p.terminateGroup() }  // Stop pressed while the program was starting
             return p.wait()
         }
+    }
+
+    /// A picture from Draw Things, opening it first when needed and quitting it after if Mimic
+    /// opened it, unless the next job needs it too.
+    private func picture(_ draw: () throws -> Data) throws -> Data {
+        let opened = try drawThings.openIfNeeded(canceled: { status?.canceled == true }, opening: {
+            lock.withLock { current?.openingDrawThings = true }
+            notify()
+        })
+        if status?.openingDrawThings == true {
+            lock.withLock { current?.openingDrawThings = false }
+            notify()
+        }
+        if let opened { lock.withLock { openedDrawThings = opened } }
+        defer { if !nextNeedsDrawThings() { quitDrawThings() } }
+        return try draw()
+    }
+
+    /// Whether the queue's next job, which this runner will run, asks Draw Things for a picture.
+    private func nextNeedsDrawThings() -> Bool {
+        let entries = queue.entries()
+        guard let next = entries.first, next.job == .generate, keepGoing(entries) else { return false }
+        let s = MiniSettings.load(install.runs.appendingPathComponent(next.name))
+        return s.source == .desc || s.restyle == true
+    }
+
+    private func quitDrawThings() {
+        let opened: DrawThingsApp.Instance? = lock.withLock { defer { openedDrawThings = nil }; return openedDrawThings }
+        if let opened, opened.alive() { opened.quit() }
     }
 
     private func append(_ log: URL, _ text: String) {

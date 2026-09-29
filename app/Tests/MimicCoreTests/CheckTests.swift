@@ -22,9 +22,10 @@ final class CheckTests: XCTestCase {
 
     /// No DRAWTHINGS_MODEL: a pinned model name is taken on trust, which would keep the model
     /// check green with nothing downloaded. Port 9 (discard) refuses the connection.
-    func checks(freeGB: Int64, drawThings: String = "http://127.0.0.1:9", model: EngineModel = EngineDownload.standard) -> Checks {
+    func checks(freeGB: Int64, drawThings: String = "http://127.0.0.1:9", model: EngineModel = EngineDownload.standard,
+                autoOpen: Bool = false) -> Checks {
         Checks(install: f.install, model: model, appFolders: [apps],
-               drawThings: DrawThings(environment: ["DRAWTHINGS_URL": drawThings], home: home),
+               drawThings: DrawThings(environment: ["DRAWTHINGS_URL": drawThings], home: home), autoOpen: autoOpen,
                freeBytes: { _ in freeGB * 1_000_000_000 })
     }
 
@@ -60,6 +61,22 @@ final class CheckTests: XCTestCase {
 
         let got = results(checks(freeGB: 100, drawThings: "http://127.0.0.1:\(server.port)"))
         XCTAssertEqual(Self.ids.filter { !got[$0]! }, [], "these stayed red with everything there")
+    }
+
+    /// Closed is fine when Mimic opens Draw Things itself: informative, not red. Only when it's
+    /// installed, and only with the switch on.
+    func testDrawThingsClosedIsFineWhenMimicOpensIt() throws {
+        let api = { (c: Checks) in c.all.first { $0.id == "drawthings-api" }!.run() }
+        XCTAssertFalse(api(checks(freeGB: 100, autoOpen: true)).ok, "not installed, yet it would open")
+        try FileManager.default.createDirectory(at: apps.appendingPathComponent("Draw Things.app"), withIntermediateDirectories: true)
+        let closed = api(checks(freeGB: 100, autoOpen: true))
+        XCTAssertTrue(closed.ok)
+        XCTAssertEqual(closed.label, Checks.opensWhenNeeded)
+        XCTAssertFalse(api(checks(freeGB: 100, autoOpen: false)).ok, "switched off, closed still passed")
+        let server = try FakeDrawThings()
+        defer { server.stop() }
+        XCTAssertEqual(api(checks(freeGB: 100, drawThings: "http://127.0.0.1:\(server.port)", autoOpen: true)).label,
+                       "Draw Things is open and connected")
     }
 
     /// Present but broken, like a copy whose libraries went missing: exists is not enough.
@@ -137,12 +154,20 @@ final class CheckTests: XCTestCase {
     }
 }
 
-/// Answers every request with 200 and `body`, like Draw Things' API server.
+/// Answers every request with 200 and `body`, like Draw Things' API server. While not `ready`
+/// it hangs up without answering, like Draw Things opening, or open with its API server off.
 final class FakeDrawThings: @unchecked Sendable {
     private let fd: Int32
     let port: UInt16
+    private let lock = NSLock()
+    private var isReady: Bool
+    var ready: Bool {
+        get { lock.withLock { isReady } }
+        set { lock.withLock { isReady = newValue } }
+    }
 
-    init(body: String = "{}") throws {
+    init(body: String = "{}", ready: Bool = true) throws {
+        isReady = ready
         let fd = socket(AF_INET, SOCK_STREAM, 0)
         self.fd = fd
         var addr = sockaddr_in()
@@ -156,10 +181,10 @@ final class FakeDrawThings: @unchecked Sendable {
         }
         guard ok else { throw POSIXError(.EADDRINUSE) }
         port = UInt16(bigEndian: addr.sin_port)
-        Thread.detachNewThread {
+        Thread.detachNewThread { [self] in
             while case let c = accept(fd, nil, nil), c >= 0 {
-                var buf = [UInt8](repeating: 0, count: 4096)
-                _ = read(c, &buf, buf.count)
+                guard self.ready else { close(c); continue }
+                Self.readRequest(c)
                 let reply = "HTTP/1.1 200 OK\r\nContent-Length: \(body.utf8.count)\r\nConnection: close\r\n\r\n\(body)"
                 _ = reply.withCString { write(c, $0, strlen($0)) }
                 close(c)
@@ -168,4 +193,21 @@ final class FakeDrawThings: @unchecked Sendable {
     }
 
     func stop() { shutdown(fd, SHUT_RDWR); close(fd) }
+
+    /// All of it, body included: replying and closing with a request body unread resets the
+    /// connection, and the client sees no reply.
+    static func readRequest(_ c: Int32) {
+        var got = [UInt8](), buf = [UInt8](repeating: 0, count: 65536)
+        while true {
+            let n = read(c, &buf, buf.count)
+            if n <= 0 { return }
+            got += buf[0..<n]
+            let text = String(decoding: got, as: UTF8.self)
+            guard let end = text.range(of: "\r\n\r\n") else { continue }
+            let length = text[..<end.lowerBound].split(separator: "\r\n")
+                .first { $0.lowercased().hasPrefix("content-length:") }
+                .flatMap { Int($0.split(separator: ":")[1].trimmingCharacters(in: .whitespaces)) } ?? 0
+            if got.count >= text[..<end.upperBound].utf8.count + length { return }
+        }
+    }
 }

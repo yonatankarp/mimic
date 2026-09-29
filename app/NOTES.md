@@ -155,6 +155,20 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   folder, and reading that makes macOS ask for access to another app's data and block until
   answered: Settings sat on a spinner. The API's selected model comes first; the folder is a
   fallback with a 3-second limit.
+- **Mimic opens Draw Things when a picture needs it** (`DrawThings.openIfNeeded`, called by
+  the job runner around step 1, so the app and `mimic` both do it). Only when its API isn't
+  answering and it isn't running at all: one that's open with its API server off isn't Mimic's
+  to open or quit, and the request says how to turn the server on. Opened hidden without taking
+  focus; the wait ends when the API answers, the app exits, or after 90 s (an app that opens and
+  never answers almost always has its API server off, and says so). Only the instance Mimic
+  opened is ever quit (`terminate`, never forced): after the picture, unless the queue's next
+  job needs it too, and when the runner lets go of the queue. Liveness is by pid, since
+  `NSRunningApplication.isTerminated` is updated on a main run loop `mimic` doesn't run; the
+  launcher was tried live from a command-line process with its main thread blocked (Chess:
+  opened in 0.25 s, not frontmost, quit when asked). Settings → Open Draw Things when needed
+  (`openDrawThings`, on by default); with it on, Draw Things being closed is green in Settings
+  ("opens when needed") and New Mini's grey sculpt and Describe it only need it installed with
+  FLUX.2 Klein. Tests use a fake launcher (`FakeApp`): never the real app.
 - **The first-run tour is popovers on the real controls** (`Sources/Mimic/TourGuide.swift`;
   when it starts and what comes next is `MimicCore/Tour.swift`, tested). Anchor preferences
   can't reach the toolbar or the New Mini sheet, which are hosted apart from the window's

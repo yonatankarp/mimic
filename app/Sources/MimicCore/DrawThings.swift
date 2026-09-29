@@ -1,3 +1,4 @@
+import AppKit
 import CoreGraphics
 import Foundation
 import ImageIO
@@ -11,6 +12,8 @@ public final class DrawThings: @unchecked Sendable {
     public let base: URL
     public let modelsDir: URL
     private let pinnedModel: String?
+    /// Opens Draw Things when a picture needs it (`openIfNeeded`).
+    public let app: DrawThingsApp
     private let lock = NSLock()
     private var task: URLSessionDataTask?
 
@@ -37,10 +40,33 @@ public final class DrawThings: @unchecked Sendable {
     public static func redrawPrompt(kind: MiniKind) -> String { kind == .object ? objectSculptPrompt : sculptPrompt }
 
     public init(environment: [String: String] = ProcessInfo.processInfo.environment,
-                home: URL = FileManager.default.homeDirectoryForCurrentUser) {
+                home: URL = FileManager.default.homeDirectoryForCurrentUser, app: DrawThingsApp = .mac) {
         base = URL(string: environment["DRAWTHINGS_URL"] ?? "http://127.0.0.1:7860")!
         modelsDir = home.appendingPathComponent("Library/Containers/com.liuliu.draw-things/Data/Documents/Models")
         pinnedModel = environment["DRAWTHINGS_MODEL"]
+        self.app = app
+    }
+
+    /// Before a picture step: when the API isn't answering and Draw Things isn't running, opens
+    /// it in the background and waits for the API. Returns the instance Mimic opened (Mimic's to
+    /// quit afterwards), or nil when it didn't open one: already answering, switched off in
+    /// Settings, not installed, or running already (its API server off, which the request then
+    /// says). The wait ends when the API answers or the app exits, else after `cap`: an app that
+    /// opens and never answers almost always has its API server off.
+    public func openIfNeeded(cap: TimeInterval = 90, poll: TimeInterval = 0.5,
+                             canceled: () -> Bool = { false }, opening: () -> Void = {}) throws -> DrawThingsApp.Instance? {
+        if reachable() { return nil }
+        guard app.enabled(), !app.running() else { return nil }
+        opening()
+        guard let opened = app.open() else { return nil }
+        let deadline = Date().addingTimeInterval(cap)
+        while !reachable(timeout: 1) {
+            if canceled() { opened.quit(); throw DrawThingsError.cancelled }
+            if !opened.alive() { throw DrawThingsError.closedWhileOpening }
+            if Date() > deadline { opened.quit(); throw DrawThingsError.apiOff }
+            Thread.sleep(forTimeInterval: poll)
+        }
+        return opened
     }
 
     /// The Klein checkpoint to ask for: DRAWTHINGS_MODEL, else the one Draw Things has selected if
@@ -171,8 +197,59 @@ public final class DrawThings: @unchecked Sendable {
     }
 }
 
+/// Opening and quitting the Draw Things app: an input, so tests never touch the real one.
+public struct DrawThingsApp: Sendable {
+    /// One running Draw Things that Mimic opened. Only this is ever quit: one the person opened
+    /// themselves is never Mimic's.
+    public struct Instance: Sendable {
+        public var alive: @Sendable () -> Bool
+        /// Asks it to quit, as ⌘Q does; never forced.
+        public var quit: @Sendable () -> Void
+        public init(alive: @escaping @Sendable () -> Bool, quit: @escaping @Sendable () -> Void) { self.alive = alive; self.quit = quit }
+    }
+    /// Settings → Open Draw Things when needed.
+    public var enabled: @Sendable () -> Bool
+    /// Whether any Draw Things is running, whoever opened it.
+    public var running: @Sendable () -> Bool
+    /// Opens it without taking focus; nil when it isn't installed or won't open.
+    public var open: @Sendable () -> Instance?
+
+    public init(enabled: @escaping @Sendable () -> Bool, running: @escaping @Sendable () -> Bool,
+                open: @escaping @Sendable () -> Instance?) {
+        self.enabled = enabled; self.running = running; self.open = open
+    }
+
+    public static let bundleID = "com.liuliu.draw-things"
+    /// The Settings switch, on unless turned off.
+    public static let enabledKey = "openDrawThings"
+    public static func enabled(_ defaults: UserDefaults = .standard) -> Bool { defaults.object(forKey: enabledKey) as? Bool ?? true }
+
+    /// The real one, through NSWorkspace: works from the app and from `mimic` in Terminal.
+    public static let mac = workspace(bundleID)
+
+    /// Any app by bundle id: Draw Things, or another app to try opening and quitting live.
+    static func workspace(_ bundleID: String) -> DrawThingsApp { DrawThingsApp(
+        enabled: { enabled() },
+        running: { !NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).isEmpty },
+        open: {
+            guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else { return nil }
+            let config = NSWorkspace.OpenConfiguration()
+            config.activates = false; config.hides = true; config.addsToRecentItems = false
+            let done = DispatchSemaphore(value: 0)
+            nonisolated(unsafe) var opened: NSRunningApplication?
+            NSWorkspace.shared.openApplication(at: url, configuration: config) { app, _ in opened = app; done.signal() }
+            // ponytail: bounded in case the reply never comes; a launch takes about a second.
+            guard done.wait(timeout: .now() + 60) == .success, let app = opened else { return nil }
+            let pid = app.processIdentifier
+            // By pid, not isTerminated: that is updated on the main run loop, which `mimic` in
+            // Terminal doesn't run. Draw Things isn't Mimic's child, so no zombie keeps it "alive".
+            return Instance(alive: { kill(pid, 0) == 0 }, quit: { _ = app.terminate() })
+        })
+    }
+}
+
 public enum DrawThingsError: Error, CustomStringConvertible, Equatable {
-    case notRunning, noModel, cancelled, badPicture, refused(String)
+    case notRunning, noModel, cancelled, badPicture, refused(String), apiOff, closedWhileOpening
     public var description: String {
         switch self {
         case .notRunning: "Draw Things isn't answering. Open Draw Things, then Settings → Advanced → API Server: turn it on, HTTP, port 7860."
@@ -180,6 +257,8 @@ public enum DrawThingsError: Error, CustomStringConvertible, Equatable {
         case .cancelled: "Stopped."
         case .badPicture: "That picture can't be read."
         case .refused(let why): "Draw Things refused the request: \(why)"
+        case .apiOff: "Mimic opened Draw Things, but it didn't answer. In Draw Things: Settings → Advanced → API Server: turn it on, choose HTTP, port 7860. Then try again."
+        case .closedWhileOpening: "Draw Things closed before it was ready. Try again."
         }
     }
 }
