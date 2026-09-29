@@ -15,6 +15,8 @@ struct MiniDetail: View {
         let settings = MiniSettings.load(mini.folder)
         let kind = settings.kind ?? .character
         let versions = Gallery.versions(of: mini, in: model.minis)
+        // One being made stays where it is.
+        let trashable = versions.filter { $0.name != mini.name && $0.name != model.busyWith }.count
         let tips = PrintTips(nozzle: settings.made?.nozzle ?? settings.requested?.nozzle ?? SizeCard.remembered().nozzle, kind: kind)
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
@@ -32,7 +34,7 @@ struct MiniDetail: View {
                     .disabled(mini.stl == nil)
                     .tourCallout(.mini)
             }
-            if versions.count > 1 { versionsRow(versions) }
+            if versions.count > 1 { versionsRow(versions, canKeep: trashable > 0) }
             if let job = model.job, job.name == mini.name, job.succeeded {
                 ForEach(job.notes, id: \.self) { Label($0, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange) }
                 if job.fragile {
@@ -65,7 +67,7 @@ struct MiniDetail: View {
         .navigationTitle(mini.displayName)
         // What it was made at, under the name in the title bar, where the Mac puts a document's details.
         .navigationSubtitle(settings.made.map { PrintTips.nowLine($0, kind: kind) } ?? "")
-        .confirmationDialog("Move \(versions.count - 1) other \(versions.count == 2 ? "version" : "versions") to the Trash?", isPresented: $confirmKeep) {
+        .confirmationDialog("Move \(trashable) other \(trashable == 1 ? "version" : "versions") to the Trash?", isPresented: $confirmKeep) {
             Button("Move to Trash", role: .destructive) {
                 let root = MiniSettings.load(mini.folder).versionOf ?? mini.name
                 guard model.keep(mini), root != mini.name, !Gallery.nameInUse(model.install.runs, root),
@@ -101,7 +103,7 @@ struct MiniDetail: View {
     }
 
     /// Its versions side by side, this one marked; clicking one shows it.
-    private func versionsRow(_ versions: [Mini]) -> some View {
+    private func versionsRow(_ versions: [Mini], canKeep: Bool) -> some View {
         HStack(alignment: .center, spacing: 10) {
             ForEach(versions) { v in
                 Button { model.selection = v.id } label: {
@@ -120,6 +122,7 @@ struct MiniDetail: View {
             Button("Keep This One…") { confirmKeep = true }
                 .help("Keeps this version and moves the others to the Trash.")
                 .glassButton()
+                .disabled(!canKeep)
         }
     }
 

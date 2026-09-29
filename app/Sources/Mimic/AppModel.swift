@@ -338,7 +338,7 @@ final class AppModel {
         let others = Gallery.versions(of: mini, in: minis).filter { $0.name != mini.name }
         for v in others where v.name != busyWith { trash(v) }
         if let v = others.first(where: { $0.name == busyWith }) {
-            problem = "“\(v.displayName)” is being made, so it wasn't moved to the Trash. Move it there once it's done."
+            problem = (problem.map { $0 + " " } ?? "") + "“\(v.displayName)” is being made, so it wasn't moved to the Trash. Move it there once it's done."
             return false
         }
         return problem == nil
