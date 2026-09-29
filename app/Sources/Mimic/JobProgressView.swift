@@ -11,6 +11,7 @@ struct JobProgressView: View {
     @State private var retryProblem: String?
     /// The raw error behind retryProblem, for the tooltip only.
     @State private var retryDetail: String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     static let steps = [(1, "🖼️ Getting the picture ready"), (2, "🧊 Building the 3D shape (the long part)"),
                         (3, "🖨️ Making the print-ready file")]
@@ -37,15 +38,20 @@ struct JobProgressView: View {
         let who = Mini.displayName(s.name)
         return VStack(alignment: .leading, spacing: 14) {
             Text(title(s, who: who)).font(.title2.bold())
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(Self.steps.filter { s.kind == .generate || $0.0 == 3 }, id: \.0) { n, label in
-                    HStack(spacing: 8) {
-                        StepMark(state: state(of: n, in: s), number: n)
-                        Text(label).foregroundStyle(state(of: n, in: s) == .pending ? .secondary : .primary)
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(Self.steps.filter { s.kind == .generate || $0.0 == 3 }, id: \.0) { n, label in
+                        HStack(spacing: 8) {
+                            StepMark(state: state(of: n, in: s), number: n)
+                            Text(label).foregroundStyle(state(of: n, in: s) == .pending ? .secondary : .primary)
+                        }
                     }
                 }
+                Spacer(minLength: 0)
+                JobPicture(status: s, folder: model.install.runs.appendingPathComponent(s.name))
             }
             ProgressView(value: JobProgress.fraction(s, now: now))
+                .progressViewStyle(GlidingBar(working: s.running))
             note(s, now: now)
             HStack {
                 if s.running {
@@ -76,6 +82,9 @@ struct JobProgressView: View {
             if s.running {
                 Text(JobProgress.note(s.kind, elapsed: elapsed))
                     .foregroundStyle(s.kind == .generate && elapsed > 12 * 60 ? Color.orange : .secondary)
+                    // The time so far rolls from one second to the next.
+                    .contentTransition(.numericText())
+                    .animation(reduceMotion ? nil : .default, value: Int(elapsed))
             } else if s.canceled {
                 Text(s.kind == .prep ? "It keeps its previous size." : "Nothing was kept. It's in the Trash if you want the pieces.")
                     .foregroundStyle(.secondary)
@@ -123,40 +132,127 @@ struct JobProgressView: View {
     }
 }
 
+/// A step's number, breathing while it's the one being worked on; it turns into a checkmark
+/// (or a cross) in place, and a checkmark gives a small bounce.
 private struct StepMark: View {
     enum State { case pending, active, done, failed }
     let state: State
     let number: Int
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
-        Group {
-            switch state {
-            case .pending: Image(systemName: "\(number).circle").foregroundStyle(.secondary)
-            case .active: ProgressView().controlSize(.small)
-            case .done: Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-            case .failed: Image(systemName: "xmark.circle.fill").foregroundStyle(.red)
-            }
+        Image(systemName: symbol)
+            .foregroundStyle(color)
+            .symbolEffect(.breathe, options: .repeat(.periodic(delay: 1.5)), isActive: state == .active && !reduceMotion)
+            .symbolEffect(.bounce, value: state == .done && !reduceMotion)
+            .contentTransition(.symbolEffect(.replace))
+            .animation(reduceMotion ? nil : .default, value: state)
+            .frame(width: 18, height: 18)
+    }
+
+    private var symbol: String {
+        switch state {
+        case .pending: "\(number).circle"
+        case .active: "\(number).circle.fill"
+        case .done: "checkmark.circle.fill"
+        case .failed: "xmark.circle.fill"
         }
-        .frame(width: 18, height: 18)
+    }
+
+    private var color: Color {
+        switch state {
+        case .pending: .secondary
+        case .active: .accentColor
+        case .done: .green
+        case .failed: .red
+        }
+    }
+}
+
+/// The character, as soon as there's a picture of it: the picture while it's being made, with
+/// a slow scan across it while the 3D shape is built; the finished mini's front view once it's
+/// ready. Success gets a checkmark badge; failure a warning badge and a small shake, no fuss.
+private struct JobPicture: View {
+    let status: JobStatus
+    /// runs/<name>, where the job writes source.png and the renders.
+    let folder: URL
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        // Read every second with the sheet's clock: cheap (a stat), and the picture appears the
+        // moment step 1 writes it.
+        let file = shownFile
+        let version = (try? FileManager.default.attributesOfItem(atPath: file.path))?[.modificationDate] as? Date
+        let building = status.running && status.kind == .generate && status.step == 2
+        let failed = !status.running && !status.succeeded && !status.canceled
+        let shape = RoundedRectangle(cornerRadius: 12)
+        Thumbnail(url: version == nil ? nil : file, version: version ?? .distantPast)
+            .frame(width: 84, height: 84)
+            .clipShape(shape)
+            .glassCard(cornerRadius: 12)  // as the mini's own previews: renders have no background
+            // A soft glow while the long step runs, and the scan. Both sit outside the glass and
+            // the glow is a still blur: glass or a shadow around the moving scan redrew with it
+            // every frame.
+            .background { shape.fill(Color.accentColor.opacity(building ? 0.45 : 0)).blur(radius: 8) }
+            .overlay { if building && !reduceMotion { LightSweep(vertical: true, crossing: 2.6, rest: 1.6, strength: 0.35).clipShape(shape) } }
+            .overlay(alignment: .bottomTrailing) {
+                if status.succeeded {
+                    badge("checkmark.circle.fill", .green)
+                        .transition(reduceMotion ? .opacity : .scale(scale: 0.3).combined(with: .opacity))
+                } else if failed {
+                    badge("exclamationmark.triangle.fill", .orange).transition(.opacity)
+                }
+            }
+            .animation(reduceMotion ? nil : .bouncy, value: status.running)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.6), value: building)
+            .keyframeAnimator(initialValue: 0.0, trigger: failed && !reduceMotion) { view, x in
+                view.offset(x: x)
+            } keyframes: { _ in
+                KeyframeTrack {
+                    for x in [-5.0, 4, -2.5, 1, 0] { CubicKeyframe(x, duration: 0.09) }
+                }
+            }
+            .accessibilityHidden(true)
+    }
+
+    private var shownFile: URL {
+        let front = folder.appendingPathComponent("\(status.name)_front.png")
+        let resized = status.kind == .prep || status.succeeded
+        return resized && FileManager.default.fileExists(atPath: front.path) ? front : folder.appendingPathComponent("source.png")
+    }
+
+    private func badge(_ symbol: String, _ color: Color) -> some View {
+        Image(systemName: symbol)
+            .font(.title2)
+            .symbolRenderingMode(.palette)
+            .foregroundStyle(.white, color)
+            .background(Circle().fill(.background).padding(2))
+            .offset(x: 6, y: 6)
     }
 }
 
 /// Where the progress goes when it runs in the background: a toolbar button that reopens it.
 struct JobToolbarItem: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         if model.jobShown, let s = model.job {
             Button { model.showProgress() } label: {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     HStack(spacing: 6) {
                         if s.running {
-                            ProgressView(value: JobProgress.fraction(s, now: context.date))
-                                .progressViewStyle(.circular).controlSize(.small)
+                            ProgressRing(fraction: JobProgress.fraction(s, now: context.date))
+                                .transition(.opacity)
                         } else {
                             Image(systemName: s.succeeded ? "checkmark.circle.fill" : s.canceled ? "stop.circle" : "exclamationmark.circle.fill")
                                 .foregroundStyle(s.succeeded ? .green : s.canceled ? .secondary : .red)
+                                .transition(reduceMotion || !s.succeeded ? .opacity : .scale(scale: 0.3).combined(with: .opacity))
                         }
                         Text(label(s, now: context.date)).monospacedDigit()
+                            .contentTransition(.numericText())
                     }
+                    .animation(reduceMotion ? nil : .bouncy, value: s.running)
+                    .animation(reduceMotion ? nil : .default, value: Int(context.date.timeIntervalSince(s.started)))
                 }
             }
             .help("Show progress")
@@ -168,6 +264,27 @@ struct JobToolbarItem: View {
         if s.running { return "\(s.kind == .prep ? "Resizing" : "Making") \(who) · \(JobProgress.clock(now.timeIntervalSince(s.started)))" }
         if s.canceled { return "Stopped \(who)" }
         return s.succeeded ? "\(who) is ready" : "\(who) didn't finish"
+    }
+}
+
+/// The toolbar's progress: a ring around a dot that pulses now and then to say it's still
+/// working. It shows for the whole job with the sheet hidden, so it rests between pulses.
+private struct ProgressRing: View {
+    let fraction: Double
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        ZStack {
+            Circle().stroke(.quaternary, lineWidth: 2.5)
+            Circle().trim(from: 0, to: fraction)
+                .stroke(.tint, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+            Image(systemName: "circle.fill").font(.system(size: 5)).foregroundStyle(.tint)
+                .symbolEffect(.pulse, options: .repeat(.periodic(delay: 1.5)), isActive: !reduceMotion)
+        }
+        .frame(width: 14, height: 14)
+        .accessibilityElement()
+        .accessibilityValue("\(Int(fraction * 100))%")
     }
 }
 
@@ -185,7 +302,8 @@ enum DockProgress {
             while !Task.isCancelled, let s = model.job, s.running {
                 view.fraction = JobProgress.fraction(s)
                 tile.display()
-                try? await Task.sleep(for: .seconds(2))
+                // Every second, like the sheet's clock: a 2-second step read as a stutter.
+                try? await Task.sleep(for: .seconds(1))
             }
             tile.contentView = nil
             tile.display()

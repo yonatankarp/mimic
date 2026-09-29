@@ -54,6 +54,9 @@ final class AppModel {
         Health.shared.check(install)
         // An old install's engine is only moved, which needs no asking.
         if setup.hasOldInstall { setup.start() }
+        #if DEBUG
+        if let spec = ProcessInfo.processInfo.environment["MIMIC_DEMO_PROGRESS"] { demoProgress(spec) }
+        #endif
     }
 
     var selected: Mini? { minis.first { $0.id == selection } }
@@ -144,6 +147,43 @@ final class AppModel {
         if s.succeeded { selection = s.name }
         if finished { announce(s) }
     }
+
+    #if DEBUG
+    /// Development only: `MIMIC_DEMO_PROGRESS=<mini>[:<speed>][:fail|:hold][:resize]` plays a
+    /// pretend job through the progress sheet, so its animations can be looked at without a
+    /// real ten-minute job. Nothing runs and nothing is written; speed 20 (the default) plays
+    /// a make in about half a minute, and hold stays in its long step.
+    private func demoProgress(_ spec: String) {
+        let parts = spec.split(separator: ":").map(String.init)
+        let speed = parts.dropFirst().compactMap(Double.init).first ?? 20
+        let resize = parts.contains("resize"), fail = parts.contains("fail"), hold = parts.contains("hold")
+        // Pretend seconds at which each step starts, and the end.
+        let plan: [(step: Int, at: Double)] = resize ? [(3, 0)] : [(1, 0), (2, 25), (3, 480)]
+        let end = resize ? 50.0 : 530
+        Task {
+            try? await Task.sleep(for: .seconds(1))  // the window first
+            var s = JobStatus(name: parts[0], kind: resize ? .prep : .generate, step: plan[0].step, started: Date())
+            job = s; jobShown = true; sheet = .progress
+            DockProgress.follow(self)
+            var t = 0.0
+            while hold || t < end {
+                try? await Task.sleep(for: .seconds(0.25))
+                t += 0.25 * speed
+                if hold { t = min(t, 300) }
+                s.started = Date().addingTimeInterval(-t)
+                s.step = plan.last { $0.at <= t }!.step
+                if fail && s.step == 3 { break }
+                job = s
+            }
+            s.running = false
+            s.exit = fail ? 1 : 0
+            if fail { s.step = 2; s.problem = "The 3D engine stopped early (pretend)." }
+            job = s
+            reload()
+            if s.succeeded { selection = s.name }
+        }
+    }
+    #endif
 
     // MARK: Telling you it's done
 

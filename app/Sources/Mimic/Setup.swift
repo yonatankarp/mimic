@@ -19,6 +19,8 @@ final class SetupModel {
     /// Why the last run stopped, in words for people.
     private(set) var problem: String?
     private(set) var progress: SetupProgress?
+    /// The moment between first-launch setup finishing and the gallery taking over the window.
+    private(set) var justFinished = false
     /// Recent (time, bytes done), for the speed and the time left.
     private var samples: [(at: Date, done: Int64)] = []
 
@@ -44,6 +46,18 @@ final class SetupModel {
             setup.models = setup.models.map(local)
         }
         Task {
+            #if DEBUG
+            // Development: MIMIC_DEMO_SETUP plays a pretend download (about 30 s) and a finish,
+            // to look at the setup screen's animations without downloading 8.1 GB.
+            if ProcessInfo.processInfo.environment["MIMIC_DEMO_SETUP"] != nil {
+                let total = EngineDownload.totalBytes
+                for i in 1...150 {
+                    try? await Task.sleep(for: .seconds(0.2))
+                    update(SetupProgress(activity: .downloading, done: total * Int64(i) / 150, total: total))
+                }
+                return await finish(present: true)
+            }
+            #endif
             do {
                 try await setup.run { p in Task { @MainActor in self.update(p) } }
             } catch let e as SetupError {
@@ -51,10 +65,25 @@ final class SetupModel {
             } catch {
                 problem = "Setup stopped (\(error.localizedDescription)). Press Try Again: it carries on where it stopped."
             }
-            running = false
-            installed = EngineDownload.present(install)
-            Health.shared.check(install)
+            await finish(present: EngineDownload.present(install))
         }
+    }
+
+    /// On first launch a finished setup shows it's done for a moment, then the gallery fades in
+    /// in its place. A Repair from Settings just ends.
+    private func finish(present: Bool) async {
+        running = false
+        if present && !installed {
+            justFinished = true
+            try? await Task.sleep(for: .seconds(1.2))
+            withAnimation(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : .easeInOut(duration: 0.5)) {
+                installed = true
+                justFinished = false
+            }
+        } else {
+            installed = present
+        }
+        Health.shared.check(install)
     }
 
     private func update(_ p: SetupProgress) {
@@ -100,6 +129,7 @@ final class SetupModel {
 /// and Draw Things, which is optional.
 struct SetupView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var setup: SetupModel { model.setup }
 
     /// 8.1 GB at 100 Mbit/s, rounded to five minutes.
@@ -135,22 +165,34 @@ struct SetupView: View {
     private var engineCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center, spacing: 14) {
-                Image(systemName: "cube.transparent").font(.system(size: 30)).foregroundStyle(.tint).frame(width: 40)
+                // Breathes while it downloads, and becomes a checkmark with a bounce when it's done.
+                Image(systemName: setup.justFinished ? "checkmark.circle.fill" : "cube.transparent")
+                    .font(.system(size: 30))
+                    .foregroundStyle(setup.justFinished ? AnyShapeStyle(.green) : AnyShapeStyle(.tint))
+                    .symbolEffect(.breathe, options: .repeat(.periodic(delay: 1.5)), isActive: setup.running && !reduceMotion)
+                    .symbolEffect(.bounce, value: setup.justFinished && !reduceMotion)
+                    .contentTransition(.symbolEffect(.replace))
+                    .animation(reduceMotion ? nil : .default, value: setup.justFinished)
+                    .frame(width: 40)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("The 3D engine").font(.headline)
                     Text("\(gigabytes) GB, about \(minutes) minutes on a fast connection")
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                if !setup.running {
+                if !setup.running && !setup.justFinished {
                     Button(setup.problem == nil ? "Download" : "Try Again") { setup.start() }
                         .glassButton(prominent: true)
                         .controlSize(.large)
                 }
             }
-            if setup.running {
+            if setup.running || setup.justFinished {
                 ProgressView(value: setup.fraction)
+                    .progressViewStyle(GlidingBar(working: setup.running))
                 Text(setup.status).font(.callout).foregroundStyle(.secondary).monospacedDigit()
+                    // GB, speed and time left roll rather than flicker.
+                    .contentTransition(.numericText())
+                    .animation(reduceMotion ? nil : .default, value: setup.status)
             }
             if let problem = setup.problem {
                 Label(problem, systemImage: "exclamationmark.triangle.fill")

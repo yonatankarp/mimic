@@ -9,6 +9,7 @@ struct Sidebar: View {
     @Environment(AppModel.self) private var model
     @State private var query = ""
     @State private var preview: URL?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         // Only the search field sits inside the branch: anything attached on the other side
@@ -43,6 +44,8 @@ struct Sidebar: View {
                 }
             }
         }
+        // A new mini slides into the list (and a trashed one out) rather than popping.
+        .animation(reduceMotion ? nil : .default, value: shown.map(\.id))
         // Delete (or ⌘⌫ from the Mini menu) asks before trashing, as the context menu does.
         .onDeleteCommand { if let mini = model.selected, model.sheet == nil { model.trashing = mini } }
         .overlay {
