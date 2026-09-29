@@ -34,7 +34,7 @@ enum CLI {
         case "make", "resize", "retry":
             guard let name = rest.first, !name.hasPrefix("-") else { return fail(usage) }
             // Setup downloads the engine in the app, where it can show its progress.
-            guard EngineDownload.present(install) else { return fail("Mimic needs to finish setting up. Open the Mimic app: it downloads what's missing.") }
+            guard args[0] == "resize" || EngineDownload.present(install) else { return fail("Mimic needs to finish setting up. Open the Mimic app: it downloads what's missing.") }
             rest.removeFirst()
             var sizes = Sizes(), image: String?, restyle = false, seed = 42, description: String?
             while let a = rest.first {

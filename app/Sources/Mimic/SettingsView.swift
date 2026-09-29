@@ -48,7 +48,11 @@ struct SettingsView: View {
             }
             Section {
                 LabeledContent {
-                    Button("Open Minis Folder") { NSWorkspace.shared.open(model.install.runs) }
+                    Button("Open Minis Folder") {
+                        // A new Mac has none until the first mini.
+                        try? FileManager.default.createDirectory(at: model.install.runs, withIntermediateDirectories: true)
+                        NSWorkspace.shared.open(model.install.runs)
+                    }
                 } label: {
                     Text("Your minis are saved in")
                     Text((model.install.runs.path as NSString).abbreviatingWithTildeInPath)
@@ -167,8 +171,12 @@ struct DrawThingsSteps: View {
 private struct TerminalSection: View {
     // /usr/local/bin is on every Mac's PATH (/etc/paths), but a new Mac doesn't have it and
     // only an administrator can make it, hence sudo; ~/.local/bin would need no password but
-    // isn't on the PATH, which would take a second step.
-    static let command = "sudo mkdir -p /usr/local/bin && sudo ln -sf \"\(Bundle.main.bundlePath)/Contents/MacOS/mimic\" /usr/local/bin/mimic"
+    // isn't on the PATH, which would take a second step. The app's own path only when it's in
+    // Applications: opened from the disk image (or translocated), it's gone after a restart.
+    static let command: String = {
+        let app = Bundle.main.bundlePath.hasPrefix("/Applications/") ? Bundle.main.bundlePath : "/Applications/Mimic.app"
+        return "sudo mkdir -p /usr/local/bin && sudo ln -sf \"\(app)/Contents/MacOS/mimic\" /usr/local/bin/mimic"
+    }()
     @State private var copied = false
 
     var body: some View {

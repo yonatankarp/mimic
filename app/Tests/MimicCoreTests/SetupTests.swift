@@ -51,7 +51,9 @@ final class SetupTests: XCTestCase {
     func testLocateOrder() throws {
         let home = dir.appendingPathComponent("home"), old = dir.appendingPathComponent("old"), dev = dir.appendingPathComponent("dev")
         for d in [old, dev] { try FileManager.default.createDirectory(at: d, withIntermediateDirectories: true) }
-        let defaults = UserDefaults(suiteName: "mimic-test-\(UUID().uuidString)")!
+        let suite = "mimic-test-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
         func locate(_ env: [String: String]) -> Install { Install.locate(environment: env, defaults: defaults, home: home) }
 
         XCTAssertEqual(locate([:]), .standard(home: home), "nothing set: the standard layout")
