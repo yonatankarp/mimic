@@ -5,6 +5,7 @@ import simd
 ///
 ///     mimic _prep in.glb out.stl [--height 32] [--base 25] [--base-height 3] [--nozzle 0.4]
 ///         [--inflate MM] [--voxel MM] [--faces 800000] [--no-base] [--flatten 0.4]
+///         [--fit height|longest] [--ground feet|bottom]
 ///
 /// Units are millimetres. Steps: scale to --height, centre on what the figure stands on,
 /// inflate the surface by --inflate (thickens blades and staffs by twice that), stand it on a
@@ -14,11 +15,18 @@ import simd
 /// Ported from pipeline/mini_prep.py, which ran inside Blender; every step exists because of a
 /// real failure, and the comments keep why. It runs as its own program (a hidden subcommand of
 /// the app's binary) so Stop can end it like any other step.
+///
+/// An object (anything that isn't a character) is `--fit longest --ground bottom`: --height is
+/// then its longest side, and it is centred on its whole shadow rather than on its feet.
 public struct PrepOptions: Equatable, Sendable {
     public var glb: String
     public var stl: String
-    /// Figure height, feet to top.
+    /// Figure height, feet to top; with `fitLongest`, the longest side.
     public var height = 32.0
+    /// Size by the longest side (x, y or z) instead of the height.
+    public var fitLongest = false
+    /// Centre on the whole object's shadow instead of the cross-sections through its feet.
+    public var groundBottom = false
     /// Base diameter.
     public var base = 25.0
     public var baseHeight = 3.0
@@ -62,6 +70,18 @@ public struct PrepOptions: Equatable, Sendable {
             case "--flatten": o.flatten = try number(a)
             case "--faces": o.faces = Int(try number(a))
             case "--no-base": o.noBase = true
+            case "--fit":
+                switch rest.popFirst() {
+                case "height": o.fitLongest = false
+                case "longest": o.fitLongest = true
+                default: throw PrepError("--fit needs height or longest")
+                }
+            case "--ground":
+                switch rest.popFirst() {
+                case "feet": o.groundBottom = false
+                case "bottom": o.groundBottom = true
+                default: throw PrepError("--ground needs feet or bottom")
+                }
             default:
                 guard !a.hasPrefix("-") else { throw PrepError("unknown option \(a)") }
                 files.append(a)
@@ -97,24 +117,39 @@ public enum Prep {
         let top = mesh.bounds.hi.z
         var samples = mesh.surfaceSamples()
         let ground0 = Mesh.percentileZ(samples, 0.005)
-        let scale = height / (top - ground0)
+        // An object's extents skip the same sliver at each end, so a floating speck the
+        // generator left (dropped later) can't count as part of its longest side.
+        let extent: (lo: SIMD3<Float>, hi: SIMD3<Float>)? = o.fitLongest || o.groundBottom
+            ? (SIMD3((0..<3).map { Mesh.percentile(samples, 0.005, axis: $0) }), SIMD3((0..<3).map { Mesh.percentile(samples, 0.995, axis: $0) }))
+            : nil
+        let span: Float
+        if o.fitLongest, let e = extent { span = max(e.hi.x - e.lo.x, e.hi.y - e.lo.y, e.hi.z - ground0) } else { span = top - ground0 }
+        let scale = height / span
         for n in mesh.positions.indices { mesh.positions[n] *= scale }
         for n in samples.indices { samples[n] *= SIMD4(scale, scale, scale, scale * scale) }
         let ground = ground0 * scale
 
-        // Centre on what the figure stands on: the solid cross-sections through its lower body.
-        // Not a box, which a raised weapon or a trailing wisp stretches by its whole length, and
-        // not the surface vertices, which count a thin wisp's skin as heavily as a leg's: on the
-        // test fixture those were off by 2.0 mm (box) and 0.65 mm (vertex mean).
-        var total: Float = 0, sum = SIMD2<Float>()
-        for f: Float in [0.03, 0.06, 0.09, 0.12] {
-            let s = mesh.section(ground + f * height)
-            total += s.area; sum += s.area * s.centroid
-        }
-        let centre = total > 0 ? sum / total : .zero
+        let centre: SIMD2<Float>
         var reach: Float = 0
-        for p in samples where p.z >= ground && p.z <= ground + 0.15 * height {
-            reach = max(reach, simd_length(SIMD2(p.x, p.y) - centre))
+        if o.groundBottom, let e = extent {
+            // An object lies on its whole bottom, so it's centred on its shadow on the bed: a
+            // teapot's spout counts, where a character's raised weapon mustn't.
+            centre = scale * (SIMD2(e.lo.x, e.lo.y) + SIMD2(e.hi.x, e.hi.y)) / 2
+            for p in samples { reach = max(reach, simd_length(SIMD2(p.x, p.y) - centre)) }
+        } else {
+            // Centre on what the figure stands on: the solid cross-sections through its lower body.
+            // Not a box, which a raised weapon or a trailing wisp stretches by its whole length, and
+            // not the surface vertices, which count a thin wisp's skin as heavily as a leg's: on the
+            // test fixture those were off by 2.0 mm (box) and 0.65 mm (vertex mean).
+            var total: Float = 0, sum = SIMD2<Float>()
+            for f: Float in [0.03, 0.06, 0.09, 0.12] {
+                let s = mesh.section(ground + f * height)
+                total += s.area; sum += s.area * s.centroid
+            }
+            centre = total > 0 ? sum / total : .zero
+            for p in samples where p.z >= ground && p.z <= ground + 0.15 * height {
+                reach = max(reach, simd_length(SIMD2(p.x, p.y) - centre))
+            }
         }
         let footprint = 2 * Double(reach)
 
@@ -155,7 +190,8 @@ public enum Prep {
         let (lo, hi) = out.bounds
         var lines = [String(format: "mini_prep: %@  size %.1f x %.1f x %.1f mm  faces %d  loose pieces dropped %d  footprint %.1f mm",
                             o.stl, hi.x - lo.x, hi.y - lo.y, hi.z - lo.z, out.triangles.count, dropped, footprint)]
-        if !o.noBase && footprint > o.base {
+        // An object on a base is a plinth, not a figure that must stand on it: no warning.
+        if !o.noBase && !o.groundBottom && footprint > o.base {
             lines.append(String(format: "mini_prep: WARNING footprint %.1f mm is wider than the %.0f mm base; raise the base to at least %d mm",
                                 footprint, o.base, Int((footprint + 1).rounded(.up))))
         }
@@ -186,17 +222,20 @@ extension Mesh {
         return out
     }
 
-    /// The z below which `fraction` of the surface area lies.
-    static func percentileZ(_ samples: [SIMD4<Float>], _ fraction: Float) -> Float {
-        let sorted = samples.sorted { $0.z < $1.z }
+    /// The coordinate on `axis` (0 x, 1 y, 2 z) below which `fraction` of the surface area lies.
+    static func percentile(_ samples: [SIMD4<Float>], _ fraction: Float, axis: Int) -> Float {
+        let sorted = samples.sorted { $0[axis] < $1[axis] }
         let goal = sorted.reduce(0) { $0 + $1.w } * fraction
         var below: Float = 0
         for s in sorted {
             below += s.w
-            if below >= goal { return s.z }
+            if below >= goal { return s[axis] }
         }
-        return sorted.last?.z ?? 0
+        return sorted.last?[axis] ?? 0
     }
+
+    /// The z below which `fraction` of the surface area lies.
+    static func percentileZ(_ samples: [SIMD4<Float>], _ fraction: Float) -> Float { percentile(samples, fraction, axis: 2) }
 
     /// Area and area centroid (x, y) of the solid's horizontal cross-section at height z, from
     /// the loops where the plane cuts the surface (Green's theorem). Sign-agnostic: a mesh wound

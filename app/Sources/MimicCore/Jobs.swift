@@ -59,7 +59,7 @@ public final class JobRunner: @unchecked Sendable {
     // MARK: Starting
 
     /// Makes a new mini. Everything is checked before anything is written.
-    public func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes) throws {
+    public func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes, kind: MiniKind = .character) throws {
         guard Rules.isValidName(name) else { throw RequestError.badName }
         _ = try sizes.flags()
         let folder = install.runs.appendingPathComponent(name)
@@ -80,6 +80,7 @@ public final class JobRunner: @unchecked Sendable {
             settings.restyle = restyle; settings.seed = seed; settings.requested = sizes
             try MiniSettings.update(folder) { s in
                 s.source = settings.source; s.desc = settings.desc; s.restyle = restyle; s.seed = seed; s.requested = sizes
+                s.kind = kind == .object ? .object : nil  // always set: a failed attempt's folder may say otherwise
             }
             try begin(.generate, folder: folder)
         } catch { release(); throw error }
@@ -225,6 +226,12 @@ public final class JobRunner: @unchecked Sendable {
             return 0
         case let .sculptPicture(from, seed, to):
             try drawThings.sculpt(picture: from, seed: seed).write(to: to, options: .atomic)
+            return 0
+        case let .drawObject(description, seed, to):
+            try drawThings.draw(description: description, seed: seed, kind: .object).write(to: to, options: .atomic)
+            return 0
+        case let .sculptObject(from, seed, to):
+            try drawThings.sculpt(picture: from, seed: seed, kind: .object).write(to: to, options: .atomic)
             return 0
         case let .run(executable, arguments, directory, log):
             let p = try GroupProcess(executable: executable, arguments: arguments, environment: tools.environment,

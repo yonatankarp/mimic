@@ -46,6 +46,15 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
     an edge not shared by exactly two triangles.
   - Renders are drawn in software, so a child process needs no window server or GPU, and it
     doesn't compete with the 3D engine.
+- **Characters and anything else.** New Mini asks what you're making. A character is exactly
+  what Mimic always made. Anything else (`"kind": "object"` in settings.json, written only for
+  objects, so older minis and the web version's files read as characters) gets neutral Draw
+  Things prompts, no round base unless asked for, a size that is its longest side
+  (`SizeCard.objectSize`, per nozzle) and print prep's `--fit longest --ground bottom`: scaled by
+  its longest extent and centred on its whole shadow, where a character is centred on the
+  cross-sections through its feet. Extents skip 0.5% of the surface at each end, as the ground
+  always has, so a floating speck can't count as its size. Prep with neither flag writes the
+  same bytes as before (checked against hashes taken before the change, and by a test).
 - **Same data on disk.** `runs/<name>/` with `<name>.stl`, `<name>_{front,side,back}.png`,
   `source.png` and `settings.json` (`requested` / `made` / how it was made), so minis made by
   the web version appear in the app unchanged.

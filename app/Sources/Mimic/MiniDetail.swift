@@ -10,12 +10,13 @@ struct MiniDetail: View {
 
     var body: some View {
         let settings = MiniSettings.load(mini.folder)
-        let tips = PrintTips(nozzle: settings.made?.nozzle ?? settings.requested?.nozzle ?? SizeCard.remembered().nozzle)
+        let kind = settings.kind ?? .character
+        let tips = PrintTips(nozzle: settings.made?.nozzle ?? settings.requested?.nozzle ?? SizeCard.remembered().nozzle, kind: kind)
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
                 Spacer()
                 Button("Resize This Mini…") { model.sheet = .resize(mini) }
-                    .help("Remakes the print file with new sizes. About a minute. The character itself doesn't change.")
+                    .help("Remakes the print file with new sizes. About a minute. The \(kind == .object ? "object" : "character") itself doesn't change.")
                     .disabled(!mini.hasModel || model.cantStart != nil)
                     .glassButton()
                 Button("Show in Finder") { model.showInFinder(mini) }
@@ -49,7 +50,7 @@ struct MiniDetail: View {
         .padding()
         .navigationTitle(mini.displayName)
         // What it was made at, under the name in the title bar, where the Mac puts a document's details.
-        .navigationSubtitle(settings.made.map(PrintTips.nowLine) ?? "")
+        .navigationSubtitle(settings.made.map { PrintTips.nowLine($0, kind: kind) } ?? "")
         .sheet(item: $enlarged) { e in
             VStack(spacing: 12) {
                 Thumbnail(url: e.url, version: mini.madeAt)

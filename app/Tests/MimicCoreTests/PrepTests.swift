@@ -152,12 +152,12 @@ final class PrepTests: XCTestCase {
         }
     }
 
-    func prep(_ extra: [String] = []) throws -> (Prep.Result, Printed, URL) {
+    func prep(_ extra: [String] = [], mesh: Mesh = fixture()) throws -> (Prep.Result, Printed, URL) {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("prep-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
         let glb = dir.appendingPathComponent("fixture.glb"), stl = dir.appendingPathComponent("out.stl")
-        try Self.glb(Self.fixture(), translation: [0.8, -0.5, 0]).write(to: glb)
+        try Self.glb(mesh, translation: [0.8, -0.5, 0]).write(to: glb)
         let result = try Prep.run(PrepOptions.parse([glb.path, stl.path] + extra))
         return (result, try Printed(stl), stl)
     }
@@ -234,12 +234,47 @@ final class PrepTests: XCTestCase {
         XCTAssertGreaterThan(volume, 0, "wound outward")
     }
 
+    /// An object lying flat: a long box with a spout sticking out of one end at mid-height, and
+    /// a speck floating far off to the side. Sized by its longest side (box and spout, not the
+    /// speck), standing on its whole bottom, centred on its whole shadow, spout included.
+    func testAnObjectLyingFlatIsSizedByItsLongestSideAndStandsOnItsWholeBottom() throws {
+        var m = Mesh()
+        m.add(Self.box(half: [1, 0.25, 0.15]), at: [0, 0, 0.15])       // 2 x 0.5 x 0.3, lying flat
+        m.add(Self.box(half: [0.3, 0.05, 0.05]), at: [1.25, 0, 0.2])   // spout: shadow reaches x = 1.55
+        m.add(Self.sphere(radius: 0.02), at: [0, 3, 1])                // speck, 3 units off in y
+        let (result, out, _) = try prep(["--fit", "longest", "--ground", "bottom", "--height", "60", "--no-base", "--faces", "20000"], mesh: m)
+        let (lo, hi) = out.bounds
+        let scale: Float = 60 / 2.55
+        XCTAssertEqual(hi.x - lo.x, 60 + 2 * 0.16, accuracy: 0.6, "the longest side is 60 mm (plus the inflate)")
+        XCTAssertEqual(hi.z - lo.z, 0.3 * scale + 0.16 - 0.4, accuracy: 0.3, "lying flat: its height is the box's, not 60 mm")
+        XCTAssertEqual((lo.x + hi.x) / 2, 0, accuracy: 0.3, "centred on its whole shadow, spout included")
+        XCTAssertEqual((lo.y + hi.y) / 2, 0, accuracy: 0.3)
+        XCTAssertGreaterThan(out.flatBottom, 0.9 * 2 * 0.5 * scale * scale, "stands on its whole bottom")
+        XCTAssertTrue(out.watertight)
+        XCTAssertEqual(out.pieces, 1)
+        XCTAssertGreaterThanOrEqual(result.dropped, 1, "the speck was dropped, and didn't count as its size")
+        XCTAssertEqual(result.lines.count, 1)
+    }
+
+    /// Existing minis and jobs are untouched: no flags means exactly what the explicit
+    /// character flags make, byte for byte.
+    func testCharacterDefaultsAreTheExplicitDefaults() throws {
+        let (_, _, plain) = try prep(["--faces", "20000"])
+        let (_, _, explicit) = try prep(["--faces", "20000", "--fit", "height", "--ground", "feet"])
+        XCTAssertEqual(try Data(contentsOf: plain), try Data(contentsOf: explicit))
+    }
+
     func testOptionsAndTheirDefaults() throws {
         let o = try PrepOptions.parse(["a.glb", "b.stl"])
         XCTAssertEqual([o.height, o.base, o.baseHeight, o.nozzle, o.flatten], [32, 25, 3, 0.4, 0.4])
         XCTAssertEqual([o.effectiveInflate, o.effectiveVoxel], [0.16, 0.1])
         XCTAssertEqual(o.faces, 800_000)
         XCTAssertFalse(o.noBase)
+        XCTAssertFalse(o.fitLongest || o.groundBottom)
+        let object = try PrepOptions.parse(["a.glb", "b.stl", "--fit", "longest", "--ground", "bottom"])
+        XCTAssertTrue(object.fitLongest && object.groundBottom)
+        XCTAssertThrowsError(try PrepOptions.parse(["a.glb", "b.stl", "--fit", "widest"]))
+        XCTAssertThrowsError(try PrepOptions.parse(["a.glb", "b.stl", "--ground"]))
         let fine = try PrepOptions.parse(["--height", "100.0", "a.glb", "--nozzle", "0.2", "--no-base", "b.stl", "--inflate", "0"])
         XCTAssertEqual([fine.height, fine.effectiveInflate, fine.effectiveVoxel], [100, 0, 0.05])
         XCTAssertTrue(fine.noBase)

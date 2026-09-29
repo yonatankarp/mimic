@@ -12,6 +12,7 @@ enum CLI {
       mimic retry <name>
       mimic list
     options: --height MM  --base MM  --nozzle 0.2|0.4|0.6  --inflate MM  --no-base  --seed N
+    anything that isn't a character: make … --object  [--size MM (longest side)]  [--add-base]
     """
 
     static func run(_ args: [String]) -> Int32 {
@@ -38,11 +39,14 @@ enum CLI {
             guard args[0] == "resize" || EngineDownload.present(install) else { return fail("Mimic needs to finish setting up. Open the Mimic app: it downloads what's missing.") }
             rest.removeFirst()
             var sizes = Sizes(), image: String?, restyle = false, seed = 42, description: String?
+            var object = false, addBase = false
             while let a = rest.first {
                 rest.removeFirst()
                 func value() -> String? { rest.isEmpty ? nil : rest.removeFirst() }
                 switch a {
-                case "--height": sizes.height = value()
+                case "--height", "--size": sizes.height = value()
+                case "--object": object = true
+                case "--add-base": addBase = true
                 case "--base": sizes.base = value()
                 case "--nozzle": sizes.nozzle = value()
                 case "--inflate": sizes.inflate = value()
@@ -55,6 +59,12 @@ enum CLI {
                     description = a
                 }
             }
+            // An object has no round base unless asked for one; a resize keeps what the mini is.
+            if args[0] == "resize" { object = MiniSettings.load(install.runs.appendingPathComponent(name)).isObject }
+            if object {
+                if !addBase { sizes.noBase = true }
+                if sizes.height == nil { sizes.height = SizeCard.text(SizeCard.objectSize[sizes.nozzle ?? "0.4"] ?? 80) }
+            }
             let jobs = JobRunner(install: install)
             do {
                 switch args[0] {
@@ -63,7 +73,7 @@ enum CLI {
                     if let image { picture = .image(URL(fileURLWithPath: image)) }
                     else if let description { picture = .description(description) }
                     else { return fail(usage) }
-                    try jobs.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes)
+                    try jobs.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, kind: object ? .object : .character)
                 case "resize": try jobs.resize(name: name, sizes: sizes)
                 default: try jobs.retry(name: name)
                 }
