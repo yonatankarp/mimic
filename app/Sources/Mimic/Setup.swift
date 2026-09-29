@@ -169,7 +169,7 @@ struct SetupView: View {
                 Image(systemName: setup.justFinished ? "checkmark.circle.fill" : "cube.transparent")
                     .font(.system(size: 30))
                     .foregroundStyle(setup.justFinished ? AnyShapeStyle(.green) : AnyShapeStyle(.tint))
-                    .symbolEffect(.breathe, options: .repeat(.continuous), isActive: setup.running && !reduceMotion)
+                    .symbolEffect(.breathe, options: .repeat(.periodic(delay: 1.5)), isActive: setup.running && !reduceMotion)
                     .symbolEffect(.bounce, value: setup.justFinished && !reduceMotion)
                     .contentTransition(.symbolEffect(.replace))
                     .animation(reduceMotion ? nil : .default, value: setup.justFinished)

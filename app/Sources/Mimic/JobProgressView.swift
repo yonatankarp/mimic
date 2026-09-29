@@ -143,7 +143,7 @@ private struct StepMark: View {
     var body: some View {
         Image(systemName: symbol)
             .foregroundStyle(color)
-            .symbolEffect(.breathe, options: .repeat(.continuous), isActive: state == .active && !reduceMotion)
+            .symbolEffect(.breathe, options: .repeat(.periodic(delay: 1.5)), isActive: state == .active && !reduceMotion)
             .symbolEffect(.bounce, value: state == .done && !reduceMotion)
             .contentTransition(.symbolEffect(.replace))
             .animation(reduceMotion ? nil : .default, value: state)
@@ -185,13 +185,16 @@ private struct JobPicture: View {
         let version = (try? FileManager.default.attributesOfItem(atPath: file.path))?[.modificationDate] as? Date
         let building = status.running && status.kind == .generate && status.step == 2
         let failed = !status.running && !status.succeeded && !status.canceled
+        let shape = RoundedRectangle(cornerRadius: 12)
         Thumbnail(url: version == nil ? nil : file, version: version ?? .distantPast)
-            .overlay { if building && !reduceMotion { LightSweep(vertical: true, crossing: 2.6, rest: 1.6, strength: 0.35) } }
             .frame(width: 84, height: 84)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(shape)
             .glassCard(cornerRadius: 12)  // as the mini's own previews: renders have no background
-            // A soft glow while the long step runs.
-            .shadow(color: .accentColor.opacity(building ? 0.45 : 0), radius: 8)
+            // A soft glow while the long step runs, and the scan. Both sit outside the glass and
+            // the glow is a still blur: glass or a shadow around the moving scan redrew with it
+            // every frame.
+            .background { shape.fill(Color.accentColor.opacity(building ? 0.45 : 0)).blur(radius: 8) }
+            .overlay { if building && !reduceMotion { LightSweep(vertical: true, crossing: 2.6, rest: 1.6, strength: 0.35).clipShape(shape) } }
             .overlay(alignment: .bottomTrailing) {
                 if status.succeeded {
                     badge("checkmark.circle.fill", .green)
@@ -264,8 +267,8 @@ struct JobToolbarItem: View {
     }
 }
 
-/// The toolbar's progress: a ring that fills smoothly between the clock's ticks, around a dot
-/// that pulses gently to say it's still working.
+/// The toolbar's progress: a ring around a dot that pulses now and then to say it's still
+/// working. It shows for the whole job with the sheet hidden, so it rests between pulses.
 private struct ProgressRing: View {
     let fraction: Double
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -277,10 +280,9 @@ private struct ProgressRing: View {
                 .stroke(.tint, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
                 .rotationEffect(.degrees(-90))
             Image(systemName: "circle.fill").font(.system(size: 5)).foregroundStyle(.tint)
-                .symbolEffect(.pulse, options: .repeat(.continuous), isActive: !reduceMotion)
+                .symbolEffect(.pulse, options: .repeat(.periodic(delay: 1.5)), isActive: !reduceMotion)
         }
         .frame(width: 14, height: 14)
-        .animation(reduceMotion ? nil : .linear(duration: 1), value: fraction)
         .accessibilityElement()
         .accessibilityValue("\(Int(fraction * 100))%")
     }

@@ -2,12 +2,14 @@ import SwiftUI
 
 // The moving parts of the waiting screens. People watch a make for minutes while the GPU is busy
 // with the 3D engine, so everything here is cheap: symbol effects, one-off animations, and
-// sweeps that rest between crossings (SwiftUI only draws while something moves). With Reduce
+// sweeps and symbol effects that rest between runs (SwiftUI only draws while something moves;
+// measured with the sheet open, a symbol breathing nonstop cost 4% of a core). With Reduce
 // Motion on, the sweeps and glides stay still.
 
-/// A progress bar whose fill glides between updates (they come about once a second) and, while
-/// `working`, has a soft light crossing it now and then, so a bar that moves 0.2% a second
-/// still looks alive. Finishing fills it the rest of the way; failing drops it at once.
+/// A progress bar with, while `working`, a soft light crossing it now and then, so a bar that
+/// moves 0.2% a second still looks alive. Finishing fills it the rest of the way smoothly;
+/// failing drops it at once. Between updates it steps rather than glides: a make moves it under
+/// a pixel a second, and a glide measured 3% of a core for nothing anyone could see.
 struct GlidingBar: ProgressViewStyle {
     var working: Bool
 
@@ -32,8 +34,7 @@ struct GlidingBar: ProgressViewStyle {
                 }
             }
             .frame(height: 6)
-            .animation(reduceMotion ? nil : working ? .linear(duration: 1) : fraction == 1 ? .easeOut(duration: 0.5) : nil,
-                       value: fraction)
+            .animation(reduceMotion || working || fraction < 1 ? nil : .easeOut(duration: 0.5), value: fraction)
         }
     }
 }
