@@ -17,6 +17,8 @@ enum CLI {
       mimic models
       mimic queue
       mimic queue remove <name>
+      mimic --version                which Mimic this is (also -v)
+      mimic --help                   this list (also -h)
     options: --height MM  --base MM  --nozzle 0.2|0.4|0.6  --inflate MM  --no-base  --seed N  --model ID
     anything that isn't a character: make … --object  [--size MM (longest side)]  [--add-base]
     make … --project "<project>": into that project (made if it's new); a project is a folder in the minis folder
@@ -28,7 +30,7 @@ enum CLI {
 
     static func run(_ args: [String]) -> Int32 {
         if args.first == "--probe-notifications" { return probeNotifications() }
-        if args.first == "--version" { print(BuildInfo.line); return 0 }
+        if ["--version", "-v", "version"].contains(args.first) { print(BuildInfo.line); return 0 }
         if ["--help", "-h", "help"].contains(args.first) { print(usage); return 0 }
         // The job's own steps, each run by a job as its own program: before finding the Mimic
         // folder or stopping leftovers, since this *is* the program named in runs/.job.pid.
