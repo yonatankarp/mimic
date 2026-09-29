@@ -30,11 +30,7 @@ struct ContentView: View {
         @Bindable var model = model
         if model.install != nil {
             NavigationSplitView {
-                List(model.minis, selection: $model.selection) { mini in
-                    GalleryRow(mini: mini)
-                }
-                .navigationSplitViewColumnWidth(min: 200, ideal: 240)
-                .navigationTitle("Your Minis")
+                Sidebar()
             } detail: {
                 if let mini = model.selected {
                     MiniDetail(mini: mini)
