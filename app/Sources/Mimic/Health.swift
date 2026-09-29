@@ -67,7 +67,7 @@ final class Health {
     var blocking: String? {
         let missing = checks.compactMap { c in results[c.id].flatMap { $0.required && !$0.ok ? $0.label : nil } }
         if missing.isEmpty { return nil }
-        return "Mimic isn't fully set up yet: \(missing.joined(separator: ", ")). Open Settings to see how to fix it."
+        return "Mimic isn't fully set up yet: \(missing.joined(separator: ", "))."
     }
 
     var needsAttention: Bool { blocking != nil }

@@ -9,6 +9,8 @@ struct JobProgressView: View {
     @Environment(\.openSettings) private var openSettings
     @State private var confirmingStop = false
     @State private var retryProblem: String?
+    /// The raw error behind retryProblem, for the tooltip only.
+    @State private var retryDetail: String?
 
     static let steps = [(1, "🖼️ Getting the picture ready"), (2, "🧊 Building the 3D shape (the long part)"),
                         (3, "🖨️ Making the print-ready file")]
@@ -88,6 +90,7 @@ struct JobProgressView: View {
                                                          : "Try again, or use a clearer, full-body picture.")
                     if let why = retryProblem ?? model.cantStart ?? s.problem {
                         Text(why).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
+                            .help(retryProblem != nil ? retryDetail ?? "" : "")
                     }
                 }
             }
@@ -97,7 +100,7 @@ struct JobProgressView: View {
 
     private func tryAgain() {
         retryProblem = nil
-        do { try model.retry() } catch { retryProblem = "\(error)" }
+        do { try model.retry() } catch { retryProblem = model.plainWords(error); retryDetail = "\(error)" }
     }
 
     private func title(_ s: JobStatus, who: String) -> String {
