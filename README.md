@@ -54,6 +54,10 @@ After that, open **Mimic** from your Applications folder whenever you want to ma
 
 ![Mimic's page: the character and size settings on the left, the finished dwarf cleric in a 3D view on the right, with print tips below](docs/images/ui.jpg)
 
+> [!TIP]
+> Chunky characters with bold shapes work best. Small details, like a pet on a shoulder,
+> may come out soft.
+
 1. **Your character.** Drop in a picture, or switch to ✍️ **Describe it** and write a
    sentence. A full-body picture with a plain background works best. Leave *Turn it into a
    grey sculpt first* on for drawings and photos.
@@ -85,15 +89,9 @@ the Trash, so a wrong click can be undone.
 
 For every nozzle: supports on **Tree (auto)**, stand the mini upright on its base, no brim.
 
-**Bigger shows more.** At 32 mm a face is about 5 mm tall. At 54 mm scale (about 6 cm for a
-tall character) faces, small pets and props come out much better on a home printer.
-
-## ⚠️ Good to know
-
-- **Small companions and props**, like a bird on a shoulder, can come out as blobs. The AI
-  sees them at only a few pixels and has to guess their far side.
-- **Chunky, heroic-looking characters work best.** Realistic proportions make faces tiny.
-- Planning to sell prints? Check the licences at the bottom first.
+> [!TIP]
+> **Bigger shows more.** At 32 mm a face is about 5 mm tall. At 54 mm scale (about 6 cm for a
+> tall character) faces, small pets and props come out much better on a home printer.
 
 ---
 
