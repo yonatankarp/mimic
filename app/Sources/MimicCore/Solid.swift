@@ -492,8 +492,14 @@ struct CubeTable: Sendable {
             return (p(a) + p(b)) / 2
         }
         let t = table[1]
-        if simd_dot(simd_cross(mid(t[1]) - mid(t[0]), mid(t[2]) - mid(t[0])), SIMD3(1, 1, 1)) < 0 {
-            table = table.map { tris in stride(from: 0, to: tris.count, by: 3).flatMap { [tris[$0], tris[$0 + 2], tris[$0 + 1]] } }
+        let normal: SIMD3<Float> = simd_cross(mid(t[1]) - mid(t[0]), mid(t[2]) - mid(t[0]))
+        if simd_dot(normal, SIMD3<Float>(1, 1, 1)) < 0 {
+            // Written out step by step: Swift 6.3's type checker gives up on the one-line version.
+            table = table.map { (tris: [UInt8]) -> [UInt8] in
+                var flipped: [UInt8] = []
+                for i in stride(from: 0, to: tris.count, by: 3) { flipped += [tris[i], tris[i + 2], tris[i + 1]] }
+                return flipped
+            }
         }
         crossed = used
         centres = polygons
