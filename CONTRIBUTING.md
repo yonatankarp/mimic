@@ -39,14 +39,17 @@ downloads the real engine and the small model files, never the 8 GB of weights.
 
 ## Releasing
 
-Push a version tag:
+1. Add a `## 0.3.0` section to `CHANGELOG.md`, written for people who use Mimic. It becomes the
+   release notes; a tag without one fails before anything is published.
+2. Push a version tag:
 
-```bash
-git tag v0.2.0 && git push origin v0.2.0
-```
+   ```bash
+   git tag v0.3.0 && git push origin v0.3.0
+   ```
 
-The workflow tests, builds `Mimic-0.2.0.dmg` and publishes it as a GitHub release. The README's
-install steps link to the latest release, so nothing else needs updating.
+The workflow tests, builds `Mimic-0.3.0.dmg` and publishes it as a GitHub release with that
+section as its notes. The README's install steps link to the latest release, so nothing else
+needs updating.
 
 ## Releasing a new Pixal3D build
 
