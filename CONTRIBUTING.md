@@ -24,6 +24,7 @@ python3 tests/test_serve.py  # the web page's input checks
 python3 tests/test_checks.py # every Settings check goes red when its part is missing, green when present
 python3 tests/test_cancel.py   # Stop ends a job and everything it started
 python3 tests/test_settings.py # what each mini remembers, and what Try Again rebuilds
+python3 tests/test_rename.py   # a rename moves every file named after the mini
 ```
 
 ## Releasing a new Pixal3D build

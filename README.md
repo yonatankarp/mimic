@@ -75,6 +75,10 @@ Changed your mind about the size? **🔁 Apply new size** remakes the print file
 Your character stays exactly the same. Don't want a mini any more? **🗑️ Delete** moves it to
 the Trash, so a wrong click can be undone.
 
+**🗂️ Your minis** lists everything you've made, newest first, with when each was made.
+Search appears once you have more than six. Right-click a mini (or hover it and use **⋯**)
+to open it in your slicer, show it in Finder, rename it, or move it to the Trash.
+
 **⚙️ Settings** has three things:
 - **Is everything set up?** A check of everything Mimic needs, with what to do about
   anything that's missing. A ⚠️ on the Settings button means something needs attention.

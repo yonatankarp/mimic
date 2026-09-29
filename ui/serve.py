@@ -153,6 +153,25 @@ def job_cmd(d, kind, st):
     return [str(ROOT / "make_mini.sh"), d.name, st["desc"], *flags]
 
 
+def rename_run(old, new):
+    """Rename a mini: its folder and the files named after it (the STL and the three previews).
+    Returns an error message, or None when it's done."""
+    src, dst = RUNS / old, RUNS / new
+    if not src.is_dir():
+        return "not found"
+    if dst.exists():
+        return f"'{new}' already exists"
+    with lock:
+        if job["running"] and job["name"] == old:
+            return f"still making {old}"
+    src.rename(dst)
+    for suffix in (".stl", "_front.png", "_side.png", "_back.png"):
+        f = dst / f"{old}{suffix}"
+        if f.exists():
+            f.rename(dst / f"{new}{suffix}")
+    return None
+
+
 def cancel_job():
     """Stop the running job. False when there is nothing to stop."""
     with lock:
@@ -274,9 +293,18 @@ def checks():
     return [run_check(i) for i, *_ in CHECKS]
 
 
+def made_at(d):
+    """When a mini was made: its print file's time (a rename leaves that alone, where the
+    folder's own time changes), else its picture's, else the folder's."""
+    for f in (d / f"{d.name}.stl", d / "source.png"):
+        if f.exists():
+            return f.stat().st_mtime
+    return d.stat().st_mtime
+
+
 def list_runs():
     out = []
-    for d in sorted((p for p in RUNS.iterdir() if p.is_dir()), key=lambda p: p.stat().st_mtime, reverse=True):
+    for d in sorted((p for p in RUNS.iterdir() if p.is_dir()), key=made_at, reverse=True):
         files = {f.name for f in d.iterdir()}
         stl = f"{d.name}.stl"
         out.append({"name": d.name, "stl": stl if stl in files else None,
@@ -284,7 +312,7 @@ def list_runs():
                     "renders": [v for v in ("front", "side", "back") if f"{d.name}_{v}.png" in files],
                     "made": read_settings(d).get("made"),
                     "retry": bool(read_settings(d).get("requested")),
-                    "mtime": int(d.stat().st_mtime)})
+                    "mtime": int(made_at(d))})
     return out
 
 
@@ -434,6 +462,17 @@ class H(BaseHTTPRequestHandler):
                     return self.send(404, {"error": "slicer not installed"})
                 args = ["open", "-a", slicer[1], str(stl)]
             subprocess.run(args, check=False)
+            return self.send(200, {"ok": True})
+
+        if path == "/api/rename":
+            to = q.get("to", "")
+            if not NAME_RE.fullmatch(to):
+                return self.send(400, {"error": "name: lowercase letters, digits and dashes only"})
+            if to == name:
+                return self.send(200, {"ok": True})
+            problem = rename_run(name, to)
+            if problem:
+                return self.send(409 if "exists" in problem or "still" in problem else 404, {"error": problem})
             return self.send(200, {"ok": True})
 
         if path == "/api/delete":

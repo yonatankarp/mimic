@@ -208,7 +208,30 @@ pre.log { max-height:220px; overflow:auto; font:11.5px/1.4 ui-monospace, Menlo, 
 #tips { margin-top:12px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--r-sm); padding:12px 14px; }
 #tips b { display:block; margin-bottom:4px; }
 #tips ul { margin:0; padding-left:18px; }
+.galhead { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+.galhead h2 { margin:0; }
+.galhead h2 .hint { font:400 13px Inter, sans-serif; }
+#find { width:min(100%, 220px); height:32px; }
 .gallery { display:grid; grid-template-columns:repeat(auto-fill, minmax(104px, 1fr)); gap:10px; }
+.tile { position:relative; }
+.tile .run { width:100%; }
+.tile .more { position:absolute; top:9px; right:9px; width:24px; height:24px; border-radius:6px; border:.5px solid var(--mac-line);
+              background:var(--mac-win); color:var(--mac-text); font:700 13px/1 -apple-system, sans-serif; cursor:default; opacity:0; }
+.tile:hover .more, .tile:focus-within .more { opacity:1; }
+@media (hover: none) { .tile .more { opacity:1; } }
+.run .when { color:var(--muted); font-size:11.5px; margin-top:1px; }
+.mac-menu { position:fixed; z-index:50; min-width:190px; padding:5px; border-radius:8px; border:.5px solid var(--mac-line);
+            background:var(--mac-win); color:var(--mac-text); -webkit-backdrop-filter:blur(30px) saturate(180%); backdrop-filter:blur(30px) saturate(180%);
+            box-shadow:0 0 0 .5px rgba(0,0,0,.1), 0 10px 30px rgba(0,0,0,.25); font:13px -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
+.mac-menu button { display:block; width:100%; height:24px; padding:0 10px; border:0; border-radius:4px; background:none; color:inherit; font:inherit; text-align:left; cursor:default; }
+.mac-menu button:hover, .mac-menu button:focus { background:var(--mac-accent); color:#fff; outline:none; }
+.mac-menu button.danger { color:var(--mac-danger); }
+.mac-menu button.danger:hover, .mac-menu button.danger:focus { background:var(--mac-danger); color:#fff; }
+.mac-menu hr { border:0; height:1px; background:var(--mac-line); margin:5px 6px; }
+.mac-alert form#renameForm { display:block; }
+#renameInput { height:28px; margin:0 0 10px; text-align:center; font:13px -apple-system, BlinkMacSystemFont, system-ui, sans-serif; border-radius:6px; }
+#renameForm .row { display:flex; gap:8px; } #renameForm .mac-btn { flex:1; min-width:0; height:28px; }
+.renameErr { color:var(--mac-danger) !important; opacity:1 !important; margin:-4px 0 10px !important; }
 .run { border:2px solid transparent; border-radius:10px; padding:5px; background:var(--panel-2); cursor:pointer; text-align:left; color:var(--text); font:inherit; }
 .run[aria-current=true] { border-color:var(--gold); }
 .run img, .run .ph { width:100%; aspect-ratio:1; object-fit:cover; border-radius:6px; background:var(--viewer); display:block; }
@@ -377,6 +400,7 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
     <div class="card" id="viewCard">
       <div class="topbar">
         <div class="titlewrap"><h2 id="title">Your mini will appear here</h2>
+          <button class="ghost" id="ren" type="button" hidden>✏️ Rename</button>
           <button class="ghost" id="del" type="button" hidden>🗑️ Delete</button></div>
         <div class="actions">
           <button class="btn" id="reprep" type="button" disabled title="Remakes the print file with the size and nozzle settings on the left. About 30 seconds. The character itself doesn't change.">🔁 Resize this mini</button>
@@ -399,8 +423,12 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
       <div id="tips"></div>
     </div>
     <div class="card" id="galleryCard">
-      <h2>🗂️ Your minis</h2>
+      <div class="galhead">
+        <h2>🗂️ Your minis <span class="hint" id="galCount"></span></h2>
+        <input id="find" type="search" placeholder="🔎 Find a mini" aria-label="Find a mini" hidden>
+      </div>
       <div class="gallery" id="gallery"></div>
+      <p class="hint" id="noMatch" hidden style="margin:8px 0 0">No minis match that name.</p>
     </div>
   </section>
 </main>
@@ -434,6 +462,22 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
   <img src="/logo.png" alt=""><h3 id="stopTitle"></h3><p id="stopText"></p>
   <form method="dialog"><button class="mac-btn default" value="no">Keep Going</button><button class="mac-btn danger" value="yes">Stop</button></form>
 </dialog>
+<div id="ctx" class="mac-menu" role="menu" hidden>
+  <button role="menuitem" type="button" data-act="open" id="ctxOpen">Open in your slicer</button>
+  <button role="menuitem" type="button" data-act="reveal">Show in Finder</button>
+  <hr>
+  <button role="menuitem" type="button" data-act="rename">Rename…</button>
+  <hr>
+  <button role="menuitem" type="button" data-act="trash" class="danger">Move to Trash…</button>
+</div>
+<dialog id="renameDlg" class="mac-alert">
+  <img src="/logo.png" alt=""><h3 id="renameTitle"></h3>
+  <form id="renameForm">
+    <input id="renameInput" type="text" aria-label="New name" autocomplete="off" spellcheck="false">
+    <p class="renameErr" id="renameErr" hidden></p>
+    <div class="row"><button class="mac-btn" type="button" id="renameCancel">Cancel</button><button class="mac-btn default" type="submit">Rename</button></div>
+  </form>
+</dialog>
 <dialog id="notifyDlg" class="mac-alert">
   <img src="/logo.png" alt=""><h3>Get a notification when it's ready?</h3><p>Mimic can tell you when your mini is done, even while you're in another app.</p>
   <form method="dialog"><button class="mac-btn" value="no">Not Now</button><button class="mac-btn default" value="yes">Notify Me</button></form>
@@ -451,6 +495,12 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 const $ = id => document.getElementById(id);
 const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } },
                 set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+const ask = dlg => { dlg.returnValue = ""; dlg.showModal(); };
+// Confirm actions run on the button press itself: the form's submit event fires as part of the
+// click and names the button. Waiting for the dialog's later "close" event made every alert
+// depend on an event some browsers delay (a hidden tab never delivered it), and Esc or a click
+// outside can't submit, so they can never confirm by accident.
+const onConfirm = (dlg, fn) => dlg.querySelector("form").addEventListener("submit", e => { if (e.submitter?.value === "yes") fn(); });
 let mode = "image", file = null, selected = null, wasRunning = false, dtReady = false, everReady = false, inflateTouched = false;
 
 // ---- radio groups (role=radio buttons, arrow keys move) ----
@@ -755,10 +805,9 @@ $("jobStop").onclick = () => {
   $("stopText").textContent = resize ? "It keeps its previous size." : "What's been made so far will be thrown away.";
   ask($("stopDlg"));
 };
-$("stopDlg").onclose = async () => {
-  if ($("stopDlg").returnValue !== "yes") return;
+onConfirm($("stopDlg"), async () => {
   try { await post("/api/cancel"); } catch (e) { say(plain(e, jobName), "err"); }
-};
+});
 $("jobOpen").onclick = () => post(`/api/open?name=${jobName}&app=${slicerChoice()}`).catch(e => say(plain(e, jobName), "err"));
 // Esc or a click on the blurred page: while it's running that means "minimize", never "lose
 // the progress"; once it's finished it means close.
@@ -870,10 +919,10 @@ function askToNotify() {
   if (!("Notification" in window) || Notification.permission !== "default" || store.get("notifyAsked")) return;
   ask($("notifyDlg"));
 }
-$("notifyDlg").onclose = () => {
-  store.set("notifyAsked", "1");
-  if ($("notifyDlg").returnValue === "yes") Notification.requestPermission();
-};
+$("notifyDlg").querySelector("form").addEventListener("submit", e => {
+  store.set("notifyAsked", "1");  // either answer counts as asked; Esc means ask again next time
+  if (e.submitter?.value === "yes") Notification.requestPermission();
+});
 function notify(title, body) {
   if ("Notification" in window && Notification.permission === "granted" && document.hidden)
     new Notification(title, { body, icon: "/logo.png" });
@@ -961,23 +1010,26 @@ $("settingsBtn").onclick = () => { loadChecks(); $("settingsDlg").showModal(); }
 $("recheck").onclick = loadChecks;
 $("openFolder").onclick = () => post("/api/reveal-folder");
 
-$("del").onclick = () => {
-  $("delTitle").textContent = `Move “${pretty(selected)}” to the Trash?`;
+let delTarget = null;
+function askDelete(name) {
+  delTarget = name;
+  $("delTitle").textContent = `Move “${pretty(name)}” to the Trash?`;
   $("delText").textContent = "You can put it back from the Trash if you change your mind.";
   ask($("delDlg"));
-};
-$("delDlg").onclose = async () => {
-  if ($("delDlg").returnValue !== "yes") return;
-  const gone = selected;
+}
+$("del").onclick = () => askDelete(selected);
+onConfirm($("delDlg"), async () => {
+  const gone = delTarget;
   try { await post("/api/delete?name=" + gone); } catch (e) { return say(plain(e, gone), "err"); }
+  say(`🗑️ ${pretty(gone)} is in the Trash.`);
+  if (gone !== selected) return loadRuns();  // deleted from the gallery menu: the view stays put
   selected = null; clearModel(); $("thumbs").replaceChildren();
   await loadRuns();
   if (runs[0]) select(runs[0].name);
-  else { $("title").textContent = "Your mini will appear here"; $("del").hidden = true;
+  else { $("title").textContent = "Your mini will appear here"; $("del").hidden = $("ren").hidden = true;
          for (const b of ["open", "reveal", "reprep"]) $(b).disabled = true;
          $("overlay").innerHTML = "✨ Make your first mini on the left.<br>It will show up here, ready to spin around."; $("overlay").hidden = false; }
-  say(`🗑️ ${gone} is in the Trash.`);
-};
+});
 
 // ---- print tips ----
 const TIPS = {
@@ -1003,9 +1055,19 @@ function tips() {
 
 // ---- runs ----
 let runs = [];
+// "3 days ago" under each mini, so a long gallery reads in time order at a glance.
+const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+function ago(ts) {
+  const sec = ts - Date.now() / 1000, abs = Math.abs(sec);
+  for (const [unit, n] of [["year", 31536000], ["month", 2592000], ["week", 604800], ["day", 86400], ["hour", 3600], ["minute", 60]])
+    if (abs >= n) return rtf.format(Math.round(sec / n), unit);
+  return "just now";
+}
 async function loadRuns() {
   try { runs = (await getJSON("/api/runs")).filter(r => !r.name.startsWith("_")); } catch { return; }
   $("gallery").replaceChildren(...runs.map(r => {
+    const tile = document.createElement("div");
+    tile.className = "tile"; tile.dataset.name = r.name;
     const b = document.createElement("button");
     b.className = "run"; b.type = "button"; b.dataset.name = r.name;
     b.setAttribute("aria-current", r.name === selected);
@@ -1013,11 +1075,95 @@ async function loadRuns() {
     b.innerHTML = img ? `<img alt="">` : `<span class="ph"></span>`;
     if (img) b.querySelector("img").src = img;
     const t = document.createElement("div"); t.textContent = pretty(r.name); b.append(t);
+    const when = document.createElement("div"); when.className = "when"; when.textContent = ago(r.mtime); b.append(when);
     b.onclick = () => select(r.name);
-    return b;
+    b.oncontextmenu = e => { e.preventDefault(); openMenu(r.name, e.clientX, e.clientY); };
+    b.onkeydown = e => { if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) { e.preventDefault(); const q = b.getBoundingClientRect(); openMenu(r.name, q.left + 12, q.top + 12); } };
+    const more = document.createElement("button");
+    more.className = "more"; more.type = "button"; more.textContent = "⋯";
+    more.setAttribute("aria-label", `More for ${pretty(r.name)}`);
+    more.onclick = e => { const q = more.getBoundingClientRect(); openMenu(r.name, q.left, q.bottom + 4); e.stopPropagation(); };
+    tile.append(b, more);
+    return tile;
   }));
+  $("galCount").textContent = runs.length ? `(${runs.length})` : "";
+  $("find").hidden = runs.length <= 6;
+  filterGallery();
   if (!runs.length) $("gallery").innerHTML = `<p class="hint" style="margin:0">Your finished minis will be collected here.</p>`;
 }
+function filterGallery() {
+  const q = $("find").hidden ? "" : $("find").value.trim().toLowerCase();
+  let shown = 0;
+  for (const tile of $("gallery").querySelectorAll(".tile")) {
+    const hit = !q || pretty(tile.dataset.name).toLowerCase().includes(q);
+    tile.hidden = !hit; shown += hit;
+  }
+  $("noMatch").hidden = !q || shown > 0;
+}
+$("find").addEventListener("input", filterGallery);
+
+// ---- right-click menu on a mini ----
+let menuFor = null;
+function openMenu(name, x, y) {
+  menuFor = name;
+  const m = $("ctx"), r = runs.find(x => x.name === name);
+  $("ctxOpen").textContent = $("open").textContent.replace(/^\S+\s+/, "");
+  for (const it of m.querySelectorAll("[data-act=open],[data-act=reveal]")) it.disabled = !(r && r.stl);
+  m.hidden = false;
+  const w = m.offsetWidth, h = m.offsetHeight;
+  m.style.left = Math.min(x, innerWidth - w - 8) + "px";
+  m.style.top = Math.min(y, innerHeight - h - 8) + "px";
+  m.querySelector("button:not(:disabled)").focus();
+}
+function closeMenu() { $("ctx").hidden = true; }
+$("ctx").addEventListener("keydown", e => {
+  const items = [...$("ctx").querySelectorAll("button:not(:disabled)")], i = items.indexOf(document.activeElement);
+  if (e.key === "Escape") { closeMenu(); return; }
+  const d = { ArrowDown: 1, ArrowUp: -1 }[e.key];
+  if (d) { e.preventDefault(); items[(i + d + items.length) % items.length].focus(); }
+});
+document.addEventListener("pointerdown", e => { if (!$("ctx").hidden && !$("ctx").contains(e.target)) closeMenu(); });
+addEventListener("scroll", closeMenu, { passive: true });
+addEventListener("blur", closeMenu);
+$("ctx").addEventListener("click", e => {
+  const act = e.target.closest("button")?.dataset.act, name = menuFor;
+  if (!act) return;
+  closeMenu();
+  if (act === "open") post(`/api/open?name=${name}&app=${slicerChoice()}`).catch(err => say(plain(err, name), "err"));
+  if (act === "reveal") post("/api/reveal?name=" + name).catch(err => say(plain(err, name), "err"));
+  if (act === "rename") askRename(name);
+  if (act === "trash") askDelete(name);
+});
+
+// ---- rename ----
+let renaming = null;
+function askRename(name) {
+  renaming = name;
+  $("renameTitle").textContent = `Rename “${pretty(name)}”`;
+  $("renameInput").value = pretty(name);
+  $("renameErr").hidden = true;
+  ask($("renameDlg"));
+  $("renameInput").select();
+}
+$("renameCancel").onclick = () => $("renameDlg").close("");
+$("renameForm").onsubmit = async e => {
+  e.preventDefault();
+  const to = slug($("renameInput").value);
+  const err = m => { $("renameErr").textContent = m; $("renameErr").hidden = false; };
+  if (!to) return err("Give it a name with at least one letter or number.");
+  try { await post(`/api/rename?name=${renaming}&to=${to}`); }
+  catch (x) {
+    const m = x.message || "";
+    return err(m.includes("already exists") ? `You already have a mini called “${pretty(to)}”.`
+      : m.startsWith("still making") ? "It's being made right now. Rename it once it's finished." : plain(x, renaming));
+  }
+  $("renameDlg").close("");
+  const wasSelected = selected === renaming;
+  await loadRuns();
+  if (wasSelected) { selected = null; select(to); }
+};
+$("ren").onclick = () => askRename(selected);
+
 // Picking a mini puts the sizes it was made with into the size card, so Resize starts from
 // what it is now rather than from whatever was last on screen.
 function loadSizes(m) {
@@ -1042,6 +1188,7 @@ function select(name, force = false) {
     loadSizes(made);
   }
   for (const el of $("gallery").querySelectorAll(".run")) el.setAttribute("aria-current", el.dataset.name === name);
+  $("ren").hidden = !r;
   const has = !!(r && r.stl);
   $("open").disabled = $("reveal").disabled = !has;
   $("del").hidden = !r;
@@ -1078,7 +1225,6 @@ for (const dlg of document.querySelectorAll("dialog")) {
 }
 // Esc and an outside click leave returnValue as the last button pressed, so without this
 // reset, Esc on the second Delete of a session read as the first one's "Move to Trash".
-const ask = dlg => { dlg.returnValue = ""; dlg.showModal(); };
 
 // ---- quit ----
 $("quit").onclick = async () => {
@@ -1089,11 +1235,10 @@ $("quit").onclick = async () => {
   $("quitNo").textContent = s.running ? "OK" : "Cancel";
   ask($("quitDlg"));
 };
-$("quitDlg").onclose = async () => {
-  if ($("quitDlg").returnValue !== "yes") return;
+onConfirm($("quitDlg"), async () => {
   try { await post("/api/quit"); } catch (e) { return say(plain(e), "err"); }
   document.body.innerHTML = `<main style="display:block;text-align:center;padding:80px 24px"><p style="font-size:40px;margin:0">👋</p><h2>Mimic has stopped.</h2><p class="hint">To start it again, open Mimic from your Applications folder.</p></main>`;
-};
+});
 
 // ---- 3D viewer ----
 const canvas = $("viewer");
