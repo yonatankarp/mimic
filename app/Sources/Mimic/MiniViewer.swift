@@ -100,7 +100,7 @@ struct MiniViewer: View {
         }
         .overlay(alignment: .bottomTrailing) {
             if mini != nil {
-                Text("Drag to turn · pinch or scroll to zoom where you point · double-click to face front").font(.caption).foregroundStyle(.secondary).padding(10)
+                Text("Drag to turn · pinch or scroll to zoom · double-click to face front").font(.caption).foregroundStyle(.secondary).padding(10)
             }
         }
         .overlay {
@@ -291,7 +291,13 @@ private struct Stage: NSViewRepresentable {
             }
             view.isPaused = !gliding
             guard !gliding else { drawn = nil; return }  // the animation owns the transform, drawn every frame
-            lastFrame = nil
+            if lastFrame != nil {
+                // A glide just ended. Its animation may be a frame short of the end, and would
+                // keep putting its last value back; stop it so the view's transform wins.
+                mini?.stopAllAnimations()
+                try? renderer?.update(0)  // the stop takes effect at the next update
+                lastFrame = nil
+            }
             // SwiftUI asks again whenever anything on the page changes; redraw only for the mini.
             guard let mini, transform != drawn || mini.transform != transform else { return }
             mini.transform = transform
