@@ -39,6 +39,21 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(s.made, Sizes(height: "32", base: "25", nozzle: "0.2"))
     }
 
+    /// Only an object says what it is; a character's file stays exactly as before.
+    func testKindRoundTripsAndAbsentIsACharacter() throws {
+        try MiniSettings.update(folder) { $0.source = .desc; $0.desc = "a teapot"; $0.kind = .object }
+        XCTAssertEqual(MiniSettings.load(folder).kind, .object)
+        XCTAssertTrue(MiniSettings.load(folder).isObject)
+        var json = try JSONSerialization.jsonObject(with: Data(contentsOf: folder.appendingPathComponent("settings.json"))) as! [String: Any]
+        XCTAssertEqual(json["kind"] as? String, "object")
+        try MiniSettings.update(folder) { $0.kind = nil }
+        json = try JSONSerialization.jsonObject(with: Data(contentsOf: folder.appendingPathComponent("settings.json"))) as! [String: Any]
+        XCTAssertNil(json["kind"], "a character writes no kind")
+        XCTAssertFalse(MiniSettings.load(folder).isObject)
+        try #"{"kind": "character"}"#.write(to: folder.appendingPathComponent("settings.json"), atomically: true, encoding: .utf8)
+        XCTAssertFalse(MiniSettings.load(folder).isObject)
+    }
+
     /// And the web version must be able to read what the app writes (strings, nobase "1").
     func testWritesTheWebFormat() throws {
         try MiniSettings.update(folder) { $0.requested = Sizes(height: "32", nozzle: "0.4", noBase: true) }

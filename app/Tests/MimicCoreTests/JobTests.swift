@@ -49,6 +49,42 @@ final class JobTests: XCTestCase {
         }
     }
 
+    /// An object mini: the object prompts, and print prep sizes it by its longest side and
+    /// stands it on its whole bottom, on every route Try Again and Resize take.
+    func testObjectMinisPlanObjectStepsAndPrepFlags() throws {
+        let fx = try Fixture()
+        let d = fx.install.runs.appendingPathComponent("pot")
+        let src = d.appendingPathComponent("source.png"), up = d.appendingPathComponent("upload.img")
+        func settings(_ f: (inout MiniSettings) -> Void) -> MiniSettings {
+            var s = MiniSettings(); s.seed = 7; s.kind = .object; s.requested = Sizes(height: "80", nozzle: "0.4", noBase: true); f(&s); return s
+        }
+        func plan(_ kind: JobKind, _ s: MiniSettings) throws -> [Step] { try Pipeline.plan(kind, folder: d, settings: s, tools: fx.tools(mimic: "/app/mimic")).map(\.step) }
+        let prepArgs = ["_prep", d.appendingPathComponent("model.glb").path, d.appendingPathComponent("pot.stl").path,
+                        "--height", "80.0", "--nozzle", "0.4", "--no-base", "--fit", "longest", "--ground", "bottom"]
+        guard case let .run(_, args, _, _) = try plan(.prep, settings { _ in })[0] else { return XCTFail("resize runs print prep") }
+        XCTAssertEqual(args, prepArgs)
+        XCTAssertEqual(try plan(.generate, settings { $0.source = .desc; $0.desc = "a teapot" })[0], .drawObject(description: "a teapot", seed: 7, to: src))
+        XCTAssertEqual(try plan(.generate, settings { $0.source = .image; $0.restyle = true })[0], .sculptObject(from: up, seed: 7, to: src))
+        XCTAssertEqual(try plan(.generate, settings { $0.source = .image; $0.restyle = false })[0], .copyPicture(from: up, to: src))
+    }
+
+    /// make records the kind every time: a folder left by a failed object attempt doesn't turn
+    /// the next character into an object, and a character's settings.json has no kind.
+    func testMakeRecordsTheKind() throws {
+        let fx = try Fixture()
+        let picture = fx.root.appendingPathComponent("pic.png")
+        FileManager.default.createFile(atPath: picture.path, contents: Data([1]))
+        let d = fx.install.runs.appendingPathComponent("mini")
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/false"), trash: { _ in })
+        try jobs.make(name: "mini", picture: .image(picture), restyle: false, seed: 1, sizes: sizes, kind: .object)
+        jobs.waitUntilDone()
+        XCTAssertEqual(MiniSettings.load(d).kind, .object)
+        try jobs.make(name: "mini", picture: .image(picture), restyle: false, seed: 1, sizes: sizes)
+        jobs.waitUntilDone()
+        let json = try JSONSerialization.jsonObject(with: Data(contentsOf: d.appendingPathComponent("settings.json"))) as! [String: Any]
+        XCTAssertNil(json["kind"])
+    }
+
     /// prep.log is appended to, so a warning from an earlier run must not follow the mini around.
     func testFragileIsThisRunsWarningOnly() throws {
         let fx = try Fixture(); let d = try fx.mini("dwarf")

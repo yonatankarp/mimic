@@ -16,8 +16,14 @@ public struct SizeCard: Equatable, Sendable {
     /// realistic-proportion character (a 2 m tiefling), faces read from about 64 mm on a 0.2
     /// nozzle and 100 mm on a 0.4; 0.6 is extrapolated.
     public static let bestPrint: [String: Double] = ["0.2": 64, "0.4": 100, "0.6": 150]
+    /// An object's longest side, by the same rule scaled to objects: its finest details (a
+    /// spout's lip, a handle) are coarser than a face, so it needs less size than Best print.
+    // ponytail: judged, not measured on prints; measure when objects have been printed at these sizes.
+    public static let objectSize: [String: Double] = ["0.2": 50, "0.4": 80, "0.6": 120]
 
     public private(set) var purpose: Purpose
+    /// An object is sized by its longest side and has no round base unless asked for one.
+    public private(set) var kind: MiniKind
     public private(set) var nozzle: String
     public private(set) var scale = 32
     /// Metres, as typed. Blank (or not a number) counts as an average human, 1.8 m.
@@ -31,14 +37,17 @@ public struct SizeCard: Equatable, Sendable {
     public private(set) var note = ""
     public private(set) var warns = false
 
-    public init(purpose: Purpose = .game, nozzle: String = "0.4") {
+    public init(purpose: Purpose = .game, nozzle: String = "0.4", kind: MiniKind = .character) {
         self.purpose = purpose
+        self.kind = kind
+        noBase = kind == .object
         self.nozzle = Rules.nozzles.contains(nozzle) ? nozzle : "0.4"
         inflate = Self.inflateFor(self.nozzle)
         suggest()
     }
 
     public mutating func setPurpose(_ p: Purpose) { purpose = p; resuggest() }
+    public mutating func setKind(_ k: MiniKind) { kind = k; noBase = k == .object; resuggest() }
     public mutating func setScale(_ s: Int) { scale = s; resuggest() }
     public mutating func setRealHeight(_ text: String) { realHeight = text; resuggest() }
     /// A nozzle sets the extra thickness too, unless that was chosen by hand.
@@ -78,7 +87,10 @@ public struct SizeCard: Equatable, Sendable {
     private mutating func suggest() {
         let h: Double
         warns = false
-        switch purpose {
+        switch kind == .object ? nil : purpose {
+        case nil:
+            h = Self.objectSize[nozzle] ?? 80
+            note = "✨ Sized so details come out clearly on a \(nozzle) mm nozzle: about \(Int(h)) mm on its longest side. Change it to the size you want."
         case .game:
             h = Self.gameHeight(real: realHeight, scale: scale)
             note = ""
@@ -97,7 +109,8 @@ public struct SizeCard: Equatable, Sendable {
         }
         // The note names the height as worked out; the slider can only hold its own range.
         if !heightTouched { height = Self.clamp(h, Self.heightRange, step: 1) }
-        if !baseTouched { base = Self.baseFor(height) }
+        // An object's base goes under its whole shadow, which is about its longest side.
+        if !baseTouched { base = kind == .object ? min(80, max(25, (height * 0.8 / 5).rounded() * 5)) : Self.baseFor(height) }
     }
 
     /// A real height at a table scale: an average human (1.8 m) is `scale` mm tall.
@@ -131,10 +144,10 @@ public struct SizeCard: Equatable, Sendable {
 /// Advice about the picture and the name, given before a 10-minute wait rather than after it.
 public enum MakeAdvice {
     /// Pixel sizes, not points: a 144 dpi picture is twice as big as it looks.
-    public static func pictureWarnings(width: Int, height: Int) -> [String] {
+    public static func pictureWarnings(width: Int, height: Int, kind: MiniKind = .character) -> [String] {
         var notes: [String] = []
         if max(width, height) < 512 { notes.append("⚠️ This picture is small, so the mini may come out blobby. A bigger picture works better.") }
-        if Double(width) > Double(height) * 1.15 { notes.append("⚠️ This picture is wider than it is tall, so it may not show the whole body. A full-body picture works best.") }
+        if kind == .character, Double(width) > Double(height) * 1.15 { notes.append("⚠️ This picture is wider than it is tall, so it may not show the whole body. A full-body picture works best.") }
         return notes
     }
 
@@ -160,25 +173,38 @@ public struct PrintTips: Sendable {
     public let layer: String
     public let walls: String
     public let expect: String
+    public let kind: MiniKind
 
-    public init(nozzle: String) {
+    public init(nozzle: String, kind: MiniKind = .character) {
+        let object = kind == .object
         let t: (String, String, String) = switch nozzle {
-        case "0.2": ("Layer height 0.06–0.08 mm", "3–4", "Sharp faces, beard braids and belt buckles. Slow, but the most detail.")
-        case "0.6": ("Layer height 0.2 mm", "2–3", "Quick and sturdy; small details blur. Best at 54 mm scale or bigger.")
-        default: ("Layer height 0.12 mm", "3", "Faces and weapons come out clearly; hair strands and cloth edges get softened. A good balance.")
+        case "0.2": ("Layer height 0.06–0.08 mm", "3–4", object ? "Crisp edges, small lettering and fine texture. Slow, but the most detail."
+                                                                : "Sharp faces, beard braids and belt buckles. Slow, but the most detail.")
+        case "0.6": ("Layer height 0.2 mm", "2–3", object ? "Quick and sturdy; small details blur. Best for big, simple shapes."
+                                                          : "Quick and sturdy; small details blur. Best at 54 mm scale or bigger.")
+        default: ("Layer height 0.12 mm", "3", object ? "Shapes and edges come out clearly; fine texture gets softened. A good balance."
+                                                      : "Faces and weapons come out clearly; hair strands and cloth edges get softened. A good balance.")
         }
         self.nozzle = Rules.nozzles.contains(nozzle) ? nozzle : "0.4"
+        self.kind = kind
         (layer, walls, expect) = t
     }
 
-    public var lines: [String] {
-        ["\(layer). Supports: Tree (auto). Walls: \(walls).", "Stand the mini upright on its base. No brim needed.", expect]
+    private var placing: (line: String, short: String) {
+        kind == .object ? ("Print it as it sits: its bottom is already flat. Add a brim if it's tall and narrow.", "Flat side down")
+                        : ("Stand the mini upright on its base. No brim needed.", "Upright on its base, no brim")
     }
-    public var copyText: String { "\(layer) · Supports: Tree (auto) · Walls: \(walls) · Upright on its base, no brim" }
+    public var lines: [String] {
+        ["\(layer). Supports: Tree (auto). Walls: \(walls).", placing.line, expect]
+    }
+    public var copyText: String { "\(layer) · Supports: Tree (auto) · Walls: \(walls) · \(placing.short)" }
 
-    /// "Now: 32 mm character · 25 mm base · made for a 0.2 mm nozzle"
-    public static func nowLine(_ made: Sizes) -> String {
+    /// "Now: 32 mm character · 25 mm base · made for a 0.2 mm nozzle"; an object's is
+    /// "Now: 80 mm longest side · no base · …".
+    public static func nowLine(_ made: Sizes, kind: MiniKind = .character) -> String {
         func mm(_ s: String?, _ fallback: Double) -> Int { Int((s.flatMap(Double.init).flatMap { $0 == 0 ? nil : $0 } ?? fallback).rounded()) }
-        return "Now: \(mm(made.height, 32)) mm character · \(mm(made.base, 25)) mm base · made for a \(made.nozzle ?? "0.4") mm nozzle"
+        let size = kind == .object ? "\(mm(made.height, 32)) mm longest side · \(made.noBase ? "no base" : "\(mm(made.base, 25)) mm base")"
+                                   : "\(mm(made.height, 32)) mm character · \(mm(made.base, 25)) mm base"
+        return "Now: \(size) · made for a \(made.nozzle ?? "0.4") mm nozzle"
     }
 }

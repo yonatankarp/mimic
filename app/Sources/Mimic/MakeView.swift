@@ -33,15 +33,23 @@ struct MakeView: View {
                 .padding([.horizontal, .top], 20)
             Form {
                 Section {
+                    Picker("What are you making?", selection: Binding(get: { card.kind }, set: { card.setKind($0) })) {
+                        Text("🧙 A character (a mini)").tag(MiniKind.character)
+                        Text("🏺 Anything else").tag(MiniKind.object)
+                    }
+                    .pickerStyle(.segmented)
+                    .help("A character is made as a tabletop mini: standing, on a round base, sized to match your other minis. Anything else (a teapot, a car, a chess piece) is sized by its longest side, with no base unless you add one.")
+                }
+                Section {
                     Picker("Start from", selection: $start) {
                         Text("🖼️ From a picture").tag(Start.picture)
                         Text("✍️ Describe it").tag(Start.description)
                     }
                     .pickerStyle(.segmented)
                     .tourStop(.start, arrow: .trailing)
-                    .help("From a picture: art or a photo of your character. Describe it: Draw Things draws the character from your words first.")
+                    .help("From a picture: art or a photo of your \(thing). Describe it: Draw Things draws the \(thing) from your words first.")
                     if start == .picture { picturePane } else { descriptionPane }
-                    TextField("Name your mini", text: $name, prompt: Text("e.g. Dwarf Cleric"))
+                    TextField("Name your mini", text: $name, prompt: Text(object ? "e.g. Teapot" : "e.g. Dwarf Cleric"))
                         .help("How it's listed in your minis. The print file is named after it too.")
                         .focused($nameFocused)
                         .onChange(of: name) { _, new in
@@ -52,9 +60,10 @@ struct MakeView: View {
                             .font(.callout).foregroundStyle(.red)
                     }
                 } header: {
-                    Text("🧙 Your character")
+                    Text(object ? "🏺 Your object" : "🧙 Your character")
                 } footer: {
-                    Text("💡 Chunky characters with bold shapes work best. Small details, like a pet on a shoulder, may come out soft.")
+                    Text(object ? "💡 Solid objects with bold shapes work best. Thin handles, wires and fine texture may come out soft."
+                                : "💡 Chunky characters with bold shapes work best. Small details, like a pet on a shoulder, may come out soft.")
                         .font(.callout).foregroundStyle(.secondary)
                         .multilineTextAlignment(.leading).frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -87,6 +96,7 @@ struct MakeView: View {
         // The tour's "Use the Sample": its picture and name, ready to make.
         .onAppear { if let url = TourGuide.shared.takeSample() { name = TourGuide.sampleName; take(url) } }
         .frame(width: 580, height: 640)  // fits under the toolbar of the smallest main window; the form scrolls
+        .onChange(of: card.kind) { _, k in UserDefaults.standard.set(k.rawValue, forKey: "kind") }
         .task {
             // Describe it and the grey sculpt need Draw Things, and Make needs every required
             // part: check them once if nothing has yet, then keep watching Draw Things.
@@ -102,6 +112,8 @@ struct MakeView: View {
     }
 
     @State private var autoName = false
+    private var object: Bool { card.kind == .object }
+    private var thing: String { object ? "object" : "character" }
 
     // MARK: Picture
 
@@ -115,7 +127,7 @@ struct MakeView: View {
                     } else {
                         Image(systemName: "photo.badge.plus").font(.largeTitle).foregroundStyle(.secondary)
                         Text("Drop a picture, paste it (⌘V), or click to choose")
-                        Text("Full body, head to feet, plain background").font(.caption).foregroundStyle(.secondary)
+                        Text(object ? "The whole object, plain background" : "Full body, head to feet, plain background").font(.caption).foregroundStyle(.secondary)
                     }
                 }
                 .frame(maxWidth: .infinity, minHeight: 150)
@@ -132,7 +144,7 @@ struct MakeView: View {
                 take(url)
                 return true
             } isTargeted: { dropTargeted = $0 }
-            ForEach(picture?.warnings ?? [], id: \.self) { Text($0).font(.callout).foregroundStyle(.orange) }
+            ForEach(picture.map { MakeAdvice.pictureWarnings(width: $0.width, height: $0.height, kind: card.kind) } ?? [], id: \.self) { Text($0).font(.callout).foregroundStyle(.orange) }
             Toggle(isOn: $restyle) {
                 Text("Turn it into a grey sculpt first (recommended)")
                 Text("Best for drawings and photos. Turn it off only if your picture is already a grey 3D model.")
@@ -149,10 +161,10 @@ struct MakeView: View {
                 .frame(minHeight: 70)
                 .padding(4)
                 .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.secondary.opacity(0.4)))
-                .accessibilityLabel("Describe your character")
+                .accessibilityLabel("Describe your \(thing)")
                 .overlay(alignment: .topLeading) {
                     if description.isEmpty {
-                        Text("e.g. dwarf cleric holding a warhammer against his chest, shield on his back")
+                        Text(object ? "e.g. a round teapot with a curved spout and a lid" : "e.g. dwarf cleric holding a warhammer against his chest, shield on his back")
                             .foregroundStyle(.tertiary).padding(.leading, 9).padding(.top, 4).allowsHitTesting(false)
                     }
                 }
@@ -216,7 +228,7 @@ struct MakeView: View {
     private var missing: String? {
         switch start {
         case .picture where picture == nil: return "Add a picture to start"
-        case .description where trimmedDescription.isEmpty: return "Describe your character to start"
+        case .description where trimmedDescription.isEmpty: return "Describe your \(thing) to start"
         default: break
         }
         if slug.isEmpty { return "Give your mini a name" }
@@ -236,7 +248,7 @@ struct MakeView: View {
         }
         do {
             try model.make(name: slug, picture: source, restyle: start == .picture && restyle && health.drawThingsReady,
-                           seed: seed, sizes: card.sizes)
+                           seed: seed, sizes: card.sizes, kind: card.kind)
         } catch {
             say(model.plainWords(error), error: true)
             messageDetail = "\(error)"
@@ -250,7 +262,8 @@ struct MakeView: View {
 struct Picture {
     let url: URL
     let image: NSImage
-    let warnings: [String]
+    /// Pixels, upright.
+    let width: Int, height: Int
 
     init?(_ url: URL) {
         guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
@@ -261,7 +274,7 @@ struct Picture {
         let turned = [5, 6, 7, 8].contains(props[kCGImagePropertyOrientation] as? Int ?? 1)
         self.url = url
         self.image = image
-        warnings = MakeAdvice.pictureWarnings(width: turned ? h : w, height: turned ? w : h)
+        (width, height) = turned ? (h, w) : (w, h)
     }
 }
 
@@ -277,6 +290,7 @@ struct ResizeView: View {
         self.mini = mini
         var c = SizeCard.remembered()
         let saved = MiniSettings.load(mini.folder)
+        c.setKind(saved.kind ?? .character)  // before the sizes: choosing a kind suggests sizes afresh
         if let sizes = saved.made ?? saved.requested { c.load(sizes) }
         _card = State(initialValue: c)
     }
@@ -288,7 +302,7 @@ struct ResizeView: View {
                 .padding([.horizontal, .top], 20)
             Form {
                 Section {
-                    Text("Remakes the print file with these sizes. About a minute. The character itself doesn't change.")
+                    Text("Remakes the print file with these sizes. About a minute. The \(card.kind == .object ? "object" : "character") itself doesn't change.")
                         .foregroundStyle(.secondary)
                 }
                 SizeSection(card: $card, seed: nil)
@@ -329,11 +343,12 @@ struct CantStart: View {
 }
 
 extension SizeCard {
-    /// The purpose and nozzle last chosen: most people keep one printer.
+    /// The kind, purpose and nozzle last chosen: most people keep one printer.
     static func remembered() -> SizeCard {
         let d = UserDefaults.standard
         return SizeCard(purpose: Purpose(rawValue: d.string(forKey: "purpose") ?? "") ?? .game,
-                        nozzle: d.string(forKey: "nozzle") ?? "0.4")
+                        nozzle: d.string(forKey: "nozzle") ?? "0.4",
+                        kind: MiniKind(rawValue: d.string(forKey: "kind") ?? "") ?? .character)
     }
 }
 
@@ -347,14 +362,15 @@ struct SizeSection: View {
 
     var body: some View {
         Section("📏 Size & printer") {
-            Picker("Size for", selection: bind(\.purpose, { $0.setPurpose($1) })) {
-                Text("🎲 Game scale").tag(SizeCard.Purpose.game)
-                Text("✨ Best print").tag(SizeCard.Purpose.display)
+            if !object {  // an object is sized by its longest side: no scale to match
+                Picker("Size for", selection: bind(\.purpose, { $0.setPurpose($1) })) {
+                    Text("🎲 Game scale").tag(SizeCard.Purpose.game)
+                    Text("✨ Best print").tag(SizeCard.Purpose.display)
+                }
+                .pickerStyle(.segmented)
+                .help("Game scale: the same size as the other minis on your table. Best print: as big as your nozzle needs for faces to come out clearly.")
             }
-            .pickerStyle(.segmented)
-            .tourStop(.size, arrow: .top)
-            .help("Game scale: the same size as the other minis on your table. Best print: as big as your nozzle needs for faces to come out clearly.")
-            if card.purpose == .game {  // Best print explains itself in its note below
+            if gameScale {  // Best print explains itself in its note below
                 Text("Matches the other minis on your table.").font(.callout).foregroundStyle(.secondary)
             }
             Picker("🖨️ Your printer's nozzle", selection: bind(\.nozzle, { $0.setNozzle($1) })) {
@@ -363,10 +379,11 @@ struct SizeSection: View {
                 Text("0.6 mm · fast").tag("0.6")
             }
             .pickerStyle(.segmented)
+            .tourStop(.size, arrow: .top)  // on the nozzle, which characters and objects both show
             .help("The tip your printer prints through. Its size is usually marked on it, or listed in your printer's settings. Mimic thickens thin parts to suit it: finer nozzles keep more detail.")
             Text("Not sure? Most printers come with 0.4 mm. Choose the same nozzle in your slicer.")
                 .font(.callout).foregroundStyle(.secondary)
-            if card.purpose == .game {
+            if gameScale {
                 VStack(alignment: .leading, spacing: 4) {
                     LabeledContent("How tall is the character?") {
                         HStack(spacing: 4) {
@@ -393,16 +410,27 @@ struct SizeSection: View {
             if !card.note.isEmpty {
                 Text(card.note).font(.callout).foregroundStyle(card.warns ? .orange : .secondary)
             }
-            slider("Character height", \.height, { $0.setHeight($1) }, SizeCard.heightRange, unit: "mm",
-                   hint: "Set for you by the choices above; type a value or drag to change it. The base adds about 2 mm.")
-            slider("Base size", \.base, { $0.setBase($1) }, SizeCard.baseRange, unit: "mm", hint: nil)
-                .help("How wide the round base is. 25 mm fits one square on a battle map.")
+            if object {
+                slider("Longest side", \.height, { $0.setHeight($1) }, SizeCard.heightRange, unit: "mm",
+                       hint: "Its biggest size, whichever way that is: height, width or depth. Set for your nozzle; type a value or drag to change it.")
+                Toggle("Add a round base", isOn: Binding(get: { !card.noBase }, set: { card.noBase = !$0 }))
+                    .help("Off: it prints standing on its own flat bottom. On: it's fused to a round base, like a display piece.")
+            } else {
+                slider("Character height", \.height, { $0.setHeight($1) }, SizeCard.heightRange, unit: "mm",
+                       hint: "Set for you by the choices above; type a value or drag to change it. The base adds about 2 mm.")
+            }
+            if !object || !card.noBase {
+                slider("Base size", \.base, { $0.setBase($1) }, SizeCard.baseRange, unit: "mm", hint: nil)
+                    .help(object ? "How wide the round base is." : "How wide the round base is. 25 mm fits one square on a battle map.")
+            }
             // A plain button as the label, so a click or VoiceOver's press on the words opens it too.
             DisclosureGroup(isExpanded: $advanced) {
                 slider("Extra thickness for thin parts", \.inflate, { $0.setInflate($1) }, SizeCard.inflateRange, unit: "mm",
                        hint: "Set by your nozzle. More keeps swords and capes in one piece, but softens faces.", decimals: 2)
-                Toggle("Use the character's own base instead of a round one", isOn: $card.noBase)
-                    .help("For characters already standing on a base or a rock: Mimic flattens that instead of adding a round one.")
+                if !object {
+                    Toggle("Use the character's own base instead of a round one", isOn: $card.noBase)
+                        .help("For characters already standing on a base or a rock: Mimic flattens that instead of adding a round one.")
+                }
                 if let seed {
                     VStack(alignment: .leading, spacing: 4) {
                         LabeledContent("Variation number") {
@@ -419,6 +447,9 @@ struct SizeSection: View {
         .onChange(of: card.purpose) { _, p in UserDefaults.standard.set(p.rawValue, forKey: "purpose") }
         .onChange(of: card.nozzle) { _, n in UserDefaults.standard.set(n, forKey: "nozzle") }
     }
+
+    private var object: Bool { card.kind == .object }
+    private var gameScale: Bool { !object && card.purpose == .game }
 
     private func bind<T>(_ get: KeyPath<SizeCard, T>, _ set: @escaping (inout SizeCard, T) -> Void) -> Binding<T> {
         Binding(get: { card[keyPath: get] }, set: { v in set(&card, v) })

@@ -196,7 +196,7 @@ struct TourCallout: View {
         case .size:
             "Game scale matches the other minis on your table; Best print goes for detail. Pick the nozzle your printer uses. Not sure? It's most likely 0.4 mm."
         case .make:
-            "Make My Mini takes about 7–10 minutes. Press Run in Background to keep using your Mac, and Mimic lets you know when it's done."
+            "Make My Mini takes about 7–10 minutes. Press Run in Background to keep using your Mac: the toolbar and the Dock icon show how far along it is."
                 + (guide.usingSample ? " Go ahead and press it when you're ready! 🎉" : "")
         case .mini:
             "Drag it to turn it around. Open in \(model.slicerName) sends it to your slicer to print, and the print tips below are for your nozzle."
