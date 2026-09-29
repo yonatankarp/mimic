@@ -32,7 +32,7 @@ struct MakeView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding([.horizontal, .top], 20)
             Form {
-                Section("🧙 Your character") {
+                Section {
                     Picker("Start from", selection: $start) {
                         Text("🖼️ From a picture").tag(Start.picture)
                         Text("✍️ Describe it").tag(Start.description)
@@ -48,6 +48,12 @@ struct MakeView: View {
                         Text("You already have a mini called \(taken). Pick a new name, or use Resize This Mini to change its size.")
                             .font(.callout).foregroundStyle(.red)
                     }
+                } header: {
+                    Text("🧙 Your character")
+                } footer: {
+                    Text("💡 Chunky characters with bold shapes work best. Small details, like a pet on a shoulder, may come out soft.")
+                        .font(.callout).foregroundStyle(.secondary)
+                        .multilineTextAlignment(.leading).frame(maxWidth: .infinity, alignment: .leading)
                 }
                 SizeSection(card: $card, seed: $seed)
             }

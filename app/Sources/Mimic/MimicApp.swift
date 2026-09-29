@@ -26,7 +26,6 @@ struct MimicApp: App {
             MiniCommands(model: model)
             CommandGroup(replacing: .help) {
                 Button("Mimic Help") { NSWorkspace.shared.open(Self.help) }
-                Button("Printing Tips") { NSWorkspace.shared.open(Self.printingTips) }
             }
         }
         Settings {
@@ -35,10 +34,9 @@ struct MimicApp: App {
         .windowResizability(.contentSize)
     }
 
-    // The README's own headings, "## 🧙 Making a mini" and "## 🖨️ Printing tips". GitHub drops the
-    // emoji but keeps 🖨️'s invisible variation selector (U+FE0F), hence the %EF%B8%8F.
+    // The README's own heading, "## 🧙 Making a mini": GitHub drops the emoji and keeps its space.
+    // Print tips aren't linked: each mini's page shows them for its nozzle.
     static let help = URL(string: "https://github.com/yonatankarp/mimic#-making-a-mini")!
-    static let printingTips = URL(string: "https://github.com/yonatankarp/mimic#%EF%B8%8F-printing-tips")!
 }
 
 /// The Mini menu: what the buttons and the right-click menu do to the selected mini, with

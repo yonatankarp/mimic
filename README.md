@@ -10,95 +10,50 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
 
 ## 🚀 Get started
 
-### Prerequisites
+### What you need
 
-**Minimum hardware**
-- A Mac with Apple silicon (M1 or newer), running macOS 15 (Sequoia) or newer
-- 32 GB of memory (what Mimic is tested on)
-- 25 GB of free disk space
-- A 3D printer
-
-**Install these yourself**
-
-| What | What it's for | Get it |
-|---|---|---|
-| A slicer | Turns your mini into instructions for your printer | [Bambu Studio](https://github.com/bambulab/BambuStudio), [OrcaSlicer](https://github.com/OrcaSlicer/OrcaSlicer), [PrusaSlicer](https://github.com/prusa3d/PrusaSlicer), [UltiMaker Cura](https://github.com/Ultimaker/Cura) |
-| Draw Things | Draws the pictures. Optional: Mimic's setup screen links to it | [App Store](https://apps.apple.com/app/id6444050820) |
-| FLUX.2 Klein | Draws and redraws character pictures. Only needed for ✍️ Describe it and the grey-sculpt step | Inside Draw Things' model list; Mimic's setup checklist shows where |
-
-**Mimic downloads this for you**
-
-| What | What it's for | Get it |
-|---|---|---|
-| Pixal3D and its 3D model (8.1 GB) | Turns a picture into a 3D model. Downloaded the first time you open Mimic | [raven38/pixal3d.cpp](https://github.com/raven38/pixal3d.cpp) |
+- A Mac with Apple silicon (M1 or newer), on macOS 15 (Sequoia) or newer
+- 32 GB of memory
+- About 25 GB of free space
+- A 3D printer, and a slicer for it, such as [Bambu Studio](https://github.com/bambulab/BambuStudio),
+  [OrcaSlicer](https://github.com/OrcaSlicer/OrcaSlicer), [PrusaSlicer](https://github.com/prusa3d/PrusaSlicer)
+  or [UltiMaker Cura](https://github.com/Ultimaker/Cura)
+- Optional: [Draw Things](https://apps.apple.com/app/id6444050820), a free app, if you want to
+  describe characters instead of starting from a picture. Mimic shows you how to set it up.
 
 ### Install
 
-1. **Download Mimic.** Get the `.dmg` file from the
-   [latest release](https://github.com/yonatankarp/mimic/releases/latest) and open it.
-2. **Drag Mimic onto Applications,** then open Mimic from your Applications folder.
-   - The first time, your Mac may say it can't check Mimic. Mimic is a free app that isn't
-     registered with Apple, so it needs one extra step: open **System Settings → Privacy &
-     Security**, scroll down, and press **Open Anyway** next to *Mimic*. You only do this once.
-3. **Press Download.** The first time it opens, Mimic downloads its 3D engine (about 8.1 GB).
-   You can keep using your Mac, or close the window: it carries on, and picks up where it left
-   off if it stops. Meanwhile, the same screen shows how to set up *Draw Things* (optional:
-   the free app Mimic uses to draw and redraw pictures).
+1. Download the `.dmg` file from the [latest release](https://github.com/yonatankarp/mimic/releases/latest) and open it.
+2. Drag **Mimic** onto **Applications**, then open Mimic from your Applications folder.
+3. Press **Download**. The first time, Mimic downloads its 3D engine (8.1 GB). You can keep
+   using your Mac while it does.
 
-Your minis are saved in **Documents → Mimic**. Mimic's 3D engine lives in
-*~/Library/Application Support/Mimic*.
-
-After that, open **Mimic** from your Applications folder whenever you want to make a mini.
+> [!IMPORTANT]
+> **The first time you open Mimic, your Mac may say it can't check it.** Mimic is a free app
+> that isn't registered with Apple, so it needs one extra step:
+> 1. Press **Done** on that message.
+> 2. Open **System Settings → Privacy & Security**.
+> 3. Scroll down to *"Mimic was blocked"* and press **Open Anyway**.
+> 4. Confirm with your Mac password or Touch ID.
+>
+> You only do this once.
 
 ## 🧙 Making a mini
 
 ![Mimic: your minis on the left, the finished dwarf cleric in a 3D view on the right, with its previews and print tips below](docs/images/app.jpg)
 
+1. Press **New Mini** (⌘N).
+2. Drop in a picture of your character, or switch to **Describe it** and write a sentence.
+3. Pick your printer's nozzle and how big to make it.
+4. Press **Make My Mini** and wait about 7–10 minutes.
+5. Press **Open in …** to open it in your slicer, and print. Each mini's page shows the slicer
+   settings to use.
+
 > [!TIP]
-> Chunky characters with bold shapes work best. Small details, like a pet on a shoulder,
-> may come out soft.
+> Mimic explains each choice as you make it. If something isn't set up, **Settings** (⌘,)
+> tells you what's missing and how to fix it.
 
-1. **➕ New Mini** (or ⌘N).
-2. **Your character.** Drop in a picture, paste one, or switch to ✍️ **Describe it** and write
-   a sentence. A full-body picture with a plain background works best. Leave *Turn it into a
-   grey sculpt first* on for drawings and photos.
-3. **Size & printer.** Pick your printer's nozzle (if you're not sure, it's 0.4 mm), then
-   what to size for:
-   - **🎲 Game scale** matches the other minis on your table: type how tall the character is
-     and pick the scale.
-   - **✨ Best print** makes it big enough for faces to come out on your nozzle: about 64 mm
-     on 0.2, 100 mm on 0.4 and 150 mm on 0.6.
-4. **Make My Mini** and wait about 7–10 minutes. Your Mac will be busy while it works.
-   **Run in Background** keeps the progress in the toolbar and on the Dock icon, and Mimic
-   tells you when it's done. **Stop…** cancels it.
-5. **Open in your slicer** and print. The print tips under the 3D view match your nozzle.
-
-Changed your mind about the size? **Resize This Mini…** remakes the print file in about a
-minute. Your character stays exactly the same.
-
-**Your minis** are listed on the left, newest first. Search appears once you have more than
-six. Right-click a mini to open it in your slicer, show it in Finder, rename it, or move it to
-the Trash. Press space to preview it.
-
-**Settings** (⌘,) has four things:
-- **Is everything set up?** A check of everything Mimic needs, with what to do about
-  anything that's missing, and Download or Repair for Mimic's 3D engine. A ⚠️ on the Settings
-  button means something needs attention.
-- **Open minis in.** Any slicer Mimic finds: Bambu Studio, OrcaSlicer, PrusaSlicer, Cura,
-  Creality Print, ElegooSlicer, Anycubic and more. Or your Mac's default app for 3D files,
-  which covers any other slicer.
-- **Where your minis are saved.**
-- **Use Mimic from Terminal.** The one command that adds `mimic` to Terminal, to copy.
-
-## 🖨️ Printing tips
-
-| Nozzle | Layer height | Walls | What to expect |
-|---|---|---|---|
-| 0.2 mm | 0.06–0.08 mm | 3–4 | Sharp faces and small details; slow |
-| 0.4 mm | 0.12 mm | 3 | Faces and weapons read clearly; fine hair gets softened. For game-size minis (28–32 mm), a 0.2 mm nozzle does much better |
-| 0.6 mm | 0.2 mm | 2–3 | Quick and sturdy; best at 54 mm scale or bigger |
-
-For every nozzle: supports on **Tree (auto)**, stand the mini upright on its base, no brim.
+Your minis are saved in **Documents → Mimic**.
 
 ---
 
@@ -114,25 +69,27 @@ flowchart TD
   choice -- no --> image
   redraw --> image["Character image"]
   draw --> image
-  image --> mesh["🧊 3D model<br/><i>Pixal3D</i>"]
-  mesh --> prep["🖨️ Print prep<br/><i>Mimic</i>"]
+  image --> cut["✂️ Cut out the character<br/><i>Apple Vision</i>"]
+  cut --> mesh["🧊 3D model<br/><i>Pixal3D</i>"]
+  mesh --> prep["🖨️ Print prep<br/><i>Swift, in Mimic</i>"]
   prep --> out["STL + front, side and back previews"]
   out --> slicer["Your slicer"]
 ```
 
 1. **The picture.** FLUX.2 Klein, running in Draw Things, draws your character from a
    description, or redraws your picture as a grey sculpt so it's easier to turn into 3D.
-2. **The 3D model.** Your Mac cuts the character out of the picture, then
+2. **The 3D model.** Apple's Vision framework cuts the character out of the picture, then
    [Pixal3D](https://github.com/raven38/pixal3d.cpp) builds a 3D model from it on your Mac's
    graphics chip.
-3. **Print prep.** Mimic sizes the model, centres it on a round base, makes it one solid
-   piece, thickens thin parts to suit your nozzle, and flattens the bottom so it sits on the
-   print bed.
+3. **Print prep.** Mimic's own Swift code sizes the model, centres it on a round base, makes it
+   one solid piece, thickens thin parts to suit your nozzle, and flattens the bottom so it
+   sits on the print bed.
 
 ### From a terminal
 
-Mimic has a `mimic` command too, the same engine as the app. **Settings → Use Mimic from
-Terminal** shows the one command that makes it available, with a Copy button:
+The app is also a `mimic` command, with the same engine. To add it to your Terminal, open
+**Settings → Use Mimic from Terminal** and paste the command it shows (it asks for your Mac
+password once). Finish the app's first-launch download first: `make` and `retry` need it.
 
 ```bash
 mimic make dwarf-cleric "dwarf cleric, warhammer held against chest"
@@ -149,6 +106,7 @@ mimic list
 | `--height MM` | How tall the character is, feet to top; the base adds about 2 mm |
 | `--base MM` | Size of the round base |
 | `--nozzle 0.2` / `0.4` / `0.6` | Your printer's nozzle |
+| `--inflate MM` | Extra thickness for thin parts (set from the nozzle unless you give it) |
 | `--no-base` | Keep the character's own base instead of adding a round one |
 | `--seed N` | Try a different version of the same character |
 
@@ -158,7 +116,7 @@ Want to change Mimic itself? See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Licences
 
-- **Mimic:** MIT (see `LICENSE`).
+- **Mimic:** MIT (see [LICENSE](LICENSE)).
 - **Pixal3D:** MIT, except the image encoder its model includes, which uses Meta's DINOv3 licence.
 - **FLUX.2 Klein:** Black Forest Labs' licence. Check it before selling prints of generated
   characters.
