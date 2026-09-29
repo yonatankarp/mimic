@@ -23,7 +23,6 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
 | What | What it's for | Get it |
 |---|---|---|
 | A slicer | Turns your mini into instructions for your printer | [Bambu Studio](https://github.com/bambulab/BambuStudio), [OrcaSlicer](https://github.com/OrcaSlicer/OrcaSlicer), [PrusaSlicer](https://github.com/prusa3d/PrusaSlicer), [UltiMaker Cura](https://github.com/Ultimaker/Cura) |
-| Blender | Makes the print-ready file | [blender.org](https://www.blender.org/download/) |
 | Draw Things | Draws the pictures. Optional: Mimic's setup screen links to it | [App Store](https://apps.apple.com/app/id6444050820) |
 | FLUX.2 Klein | Draws and redraws character pictures. Only needed for ✍️ Describe it and the grey-sculpt step | Inside Draw Things' model list; Mimic's setup checklist shows where |
 
@@ -116,7 +115,7 @@ flowchart TD
   redraw --> image["Character image"]
   draw --> image
   image --> mesh["🧊 3D model<br/><i>Pixal3D</i>"]
-  mesh --> prep["🖨️ Print prep<br/><i>Blender</i>"]
+  mesh --> prep["🖨️ Print prep<br/><i>Mimic</i>"]
   prep --> out["STL + front, side and back previews"]
   out --> slicer["Your slicer"]
 ```
@@ -126,7 +125,7 @@ flowchart TD
 2. **The 3D model.** Your Mac cuts the character out of the picture, then
    [Pixal3D](https://github.com/raven38/pixal3d.cpp) builds a 3D model from it on your Mac's
    graphics chip.
-3. **Print prep.** Blender sizes the model, centres it on a round base, makes it one solid
+3. **Print prep.** Mimic sizes the model, centres it on a round base, makes it one solid
    piece, thickens thin parts to suit your nozzle, and flattens the bottom so it sits on the
    print bed.
 

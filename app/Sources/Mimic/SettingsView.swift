@@ -65,7 +65,7 @@ struct SettingsView: View {
         .onChange(of: model.running) { _, running in if !running { health.check(model.install) } }
         .task {
             slicers = Slicer.installed()
-            // The checks start Blender and the 3D engine, which a running job is already using
+            // The checks start the 3D engine, which a running job is already using
             // heavily; they run when it ends instead (below).
             if !model.running { health.check(model.install) }
             // Cancelled when the window closes, which ends the watching.

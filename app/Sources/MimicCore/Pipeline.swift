@@ -1,42 +1,34 @@
 import Foundation
 
 /// The programs a job runs, as absolute paths, and the environment they run in. Resolved once:
-/// launched from the Dock, the app's own PATH is launchd's bare one, where Blender isn't.
+/// launched from the Dock, the app's own PATH is launchd's bare one.
 public struct Tools: Sendable {
-    public var blender: String?
-    /// Mimic's own binary: step 2 runs it as `mimic _engine …`.
+    /// Mimic's own binary: the 3D engine and print prep are its hidden `_engine` and `_prep`
+    /// commands, each run as a separate program so Stop can end it like any other step.
     public var mimic: String
     /// The 3D engine's folder (trellis-cli, its libraries, `models/`).
     public var engine: String
-    public var miniPrep: String
     public var environment: [String: String]
 
-    public init(blender: String?, mimic: String, engine: String, miniPrep: String, environment: [String: String]) {
-        self.blender = blender; self.mimic = mimic; self.engine = engine
-        self.miniPrep = miniPrep; self.environment = environment
+    public init(mimic: String, engine: String, environment: [String: String]) {
+        self.mimic = mimic; self.engine = engine; self.environment = environment
     }
 
     public static func resolve(_ install: Install) -> Tools {
-        let env = childEnvironment()
-        return Tools(blender: which("blender", path: env["PATH"]!),
-                     mimic: (Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0])).resolvingSymlinksInPath().path,
-                     engine: install.engine.path,
-                     miniPrep: install.pipeline.appendingPathComponent("mini_prep.py").path,
-                     environment: env)
+        Tools(mimic: ownExecutable(), engine: install.engine.path, environment: childEnvironment())
     }
 
-    /// What every job step runs with: Homebrew and Blender on the PATH, nothing else inherited.
+    /// The running binary's real path: through the installer's symlink on the PATH,
+    /// CommandLine.arguments[0] is just "mimic".
+    public static func ownExecutable() -> String {
+        let path = Bundle.main.executablePath ?? CommandLine.arguments[0]
+        return URL(fileURLWithPath: path).resolvingSymlinksInPath().path
+    }
+
+    /// What every job step runs with: Homebrew on the PATH, nothing else inherited.
     public static func childEnvironment(home: String = NSHomeDirectory()) -> [String: String] {
-        ["PATH": "/opt/homebrew/bin:/Applications/Blender.app/Contents/MacOS:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+        ["PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
          "HOME": home, "USER": NSUserName(), "LANG": "en_US.UTF-8", "TMPDIR": NSTemporaryDirectory()]
-    }
-
-    public static func which(_ name: String, path: String) -> String? {
-        for dir in path.split(separator: ":") {
-            let candidate = "\(dir)/\(name)"
-            if FileManager.default.isExecutableFile(atPath: candidate) { return candidate }
-        }
-        return nil
     }
 }
 
@@ -57,10 +49,8 @@ public enum Pipeline {
     public static func plan(_ kind: JobKind, folder: URL, settings: MiniSettings, tools: Tools) throws -> [(number: Int, step: Step)] {
         let name = folder.lastPathComponent
         let flags = try (settings.requested ?? Sizes()).flags()
-        guard let blender = tools.blender else { throw RequestError.missing("Blender") }
-        let prep: Step = .run(executable: blender,
-                              arguments: ["-b", "-P", tools.miniPrep, "--",
-                                          folder.appendingPathComponent("model.glb").path,
+        let prep: Step = .run(executable: tools.mimic,
+                              arguments: ["_prep", folder.appendingPathComponent("model.glb").path,
                                           folder.appendingPathComponent("\(name).stl").path] + flags,
                               directory: nil, log: folder.appendingPathComponent("prep.log"))
         if kind == .prep { return [(3, prep)] }

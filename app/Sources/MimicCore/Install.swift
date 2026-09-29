@@ -1,8 +1,7 @@
 import Foundation
 
 /// Where Mimic keeps things: the minis (`runs`), the 3D engine (`engine`, trellis-cli and its
-/// libraries, with the model files in `engine/models/pixal3d-sv/`) and the Blender script
-/// (`pipeline`).
+/// libraries, with the model files in `engine/models/pixal3d-sv/`).
 ///
 /// An app installed from the disk image has no Mimic folder, so by default the minis are in
 /// ~/Documents/Mimic, where people look for their files, and the engine in
@@ -12,7 +11,6 @@ import Foundation
 public struct Install: Sendable, Equatable {
     public let runs: URL
     public let engine: URL
-    public let pipeline: URL
     /// Where installs before the Swift engine kept it: `image-to-3dlab` in the Mimic folder.
     /// Setup moves it out. nil for the default layout, which never had one.
     public let legacyLab: URL?
@@ -24,14 +22,12 @@ public struct Install: Sendable, Equatable {
         let root = root.standardizedFileURL
         runs = root.appendingPathComponent("runs")
         engine = root.appendingPathComponent("engine")
-        pipeline = root.appendingPathComponent("pipeline")
         legacyLab = root.appendingPathComponent("image-to-3dlab")
     }
 
     public init(runs: URL, engine: URL) {
         self.runs = runs.standardizedFileURL
         self.engine = engine.standardizedFileURL
-        pipeline = engine.deletingLastPathComponent().appendingPathComponent("pipeline").standardizedFileURL
         legacyLab = nil
     }
 

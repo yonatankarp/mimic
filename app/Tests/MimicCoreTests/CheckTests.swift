@@ -7,18 +7,17 @@ import XCTest
 /// on this Mac" proves nothing: each test builds its world from scratch in a temp folder, and
 /// the checks really start the stand-in programs.
 final class CheckTests: XCTestCase {
-    static let ids = ["engine", "models", "blender", "space",
+    static let ids = ["engine", "models", "space",
                       "drawthings-app", "drawthings-api", "drawthings-model", "slicer"]
 
     var f: Fixture!
-    var apps: URL!, bin: URL!, home: URL!
+    var apps: URL!, home: URL!
 
     override func setUpWithError() throws {
         f = try Fixture()
         apps = f.root.appendingPathComponent("Applications")
-        bin = f.root.appendingPathComponent("bin")
         home = f.root.appendingPathComponent("home")
-        for d in [apps!, bin!, home!] { try FileManager.default.createDirectory(at: d, withIntermediateDirectories: true) }
+        for d in [apps!, home!] { try FileManager.default.createDirectory(at: d, withIntermediateDirectories: true) }
     }
 
     /// No DRAWTHINGS_MODEL: a pinned model name is taken on trust, which would keep the model
@@ -26,7 +25,7 @@ final class CheckTests: XCTestCase {
     func checks(freeGB: Int64, drawThings: String = "http://127.0.0.1:9") -> Checks {
         Checks(install: f.install, appFolders: [apps],
                drawThings: DrawThings(environment: ["DRAWTHINGS_URL": drawThings], home: home),
-               path: bin.path, freeBytes: { _ in freeGB * 1_000_000_000 })
+               freeBytes: { _ in freeGB * 1_000_000_000 })
     }
 
     func results(_ c: Checks) -> [String: Bool] {
@@ -50,7 +49,6 @@ final class CheckTests: XCTestCase {
         try executable(f.install.trellisCLI, "exit 0")
         try version(EngineDownload.version)
         try modelFiles()
-        try executable(bin.appendingPathComponent("blender"), "echo Blender 5.2.2")
         for a in ["Draw Things.app", "OrcaSlicer.app"] {
             try FileManager.default.createDirectory(at: apps.appendingPathComponent(a), withIntermediateDirectories: true)
         }
@@ -62,18 +60,6 @@ final class CheckTests: XCTestCase {
 
         let got = results(checks(freeGB: 100, drawThings: "http://127.0.0.1:\(server.port)"))
         XCTAssertEqual(Self.ids.filter { !got[$0]! }, [], "these stayed red with everything there")
-    }
-
-    /// Homebrew's launcher outlives the app it points at: it exists, but can't start Blender.
-    func testABlenderLauncherWhoseAppIsGoneIsRed() throws {
-        try executable(bin.appendingPathComponent("blender"), #"exec "/Applications/Gone.app/Contents/MacOS/Blender" "$@""#)
-        XCTAssertFalse(results(checks(freeGB: 100))["blender"]!)
-    }
-
-    /// Starting isn't enough either: it has to be Blender that answered.
-    func testSomethingElseCalledBlenderIsRed() throws {
-        try executable(bin.appendingPathComponent("blender"), "echo hello")
-        XCTAssertFalse(results(checks(freeGB: 100))["blender"]!)
     }
 
     /// Present but broken, like a copy whose libraries went missing: exists is not enough.

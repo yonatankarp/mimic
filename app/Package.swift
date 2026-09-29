@@ -11,7 +11,9 @@ let package = Package(
     ],
     targets: [
         // Everything that isn't UI: jobs, the pipeline, Draw Things, checks, the gallery on disk.
-        .target(name: "MimicCore"),
+        // Optimised in debug builds too: print prep's loops run ~30x slower unoptimised, which
+        // made its tests take minutes.
+        .target(name: "MimicCore", swiftSettings: [.unsafeFlags(["-O"], .when(configuration: .debug))]),
         // The app and the `mimic` command-line tool: one binary, same code.
         .executableTarget(name: "Mimic", dependencies: ["MimicCore"]),
         .testTarget(name: "MimicCoreTests", dependencies: ["MimicCore"]),

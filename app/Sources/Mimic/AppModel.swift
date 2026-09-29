@@ -43,7 +43,7 @@ final class AppModel {
     init() {
         let install = Install.locate()
         // A job left running by a Mimic that crashed (or was force-quit) is stopped first:
-        // otherwise a 14 GB Blender could run on with nothing watching it.
+        // otherwise a 3D engine or print prep could run on with nothing watching it.
         Leftover.stop(install.runs)
         self.install = install
         jobs = JobRunner(install: install)

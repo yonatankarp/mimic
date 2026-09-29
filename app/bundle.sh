@@ -39,7 +39,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
 </dict></plist>
 PLIST
 codesign --force --deep -s - "$app" 2>/dev/null
-# The dev build uses this checkout as its Mimic folder (runs/, engine/, the Blender script). The
-# release build finds its own: ~/Documents/Mimic and ~/Library/Application Support/Mimic.
+# The dev build uses this checkout as its Mimic folder (runs/ and engine/). The release build
+# finds its own: ~/Documents/Mimic and ~/Library/Application Support/Mimic.
 [ "$kind" = release ] || defaults write "$id" installDir "$(cd .. && pwd)"
 echo "$app"

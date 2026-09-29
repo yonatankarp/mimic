@@ -4,24 +4,19 @@
 
 | Path | What |
 |---|---|
-| `app/` | The Mac app, a Swift package. `MimicCore` is everything but the windows (jobs, Draw Things, checks, the gallery on disk); `Mimic` is one binary that is the app, or the `mimic` command with arguments. `app/NOTES.md` has the design decisions and why. |
-| `pipeline/mini_prep.py` | Print prep in Blender. The comment at its top lists every tuning option. |
-| `pipeline/gen_views.py` | Experimental and unused: side and back views for Pixal3D's multiview mode. |
-| `pipeline/render_zoom.py` | Close-up render, for judging small details. |
+| `app/` | The Mac app, a Swift package. `MimicCore` is everything but the windows (jobs, Draw Things, checks, the gallery on disk); `Mimic` is one binary that is the app, or the `mimic` command with arguments. `app/NOTES.md` has the design decisions and why. Print prep is `MimicCore/Prep.swift`; its header lists every tuning option (`mimic _prep in.glb out.stl …` runs it by hand). |
 | `tools/package_dmg.sh` | Builds `Mimic.app` into the disk image a release publishes. |
-| `tools/package_pixal3d.sh` | Packages the Pixal3D build the app downloads on first launch. |
+| `tools/package_pixal3d.sh`, `tools/pixal3d-steps.patch` | Package the Pixal3D build the app downloads on first launch. |
 | `.github/workflows/release.yml` | Tests every change, builds the disk image, and publishes a release from a version tag. |
-| `tests/` | Print-prep tests (the app's own tests are in `app/Tests`). |
 | `runs/`, `engine/` | The dev build's minis and 3D engine (`trellis-cli`, models in `engine/models/pixal3d-sv/`), when this checkout is its Mimic folder. Both are git-ignored. An installed Mimic keeps them in `~/Documents/Mimic` and `~/Library/Application Support/Mimic/engine` instead; `app/NOTES.md` says how it chooses. |
 
 ## Building and testing
 
 ```bash
 cd app
-swift test                         # the engine: jobs, Stop, sizes, checks, rename, Draw Things
+swift test                         # the engine: jobs, Stop, sizes, checks, rename, Draw Things, print prep
 ./bundle.sh && open "build/Mimic Dev.app"
 MIMIC_HOME=.. swift run mimic list # the command line, without the app
-cd .. && tests/test_prep.sh        # print prep: watertight, flat bottom, right height, centred, one piece
 ```
 
 `bundle.sh` makes *Mimic Dev*, a separate app with its own settings, so it never replaces the

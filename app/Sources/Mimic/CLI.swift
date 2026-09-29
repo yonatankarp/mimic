@@ -16,9 +16,10 @@ enum CLI {
 
     static func run(_ args: [String]) -> Int32 {
         if args.first == "--probe-notifications" { return probeNotifications() }
-        // Before finding the Mimic folder or stopping leftovers: this *is* the running job's
-        // program (named in runs/.job.pid), and it's told where the engine is.
+        // The job's own steps, each run by a job as its own program: before finding the Mimic
+        // folder or stopping leftovers, since this *is* the program named in runs/.job.pid.
         if args.first == "_engine" { return engine(Array(args.dropFirst())) }
+        if args.first == "_prep" { return prep(Array(args.dropFirst())) }
         // Run through a symlink (Settings shows how to put one on the PATH), the binary isn't seen as part of
         // its app, so it would read its own empty settings rather than the app's.
         let defaults = Bundle.main.bundleIdentifier == nil ? UserDefaults(suiteName: "com.mimic.app") ?? .standard : .standard
@@ -121,6 +122,20 @@ enum CLI {
         } catch {
             _ = fail("\(error)")
             return 1
+        }
+    }
+
+    /// Step 3 of a job, run by the job itself: `mimic _prep <model.glb> <name.stl> [flags]`.
+    private static func prep(_ args: [String]) -> Int32 {
+        setvbuf(stdout, nil, _IOLBF, 0)  // prep.log shows each step as it happens
+        do {
+            let options = try PrepOptions.parse(args)
+            let result = try Prep.run(options) { print($0) }
+            result.lines.forEach { print($0) }
+            try Render.views(result.mesh, besides: URL(fileURLWithPath: options.stl))
+            return 0
+        } catch {
+            return fail("mini_prep: \(error)")
         }
     }
 

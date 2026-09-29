@@ -16,12 +16,36 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
 
 ## Decisions
 
-- **Swift owns everything except print prep.** `pipeline/mini_prep.py` runs inside Blender. The terminal route is `mimic make …`, the same code as the app;
+- **Swift owns everything.** The 3D engine itself is a prebuilt C++ program (`trellis-cli`);
+  everything around it, and all of print prep, is this package. The terminal route is
+  `mimic make …`, the same code as the app;
   Settings → Use Mimic from Terminal shows the one command that links the app's binary onto
   the PATH (`sudo`, because `/usr/local/bin` is on every Mac's PATH but a new Mac doesn't have
   it and only an administrator can make it; `~/.local/bin` needs no password but isn't on the
   PATH, which would be a second step). Through the symlink the binary reads `com.mimic.app`'s
   settings, so it finds the same install as the app.
+- **Print prep is Swift, not Blender** (`MimicCore/Prep.swift`, ported from the old
+  `pipeline/mini_prep.py`, whose reasons its comments keep). It runs as `mimic _prep in.glb
+  out.stl [flags]`, the app's own binary started as a job step through GroupProcess, so Stop
+  ends it like any other program. Measured on the dwarf (32 mm, 25 mm base, 0.2 nozzle):
+  Blender 58 s and 6.0 GB (peak RSS); Swift 6 s and 1.5 GB. At 100 mm on a 0.4 nozzle:
+  Blender 157 s and 13.2 GB; Swift 14 s and 2.9 GB. How:
+  - The solid is a signed distance field built in slabs of grid planes, so memory follows the
+    surface: a 100 mm figure at 0.1 mm is ~10⁹ grid points, never held at once. Inside is
+    decided by winding along grid columns (overlapping parts union), distance exactly to the
+    nearest triangle, and only near the surface. Inflate, base and the flat cut are all in the
+    field, so one surface extraction makes the finished solid.
+  - Marching cubes with a table generated from one rule per face (inside corners of an
+    ambiguous face are always kept apart), so neighbouring cubes agree and the surface is
+    closed and manifold by construction. The classic copied table leaves holes. Fans whose
+    diagonal would lie on a cube face are avoided (the dwarf had 78 edges of four
+    triangles from them).
+  - Inflate is a true offset of the surface, not Blender's push along vertex normals: the
+    uninflated dwarf comes out at 204.6 mm³ against the model's own 204.7 (Blender: 232).
+  - Trimming to `--faces` is quadric edge collapse that refuses any collapse that would make
+    an edge not shared by exactly two triangles.
+  - Renders are drawn in software, so a child process needs no window server or GPU, and it
+    doesn't compete with the 3D engine.
 - **Same data on disk.** `runs/<name>/` with `<name>.stl`, `<name>_{front,side,back}.png`,
   `source.png` and `settings.json` (`requested` / `made` / how it was made), so minis made by
   the web version appear in the app unchanged.

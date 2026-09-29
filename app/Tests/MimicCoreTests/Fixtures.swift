@@ -2,19 +2,17 @@ import Foundation
 @testable import MimicCore
 
 /// A throwaway Mimic folder with fake tools: the job runner runs real processes, just not
-/// Blender or the 3D engine.
+/// print prep or the 3D engine.
 struct Fixture {
     let root: URL
     let install: Install
     init() throws {
         root = FileManager.default.temporaryDirectory.appendingPathComponent("mimic-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: root.appendingPathComponent("pipeline"), withIntermediateDirectories: true)
-        FileManager.default.createFile(atPath: root.appendingPathComponent("pipeline/mini_prep.py").path, contents: Data())
         try FileManager.default.createDirectory(at: root.appendingPathComponent("runs"), withIntermediateDirectories: true)
         install = Install(root: root)
     }
 
-    /// A shell script to stand in for Blender or the 3D engine.
+    /// A shell script to stand in for print prep or the 3D engine.
     func script(_ name: String, _ body: String) throws -> String {
         let url = root.appendingPathComponent(name)
         try "#!/bin/bash\n\(body)\n".write(to: url, atomically: true, encoding: .utf8)
@@ -22,10 +20,10 @@ struct Fixture {
         return url.path
     }
 
-    /// `mimic` stands in for Mimic's own binary, which step 2 runs as `mimic _engine …`.
-    func tools(blender: String? = "/usr/bin/true", mimic: String = "/usr/bin/true") -> Tools {
-        Tools(blender: blender, mimic: mimic, engine: install.engine.path,
-              miniPrep: root.appendingPathComponent("pipeline/mini_prep.py").path,
+    /// `mimic` stands in for Mimic's own binary, which steps 2 and 3 run as `mimic _engine …`
+    /// and `mimic _prep …`.
+    func tools(mimic: String = "/usr/bin/true") -> Tools {
+        Tools(mimic: mimic, engine: install.engine.path,
               environment: ["PATH": "/usr/bin:/bin"])
     }
 
