@@ -9,13 +9,13 @@ import UniformTypeIdentifiers
 /// the app happens to have selected, and with SDXL selected an edit silently became plain
 /// text-to-image at strength 1, ignoring the picture.
 ///
-/// With `draw-things-cli` installed (`brew install draw-things-cli`) it runs that instead, which
-/// needs neither the app open nor its API server on; the API is the fallback when it isn't found.
+/// With `draw-things-cli`, which setup downloads beside the 3D engine, it runs that instead: it
+/// needs neither the app open nor its API server on. The API is the fallback when it isn't there.
 public final class DrawThings: @unchecked Sendable {
     public let base: URL
     public let modelsDir: URL
     private let pinnedModel: String?
-    /// `draw-things-cli`, when installed: pictures are made with it instead of the API.
+    /// Mimic's `draw-things-cli`, when it's there: pictures are made with it instead of the API.
     public let cli: String?
     /// Opens Draw Things when a picture needs it (`openIfNeeded`).
     public let app: DrawThingsApp
@@ -56,11 +56,10 @@ public final class DrawThings: @unchecked Sendable {
         self.cli = cli
     }
 
-    /// `draw-things-cli` on PATH, or where Homebrew puts it: an app opened from the Finder
-    /// doesn't get the shell's PATH.
-    public static func findCLI(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
-        let dirs = (environment["PATH"] ?? "").split(separator: ":").map(String.init) + ["/opt/homebrew/bin", "/usr/local/bin"]
-        return dirs.map { $0 + "/draw-things-cli" }.first { FileManager.default.isExecutableFile(atPath: $0) }
+    /// Mimic's own copy of `draw-things-cli`, which setup downloads, when it's there.
+    public static func findCLI(_ install: Install = .locate()) -> String? {
+        let path = install.drawThingsCLI.path
+        return FileManager.default.isExecutableFile(atPath: path) ? path : nil
     }
 
     /// Before a picture step: when the API isn't answering and Draw Things isn't running, opens
@@ -141,11 +140,12 @@ public final class DrawThings: @unchecked Sendable {
         return b
     }
 
-    /// The `draw-things-cli generate` arguments for the same request. `--local` always: without
-    /// it the CLI may send the picture to Draw Things' cloud.
+    /// The `draw-things-cli generate` arguments for the same request. The pinned release only
+    /// generates locally and has no `--local` (it refuses it); later builds add cloud compute and
+    /// may use it unless given `--local`, so a new pin has to check its `generate --help`.
     static func cliArguments(model: String, prompt: String, seed: Int, width: Int, height: Int,
                              image: String? = nil, output: String) -> [String] {
-        var a = ["generate", "--local", "--no-download-missing", "--disable-preview", "--model", model, "--prompt", prompt,
+        var a = ["generate", "--no-download-missing", "--disable-preview", "--model", model, "--prompt", prompt,
                  "--seed", String(seed), "--width", String(width), "--height", String(height), "--steps", "4", "--cfg", "1"]
         if let image { a += ["--image", image, "--strength", "1"] }
         return a + ["--output", output]
@@ -324,12 +324,12 @@ public enum DrawThingsError: Error, CustomStringConvertible, Equatable {
     case notRunning, noModel, cancelled, badPicture, refused(String), apiOff, closedWhileOpening
     public var description: String {
         switch self {
-        case .notRunning: "Draw Things isn't answering. Easiest: install its command line tool (brew install draw-things-cli). Or open Draw Things, then Settings → Advanced → API Server: turn it on, HTTP, port 7860."
+        case .notRunning: "Draw Things isn't answering. Open Draw Things, then Settings → Advanced → API Server: turn it on, HTTP, port 7860."
         case .noModel: "FLUX.2 Klein isn't downloaded in Draw Things. Search for it in Draw Things' model list and download it."
         case .cancelled: "Stopped."
         case .badPicture: "That picture can't be read."
         case .refused(let why): "Draw Things refused the request: \(why)"
-        case .apiOff: "Mimic opened Draw Things, but it didn't answer. Easiest: install its command line tool (brew install draw-things-cli). Or in Draw Things: Settings → Advanced → API Server: turn it on, choose HTTP, port 7860. Then try again."
+        case .apiOff: "Mimic opened Draw Things, but it didn't answer. In Draw Things: Settings → Advanced → API Server: turn it on, choose HTTP, port 7860. Then try again."
         case .closedWhileOpening: "Draw Things closed before it was ready. Try again."
         }
     }

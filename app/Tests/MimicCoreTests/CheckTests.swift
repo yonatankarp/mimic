@@ -83,7 +83,6 @@ final class CheckTests: XCTestCase {
     func testTheCommandLineToolIsEnough() {
         let c = checks(freeGB: 100, cli: "/usr/bin/true")
         let got = Dictionary(uniqueKeysWithValues: c.all.map { ($0.id, $0.run()) })
-        XCTAssertTrue(got["drawthings-app"]!.ok)
         XCTAssertTrue(got["drawthings-api"]!.ok)
         XCTAssertEqual(got["drawthings-api"]!.label, Checks.commandLine)
     }

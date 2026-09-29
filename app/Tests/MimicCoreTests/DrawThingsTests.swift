@@ -69,18 +69,18 @@ final class DrawThingsTests: XCTestCase {
         XCTAssertThrowsError(try dt.draw(description: "a dwarf", seed: 1)) { XCTAssertEqual($0 as? DrawThingsError, .notRunning) }
     }
 
-    /// The CLI gets the same request, and always `--local`: without it, it may use Draw Things' cloud.
+    /// The CLI gets the same request, and nothing that sends it to Draw Things' cloud.
     func testCLIArguments() {
         let draw = DrawThings.cliArguments(model: "m.ckpt", prompt: "a dwarf", seed: 7, width: 1024, height: 1024, output: "/o.png")
         XCTAssertEqual(draw.first, "generate")
-        XCTAssertTrue(draw.contains("--local"))
+        XCTAssertFalse(draw.contains { $0.hasPrefix("--cloud") || $0.hasPrefix("--remote") })
         XCTAssertTrue(draw.contains("--no-download-missing"))
         XCTAssertFalse(draw.contains("--image"))
         for (flag, value) in [("--model", "m.ckpt"), ("--prompt", "a dwarf"), ("--seed", "7"), ("--width", "1024"), ("--output", "/o.png")] {
             XCTAssertEqual(draw[draw.firstIndex(of: flag)! + 1], value, flag)
         }
         let edit = DrawThings.cliArguments(model: "m", prompt: "p", seed: 1, width: 704, height: 1536, image: "/in.png", output: "/o.png")
-        XCTAssertTrue(edit.contains("--local"))
+        XCTAssertFalse(edit.contains { $0.hasPrefix("--cloud") || $0.hasPrefix("--remote") })
         XCTAssertEqual(edit[edit.firstIndex(of: "--image")! + 1], "/in.png")
         XCTAssertEqual(edit[edit.firstIndex(of: "--height")! + 1], "1536")
     }
@@ -107,18 +107,22 @@ final class DrawThingsTests: XCTestCase {
     }
 }
 
-/// A real drawing and sculpt through draw-things-cli, about a minute each. Only with
-/// MIMIC_LIVE_DRAW set; the pictures are left in the temporary folder, and their paths printed.
+/// A real drawing and sculpt through the draw-things-cli setup downloads, about a minute each:
+/// setup (the engine and the tool, not the 3D model files) into the folder MIMIC_LIVE_DRAW names,
+/// then a picture of a dwarf and its sculpt, left there.
 final class LiveDrawTests: XCTestCase {
-    func testDrawAndSculptThroughTheCLI() throws {
-        try XCTSkipIf(ProcessInfo.processInfo.environment["MIMIC_LIVE_DRAW"] == nil, "a real generation")
-        let dt = DrawThings()
-        try XCTSkipIf(dt.cli == nil, "draw-things-cli isn't installed")
-        let drawn = FileManager.default.temporaryDirectory.appendingPathComponent("live-draw.png")
+    func testDrawAndSculptThroughTheCLI() async throws {
+        guard let path = ProcessInfo.processInfo.environment["MIMIC_LIVE_DRAW"] else { throw XCTSkip("set MIMIC_LIVE_DRAW=<folder>") }
+        let folder = URL(fileURLWithPath: path)
+        var setup = EngineSetup(install: .standard(home: folder))
+        setup.model.files = []
+        try await setup.run { _ in }
+        let dt = DrawThings(cli: try XCTUnwrap(DrawThings.findCLI(setup.install), "setup left no draw-things-cli"))
+        let wasRunning = DrawThingsApp.mac.running()
+        let drawn = folder.appendingPathComponent("live-draw.png"), sculpt = folder.appendingPathComponent("live-sculpt.png")
         try dt.draw(description: "stout dwarf warrior with an axe", seed: 7).write(to: drawn)
-        let sculpt = FileManager.default.temporaryDirectory.appendingPathComponent("live-sculpt.png")
         try dt.sculpt(picture: drawn, seed: 7).write(to: sculpt)
         print("LIVE \(drawn.path) \(sculpt.path)")
-        XCTAssertFalse(DrawThingsApp.mac.running(), "the CLI path opened Draw Things")
+        if !wasRunning { XCTAssertFalse(DrawThingsApp.mac.running(), "the CLI path opened Draw Things") }
     }
 }

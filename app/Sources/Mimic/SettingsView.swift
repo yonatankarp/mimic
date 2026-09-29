@@ -137,7 +137,7 @@ private struct CheckRow: View {
                 Text(result?.label ?? check.label)
                     .help(Self.what[check.id] ?? "")
                 if result?.label == Checks.opensWhenNeeded {
-                    Text("Its API server has to be on: in Draw Things, Settings → Advanced → API Server, HTTP, port 7860. Or skip that: in Terminal, run brew install draw-things-cli.")
+                    Text("Its API server has to be on: in Draw Things, Settings → Advanced → API Server, HTTP, port 7860.")
                         .font(.callout).foregroundStyle(.secondary)
                 }
                 if let result, !result.ok {
@@ -270,8 +270,8 @@ struct DrawThingsSteps: View {
         SetupStep(done: health.ok("drawthings-app"), title: "Get Draw Things from the App Store.",
                   detail: "It's free.", link: ("Open the App Store", SetupModel.drawThingsStore))
         SetupStep(done: health.drawThingsConnected, title: "Connect Mimic to it.",
-                  detail: "Easiest: in Terminal, run brew install draw-things-cli. Then Draw Things doesn't even need to be open. "
-                      + "Or in Draw Things: Settings → Advanced → API Server. Turn it on, choose HTTP, set the port to 7860.")
+                  detail: "Mimic does this itself, with Draw Things' command line tool: it comes with the 3D engine, and Draw Things doesn't even need to be open. "
+                      + "Without it: in Draw Things, Settings → Advanced → API Server. Turn it on, choose HTTP, set the port to 7860.")
         SetupStep(done: health.ok("drawthings-model"), title: "Download FLUX.2 Klein.",
                   detail: "In Draw Things' model list, search for FLUX.2 Klein and download it. It's big, so give it a few minutes.")
     }

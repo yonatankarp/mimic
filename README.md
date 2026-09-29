@@ -20,8 +20,9 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
   or [UltiMaker Cura](https://github.com/Ultimaker/Cura)
 - Optional: [Draw Things](https://apps.apple.com/app/id6444050820), a free app. With it, Mimic
   can make a mini from a description, and turn your picture into a grey sculpt first, which
-  gives better minis. Mimic shows you how to set it up. The easiest way to connect it is its
-  command line tool: `brew install draw-things-cli`.
+  gives better minis. Mimic shows you how to set it up. Mimic connects to it through
+  Draw Things' command line tool, which it downloads with its 3D engine, so Draw Things doesn't
+  need to be open.
 
 ### Install
 
@@ -30,7 +31,7 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
    If your Mac says it can't check Mimic, see the note below.
 3. Pick a 3D model (TRELLIS.2, the default, keeps what a figure holds most reliably; Pixal3D
    is faster, with the crispest surface) and press **Download**. The first time, Mimic
-   downloads its 3D engine (8.1 to 9.1 GB, depending on the model). You can keep using your Mac while it does, and
+   downloads its 3D engine (8.3 to 9.3 GB, depending on the model). You can keep using your Mac while it does, and
    switch models later in Settings.
 
 > [!IMPORTANT]

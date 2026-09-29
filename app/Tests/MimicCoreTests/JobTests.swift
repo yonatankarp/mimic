@@ -107,6 +107,7 @@ final class JobTests: XCTestCase {
         try FileManager.default.createDirectory(at: fx.install.engine, withIntermediateDirectories: true)
         try "#!/bin/sh\n".write(to: fx.install.trellisCLI, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: fx.install.trellisCLI.path)
+        try FileManager.default.copyItem(at: fx.install.trellisCLI, to: fx.install.drawThingsCLI)
         try fx.modelFiles()
         XCTAssertEqual(EngineDownload.standard.folder(in: fx.install).lastPathComponent, "trellis2-q8", "the standard model's folder")
         defaults.removeObject(forKey: "model")
