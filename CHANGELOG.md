@@ -2,6 +2,15 @@
 
 What's new in each version of Mimic. The release workflow publishes a version's section here as its release notes, so write it for people who use Mimic, not for developers.
 
+## 0.4.2
+
+### New
+- **Reset Mimic** (Settings, at the bottom): forget Mimic's settings and saved keys and see the tour again, as on a fresh install. You can also remove the 3D engine to go through first-launch setup again. Your minis are always kept.
+
+### Fixed
+- The tour no longer gets stuck at step 5. If you chose to make the sample dwarf, it waits for you to press Make My Mini; otherwise Next moves on.
+- "Use the Sample" no longer gets cut off in the tour, and no empty panel is left on screen when the tour opens New Mini.
+
 ## 0.4.1
 
 ### New
