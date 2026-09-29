@@ -12,12 +12,12 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section {
-                ForEach(health.checks.filter(\.required)) { CheckRow(check: $0, result: health.results[$0.id], setup: model.setup) }
+                ForEach(health.checks.filter(\.required)) { row($0) }
             } header: {
                 Text("Needed to make minis")
             }
             Section {
-                ForEach(health.checks.filter { !$0.required }) { CheckRow(check: $0, result: health.results[$0.id], setup: model.setup) }
+                ForEach(health.checks.filter { !$0.required }) { row($0) }
             } header: {
                 Text("Optional")
             } footer: {
@@ -73,6 +73,13 @@ struct SettingsView: View {
         }
     }
 
+    /// A check's row. Its place in the list staggers its result a little, so answers that come
+    /// back together still arrive one after another.
+    private func row(_ check: Check) -> some View {
+        CheckRow(check: check, result: health.results[check.id], setup: model.setup,
+                 stagger: Double(health.checks.firstIndex { $0.id == check.id } ?? 0) * 0.04)
+    }
+
     /// The picked slicer, or the first one found when the pick is gone, as Slicer.preferred does.
     private var slicerChoice: Binding<String> {
         Binding(get: { slicer == Slicer.macDefault || slicers.contains { $0.id == slicer } ? slicer : slicers.first?.id ?? Slicer.macDefault },
@@ -94,6 +101,8 @@ private struct CheckRow: View {
     let check: Check
     let result: CheckResult?
     let setup: SetupModel
+    var stagger = 0.0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
@@ -119,13 +128,19 @@ private struct CheckRow: View {
         }
     }
 
-    @ViewBuilder private var mark: some View {
-        switch result.map({ ($0.ok, $0.required) }) {
-        case nil: ProgressView().controlSize(.small)
-        case (true, _)?: Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-        case (false, true)?: Image(systemName: "xmark.circle.fill").foregroundStyle(.red)
-        case (false, false)?: Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+    /// A turning dotted circle while the check runs, which becomes its answer in place.
+    private var mark: some View {
+        let (symbol, color): (String, Color) = switch result.map({ ($0.ok, $0.required) }) {
+        case nil: ("circle.dotted", .secondary)
+        case (true, _)?: ("checkmark.circle.fill", .green)
+        case (false, true)?: ("xmark.circle.fill", .red)
+        case (false, false)?: ("exclamationmark.triangle.fill", .orange)
         }
+        return Image(systemName: symbol)
+            .foregroundStyle(color)
+            .symbolEffect(.rotate, options: .repeat(.continuous), isActive: result == nil && !reduceMotion)
+            .contentTransition(.symbolEffect(.replace))
+            .animation(reduceMotion ? nil : .default.delay(stagger), value: result)
     }
 }
 

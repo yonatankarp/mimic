@@ -24,6 +24,10 @@ struct MiniViewer: View {
     @AppStorage("zoomOn") private var zoomOn = false
     /// While Front plays its animation, the view leaves the transform to it.
     @State private var gliding = false
+    /// The mini fades in once loaded, and out while the next one (or a resized one) loads, so
+    /// a new print file crossfades rather than popping.
+    @State private var shown = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         RealityView { content in
@@ -38,6 +42,8 @@ struct MiniViewer: View {
             if mini.parent == nil {
                 content.entities.filter { $0.name == "mini" }.forEach { content.remove($0) }
                 content.add(mini)
+                // Grows the last few percent into place as it fades in (the task set it smaller).
+                if gliding { mini.move(to: Transform(), relativeTo: mini.parent, duration: 0.5, timingFunction: .easeOut) }
             }
             guard !gliding else { return }
             mini.transform = Transform(scale: SIMD3(repeating: zoom),
@@ -45,6 +51,7 @@ struct MiniViewer: View {
                                        translation: .zero)
         }
         .realityViewCameraControls(.none)
+        .opacity(shown ? 1 : 0)
         .accessibilityElement()
         .accessibilityLabel(size.map { "3D view of \(name), \($0)" } ?? "3D view of \(name)")
         // A soft stage for the mini to stand on, lighter in the middle like a studio backdrop.
@@ -95,16 +102,39 @@ struct MiniViewer: View {
             if failed {
                 Text("Couldn't show this mini. Try Show in Finder.").foregroundStyle(.secondary)
             } else if mini == nil {
-                ProgressView("Loading your mini…")
+                VStack(spacing: 10) {
+                    Image(systemName: "cube.transparent")
+                        .font(.system(size: 36, weight: .light))
+                        .symbolEffect(.breathe, options: .repeat(.continuous), isActive: !reduceMotion)
+                    Text("Loading your mini…")
+                }
+                .foregroundStyle(.secondary)
             }
         }
         .task(id: [stl.path, version.description]) {
             failed = false
-            mini = nil; size = nil
+            // The mini on show fades out first: loading blocks the main actor, so the fade has to
+            // be over before it starts.
+            if mini != nil && shown && !reduceMotion {
+                withAnimation(.easeIn(duration: 0.2)) { shown = false }
+                try? await Task.sleep(for: .seconds(0.2))
+                guard !Task.isCancelled else { return }
+            }
+            shown = false
             turn = .zero; zoom = 1
             // ponytail: loads on the main actor (about 0.4 s for the biggest print file); move the
             // file reading off it if bigger minis make that noticeable.
-            if let (entity, mm) = try? Self.load(stl) { mini = entity; size = mm } else { failed = true }
+            guard let (entity, mm) = try? Self.load(stl) else { mini = nil; size = nil; failed = true; return }
+            if !reduceMotion {
+                entity.scale = SIMD3(repeating: 0.94)
+                gliding = true  // the update adds it and grows it into place
+            }
+            mini = entity; size = mm
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.4)) { shown = true }
+            if gliding {
+                try? await Task.sleep(for: .seconds(0.5))
+                gliding = false  // also when cancelled: sleep returns at once
+            }
         }
     }
 
