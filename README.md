@@ -65,6 +65,10 @@ turn it on, and a cloud service only ever sees the description you typed.
 
 Your minis are saved in **Documents → Mimic**.
 
+**Projects** group minis into folders, the same folders you see in Finder. Press **New Project**
+at the bottom of the list (⇧⌘N), then drag minis onto it or right-click a mini → **Move to
+Project**. New Mini puts a mini in the project you're looking at, or any one you pick.
+
 ---
 
 ## 🛠️ For developers
@@ -107,6 +111,9 @@ mimic make tiefling --image art.png --restyle --height 38 --nozzle 0.2
 mimic resize tiefling --height 32 --base 25
 mimic make teapot "a round teapot with a curved spout" --object --size 80
 mimic retry tiefling
+mimic make raven --image raven.png --project "Tiefling Party"
+mimic move tiefling --project "Tiefling Party"     # or --unsorted
+mimic projects
 mimic list
 ```
 
@@ -121,6 +128,7 @@ mimic list
 | `--inflate MM` | Extra thickness for thin parts (set from the nozzle unless you give it) |
 | `--no-base` | Keep the character's own base instead of adding a round one |
 | `--seed N` | Try a different version of the same character |
+| `--project NAME` | Put it in that project (a new one is made if needed) |
 | `--object` | Make anything that isn't a character: no round base, sized by its longest side, set on its flat bottom |
 | `--size MM` | How big it is: for an object, its longest side (set from the nozzle unless you give it); for a character, the same as `--height` |
 | `--add-base` | Give an object a round base too (sized to its shadow unless you give `--base`) |

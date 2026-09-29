@@ -14,6 +14,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 - Settings → Time estimates says how many minis the estimates are based on, with Clear to start over. The times are kept on your Mac only and never sent anywhere.
 - **Zoom with your mouse.** Scroll the wheel, or pinch or two-finger scroll on a trackpad, over the 3D view. The "Pinch to Zoom" switch is gone; Face Front zooms back out.
 - **Better AI descriptions.** Glowing, sparks and smoke are taken out of improved descriptions (they don't print), and Settings suggests the best local model you have installed.
+- **Projects.** Group your minis into folders (the same folders in Finder): New Project at the bottom of the list (⇧⌘N), drag minis onto one or right-click → Move to Project, and rename or delete a project from its right-click menu. Deleting one asks whether to keep its minis (in Unsorted) or move them to the Trash too. New Mini asks which project it goes in; in Terminal, `mimic make … --project "Name"`, `mimic move`, `mimic projects`, and `mimic list` shows each project.
 
 ### Fixed
 - Opening a second Mimic (or running `mimic` in Terminal) while one was making a mini could stop that mini.

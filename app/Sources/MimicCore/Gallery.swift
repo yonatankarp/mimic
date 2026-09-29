@@ -1,11 +1,18 @@
 import Foundation
 
-/// One mini: a folder under runs/ whose print file and previews are named after it.
+/// One mini: a folder under runs/ (or runs/<project>/) whose print file and previews are named
+/// after it.
 public struct Mini: Identifiable, Hashable, Sendable {
     public let name: String
     public let folder: URL
     public let madeAt: Date
+    /// The project it's in (its parent folder's name), or nil when it's unsorted.
+    public var project: String?
     public var id: String { name }
+
+    public init(name: String, folder: URL, madeAt: Date, project: String? = nil) {
+        self.name = name; self.folder = folder; self.madeAt = madeAt; self.project = project
+    }
     public var stl: URL? { existing("\(name).stl") }
     public var source: URL? { existing("source.png") }
     /// The picture it was given, before step 1 made source.png from it.
@@ -26,20 +33,88 @@ public struct Mini: Identifiable, Hashable, Sendable {
         return FileManager.default.fileExists(atPath: u.path) ? u : nil
     }
 
-    public static func == (a: Mini, b: Mini) -> Bool { a.name == b.name && a.madeAt == b.madeAt }
+    public static func == (a: Mini, b: Mini) -> Bool { a.name == b.name && a.madeAt == b.madeAt && a.project == b.project }
     public func hash(into h: inout Hasher) { h.combine(name) }
 }
 
+/// The minis folder on disk. A mini is a folder Mimic made (see `isMini`); any other folder at
+/// the top is a project, holding minis one level down. Projects don't nest: a folder inside a
+/// project that isn't a mini is ignored. Folders starting with "_" or "." are Mimic's own
+/// scratch, and files at the top (.queue.json, .job.*) are never minis.
+///
+/// A mini's name is unique across the whole minis folder, projects included, so everything
+/// that names a mini (the queue, `mimic resize <name>`, rename, trash, timings) finds it with
+/// `folder(_:_:)` wherever it is.
 public enum Gallery {
-    /// Every mini, newest first. Folders starting with "_" are Mimic's own scratch, not minis.
+    /// Every mini, in every project, newest first.
     public static func list(_ runs: URL) -> [Mini] {
+        var out: [Mini] = []
+        for dir in subfolders(runs) {
+            if isMini(dir) {
+                out.append(Mini(name: dir.lastPathComponent, folder: dir, madeAt: madeAt(dir)))
+            } else {
+                out += subfolders(dir).filter(isMini).map {
+                    Mini(name: $0.lastPathComponent, folder: $0, madeAt: madeAt($0), project: dir.lastPathComponent)
+                }
+            }
+        }
+        return out.sorted { $0.madeAt > $1.madeAt }
+    }
+
+    /// The projects, alphabetical (as Finder sorts), empty ones included.
+    public static func projects(_ runs: URL) -> [String] {
+        subfolders(runs).filter { !isMini($0) }.map(\.lastPathComponent)
+            .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+
+    /// A folder is a mini when it holds a file only Mimic writes there: settings.json (every
+    /// mini since the web version, written the moment it's asked for), model.glb (older ones
+    /// had no settings) or a print file named after the folder. Not any .stl: one dragged into
+    /// a project in Finder would make the project look like a mini.
+    public static func isMini(_ folder: URL) -> Bool {
         let fm = FileManager.default
-        let dirs = (try? fm.contentsOfDirectory(at: runs, includingPropertiesForKeys: [.isDirectoryKey])) ?? []
-        return dirs
+        return ["settings.json", "model.glb", "\(folder.lastPathComponent).stl"]
+            .contains { fm.fileExists(atPath: folder.appendingPathComponent($0).path) }
+    }
+
+    /// Where the mini called `name` is, in whichever project, or nil when there's none.
+    public static func folder(_ runs: URL, _ name: String) -> URL? {
+        guard Rules.isValidName(name) else { return nil }
+        // Checked by marker, not existence: on a Mac's disk "dwarf" also finds a project "Dwarf".
+        let top = runs.appendingPathComponent(name)
+        if isMini(top), exactName(top, name) { return top }
+        for p in subfolders(runs) where !isMini(p) {
+            let f = p.appendingPathComponent(name)
+            if isMini(f), exactName(f, name) { return f }
+        }
+        return nil
+    }
+
+    /// Where a new mini called `name` goes: in `project`, or at the top.
+    public static func newFolder(_ runs: URL, _ name: String, project: String?) -> URL {
+        (project.map { runs.appendingPathComponent($0) } ?? runs).appendingPathComponent(name)
+    }
+
+    /// Whether `name` is used by a mini anywhere or by a project (on a Mac's disk "Dwarf" and
+    /// "dwarf" are one folder).
+    public static func nameInUse(_ runs: URL, _ name: String) -> Bool {
+        folder(runs, name) != nil || projects(runs).contains { $0.lowercased() == name.lowercased() }
+    }
+
+    /// The folder's name as it is on disk, which on a case-insensitive disk may differ from the
+    /// one asked for.
+    static func exactName(_ folder: URL, _ name: String) -> Bool {
+        let parent = folder.deletingLastPathComponent().path
+        return ((try? FileManager.default.contentsOfDirectory(atPath: parent)) ?? []).contains(name)
+    }
+
+    static func subfolders(_ dir: URL) -> [URL] {
+        let fm = FileManager.default
+        return ((try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.isDirectoryKey])) ?? [])
             .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
-            .filter { !$0.lastPathComponent.hasPrefix("_") }
-            .map { Mini(name: $0.lastPathComponent, folder: $0, madeAt: madeAt($0)) }
-            .sorted { $0.madeAt > $1.madeAt }
+            .filter { !$0.lastPathComponent.hasPrefix("_") && !$0.lastPathComponent.hasPrefix(".") }
+            // Built on `dir` as given: the listing's own URLs spell /var as /private/var.
+            .map { dir.appendingPathComponent($0.lastPathComponent) }
     }
 
     /// When a mini was made: its print file's time (a rename leaves that alone, where the
@@ -62,9 +137,9 @@ extension Gallery {
         guard Rules.isValidName(old), Rules.isValidName(new) else { throw RequestError.badName }
         guard old != new else { return }
         let fm = FileManager.default
-        let src = runs.appendingPathComponent(old), dst = runs.appendingPathComponent(new)
-        guard fm.fileExists(atPath: src.path) else { throw RequestError.notFound }
-        guard !fm.fileExists(atPath: dst.path) else { throw RequestError.nameTaken(new) }
+        guard let src = folder(runs, old) else { throw RequestError.notFound }
+        let dst = src.deletingLastPathComponent().appendingPathComponent(new)  // stays in its project
+        guard !nameInUse(runs, new), !fm.fileExists(atPath: dst.path) else { throw RequestError.nameTaken(new) }
         guard busyWith != old else { throw RequestError.busy(old) }
         try fm.moveItem(at: src, to: dst)
         for suffix in [".stl", "_front.png", "_side.png", "_back.png"] {
@@ -78,8 +153,7 @@ extension Gallery {
                                    trash: (URL) throws -> Void = { try FileManager.default.trashItem(at: $0, resultingItemURL: nil) }) throws {
         guard Rules.isValidName(name) else { throw RequestError.badName }
         guard busyWith != name else { throw RequestError.busy(name) }
-        let folder = runs.appendingPathComponent(name)
-        guard FileManager.default.fileExists(atPath: folder.path) else { throw RequestError.notFound }
+        guard let folder = folder(runs, name) else { throw RequestError.notFound }
         try trash(folder)
     }
 }

@@ -11,11 +11,14 @@ enum CLI {
       mimic resize <name> [options]
       mimic retry <name>
       mimic list
+      mimic projects
+      mimic move <name> --project "<project>" | --unsorted
       mimic models
       mimic queue
       mimic queue remove <name>
     options: --height MM  --base MM  --nozzle 0.2|0.4|0.6  --inflate MM  --no-base  --seed N  --model ID
     anything that isn't a character: make … --object  [--size MM (longest side)]  [--add-base]
+    make … --project "<project>": into that project (made if it's new); a project is a folder in the minis folder
     --improve: the AI helper chosen in Settings writes a fuller description first
     --wait: while another mini is being made, make, resize and retry join the queue and return;
             --wait stays until this one is made
@@ -38,10 +41,41 @@ enum CLI {
         case "list":
             JobRunner(install: install).cleanUpLeftovers()
             let queue = JobQueue(runs: install.runs).entries()
-            for m in Gallery.list(install.runs) {
+            let minis = Gallery.list(install.runs), projects = Gallery.projects(install.runs)
+            func row(_ m: Mini, _ indent: String) {
                 let state = queue.contains { $0.name == m.name } ? "waiting" : m.stl == nil ? "unfinished" : "ready"
-                print("\(m.name)\t\(state)\t\(m.madeAt)")
+                print("\(indent)\(m.name)\t\(state)\t\(m.madeAt)")
             }
+            // Without projects, the same lines as always; with them, a heading each, then Unsorted.
+            guard !projects.isEmpty else { minis.forEach { row($0, "") }; return 0 }
+            for p in projects + [nil] as [String?] {
+                let inside = minis.filter { $0.project == p }
+                if p == nil && inside.isEmpty { continue }
+                print("\(p ?? "Unsorted"):")
+                inside.forEach { row($0, "  ") }
+                if inside.isEmpty { print("  (empty)") }
+            }
+            return 0
+        case "projects":
+            guard rest.isEmpty else { return fail(usage) }
+            let minis = Gallery.list(install.runs)
+            for p in Gallery.projects(install.runs) {
+                let n = minis.filter { $0.project == p }.count
+                print("\(p)\t\(n) mini\(n == 1 ? "" : "s")")
+            }
+            return 0
+        case "move":
+            guard rest.count >= 2, !rest[0].hasPrefix("-") else { return fail(usage) }
+            let name = rest[0]
+            let target: String?
+            switch Array(rest.dropFirst()) {
+            case ["--unsorted"]: target = nil
+            case let a where a.count == 2 && a[0] == "--project": 
+                do { target = try project(a[1], install) } catch { return fail("\(error)") }
+            default: return fail(usage)
+            }
+            do { try JobRunner(install: install).move(mini: name, toProject: target) } catch { return fail("\(error)") }
+            print("Moved \(Mini.displayName(name)) to \(target ?? "Unsorted").")
             return 0
         case "models":
             // The app's choice, marked; downloading one is the app's job, where it shows progress.
@@ -74,7 +108,7 @@ enum CLI {
             rest.removeFirst()
             var sizes = Sizes(), image: String?, restyle = false, seed = 42, description: String?, improve = false
             var model = EngineDownload.selected(defaults: defaults)
-            var object = false, addBase = false, wait = false
+            var object = false, addBase = false, wait = false, projectName: String?
             while let a = rest.first {
                 rest.removeFirst()
                 func value() -> String? { rest.isEmpty ? nil : rest.removeFirst() }
@@ -91,6 +125,7 @@ enum CLI {
                 case "--improve": improve = true
                 case "--wait": wait = true
                 case "--seed": guard let v = value().flatMap(Int.init) else { return fail("--seed needs a number") }; seed = v
+                case "--project": guard let v = value() else { return fail("--project needs a project's name") }; projectName = v
                 case "--model":
                     guard let v = value().flatMap(EngineDownload.model) else {
                         return fail("--model needs one of: \(EngineDownload.catalogue.map(\.id).joined(separator: ", ")) (see mimic models)")
@@ -102,7 +137,8 @@ enum CLI {
                 }
             }
             // An object has no round base unless asked for one; a resize keeps what the mini is.
-            if args[0] == "resize" { object = MiniSettings.load(install.runs.appendingPathComponent(name)).isObject }
+            if args[0] == "resize" { object = Gallery.folder(install.runs, name).map(MiniSettings.load)?.isObject ?? false }
+            if projectName != nil && args[0] != "make" { return fail("--project is for mimic make; mimic move moves a mini") }
             if object {
                 if !addBase { sizes.noBase = true }
                 // An object's base goes under its whole shadow, as in the app (SizeCard).
@@ -127,8 +163,9 @@ enum CLI {
                     if let image { picture = .image(URL(fileURLWithPath: image)) }
                     else if let description { picture = improve ? improved(description, defaults, kind: object ? .object : .character) : .description(description) }
                     else { return fail(usage) }
+                    let into = try projectName.map { try project($0, install) }
                     ahead = try jobs.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes,
-                                          kind: object ? .object : .character, model: model)
+                                          kind: object ? .object : .character, model: model, project: into)
                 case "resize": ahead = try jobs.resize(name: name, sizes: sizes)
                 default: ahead = try jobs.retry(name: name)
                 }
@@ -150,6 +187,15 @@ enum CLI {
         default:
             return fail(usage)
         }
+    }
+
+    /// The project named on the command line, as it's spelled on disk ("tiefling party" finds
+    /// "Tiefling Party"); a new one is made.
+    private static func project(_ text: String, _ install: Install) throws -> String {
+        if let p = Gallery.project(install.runs, named: text) { return p }
+        let p = try Gallery.createProject(install.runs, text)
+        print("Made a new project, \(p).")
+        return p
     }
 
     /// The helper's description, or the original with a quiet note when it can't help: a failed
@@ -206,7 +252,7 @@ enum CLI {
             print("Stopped. \(Mini.displayName(mine.name)) is still in the queue (mimic queue remove \(mine.name) takes it out).")
             return 130
         }
-        let folder = jobs.install.runs.appendingPathComponent(s.name)
+        let folder = Gallery.folder(jobs.install.runs, s.name) ?? jobs.install.runs.appendingPathComponent(s.name)
         if s.canceled { print("Stopped."); return 130 }
         if s.succeeded {
             print("Done: \(folder.appendingPathComponent("\(s.name).stl").path)")
@@ -236,11 +282,10 @@ enum CLI {
             if let r = running, r.name == mine.name { seen = true; mine.saw(r) }
             if !waiting && running?.name != mine.name {
                 // Made (or not) by another Mimic: its folder says which.
-                let folder = jobs.install.runs.appendingPathComponent(mine.name)
+                guard let folder = Gallery.folder(jobs.install.runs, mine.name) else { print("Stopped, or taken out of the queue."); return 130 }
                 let stl = folder.appendingPathComponent("\(mine.name).stl")
                 let at = (try? FileManager.default.attributesOfItem(atPath: stl.path))?[.modificationDate] as? Date
                 if let at, at >= added { print("Done: \(stl.path)"); return 0 }
-                if !FileManager.default.fileExists(atPath: folder.path) { print("Stopped, or taken out of the queue."); return 130 }
                 return fail(seen ? "It didn't finish. See the logs in \(folder.path)" : "It was taken out of the queue.")
             }
             Thread.sleep(forTimeInterval: 1)

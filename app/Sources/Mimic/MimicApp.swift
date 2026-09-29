@@ -64,6 +64,16 @@ struct MiniCommands: Commands {
             Button("Rename…") { if let mini { model.sheet = .rename(mini) } }
                 .disabled(mini == nil || !free || mini.flatMap { model.waiting($0.name) } != nil)
             Divider()
+            if let mini, free {
+                MoveToProjectMenu(mini: mini).environment(model)
+            } else {
+                Button("Move to Project") {}.disabled(true)
+            }
+            // ⌘N is New Mini; ⇧⌘N a new project, as a new folder is in Finder.
+            Button("New Project…") { model.sheet = .newProject(moving: nil) }
+                .keyboardShortcut("n", modifiers: [.command, .shift])
+                .disabled(!free || !model.setup.installed)
+            Divider()
             Button("Move to Trash…") { model.trashing = mini }
                 .keyboardShortcut(.delete)
                 .disabled(mini == nil || !free)

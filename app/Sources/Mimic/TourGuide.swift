@@ -187,7 +187,7 @@ struct TourCallout: View {
     /// Only on New Mini's stop, and not if a Sample Dwarf is already in the gallery.
     private var offersSample: Bool {
         stop == .newMini && TourGuide.samplePicture != nil
-            && !FileManager.default.fileExists(atPath: model.install.runs.appendingPathComponent(Rules.slug(TourGuide.sampleName)).path)
+            && !Gallery.nameInUse(model.install.runs, Rules.slug(TourGuide.sampleName))
     }
 
     private var title: String { Self.title(stop) }

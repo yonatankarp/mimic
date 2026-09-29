@@ -73,7 +73,7 @@ struct JobProgressView: View {
                     }
                 }
                 Spacer(minLength: 0)
-                JobPicture(status: s, folder: model.install.runs.appendingPathComponent(s.name))
+                JobPicture(status: s, folder: Gallery.folder(model.install.runs, s.name) ?? model.install.runs.appendingPathComponent(s.name))
             }
             ProgressView(value: JobProgress.fraction(s, estimate: estimate, now: now))
                 .progressViewStyle(GlidingBar(working: s.running))
@@ -473,6 +473,8 @@ struct MainWindowChrome: ViewModifier {
                 case .make: MakeView()
                 case .resize(let mini): ResizeView(mini: mini)
                 case .rename(let mini): RenameSheet(mini: mini)
+                case .newProject(let mini): ProjectNameSheet(renaming: nil, moving: mini)
+                case .renameProject(let p): ProjectNameSheet(renaming: p)
                 case .progress: JobProgressView()
                 }
             }
@@ -483,6 +485,23 @@ struct MainWindowChrome: ViewModifier {
                 Button("Keep It", role: .cancel) {}
             } message: { _ in
                 Text("You can put it back from the Trash if you change your mind.")
+            }
+            // Deleting a project never trashes its minis silently: keeping them is the default.
+            .confirmationDialog("Delete the project “\(model.deletingProject ?? "")”?",
+                                isPresented: Binding(get: { model.deletingProject != nil }, set: { if !$0 { model.deletingProject = nil } }),
+                                presenting: model.deletingProject) { project in
+                let count = model.minis.filter { $0.project == project }.count
+                if count == 0 {
+                    Button("Delete Project") { model.deleteProject(project, keepMinis: true) }.keyboardShortcut(.defaultAction)
+                } else {
+                    Button("Delete Project, Keep Its Minis") { model.deleteProject(project, keepMinis: true) }.keyboardShortcut(.defaultAction)
+                    Button("Move Its Minis to the Trash Too", role: .destructive) { model.deleteProject(project, keepMinis: false) }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: { project in
+                let count = model.minis.filter { $0.project == project }.count
+                Text(count == 0 ? "The empty project goes to the Trash."
+                     : "Its \(count == 1 ? "mini moves" : "\(count) minis move") to Unsorted, unless you choose to move \(count == 1 ? "it" : "them") to the Trash too. You can put anything back from the Trash.")
             }
             .alert(model.problem ?? "", isPresented: Binding(get: { model.problem != nil }, set: { if !$0 { model.problem = nil } })) {
                 Button("OK") {}

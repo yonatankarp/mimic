@@ -26,6 +26,10 @@ struct MakeView: View {
     /// The raw error behind a message, for the tooltip only.
     @State private var messageDetail: String?
     @FocusState private var nameFocused: Bool
+    /// The project it goes in: "" is Unsorted, `newProject` a project named in `newProjectName`.
+    @State private var project = ""
+    @State private var newProjectName = ""
+    private static let newProject = "\u{1}new"
 
     var body: some View {
         VStack(spacing: 0) {
@@ -58,6 +62,16 @@ struct MakeView: View {
                         .onChange(of: name) { _, new in
                             if new != Mini.displayName(MakeAdvice.name(fromDescription: description)) { autoName = false }
                         }
+                    Picker("Project", selection: $project) {
+                        Text("Unsorted").tag("")
+                        ForEach(model.projects, id: \.self) { Text($0).tag($0) }
+                        Divider()
+                        Text("New Project…").tag(Self.newProject)
+                    }
+                    .help("The folder it's kept in, and where it's listed on the left.")
+                    if project == Self.newProject {
+                        TextField("New project's name", text: $newProjectName, prompt: Text("e.g. Tiefling Party"))
+                    }
                     if let taken = takenName {
                         Text(model.waiting(slug) != nil || model.current?.name == slug
                              ? "\(taken) is already being made or waiting in the queue. Pick a new name."
@@ -108,7 +122,12 @@ struct MakeView: View {
             .fixedSize(horizontal: false, vertical: true)
         }
         // The tour's "Use the Sample": its picture and name, ready to make.
-        .onAppear { if let url = TourGuide.shared.takeSample() { name = TourGuide.sampleName; take(url) } }
+        .onAppear {
+            if let url = TourGuide.shared.takeSample() { name = TourGuide.sampleName; take(url) }
+            // The project you're looking at: the one New Mini was asked from, else the selected mini's.
+            project = model.makeInProject ?? model.selected?.project ?? ""
+            model.makeInProject = nil
+        }
         .frame(width: 580, height: 640)  // fits under the toolbar of the smallest main window; the form scrolls
         .onChange(of: card.kind) { _, k in
             UserDefaults.standard.set(k.rawValue, forKey: "kind")
@@ -234,8 +253,11 @@ struct MakeView: View {
 
     private var takenName: String? {
         let runs = model.install.runs
+        // Any mini or project with the name, in any project, except a failed attempt's folder,
+        // which Make My Mini makes again.
+        let failedAttempt = Gallery.folder(runs, slug).map { !FileManager.default.fileExists(atPath: $0.appendingPathComponent("model.glb").path) } ?? false
         guard !slug.isEmpty,
-              FileManager.default.fileExists(atPath: runs.appendingPathComponent(slug).appendingPathComponent("model.glb").path)
+              Gallery.nameInUse(runs, slug) && !failedAttempt
                 || model.waiting(slug) != nil || model.current?.name == slug
         else { return nil }
         return Mini.displayName(slug)
@@ -265,6 +287,7 @@ struct MakeView: View {
         default: break
         }
         if slug.isEmpty { return "Give your mini a name" }
+        if project == Self.newProject && Rules.projectName(newProjectName) == nil { return "Name the new project" }
         if start == .description && !health.drawThingsReady { return "Describe it needs Draw Things first" }
         return nil
     }
@@ -281,8 +304,9 @@ struct MakeView: View {
             source = better.isEmpty ? .description(trimmedDescription) : .description(better, original: trimmedDescription)
         }
         do {
+            if project == Self.newProject { project = try model.createProject(newProjectName) }
             try model.make(name: slug, picture: source, restyle: start == .picture && restyle && health.drawThingsReady,
-                           seed: seed, sizes: card.sizes, kind: card.kind)
+                           seed: seed, sizes: card.sizes, kind: card.kind, project: project.isEmpty ? nil : project)
         } catch {
             say(model.plainWords(error), error: true)
             messageDetail = "\(error)"

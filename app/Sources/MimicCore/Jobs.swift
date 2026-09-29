@@ -83,13 +83,15 @@ public final class JobRunner: @unchecked Sendable {
 
     // MARK: Asking for a job
 
-    /// Makes a new mini of `kind` with `model`. Everything is checked before anything is written;
-    /// then its folder, settings and picture are written and it joins the queue. Returns nil when
-    /// it started at once, else how many jobs are ahead of it (the running one included).
+    /// Makes a new mini of `kind` with `model`, in `project` (nil: unsorted). Everything is
+    /// checked before anything is written; then its folder, settings and picture are written and
+    /// it joins the queue. Returns nil when it started at once, else how many jobs are ahead of it
+    /// (the running one included).
     @discardableResult
     public func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes,
-                     kind: MiniKind = .character, model: EngineModel) throws -> Int? {
+                     kind: MiniKind = .character, model: EngineModel, project: String? = nil) throws -> Int? {
         guard Rules.isValidName(name) else { throw RequestError.badName }
+        if let project, !Gallery.projects(install.runs).contains(project) { throw RequestError.projectNotFound }
         _ = try sizes.flags()
         guard model.complete(in: install) else { throw RequestError.modelNotDownloaded(model.name) }
         var settings = MiniSettings()
@@ -103,21 +105,36 @@ public final class JobRunner: @unchecked Sendable {
         settings.restyle = restyle; settings.seed = seed; settings.requested = sizes
         settings.kind = kind == .object ? .object : nil
         settings.model = model.id
-        let folder = install.runs.appendingPathComponent(name)
+        let fm = FileManager.default
+        let folder = Gallery.newFolder(install.runs, name, project: project)
         _ = try Pipeline.plan(.generate, folder: folder, settings: settings, tools: tools)  // an empty description, say
         return try queue.locked { entries in
             try checkFree(name, entries)
-            if FileManager.default.fileExists(atPath: folder.appendingPathComponent("model.glb").path) { throw RequestError.nameTaken(name) }
-            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            if case .image(let url) = picture {
-                let upload = folder.appendingPathComponent("upload.img")
-                try? FileManager.default.removeItem(at: upload)
-                try FileManager.default.copyItem(at: url, to: upload)
+            // A failed attempt's folder in the same place is made again; any other mini (or a
+            // project) with this name, anywhere, keeps it.
+            if let existing = Gallery.folder(install.runs, name),
+               existing.standardizedFileURL != folder.standardizedFileURL || fm.fileExists(atPath: existing.appendingPathComponent("model.glb").path) {
+                throw RequestError.nameTaken(name)
             }
-            try MiniSettings.update(folder) { s in
-                s.source = settings.source; s.desc = settings.desc; s.descOriginal = settings.descOriginal; s.restyle = restyle; s.seed = seed; s.requested = sizes
-                s.kind = settings.kind  // always set: a failed attempt's folder may say otherwise
-                s.model = model.id
+            if Gallery.projects(install.runs).contains(where: { $0.lowercased() == name }) { throw RequestError.nameTaken(name) }
+            let created = !fm.fileExists(atPath: folder.path)
+            try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+            do {
+                // settings.json first: it's what makes the folder a mini, so a failure after it
+                // never leaves an empty folder that would read as a project.
+                try MiniSettings.update(folder) { s in
+                    s.source = settings.source; s.desc = settings.desc; s.descOriginal = settings.descOriginal; s.restyle = restyle; s.seed = seed; s.requested = sizes
+                    s.kind = settings.kind  // always set: a failed attempt's folder may say otherwise
+                    s.model = model.id
+                }
+                if case .image(let url) = picture {
+                    let upload = folder.appendingPathComponent("upload.img")
+                    try? fm.removeItem(at: upload)
+                    try fm.copyItem(at: url, to: upload)
+                }
+            } catch {
+                if created { try? fm.removeItem(at: folder) }
+                throw error
             }
             return enqueue(QueueEntry(name: name, job: .generate), &entries)
         }
@@ -129,7 +146,7 @@ public final class JobRunner: @unchecked Sendable {
     public func resize(name: String, sizes: Sizes) throws -> Int? {
         guard Rules.isValidName(name) else { throw RequestError.badName }
         _ = try sizes.flags()
-        let folder = install.runs.appendingPathComponent(name)
+        guard let folder = Gallery.folder(install.runs, name) else { throw RequestError.notFound }
         guard FileManager.default.fileExists(atPath: folder.appendingPathComponent("model.glb").path) else { throw RequestError.noModelYet }
         var settings = MiniSettings.load(folder)
         settings.requested = sizes
@@ -145,7 +162,7 @@ public final class JobRunner: @unchecked Sendable {
     @discardableResult
     public func retry(name: String) throws -> Int? {
         guard Rules.isValidName(name) else { throw RequestError.badName }
-        let folder = install.runs.appendingPathComponent(name)
+        guard let folder = Gallery.folder(install.runs, name) else { throw RequestError.notFound }
         let settings = MiniSettings.load(folder)
         guard settings.requested != nil else { throw RequestError.nothingToRetry }
         let hasModel = FileManager.default.fileExists(atPath: folder.appendingPathComponent("model.glb").path)
@@ -171,7 +188,7 @@ public final class JobRunner: @unchecked Sendable {
             return entries.remove(at: i)
         }
         guard let removed else { return false }
-        if removed.job == .generate { try? trash(install.runs.appendingPathComponent(name)) }
+        if removed.job == .generate, let folder = Gallery.folder(install.runs, name) { try? trash(folder) }
         return true
     }
 
@@ -226,7 +243,7 @@ public final class JobRunner: @unchecked Sendable {
 
     private var holding: Bool { lock.withLock { lockFD >= 0 } }
 
-    private func checkFree(_ name: String, _ entries: [QueueEntry]) throws {
+    func checkFree(_ name: String, _ entries: [QueueEntry]) throws {
         if entries.contains(where: { $0.name == name }) { throw RequestError.queued(name) }
         if let r = running(), r.name == name { throw RequestError.busy(name, r.kind) }
     }
@@ -290,8 +307,8 @@ public final class JobRunner: @unchecked Sendable {
     }
 
     private func begin(_ entry: QueueEntry) throws {
-        let folder = install.runs.appendingPathComponent(entry.name)
-        guard FileManager.default.fileExists(atPath: folder.path) else { throw RequestError.notFound }
+        // By name, in whichever project: moves are refused while it waits, but Finder isn't.
+        guard let folder = Gallery.folder(install.runs, entry.name) else { throw RequestError.notFound }
         if let sizes = entry.sizes { try MiniSettings.update(folder) { $0.requested = sizes } }
         let settings = MiniSettings.load(folder)
         let plan = try Pipeline.plan(entry.job, folder: folder, settings: settings, tools: tools)

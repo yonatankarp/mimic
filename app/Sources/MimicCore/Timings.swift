@@ -284,7 +284,7 @@ extension JobRunner {
     /// How long the job `kind` on the mini `name` should take here; `sizes` for a resize still
     /// waiting to write them.
     public func estimate(_ name: String, _ kind: JobKind, sizes: Sizes? = nil, history: [TimingRecord]) -> Estimate {
-        Estimator.estimate(JobShape(kind, settings: MiniSettings.load(install.runs.appendingPathComponent(name)), sizes: sizes), history: history)
+        Estimator.estimate(JobShape(kind, settings: Gallery.folder(install.runs, name).map(MiniSettings.load) ?? MiniSettings(), sizes: sizes), history: history)
     }
 
     /// Each waiting job with its estimate and the seconds until it should be ready: the running

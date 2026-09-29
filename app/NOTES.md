@@ -57,7 +57,28 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   doesn't. A percentile of the surface, like the ground's, trimmed thin tips: a real teapot's
   spouts came out 90 mm long for 80. Prep with neither flag writes the
   same bytes as before (checked against hashes taken before the change, and by a test).
-- **Same data on disk.** `runs/<name>/` with `<name>.stl`, `<name>_{front,side,back}.png`,
+- **Projects are real folders, one level deep** (`MimicCore/Gallery.swift`, `Projects.swift`;
+  0.5.0): `runs/<Project>/<mini>/`, so Finder shows the same grouping. A folder is a mini when it
+  holds `settings.json` (every mini since the web version, written the moment one is asked
+  for), `model.glb` (older minis without settings: `tiefling-sculpt` on the Mac this was built
+  on) or a print file named after the folder, never just any `.stl` (one dragged into a project
+  in Finder would turn the project into a mini). Any other folder at the top is a project, empty
+  ones included; inside a project only minis count, since projects don't nest. `_` and `.`
+  folders and files at the top (`.queue.json`, `.job.*`) are never either, so a folder from
+  before projects reads exactly as it did. `make` writes settings.json before the picture, and
+  removes the folder it made if either fails, so a failed request never leaves an empty folder
+  that would read as a project. Names stay unique across the whole minis folder, projects
+  included and compared without case (the Mac's disk sees "Orcs" and "orcs" as one folder), so
+  everything that names a mini (the queue, `mimic resize <name>`, rename, trash, time
+  estimates) finds it with `Gallery.folder(runs, name)`; queue entries are still just names, so
+  queue files from before read unchanged. Moving a mini, renaming a project and deleting one
+  happen under the queue's lock, where a job finds its folder as it starts: a mini being made or
+  waiting can't be moved, a project can't be renamed while one of its minis is being made (its
+  steps hold the folder's path; waiting ones are found by name when they start), and a project
+  with one of either can't be deleted. Deleting keeps the minis by default (moved to Unsorted);
+  the project's folder goes to the Trash either way, never removed, since it may hold files of
+  the person's own.
+- **Same data on disk.** `runs/<name>/` (or `runs/<project>/<name>/`) with `<name>.stl`, `<name>_{front,side,back}.png`,
   `source.png` and `settings.json` (`requested` / `made` / how it was made), so minis made by
   the web version appear in the app unchanged.
 - **3D viewer: RealityKit.** Measured on the dwarf's 40 MB, 2.4M-vertex print file:
@@ -232,6 +253,12 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   once; the README and a note in the disk image say so. A Developer ID would remove that step.
 
 ## Not yet seen working
+
+- Dragging a mini onto a project in the sidebar, and the right-click menus on a mini and a
+  project's header: seen in the test build were the sections (Unsorted last, an empty project's
+  "Drag minis here"), the Mini menu's Move to Project ▸ moving a mini, and New Mini's Project
+  picker starting on the selected mini's project. The background automation's synthetic drags
+  never started a drag session, and it can't open context menus.
 
 - Setup's full 8.1 GB download through the app, and closing the window mid-download: the
   download path is proven by tests against a local server and by a real run of the engine and

@@ -3,8 +3,10 @@ import MimicCore
 import QuickLook
 import SwiftUI
 
-/// The gallery on the left: search, the right-click menu and Quick Look. Rename and trash are
-/// asked at window level (MainWindowChrome), so the Mini menu can ask too, sidebar hidden or not.
+/// The gallery on the left: a collapsible section per project, then Unsorted; search, the
+/// right-click menus, drag and drop between projects, and Quick Look. Rename, trash and the
+/// project questions are asked at window level (MainWindowChrome), so the Mini menu can ask
+/// too, sidebar hidden or not.
 struct Sidebar: View {
     @Environment(AppModel.self) private var model
     @State private var query = ""
@@ -38,13 +40,47 @@ struct Sidebar: View {
     private var list: some View {
         @Bindable var model = model
         let shown = Gallery.search(model.minis, query)
+        let searching = shown.count != model.minis.count
         return List(selection: $model.selection) {
-            Section("Your Minis") {
-                ForEach(shown) { mini in
-                    GalleryRow(mini: mini, status: rowStatus(mini)).contextMenu { menu(for: mini) }
-                        .help("Press space to preview it. Right-click for more.")
+            if model.projects.isEmpty {
+                Section("Your Minis") { rows(shown, project: nil) }
+            } else {
+                ForEach(model.projects, id: \.self) { project in
+                    let inside = shown.filter { $0.project == project }
+                    if !searching || !inside.isEmpty {
+                        Section(isExpanded: expanded(project, searching)) {
+                            rows(inside, project: project)
+                            if inside.isEmpty {
+                                Text("Drag minis here").foregroundStyle(.secondary).font(.callout)
+                                    .selectionDisabled()
+                                    .dropDestination(for: String.self) { names, _ in model.move(names, to: project); return true }
+                            }
+                        } header: {
+                            Label(project, systemImage: "folder")
+                                .contextMenu { projectMenu(project) }
+                                .dropDestination(for: String.self) { names, _ in model.move(names, to: project); return true }
+                                .help("Drag minis onto it to move them here. Right-click for more.")
+                        }
+                    }
+                }
+                Section {
+                    rows(shown.filter { $0.project == nil }, project: nil)
+                } header: {
+                    Text("Unsorted")
+                        .dropDestination(for: String.self) { names, _ in model.move(names, to: nil); return true }
+                        .help("Minis in no project. Drag minis here to take them out of theirs.")
                 }
             }
+        }
+        // Like Notes' New Folder: always there, the first project included.
+        .safeAreaInset(edge: .bottom) {
+            HStack {
+                Button { model.sheet = .newProject(moving: nil) } label: { Label("New Project", systemImage: "folder.badge.plus") }
+                    .buttonStyle(.borderless)
+                    .help("A folder to group minis in (⇧⌘N). Drag minis onto it to move them.")
+                Spacer()
+            }
+            .padding(.horizontal, 12).padding(.vertical, 8)
         }
         // A new mini slides into the list (and a trashed one out) rather than popping.
         .animation(reduceMotion ? nil : .default, value: shown.map(\.id))
@@ -55,6 +91,31 @@ struct Sidebar: View {
                 ContentUnavailableView.search(text: query)
             }
         }
+    }
+
+    private func rows(_ minis: [Mini], project: String?) -> some View {
+        ForEach(minis) { mini in
+            GalleryRow(mini: mini, status: rowStatus(mini)).contextMenu { menu(for: mini) }
+                .help("Press space to preview it. Drag it onto a project to move it. Right-click for more.")
+                .draggable(mini.name)
+                // Dropped on a mini: into that mini's project.
+                .dropDestination(for: String.self) { names, _ in model.move(names, to: project); return true }
+        }
+    }
+
+    /// Open unless collapsed; every project is open while searching, so nothing found is hidden.
+    private func expanded(_ project: String, _ searching: Bool) -> Binding<Bool> {
+        Binding(get: { searching || !model.collapsed.contains(project) },
+                set: { open in if open { model.collapsed.remove(project) } else { model.collapsed.insert(project) } })
+    }
+
+    @ViewBuilder private func projectMenu(_ project: String) -> some View {
+        Button("New Mini in This Project…", systemImage: "plus") { model.makeInProject = project; model.sheet = .make }
+            .disabled(!model.setup.installed)
+        Button("Show in Finder", systemImage: "folder") { model.showInFinder(project: project) }
+        Divider()
+        Button("Rename Project…", systemImage: "pencil") { model.sheet = .renameProject(project) }
+        Button("Delete Project…", systemImage: "trash", role: .destructive) { model.deletingProject = project }
     }
 
     /// "Waiting (2nd)" for a mini in the queue, "Being made…" for the one running.
@@ -70,6 +131,8 @@ struct Sidebar: View {
         }
         .disabled(mini.stl == nil)  // not made yet: nothing to print
         Button("Show in Finder", systemImage: "folder") { model.showInFinder(mini) }
+        Divider()
+        MoveToProjectMenu(mini: mini)
         Divider()
         Button("Rename…", systemImage: "pencil") { model.sheet = .rename(mini) }
             .disabled(model.waiting(mini.name) != nil)
@@ -146,5 +209,75 @@ struct GalleryRow: View {
         .padding(.vertical, 2)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(mini.displayName), \(status ?? "made \(mini.madeAt.formatted(.relative(presentation: .named)))")")
+    }
+}
+
+/// Move to Project ▸, for the right-click menu and the Mini menu. A mini being made or waiting
+/// can't move; the menu says so instead of listing projects.
+struct MoveToProjectMenu: View {
+    let mini: Mini
+    @Environment(AppModel.self) private var model
+    var body: some View {
+        Menu("Move to Project", systemImage: "folder") {
+            if let why = model.whyCantMove(mini) {
+                Text(why)
+            } else {
+                Button("Unsorted") { model.move([mini.name], to: nil) }.disabled(mini.project == nil)
+                if !model.projects.isEmpty { Divider() }
+                ForEach(model.projects, id: \.self) { p in
+                    Button(p) { model.move([mini.name], to: p) }.disabled(mini.project == p)
+                }
+                Divider()
+                Button("New Project…") { model.sheet = .newProject(moving: mini) }
+            }
+        }
+    }
+}
+
+/// Names a new project (moving a mini into it when asked from Move to Project), or renames one.
+struct ProjectNameSheet: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    /// nil: a new project.
+    let renaming: String?
+    var moving: Mini?
+    @State private var text = ""
+    @State private var problem: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(renaming.map { "Rename “\($0)”" } ?? "New Project").font(.headline)
+            if renaming == nil {
+                Text(moving.map { "A folder in your minis folder. \($0.displayName) moves into it." }
+                     ?? "A folder in your minis folder, to group minis in. Drag minis onto it to move them there.")
+                    .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            TextField("Project name", text: $text, prompt: Text("e.g. Tiefling Party"))  // Return presses the button
+            if let problem {
+                Text(problem).foregroundStyle(.red).font(.callout)
+            }
+            HStack {
+                Spacer()
+                Button("Cancel", role: .cancel) { dismiss() }.keyboardShortcut(.cancelAction)
+                Button(renaming == nil ? "Create" : "Rename", action: save).keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20)
+        .frame(width: 340)
+        .onAppear { text = renaming ?? "" }
+    }
+
+    private func save() {
+        do {
+            if let renaming {
+                try model.renameProject(renaming, to: text)
+            } else {
+                let name = try model.createProject(text)
+                if let moving { model.move([moving.name], to: name) }
+            }
+        } catch {
+            problem = model.plainWords(error, else: "Couldn't do that. Is the folder open in another app?"); return
+        }
+        dismiss()
     }
 }

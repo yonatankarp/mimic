@@ -7,12 +7,17 @@ import UserNotifications
 /// change rather than a dismiss and a present racing each other.
 enum AppSheet: Identifiable, Equatable {
     case make, resize(Mini), rename(Mini), progress
+    /// A new project, and the mini to move into it when asked from Move to Project.
+    case newProject(moving: Mini?)
+    case renameProject(String)
     var id: String {
         switch self {
         case .make: "make"
         case .resize(let m): "resize-\(m.name)"
         case .rename(let m): "rename-\(m.name)"
         case .progress: "progress"
+        case .newProject(let m): "new-project-\(m?.name ?? "")"
+        case .renameProject(let p): "rename-project-\(p)"
         }
     }
 }
@@ -27,6 +32,17 @@ final class AppModel {
     /// carries on when the window closes.
     let setup: SetupModel
     var minis: [Mini] = []
+    /// The projects (folders of minis), alphabetical, empty ones included.
+    var projects: [String] = []
+    /// The project New Mini starts in when asked from a project's own menu; else the selected
+    /// mini's. Taken (and cleared) by New Mini.
+    var makeInProject: String?
+    /// The project waiting on "Delete Project?".
+    var deletingProject: String?
+    /// The projects shown collapsed in the sidebar, kept between launches.
+    var collapsed = Set(UserDefaults.standard.stringArray(forKey: "collapsedProjects") ?? []) {
+        didSet { UserDefaults.standard.set(collapsed.sorted(), forKey: "collapsedProjects") }
+    }
     var selection: Mini.ID?
     /// The job's latest status, updated on the main thread; nil before the first job.
     var job: JobStatus?
@@ -92,6 +108,7 @@ final class AppModel {
 
     func reload() {
         minis = Gallery.list(install.runs)
+        projects = Gallery.projects(install.runs)
         if selection == nil || selected == nil { selection = minis.first?.id }
     }
 
@@ -193,11 +210,51 @@ final class AppModel {
     /// no reason: the new one waits its turn.
     var cantStart: String? { requiredProblem }
 
-    func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes, kind: MiniKind = .character) throws {
+    func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes, kind: MiniKind = .character, project: String? = nil) throws {
         let chosen = setup.chosen
-        try start(name) { try $0.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, kind: kind, model: chosen) }
+        try start(name) { try $0.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, kind: kind, model: chosen, project: project) }
         askForNotifications()
     }
+
+    // MARK: Projects
+
+    /// Why `mini` can't be moved to another project right now, or nil.
+    func whyCantMove(_ mini: Mini) -> String? {
+        waiting(mini.name) != nil || current?.name == mini.name ? RequestError.cantMove(mini.name).description : nil
+    }
+
+    @discardableResult
+    func createProject(_ text: String) throws -> String {
+        let name = try Gallery.createProject(install.runs, text)
+        reload()
+        return name
+    }
+
+    /// Moves minis (one, or several dragged together) into `project`, nil being Unsorted.
+    func move(_ names: [String], to project: String?) {
+        for name in names where minis.first(where: { $0.name == name })?.project != project {
+            do { try jobs.move(mini: name, toProject: project) }
+            catch { problem = plainWords(error, else: "Couldn't move it. Is its folder open in another app?") }
+        }
+        reload()
+    }
+
+    func renameProject(_ old: String, to text: String) throws {
+        let new = try jobs.renameProject(old, to: text)
+        // A collapsed project stays collapsed under its new name.
+        if collapsed.remove(old) != nil { collapsed.insert(new) }
+        reload()
+    }
+
+    func deleteProject(_ name: String, keepMinis: Bool) {
+        do { try jobs.deleteProject(name, keepMinis: keepMinis) }
+        catch { problem = plainWords(error, else: "Couldn't delete the project. Try Show in Finder and move it to the Trash there.") }
+        reload()
+    }
+
+    func showInFinder(project: String) { NSWorkspace.shared.activateFileViewerSelecting([install.runs.appendingPathComponent(project)]) }
+
+
 
     func resize(_ mini: Mini, sizes: Sizes) throws {
         try start(mini.name) { try $0.resize(name: mini.name, sizes: sizes) }

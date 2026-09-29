@@ -17,11 +17,22 @@ public enum Rules {
         return String(collapsed.prefix(60)).trimmingCharacters(in: CharacterSet(charactersIn: "-"))
     }
 
+    /// A project's folder name, as typed ("Tiefling Party"), trimmed; nil when it can't be one.
+    /// "_" and "." folders are Mimic's own scratch and hidden, so a project can't start with either.
+    public static func projectName(_ text: String) -> String? {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard (1...64).contains(t.count), !t.hasPrefix("."), !t.hasPrefix("_"),
+              !t.contains("/"), !t.contains(":"), !t.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) })
+        else { return nil }
+        return t
+    }
+
     public static let nozzles: Set<String> = ["0.2", "0.4", "0.6"]
 }
 
 public enum RequestError: Error, Equatable, CustomStringConvertible {
-    case badName, badNumber(String), badNozzle, nameTaken(String), busy(String, JobKind = .generate), nothingToRetry, noModelYet, notFound, missing(String), modelNotDownloaded(String), unknownModel(String), queued(String), noPicture
+    case badName, badNumber(String), badNozzle, nameTaken(String), busy(String, JobKind = .generate), nothingToRetry, noModelYet, notFound, missing(String), modelNotDownloaded(String), unknownModel(String), queued(String), noPicture,
+         badProjectName, projectTaken(String), projectNotFound, cantMove(String), projectBusy(String, String)
     public var description: String {
         switch self {
         case .badName: "Names can only use lowercase letters, numbers and dashes."
@@ -38,6 +49,11 @@ public enum RequestError: Error, Equatable, CustomStringConvertible {
         case .modelNotDownloaded(let name): "The \(name) 3D model isn't downloaded. Open Settings → 3D model to download it."
         case .queued(let n): "\(Mini.displayName(n)) is already waiting in the queue."
         case .noPicture: "That picture can't be found any more. Choose it again."
+        case .badProjectName: "Give the project a name, without a slash or colon, that doesn't start with a dot or an underscore."
+        case .projectTaken(let n): "You already have a project or a mini called \(n)."
+        case .projectNotFound: "That project doesn't exist."
+        case .cantMove(let n): "\(Mini.displayName(n)) is being made or waiting in the queue. Move it once it's made."
+        case .projectBusy(let p, let n): "\(Mini.displayName(n)) in \(p) is being made or waiting in the queue. Wait for it, or take it out of the queue first."
         case .unknownModel(let id): "This Mimic doesn't know a 3D model called \(id). Update Mimic, or make it again with another model."
         }
     }
