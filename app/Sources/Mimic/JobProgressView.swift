@@ -207,8 +207,8 @@ private final class DockTileView: NSView {
     }
 }
 
-/// What the main window adds around the gallery: the sheets, and the toolbar's New Mini button
-/// and job progress. Kept here so the window's own layout stays about the gallery.
+/// What the main window adds around the gallery: the sheets and questions, and the toolbar's
+/// New Mini button and job progress. Kept here so the window's own layout stays about the gallery.
 struct MainWindowChrome: ViewModifier {
     @Environment(AppModel.self) private var model
 
@@ -234,8 +234,24 @@ struct MainWindowChrome: ViewModifier {
                 switch sheet {
                 case .make: MakeView()
                 case .resize(let mini): ResizeView(mini: mini)
+                case .rename(let mini): RenameSheet(mini: mini)
                 case .progress: JobProgressView()
                 }
+            }
+            .confirmationDialog("Move “\(model.trashing?.displayName ?? "")” to the Trash?",
+                                isPresented: Binding(get: { model.trashing != nil }, set: { if !$0 { model.trashing = nil } }),
+                                presenting: model.trashing) { mini in
+                Button("Move to Trash", role: .destructive) { model.trash(mini) }
+                Button("Keep It", role: .cancel) {}
+            } message: { _ in
+                Text("You can put it back from the Trash if you change your mind.")
+            }
+            .alert(model.problem ?? "", isPresented: Binding(get: { model.problem != nil }, set: { if !$0 { model.problem = nil } })) {
+                Button("OK") {}
+            }
+            // Minis made from the terminal appear when you come back to the app.
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                model.reload()
             }
     }
 }
