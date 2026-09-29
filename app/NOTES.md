@@ -23,8 +23,8 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   `pipeline/mini_prep.py`, whose reasons its comments keep). It runs as `mimic _prep in.glb
   out.stl [flags]`, the app's own binary started as a job step through GroupProcess, so Stop
   ends it like any other program. Measured on the dwarf (32 mm, 25 mm base, 0.2 nozzle):
-  Blender 58 s and 6.0 GB (peak RSS); Swift about 9 s and 1.5 GB. At 100 mm on a 0.4 nozzle:
-  Blender 157 s and 13.2 GB; Swift about 19 s and 2.9 GB. How:
+  Blender 58 s and 6.0 GB (peak RSS); Swift 6 s and 1.5 GB. At 100 mm on a 0.4 nozzle:
+  Blender 157 s and 13.2 GB; Swift 14 s and 2.9 GB. How:
   - The solid is a signed distance field built in slabs of grid planes, so memory follows the
     surface: a 100 mm figure at 0.1 mm is ~10⁹ grid points, never held at once. Inside is
     decided by winding along grid columns (overlapping parts union), distance exactly to the
