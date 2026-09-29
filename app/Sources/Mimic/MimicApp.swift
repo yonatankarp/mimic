@@ -20,7 +20,7 @@ struct MimicApp: App {
             CommandGroup(replacing: .newItem) {
                 Button("New Mini…") { model.sheet = .make }
                     .keyboardShortcut("n")
-                    .disabled(model.install == nil)
+                    .disabled(!model.setup.installed)
             }
             SidebarCommands()
             MiniCommands(model: model)
@@ -74,7 +74,7 @@ struct ContentView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        if model.install != nil {
+        if model.setup.installed {
             NavigationSplitView {
                 Sidebar()
             } detail: {
@@ -95,8 +95,7 @@ struct ContentView: View {
                 }
             }
         } else {
-            ContentUnavailableView("Mimic isn't installed yet", systemImage: "folder.badge.questionmark",
-                                   description: Text("Double-click “Install Mimic.command” in the Mimic folder you downloaded, then open Mimic again."))
+            SetupView()
         }
     }
 }

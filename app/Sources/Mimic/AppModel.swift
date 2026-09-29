@@ -21,8 +21,11 @@ enum AppSheet: Identifiable, Equatable {
 /// Views read it from the environment (`@Environment(AppModel.self)`).
 @MainActor @Observable
 final class AppModel {
-    let install: Install?
-    let jobs: JobRunner?
+    let install: Install
+    let jobs: JobRunner
+    /// First-launch setup, and Repair from Settings. Here rather than in a view, so a download
+    /// carries on when the window closes.
+    let setup: SetupModel
     var minis: [Mini] = []
     var selection: Mini.ID?
     /// The job's latest status, updated on the main thread; nil before the first job.
@@ -41,20 +44,22 @@ final class AppModel {
         let install = Install.locate()
         // A job left running by a Mimic that crashed (or was force-quit) is stopped first:
         // otherwise a 14 GB Blender could run on with nothing watching it.
-        if let install { Leftover.stop(install.runs) }
+        Leftover.stop(install.runs)
         self.install = install
-        jobs = install.map { JobRunner(install: $0) }
-        jobs?.onChange = { [weak self] s in Task { @MainActor in self?.jobChanged(s) } }
+        jobs = JobRunner(install: install)
+        setup = SetupModel(install: install)
+        jobs.onChange = { [weak self] s in Task { @MainActor in self?.jobChanged(s) } }
         reload()
         // Run the checks at launch, so Make is blocked (and Settings flagged) before anyone opens Settings.
         Health.shared.check(install)
+        // An old install's engine is only moved, which needs no asking.
+        if setup.hasOldInstall { setup.start() }
     }
 
     var selected: Mini? { minis.first { $0.id == selection } }
     var running: Bool { job?.running == true }
 
     func reload() {
-        guard let install else { return }
         minis = Gallery.list(install.runs)
         if selection == nil || selected == nil { selection = minis.first?.id }
     }
@@ -83,13 +88,12 @@ final class AppModel {
         try start { try $0.retry(name: name) }
     }
 
-    func stop() { jobs?.cancel() }
+    func stop() { jobs.cancel() }
 
     /// The mini being made right now, which can't be renamed or trashed under the job.
     var busyWith: String? { running ? job?.name : nil }
 
     func trash(_ mini: Mini) {
-        guard let install else { return }
         do {
             try Gallery.moveToTrash(install.runs, name: mini.name, busyWith: busyWith)
         } catch {
@@ -125,7 +129,6 @@ final class AppModel {
 
     private func start(_ begin: (JobRunner) throws -> Void) throws {
         if let requiredProblem { throw Refusal(description: requiredProblem) }
-        guard let jobs else { return }
         try begin(jobs)
         job = jobs.status  // at once, so the sheet never opens on the previous job
         jobShown = true

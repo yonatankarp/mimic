@@ -44,14 +44,15 @@ public struct Checks: Sendable {
         self.path = path; self.run = run; self.freeBytes = freeBytes
     }
 
-    static let reinstall = "Run Install Mimic again: it only adds what's missing."
     public static let drawThingsIDs: Set<String> = ["drawthings-app", "drawthings-api", "drawthings-model"]
 
     public var all: [Check] {
         let s = self
         return [
-            check("engine", "3D engine", true, Self.reinstall) { s.engineStarts() },
-            check("models", "3D model files", true, Self.reinstall + " This part downloads 8.1 GB.") { s.modelsComplete() },
+            check("engine", "3D engine", true,
+                  "The 3D engine is missing or won't start. Repair downloads it again.") { s.engineStarts() },
+            check("models", "3D model files", true,
+                  "Some of the 3D model files are missing. Download fetches only what's missing (up to 8.1 GB).") { s.modelsComplete() },
             check("blender", "Blender (makes the print file)", true,
                   "Blender is missing or won't start. Run Install Mimic again, or install Blender from blender.org.") {
                 s.blenderStarts()
@@ -92,25 +93,9 @@ public struct Checks: Sendable {
         isFile(install.trellisCLI) && run(install.trellisCLI.path, ["--help"], 10)?.status == 0
     }
 
-    /// The model files trellis-cli loads and their sizes (setup.sh checks their sha256 too).
-    /// Every one: any missing file fails a run minutes in. Sizes catch a download cut short.
-    static let modelFiles: [(name: String, bytes: Int64)] = [
-        ("dinov3.gguf", 323_657_920),
-        ("pixal3d_naf.gguf", 1_334_656),
-        ("pixal3d_ss_flow_sv.gguf", 1_426_559_744),
-        ("ss_dec.gguf", 147_379_392),
-        ("pixal3d_shape_flow_512_sv.gguf", 1_476_761_760),
-        ("shape_dec.gguf", 881_361_568),
-        ("pixal3d_shape_flow_1024_sv.gguf", 1_476_761_760),
-        ("pixal3d_tex_flow_1024_sv.gguf", 1_476_813_984),
-        ("tex_dec.gguf", 881_344_576),
-    ]
-
+    /// Every file trellis-cli loads, at its full size (setup checks their sha256 too).
     func modelsComplete() -> Bool {
-        Self.modelFiles.allSatisfy { f in
-            let size = (try? FileManager.default.attributesOfItem(atPath: install.models.appendingPathComponent(f.name).resolvingSymlinksInPath().path))?[.size] as? Int64
-            return size == f.bytes
-        }
+        EngineDownload.weights.allSatisfy { EngineDownload.size(install.models.appendingPathComponent($0.name)) == $0.bytes }
     }
 
     /// Whether Blender actually runs, not just whether a `blender` exists: Homebrew's launcher
@@ -153,7 +138,11 @@ public struct Checks: Sendable {
         return (p.terminationStatus, String(decoding: data, as: UTF8.self))
     }
 
+    /// Free space on the disk `url` is on. Asked of the nearest folder that exists: on a new Mac
+    /// neither the minis folder nor the engine's is there yet.
     public static let freeBytes: @Sendable (URL) -> Int64? = { url in
-        (try? url.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]))?.volumeAvailableCapacityForImportantUsage
+        var url = url.standardizedFileURL
+        while !FileManager.default.fileExists(atPath: url.path) && url.path != "/" { url.deleteLastPathComponent() }
+        return (try? url.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]))?.volumeAvailableCapacityForImportantUsage
     }
 }

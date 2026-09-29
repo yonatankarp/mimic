@@ -91,7 +91,7 @@ struct RenameSheet: View {
     }
 
     private func rename() {
-        guard let install = model.install else { return }
+        let install = model.install
         let new = Rules.slug(text)
         guard !new.isEmpty else { problem = "Give it a name with at least one letter or number."; return }
         do {

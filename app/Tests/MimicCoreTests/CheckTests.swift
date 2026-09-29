@@ -85,7 +85,7 @@ final class CheckTests: XCTestCase {
     /// or one cut short by an interrupted download, is red.
     func modelFiles(except short: String? = nil) throws {
         try FileManager.default.createDirectory(at: f.install.models, withIntermediateDirectories: true)
-        for m in Checks.modelFiles {
+        for m in EngineDownload.weights {
             let url = f.install.models.appendingPathComponent(m.name)
             FileManager.default.createFile(atPath: url.path, contents: nil)
             let h = try FileHandle(forWritingTo: url)

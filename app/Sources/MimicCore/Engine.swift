@@ -154,7 +154,7 @@ public enum Engine {
         let cli = engine.appendingPathComponent("trellis-cli")
         guard FileManager.default.fileExists(atPath: source.path) else { throw Failure("The picture is missing: \(source.path)") }
         guard FileManager.default.isExecutableFile(atPath: cli.path) else {
-            throw Failure("The 3D engine is missing (\(cli.path)). Run Install Mimic again.")
+            throw Failure("The 3D engine is missing (\(cli.path)). Open Mimic's Settings and press Repair next to the 3D engine.")
         }
         var image = source
         if try !isCutOut(source) {
@@ -207,7 +207,7 @@ public enum Engine {
                     kill(process.pid, SIGKILL)
                     process.wait()
                     throw Failure("This 3D engine ignores PIXAL3D_STEPS, so it would run the slow way. "
-                                  + "Stopped it before wasting the run. Run Install Mimic again to get the right one.")
+                                  + "Stopped it before wasting the run. Open Mimic's Settings and press Repair next to the 3D engine.")
                 }
             }
         }

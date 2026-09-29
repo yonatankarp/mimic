@@ -12,12 +12,12 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section {
-                ForEach(health.checks.filter(\.required)) { CheckRow(check: $0, result: health.results[$0.id]) }
+                ForEach(health.checks.filter(\.required)) { CheckRow(check: $0, result: health.results[$0.id], setup: model.setup) }
             } header: {
                 Text("Needed to make minis")
             }
             Section {
-                ForEach(health.checks.filter { !$0.required }) { CheckRow(check: $0, result: health.results[$0.id]) }
+                ForEach(health.checks.filter { !$0.required }) { CheckRow(check: $0, result: health.results[$0.id], setup: model.setup) }
             } header: {
                 Text("Optional")
             } footer: {
@@ -27,7 +27,16 @@ struct SettingsView: View {
                     Button("Check Again") { health.check(model.install) }.disabled(health.running || model.running)
                 }
             }
-            if Checks.drawThingsIDs.contains(where: { health.results[$0]?.ok == false }) { drawThingsSteps }
+            if Checks.drawThingsIDs.contains(where: { health.results[$0]?.ok == false }) {
+                Section {
+                    DrawThingsSteps()
+                } header: {
+                    Text("Set up Draw Things")
+                } footer: {
+                    Text("Pictures work right away. To describe a character or turn a picture into a grey sculpt, Mimic needs the free Draw Things app. This list updates on its own.")
+                        .foregroundStyle(.secondary)
+                }
+            }
             Section {
                 Picker("Open minis in", selection: slicerChoice) {
                     ForEach(slicers) { Text($0.name).tag($0.id) }
@@ -37,16 +46,15 @@ struct SettingsView: View {
                 Text("Mimic lists the slicers it finds on this Mac. The Mac's default app works with any other slicer.")
                     .foregroundStyle(.secondary)
             }
-            if let install = model.install {
-                Section {
-                    LabeledContent {
-                        Button("Open Minis Folder") { NSWorkspace.shared.open(install.runs) }
-                    } label: {
-                        Text("Your minis are saved in")
-                        Text((install.runs.path as NSString).abbreviatingWithTildeInPath)
-                    }
+            Section {
+                LabeledContent {
+                    Button("Open Minis Folder") { NSWorkspace.shared.open(model.install.runs) }
+                } label: {
+                    Text("Your minis are saved in")
+                    Text((model.install.runs.path as NSString).abbreviatingWithTildeInPath)
                 }
             }
+            TerminalSection()
         }
         .formStyle(.grouped)
         .frame(width: 520, height: 640)
@@ -76,25 +84,12 @@ struct SettingsView: View {
         return "\(head) Last checked at \(when.formatted(date: .omitted, time: .shortened))."
     }
 
-    private var drawThingsSteps: some View {
-        Section {
-            SetupStep(done: health.ok("drawthings-api"), title: "Open Draw Things.")
-            SetupStep(done: health.ok("drawthings-api"), title: "Turn on its connection.",
-                      detail: "In Draw Things: Settings → Advanced → API Server. Turn it on, choose HTTP, set the port to 7860.")
-            SetupStep(done: health.ok("drawthings-model"), title: "Download FLUX.2 Klein.",
-                      detail: "In Draw Things' model list, search for FLUX.2 Klein and download it. It's big, so give it a few minutes.")
-        } header: {
-            Text("Set up Draw Things")
-        } footer: {
-            Text("Pictures work right away. To describe a character or turn a picture into a grey sculpt, Mimic needs the free Draw Things app. This list updates on its own.")
-                .foregroundStyle(.secondary)
-        }
-    }
 }
 
 private struct CheckRow: View {
     let check: Check
     let result: CheckResult?
+    let setup: SetupModel
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
@@ -102,7 +97,19 @@ private struct CheckRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(result?.label ?? check.label)
                 if let result, !result.ok {
-                    Text(result.fix).font(.callout).foregroundStyle(.secondary)
+                    Text(setup.running && SetupModel.checkIDs.contains(check.id) ? setup.status : result.fix)
+                        .font(.callout).foregroundStyle(.secondary)
+                    if let problem = setup.problem, SetupModel.checkIDs.contains(check.id) {
+                        Text(problem).font(.callout).foregroundStyle(.red)
+                    }
+                }
+            }
+            Spacer()
+            if let result, !result.ok, SetupModel.checkIDs.contains(check.id) {
+                if setup.running {
+                    ProgressView(value: setup.fraction).frame(width: 80)
+                } else {
+                    Button(check.id == "engine" ? "Repair" : "Download") { setup.start() }
                 }
             }
         }
@@ -118,10 +125,11 @@ private struct CheckRow: View {
     }
 }
 
-private struct SetupStep: View {
+struct SetupStep: View {
     let done: Bool
     let title: String
     var detail: String?
+    var link: (title: String, url: URL)?
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
@@ -131,6 +139,54 @@ private struct SetupStep: View {
                 Text(title)
                 if let detail { Text(detail).font(.callout).foregroundStyle(.secondary) }
             }
+            if let link, !done {
+                Spacer()
+                Link(link.title, destination: link.url)
+            }
+        }
+    }
+}
+
+/// The Draw Things steps, ticking off as they're done: Settings and the setup screen.
+struct DrawThingsSteps: View {
+    private var health: Health { .shared }
+
+    var body: some View {
+        SetupStep(done: health.ok("drawthings-app"), title: "Get Draw Things from the App Store.",
+                  detail: "It's free.", link: ("Open the App Store", SetupModel.drawThingsStore))
+        SetupStep(done: health.ok("drawthings-api"), title: "Open Draw Things.")
+        SetupStep(done: health.ok("drawthings-api"), title: "Turn on its connection.",
+                  detail: "In Draw Things: Settings → Advanced → API Server. Turn it on, choose HTTP, set the port to 7860.")
+        SetupStep(done: health.ok("drawthings-model"), title: "Download FLUX.2 Klein.",
+                  detail: "In Draw Things' model list, search for FLUX.2 Klein and download it. It's big, so give it a few minutes.")
+    }
+}
+
+/// The command-line tool lives inside the app, and a disk image can't put it on the PATH:
+/// one command does, the same one for everyone.
+private struct TerminalSection: View {
+    // /usr/local/bin is on every Mac's PATH (/etc/paths), but a new Mac doesn't have it and
+    // only an administrator can make it, hence sudo; ~/.local/bin would need no password but
+    // isn't on the PATH, which would take a second step.
+    static let command = "sudo mkdir -p /usr/local/bin && sudo ln -sf \"\(Bundle.main.bundlePath)/Contents/MacOS/mimic\" /usr/local/bin/mimic"
+    @State private var copied = false
+
+    var body: some View {
+        Section {
+            HStack {
+                Text(Self.command).font(.system(.callout, design: .monospaced)).textSelection(.enabled)
+                Spacer()
+                Button(copied ? "Copied" : "Copy") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(Self.command, forType: .string)
+                    copied = true
+                }
+            }
+        } header: {
+            Text("Use Mimic from Terminal")
+        } footer: {
+            Text("Paste this into Terminal once, then type mimic to make minis from there. It asks for your Mac password, because it adds mimic to a folder every account on this Mac uses.")
+                .foregroundStyle(.secondary)
         }
     }
 }

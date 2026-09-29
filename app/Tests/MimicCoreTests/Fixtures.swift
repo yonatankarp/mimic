@@ -10,7 +10,6 @@ struct Fixture {
         root = FileManager.default.temporaryDirectory.appendingPathComponent("mimic-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: root.appendingPathComponent("pipeline"), withIntermediateDirectories: true)
         FileManager.default.createFile(atPath: root.appendingPathComponent("pipeline/mini_prep.py").path, contents: Data())
-        FileManager.default.createFile(atPath: root.appendingPathComponent("setup.sh").path, contents: Data())
         try FileManager.default.createDirectory(at: root.appendingPathComponent("runs"), withIntermediateDirectories: true)
         install = Install(root: root)
     }

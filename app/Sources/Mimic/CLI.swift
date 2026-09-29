@@ -19,10 +19,10 @@ enum CLI {
         // Before finding the Mimic folder or stopping leftovers: this *is* the running job's
         // program (named in runs/.job.pid), and it's told where the engine is.
         if args.first == "_engine" { return engine(Array(args.dropFirst())) }
-        // Run through a symlink (the installer puts one on the PATH), the binary isn't seen as part of
+        // Run through a symlink (Settings shows how to put one on the PATH), the binary isn't seen as part of
         // its app, so it would read its own empty settings rather than the app's.
         let defaults = Bundle.main.bundleIdentifier == nil ? UserDefaults(suiteName: "com.mimic.app") ?? .standard : .standard
-        guard let install = Install.locate(defaults: defaults) else { return fail("Can't find the Mimic folder. Set MIMIC_HOME or run the installer.") }
+        let install = Install.locate(defaults: defaults)
         Leftover.stop(install.runs)
         var rest = Array(args.dropFirst())
         switch args.first {
@@ -33,6 +33,8 @@ enum CLI {
             return 0
         case "make", "resize", "retry":
             guard let name = rest.first, !name.hasPrefix("-") else { return fail(usage) }
+            // Setup downloads the engine in the app, where it can show its progress.
+            guard EngineDownload.present(install) else { return fail("Mimic needs to finish setting up. Open the Mimic app: it downloads what's missing.") }
             rest.removeFirst()
             var sizes = Sizes(), image: String?, restyle = false, seed = 42, description: String?
             while let a = rest.first {

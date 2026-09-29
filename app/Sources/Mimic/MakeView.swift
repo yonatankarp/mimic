@@ -189,7 +189,8 @@ struct MakeView: View {
     private var slug: String { Rules.slug(name) }
 
     private var takenName: String? {
-        guard let runs = model.install?.runs, !slug.isEmpty,
+        let runs = model.install.runs
+        guard !slug.isEmpty,
               FileManager.default.fileExists(atPath: runs.appendingPathComponent(slug).appendingPathComponent("model.glb").path)
         else { return nil }
         return Mini.displayName(slug)

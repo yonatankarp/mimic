@@ -230,7 +230,7 @@ struct MainWindowChrome: ViewModifier {
                 ToolbarItem(placement: .primaryAction) {
                     Button { model.sheet = .make } label: { Label("New Mini", systemImage: "plus") }
                         .help("Make a new mini (⌘N)")
-                        .disabled(model.install == nil)
+                        .disabled(!model.setup.installed)
                 }
             }
             .sheet(item: $model.sheet) { sheet in
@@ -265,7 +265,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let model = AppModel()
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard let s = model.job, s.running, let jobs = model.jobs else { return .terminateNow }
+        guard let s = model.job, s.running else { return .terminateNow }
+        let jobs = model.jobs
         let alert = NSAlert()
         let who = Mini.displayName(s.name)
         alert.messageText = s.kind == .prep ? "Mimic is still resizing “\(who)”" : "Mimic is still making “\(who)”"
