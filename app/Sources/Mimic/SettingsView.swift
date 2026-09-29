@@ -169,7 +169,9 @@ private struct ModelsSection: View {
 
     var body: some View {
         let setup = model.setup
-        let _ = setup.removals  // look at the disk again after a removal
+        // Look at the disk again after a removal, and with every health check (opening
+        // Settings, Check Again), which catches files that changed behind Mimic's back.
+        let _ = (setup.removals, Health.shared.lastChecked)
         Section {
             ForEach(EngineDownload.catalogue) { row($0, setup) }
         } header: {

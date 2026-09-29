@@ -102,10 +102,11 @@ public enum EngineDownload {
         ("DINOV3_LICENSE.md", 7_503, "25d122eb8f5b880fd23c736fb6ea8018ee45c12237e00b8a86d14c653904999e"),
     ])
 
-    /// Pixal3D single view, 8-bit: the set Mimic was tuned on.
+    /// Pixal3D single view, 8-bit: the set Mimic was tuned on. Times in the summaries are whole
+    /// minis (cutout, 3D, print prep) on an M2 Max, measured in app/NOTES.md.
     static let pixal3d = EngineModel(
         id: "pixal3d-sv", name: "Pixal3D",
-        summary: "The one Mimic was tuned on: keeps thin parts like blades and bows. About 5 minutes a mini.",
+        summary: "The sharpest faces and finest detail, and the fastest: about 9 minutes a mini.",
         family: .pixal3dSingleView,
         files: files(pixal3dURL, [
             ("dinov3.gguf", 323_657_920, "0dd4ffd4b46a248f5b7d49c35275d68461fbf73f57ddb4c1fa8afb4f7bb45a0d"),
@@ -127,7 +128,7 @@ public enum EngineDownload {
     /// downloaded. birefnet.gguf is left out: Mimic always hands the engine a cutout.
     static let trellis2Q8 = EngineModel(
         id: "trellis2-q8", name: "TRELLIS.2",
-        summary: "Microsoft's original model, on which Pixal3D is built. PLACEHOLDER",
+        summary: "Microsoft's model that Pixal3D grew from. Often gets the depth right that Pixal3D guesses, like a weapon held against the body. About 14 minutes a mini.",
         family: .trellis2,
         files: files(trellis2URL, [
             ("q8/dinov3.gguf", 323_657_920, "0dd4ffd4b46a248f5b7d49c35275d68461fbf73f57ddb4c1fa8afb4f7bb45a0d"),
@@ -144,7 +145,7 @@ public enum EngineDownload {
     /// TRELLIS.2 at 4 bits: the smallest set.
     static let trellis2Q4 = EngineModel(
         id: "trellis2-q4", name: "TRELLIS.2 Lite",
-        summary: "PLACEHOLDER",
+        summary: "TRELLIS.2 made smaller: nearly the same look and the smallest download. About 12 minutes a mini.",
         family: .trellis2,
         files: files(trellis2URL, [
             ("q4/dinov3.gguf", 172_662_976, "6473cf96fd275bf84f5cc0556975a2abaa10b641e4a07101dcad561df1917ef2"),

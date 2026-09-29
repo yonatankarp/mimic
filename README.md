@@ -27,8 +27,10 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
 1. Download the `.dmg` file from the [latest release](https://github.com/yonatankarp/mimic/releases/latest) and open it.
 2. Drag **Mimic** onto **Applications**, then open Mimic from your Applications folder.
    If your Mac says it can't check Mimic, see the note below.
-3. Press **Download**. The first time, Mimic downloads its 3D engine (8.1 GB). You can keep
-   using your Mac while it does.
+3. Pick a 3D model (Pixal3D, the default, is the fastest and sharpest; the others are listed
+   with their size) and press **Download**. The first time, Mimic downloads its 3D engine
+   (5.7 to 9.1 GB, depending on the model). You can keep using your Mac while it does, and
+   switch models later in Settings.
 
 > [!IMPORTANT]
 > **The first time you open Mimic, your Mac may say it can't check it.** Mimic is a free app

@@ -80,12 +80,41 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   which one seed can't pin on either cutout. So `birefnet.gguf` (0.9 GB) is no longer downloaded. Whether a picture needs
   cutting out is judged by how much of its alpha is actually clear (≥2%), not by it having
   an alpha channel: an alpha of opaque noise once became two sheets of geometry.
+- **Three 3D models, chosen once per Mac** (`EngineDownload.catalogue`; 0.4.0). The same
+  pinned trellis-cli runs all three; each set lives in `engine/models/<id>/`, the choice is the
+  `model` default (absent = Pixal3D, so installs from before keep working with nothing to
+  download), and each mini records its model in settings.json so Try Again uses it. Only sets
+  proven end to end with this engine build are offered. Measured on the dwarf (seed 42, M2 Max
+  32 GB, `mimic make … --model <id>` through the app's own `_engine` and `_prep`):
+
+  | Model | Download | 3D step | Whole mini | Peak RSS |
+  |---|---|---|---|---|
+  | Pixal3D (`pixal3d-sv`, default) | 8.1 GB | 7.5 min | ~9 min | 4.7 GB |
+  | TRELLIS.2 (`trellis2-q8`) | 9.1 GB | ~12 min | 13.5 min | 6.9 GB |
+  | TRELLIS.2 Lite (`trellis2-q4`) | 5.7 GB | ~11 min | 12.3 min | 8.1 GB |
+
+  TRELLIS.2's high-resolution shape pass is the difference (13,600 tokens, 5–6 minutes,
+  against Pixal3D's 45 s). Look: Pixal3D has the sharpest face and rivets; both TRELLIS.2 sets
+  put the hammer on the shoulder where the picture has it, where Pixal3D pushed it out towards
+  the viewer (see the side renders), and q4 is hard to tell from q8. TRELLIS.2 runs the plain
+  one-picture pipeline at its own defaults (`--image … --output …`: a lone positional after
+  `--image` is read as a second picture; `--gss 10` was tuned on Pixal3D only), and writes its
+  figure facing away, so print prep turns it round (`--turn 180`, `EngineModel.turn`).
+  `PIXAL3D_STEPS=8` applies to every flow of both pipelines, so one guard covers both.
+  Rejected: Pixal3D's multiview set (`raven38/pixal3d-q8_0-v1`) wants four pictures of the
+  figure; `--trellis2-mv` wants 2–8; TRELLIS.2 at full precision is 15.5 GB. The TRELLIS.2 sets
+  come from `ilintar/trellis2-gguf` (TRELLIS.2 is MIT) without its birefnet.gguf (Mimic always
+  hands over a cutout); that repository ships no licence files, so every set takes
+  raven38's `MIT_LICENSE.md` and `DINOV3_LICENSE.md`, which the DINOv3 Agreement requires to
+  travel with dinov3.gguf. Four TRELLIS.2 q8 files are byte for byte Pixal3D's (2.2 GB): setup
+  clones them (APFS `clonefile`) instead of downloading, and Remove counts them as freeing
+  nothing while their twin stays.
 - **Model files come straight from Hugging Face,** pinned to a revision, each file checked
   against its sha256; the app's check compares every file's size.
 - **Children get an explicit environment,** never the app's own: launched from the Dock, the
   app has launchd's bare PATH (`/usr/bin:/bin:/usr/sbin:/sbin`), which lost Blender once.
 - **Where things live (the disk image has no Mimic folder):** minis in `~/Documents/Mimic`,
-  where people look for their files; the engine and its 8.1 GB of models in
+  where people look for their files; the engine and its models (5.7–9.1 GB) in
   `~/Library/Application Support/Mimic/engine`, out of their way (and out of Documents, which
   iCloud may sync). `Install` keeps the two separate. An install made by the old `setup.sh` has
   one folder with `runs/` and `engine/` inside, stored as the `installDir` default: that still
