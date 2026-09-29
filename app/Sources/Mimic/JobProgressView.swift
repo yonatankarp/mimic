@@ -218,6 +218,13 @@ struct MainWindowChrome: ViewModifier {
             .toolbar {
                 ToolbarItem(placement: .primaryAction) { JobToolbarItem() }
                 ToolbarItem(placement: .primaryAction) {
+                    SettingsLink {
+                        Label("Settings", systemImage: Health.shared.needsAttention ? "exclamationmark.triangle.fill" : "gearshape")
+                    }
+                    .foregroundStyle(Health.shared.needsAttention ? .orange : .primary)
+                    .help(Health.shared.blocking ?? "Settings (⌘,)")
+                }
+                ToolbarItem(placement: .primaryAction) {
                     Button { model.sheet = .make } label: { Label("New Mini", systemImage: "plus") }
                         .help("Make a new mini (⌘N)")
                         .disabled(model.install == nil)

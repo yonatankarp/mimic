@@ -12,6 +12,7 @@ front/side/back PNGs next to the STL.
 
 import argparse
 import math
+import os
 import sys
 
 import bmesh
@@ -188,7 +189,11 @@ if tris > a.faces:
 bpy.ops.object.shade_smooth()
 bpy.ops.object.select_all(action="DESELECT")
 fig.select_set(True)
-bpy.ops.wm.stl_export(filepath=a.stl, export_selected_objects=True, apply_modifiers=True)
+# Written beside it and renamed into place: a resize stopped mid-export keeps the old print file
+# whole instead of leaving half of a new one. The name ends in .stl, or the exporter appends one.
+part = a.stl[:-4] + ".part.stl" if a.stl.endswith(".stl") else a.stl + ".part.stl"
+bpy.ops.wm.stl_export(filepath=part, export_selected_objects=True, apply_modifiers=True)
+os.replace(part, a.stl)
 
 lo, hi = bounds(fig)
 print(f"mini_prep: {a.stl}  size {hi.x-lo.x:.1f} x {hi.y-lo.y:.1f} x {hi.z-lo.z:.1f} mm  "

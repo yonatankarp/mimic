@@ -41,6 +41,8 @@ final class AppModel {
         jobs = install.map { JobRunner(install: $0) }
         jobs?.onChange = { [weak self] s in Task { @MainActor in self?.jobChanged(s) } }
         reload()
+        // Run the checks at launch, so Make is blocked (and Settings flagged) before anyone opens Settings.
+        Health.shared.check(install)
     }
 
     var selected: Mini? { minis.first { $0.id == selection } }

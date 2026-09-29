@@ -23,7 +23,7 @@ every box is ticked, in the app (and the command line where marked).
 - [x] "Taking longer than usual" after 12 minutes, "unusually slow" after 25
 - [x] Run in Background / minimize, with progress still visible (Dock, and wherever the pill went)
 - [x] Stop, with a confirmation; ends every program the job started
-- [ ] A stopped new mini goes to the Trash; a stopped resize keeps the old size
+- [x] A stopped new mini goes to the Trash; a stopped resize keeps the old size
 - [x] Finished: Open in <slicer>; failed: Try Again (same inputs), and Open Setup when Draw Things was the cause
 - [ ] A notification when it's done (asked once)
 - [x] Quitting during a job asks first; a job left from a crash is stopped on the next launch
