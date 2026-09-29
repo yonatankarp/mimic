@@ -482,6 +482,8 @@ struct MainWindowChrome: ViewModifier {
                 switch sheet {
                 case .make: MakeView()
                 case .resize(let mini): ResizeView(mini: mini)
+                case .resizeAll(let p):
+                    if let first = model.minis.first(where: { $0.project == p && $0.hasModel }) { ResizeView(mini: first, project: p) }
                 case .rename(let mini): RenameSheet(mini: mini)
                 case .newProject(let mini): ProjectNameSheet(renaming: nil, moving: mini)
                 case .renameProject(let p): ProjectNameSheet(renaming: p)

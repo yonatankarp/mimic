@@ -359,16 +359,19 @@ struct Picture {
     }
 }
 
-/// Resize This Mini: the size card, loaded with what the mini is now.
+/// Resize This Mini: the size card, loaded with what the mini is now. With `project`, Resize
+/// All: one card for every mini in it, loaded from `mini`, the first.
 struct ResizeView: View {
     let mini: Mini
+    var project: String?
     @Environment(AppModel.self) private var model
     @State private var card: SizeCard
     /// A refused resize: in words for people, and the raw error for the tooltip.
     @State private var problem: (words: String, detail: String)?
 
-    init(mini: Mini) {
+    init(mini: Mini, project: String? = nil) {
         self.mini = mini
+        self.project = project
         var c = SizeCard.remembered()
         let saved = MiniSettings.load(mini.folder)
         c.setKind(saved.kind ?? .character)  // before the sizes: choosing a kind suggests sizes afresh
@@ -378,12 +381,15 @@ struct ResizeView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Text("Resize \(mini.displayName)").font(.title2.bold())
+            Text(project.map { "Resize All in \($0)" } ?? "Resize \(mini.displayName)").font(.title2.bold())
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding([.horizontal, .top], 20)
             Form {
                 Section {
-                    Text("Remakes the print file with these sizes. \(JobProgress.about(model.estimate(mini.name, .prep, sizes: card.sizes).total).capitalizedFirst)\(model.current == nil ? "" : ", once the jobs ahead of it are done"). The \(card.kind == .object ? "object" : "character") itself doesn't change.")
+                    let takes = JobProgress.about(model.estimate(mini.name, .prep, sizes: card.sizes).total)
+                    Text(project != nil
+                         ? "Remakes every mini's print file with these sizes, one after another, \(takes) each. Minis already this size are left out. The minis themselves don't change."
+                         : "Remakes the print file with these sizes. \(takes.capitalizedFirst)\(model.current == nil ? "" : ", once the jobs ahead of it are done"). The \(card.kind == .object ? "object" : "character") itself doesn't change.")
                         .foregroundStyle(.secondary)
                 }
                 SizeSection(card: $card, seed: nil)
@@ -399,11 +405,15 @@ struct ResizeView: View {
                 }
                 Spacer()
                 Button("Cancel") { model.sheet = nil }.keyboardShortcut(.cancelAction)
-                Button("Resize") {
-                    do { try model.resize(mini, sizes: card.sizes) } catch { problem = (model.plainWords(error), "\(error)") }
+                Button(project == nil ? "Resize" : "Resize All") {
+                    if let project {
+                        if let why = model.resizeAll(project, sizes: card.sizes) { problem = (why, why) }
+                    } else {
+                        do { try model.resize(mini, sizes: card.sizes) } catch { problem = (model.plainWords(error), "\(error)") }
+                    }
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(model.cantStart != nil || model.waiting(mini.name) != nil)
+                .disabled(model.cantStart != nil || (project == nil && model.waiting(mini.name) != nil))
             }
             .padding(16)
             .fixedSize(horizontal: false, vertical: true)
