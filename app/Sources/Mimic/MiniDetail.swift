@@ -138,7 +138,7 @@ struct MiniDetail: View {
         HStack(alignment: .top, spacing: 10) {
             ForEach([("Your picture", mini.source ?? mini.upload)] + mini.renders.map { ($0.view.capitalized, Optional($0.url)) },
                     id: \.0) { caption, url in
-                Button { enlarged = url.map { Enlarged(caption: caption, url: $0) } } label: {
+                let preview = Button { enlarged = url.map { Enlarged(caption: caption, url: $0) } } label: {
                     VStack(spacing: 4) {
                         Thumbnail(url: url, version: mini.madeAt)
                             .frame(width: 96, height: 96)
@@ -149,7 +149,14 @@ struct MiniDetail: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(url == nil)
-                .help("Click to enlarge")
+                // Dragging a preview out drops the print file itself, under the mini's name.
+                if let stl = mini.stl {
+                    preview
+                        .onDrag { NSItemProvider(contentsOf: stl) ?? NSItemProvider() }
+                        .help("Click to enlarge. Drag to Finder or your slicer to copy the print file.")
+                } else {
+                    preview.help("Click to enlarge")
+                }
             }
         }
     }
