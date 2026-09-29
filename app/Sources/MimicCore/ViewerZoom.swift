@@ -50,3 +50,13 @@ public enum ViewerZoom {
                      Float(1 - point.y / size.height * 2) * halfHeight)
     }
 }
+
+/// How far through a glide (Face Front, a mini growing into place) the 3D view is: 0 to 1,
+/// easing in and out, so it starts and lands softly.
+public enum Glide {
+    public static func progress(elapsed: Double, over seconds: Double) -> Float {
+        guard seconds > 0 else { return 1 }
+        let x = Float(min(1, max(0, elapsed / seconds)))
+        return x * x * (3 - 2 * x)
+    }
+}

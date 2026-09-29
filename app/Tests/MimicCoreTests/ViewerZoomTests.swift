@@ -57,4 +57,14 @@ final class ViewerZoomTests: XCTestCase {
         XCTAssertEqual(left.x, -2 * halfHeight, accuracy: 1e-5, "twice as wide as tall")
         XCTAssertEqual(ViewerZoom.anchor(at: .zero, in: .zero, distance: 1.7, fieldOfView: 45), .zero)
     }
+
+    func testAGlideEasesFromStartToEndAndStaysThere() {
+        XCTAssertEqual(Glide.progress(elapsed: 0, over: 0.45), 0)
+        XCTAssertEqual(Glide.progress(elapsed: 0.225, over: 0.45), 0.5, accuracy: 1e-6)
+        XCTAssertLessThan(Glide.progress(elapsed: 0.05, over: 0.45), 0.05 / 0.45, "starts softly")
+        XCTAssertEqual(Glide.progress(elapsed: 0.45, over: 0.45), 1, "lands exactly")
+        XCTAssertEqual(Glide.progress(elapsed: 3, over: 0.45), 1, "a late frame doesn't overshoot")
+        XCTAssertEqual(Glide.progress(elapsed: -1, over: 0.45), 0)
+        XCTAssertEqual(Glide.progress(elapsed: 0, over: 0), 1, "no glide: already there")
+    }
 }
