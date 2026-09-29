@@ -9,6 +9,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 
 ### Fixed
 - `mimic --help` prints the commands instead of opening the app.
+- `mimic --help` prints the commands instead of opening the app.
 
 ## 0.5.0
 
