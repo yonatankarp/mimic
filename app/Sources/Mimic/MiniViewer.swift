@@ -20,8 +20,8 @@ struct MiniViewer: View {
     @State private var turn = SIMD2<Float>.zero  // yaw, pitch
     @State private var turnStart: SIMD2<Float>?
     @State private var zoom: Float = 1
-    @State private var zoomStart: Float?
-    @AppStorage("zoomOn") private var zoomOn = false
+    @State private var hovering = false
+    @State private var zoomEvents: Any?
     /// While Front plays its animation, the view leaves the transform to it.
     @State private var gliding = false
     /// The mini fades in once loaded, and out while the next one (or a resized one) loads, so
@@ -64,22 +64,30 @@ struct MiniViewer: View {
             turn = SIMD2(start.x + Float(g.translation.width) * 0.01,
                          min(1.1, max(-1.1, start.y + Float(g.translation.height) * 0.01)))
         }.onEnded { _ in turnStart = nil })
-        .simultaneousGesture(MagnifyGesture().onChanged { g in
-            guard zoomOn else { return }
-            let start = zoomStart ?? zoom
-            zoomStart = start
-            zoom = min(4, max(0.4, start * Float(g.magnification)))
-        }.onEnded { _ in zoomStart = nil })
         .onTapGesture(count: 2) { front() }
+        // Pinch and scroll zoom while the pointer is over the mini. Watched as window events, not
+        // a SwiftUI gesture: the 3D view kept pinches to itself, so a MagnifyGesture never fired.
+        .onContinuousHover { phase in if case .active = phase { hovering = true } else { hovering = false } }
+        .onAppear {
+            zoomEvents = NSEvent.addLocalMonitorForEvents(matching: [.magnify, .scrollWheel]) { event in
+                // A pinch reports how much it grew; a scroll how far it moved, in fine steps on a
+                // trackpad or Magic Mouse and coarse ones on a mouse wheel.
+                let factor: Float = event.type == .magnify
+                    ? 1 + Float(event.magnification)
+                    : 1 + Float(event.scrollingDeltaY) * (event.hasPreciseScrollingDeltas ? 0.004 : 0.04)
+                let used = MainActor.assumeIsolated { () -> Bool in
+                    guard hovering, !gliding else { return false }
+                    zoom = min(4, max(0.4, zoom * factor))
+                    return true
+                }
+                return used ? nil : event
+            }
+        }
+        .onDisappear { zoomEvents.map(NSEvent.removeMonitor); zoomEvents = nil }
         .overlay(alignment: .topTrailing) {
             HStack(spacing: 6) {
                 Button { front() } label: { Label("Face Front", systemImage: "arrow.counterclockwise") }
-                    .help("Turn the mini back to face you (or double-click it)")
-                // One label; the button looks pressed while it's on.
-                Toggle(isOn: $zoomOn) { Label("Pinch to Zoom", systemImage: "plus.magnifyingglass") }
-                    .toggleStyle(.button)
-                    .help(zoomOn ? "On: pinch on the trackpad to zoom the mini. Click to turn off." : "Click, then pinch on the trackpad to zoom the mini")
-                    .onChange(of: zoomOn) { _, on in if !on { zoom = 1 } }
+                    .help("Turn the mini back to face you and zoom back out (or double-click it)")
             }
             .glassButton()
             .controlSize(.small)
@@ -95,7 +103,7 @@ struct MiniViewer: View {
         }
         .overlay(alignment: .bottomTrailing) {
             if mini != nil {
-                Text("Drag to turn · double-click to face front").font(.caption).foregroundStyle(.secondary).padding(10)
+                Text("Drag to turn · pinch or scroll to zoom · double-click to face front").font(.caption).foregroundStyle(.secondary).padding(10)
             }
         }
         .overlay {
