@@ -129,6 +129,10 @@ public enum Prep {
         if o.groundBottom {
             let degrees = mesh.level()
             if degrees > 0 { log(String(format: "prep: levelled by %.1f°", degrees)) }
+            // Levelling squares up a lean; one on its side, upside down, or levelled onto the edge
+            // of its foot instead of the foot is then set on a side it can stand on (Mesh.rest).
+            let turned = mesh.rest()
+            if turned > 0 { log(String(format: "prep: set on its most stable side (turned %.0f°)", turned)) }
         }
         let height = Float(o.height)
 
@@ -279,6 +283,15 @@ extension Mesh {
     /// object with its overlapping parts (a separate spout or blade), without the specks. A
     /// mesh with no such piece (not welded, say) gives its whole bounds.
     func mainBounds(share: Float = 0.002) -> (lo: SIMD3<Float>, hi: SIMD3<Float>) {
+        var lo = SIMD3<Float>(repeating: .infinity), hi = -lo
+        for (t, keep) in zip(triangles, mainTriangles(share: share)) where keep {
+            for v in [t.x, t.y, t.z] { lo = simd_min(lo, positions[Int(v)]); hi = simd_max(hi, positions[Int(v)]) }
+        }
+        return lo.x <= hi.x ? (lo, hi) : bounds
+    }
+
+    /// Per triangle, whether its connected piece holds at least `share` of the surface area.
+    func mainTriangles(share: Float = 0.002) -> [Bool] {
         var parent = Array(0..<Int32(positions.count))
         func find(_ x: Int32) -> Int32 {
             var x = x
@@ -295,11 +308,7 @@ extension Mesh {
             let da = simd_length(simd_cross(b - a, c - a)) / 2
             area[find(Int32(t.x)), default: 0] += da; total += da
         }
-        var lo = SIMD3<Float>(repeating: .infinity), hi = -lo
-        for t in triangles where area[find(Int32(t.x)), default: 0] >= share * total {
-            for v in [t.x, t.y, t.z] { lo = simd_min(lo, positions[Int(v)]); hi = simd_max(hi, positions[Int(v)]) }
-        }
-        return lo.x <= hi.x ? (lo, hi) : bounds
+        return triangles.map { area[find(Int32($0.x)), default: 0] >= share * total }
     }
 
     /// The z below which `fraction` of the surface area lies.
