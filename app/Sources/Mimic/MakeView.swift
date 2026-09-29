@@ -255,7 +255,11 @@ struct MakeView: View {
         let runs = model.install.runs
         // Any mini or project with the name, in any project, except a failed attempt's folder,
         // which Make My Mini makes again.
-        let failedAttempt = Gallery.folder(runs, slug).map { !FileManager.default.fileExists(atPath: $0.appendingPathComponent("model.glb").path) } ?? false
+        let failedAttempt = Gallery.folder(runs, slug).map {
+            !FileManager.default.fileExists(atPath: $0.appendingPathComponent("model.glb").path)
+                && $0.deletingLastPathComponent().standardizedFileURL
+                    == (project.isEmpty || project == Self.newProject ? runs : runs.appendingPathComponent(project)).standardizedFileURL
+        } ?? false
         guard !slug.isEmpty,
               Gallery.nameInUse(runs, slug) && !failedAttempt
                 || model.waiting(slug) != nil || model.current?.name == slug

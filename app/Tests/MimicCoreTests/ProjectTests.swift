@@ -252,3 +252,24 @@ final class ProjectTests: XCTestCase {
         XCTAssertTrue(fm.fileExists(atPath: runs.appendingPathComponent("Bin/orc/orc.stl").path), "the spy trashes nothing: the minis weren't moved out first")
     }
 }
+
+extension ProjectTests {
+    /// Stop on a new mini in a project trashes that folder, not a same-named one elsewhere, and
+    /// leaves the project. (Leftover needs no test of its own here: it's keyed on runs/.job.pid,
+    /// never on a mini's path.)
+    func testStoppingANewMiniInAProjectTrashesItsOwnFolder() throws {
+        let fx = try Fixture(), runs = fx.install.runs
+        try fx.modelFiles()
+        try Gallery.createProject(runs, "Birds")
+        let picture = fx.root.appendingPathComponent("pic.png"); fm.createFile(atPath: picture.path, contents: Data([1]))
+        let spy = TrashSpy()
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("slow", "sleep 5")), trash: { spy($0) })
+        XCTAssertNil(try jobs.make(name: "raven", picture: .image(picture), restyle: false, seed: 1, sizes: sizes,
+                                   model: EngineDownload.standard, project: "Birds"))
+        for _ in 0..<100 where jobs.status?.step != 2 { usleep(50_000) }
+        XCTAssertTrue(jobs.cancel())
+        jobs.waitUntilDone()
+        XCTAssertEqual(spy.trashed.map(\.path), [runs.appendingPathComponent("Birds/raven").path])
+        XCTAssertEqual(Gallery.projects(runs), ["Birds"])
+    }
+}

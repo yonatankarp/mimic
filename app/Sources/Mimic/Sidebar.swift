@@ -40,10 +40,10 @@ struct Sidebar: View {
     private var list: some View {
         @Bindable var model = model
         let shown = Gallery.search(model.minis, query)
-        let searching = shown.count != model.minis.count
+        let searching = model.minis.count > Gallery.searchAfter && !query.trimmingCharacters(in: .whitespaces).isEmpty
         return List(selection: $model.selection) {
             if model.projects.isEmpty {
-                Section("Your Minis") { rows(shown, project: nil) }
+                Section { rows(shown, project: nil) } header: { header("Your Minis") }
             } else {
                 ForEach(model.projects, id: \.self) { project in
                     let inside = shown.filter { $0.project == project }
@@ -66,7 +66,7 @@ struct Sidebar: View {
                 Section {
                     rows(shown.filter { $0.project == nil }, project: nil)
                 } header: {
-                    Text("Unsorted")
+                    header("Unsorted")
                         .dropDestination(for: String.self) { names, _ in model.move(names, to: nil); return true }
                         .help("Minis in no project. Drag minis here to take them out of theirs.")
                 }
@@ -100,6 +100,18 @@ struct Sidebar: View {
                 .draggable(mini.name)
                 // Dropped on a mini: into that mini's project.
                 .dropDestination(for: String.self) { names, _ in model.move(names, to: project); return true }
+        }
+    }
+
+    /// A section's title with a + for a new project, so there's one in the list from the start.
+    private func header(_ title: String) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Button { model.sheet = .newProject(moving: nil) } label: { Image(systemName: "plus") }
+                .buttonStyle(.borderless)
+                .help("New Project (⇧⌘N): a folder to group minis in.")
+                .accessibilityLabel("New Project")
         }
     }
 
