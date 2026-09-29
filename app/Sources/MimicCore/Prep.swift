@@ -109,6 +109,13 @@ public enum Prep {
 
         var mesh = try GLB.read(URL(fileURLWithPath: o.glb))
         lap("read \(mesh.triangles.count) triangles")
+        // The 3D engine can leave an object leaning a few degrees (a teapot came out at 5, one
+        // drawn from above at 20), and a leaning object prints on the edge of its bottom. A
+        // character stands on its feet, which aren't a surface to level, so only objects.
+        if o.groundBottom {
+            let degrees = mesh.level()
+            if degrees > 0 { log(String(format: "prep: levelled by %.1f°", degrees)) }
+        }
         let height = Float(o.height)
 
         // Ground is where most of the bottom is, not the lowest vertex: a trailing wisp or
@@ -199,6 +206,39 @@ public enum Prep {
 }
 
 extension Mesh {
+    /// Turns the mesh so what it stands on faces straight down, and returns by how many degrees.
+    /// What it stands on is the downward-facing surface in its lowest tenth: the area-weighted
+    /// average of those triangles' facing, which is exact for a flat bottom and the axis for a
+    /// round one. Facing is taken as pointing down whichever way a triangle is wound, since the
+    /// generator's winding isn't reliable. Past 30° it's more likely a misreading (an object
+    /// lying on its side on purpose) than a lean, so it's left alone.
+    mutating func level(limit: Float = 30) -> Float {
+        var total: Float = 0
+        for _ in 0..<3 {  // the lowest tenth moves as it turns; three passes settle it
+            let (lo, hi) = bounds
+            let band = lo.z + 0.1 * (hi.z - lo.z)
+            var down = SIMD3<Float>.zero
+            for t in triangles {
+                let a = positions[Int(t.x)], b = positions[Int(t.y)], c = positions[Int(t.z)]
+                guard min(a.z, b.z, c.z) <= band else { continue }
+                var n = simd_cross(b - a, c - a)  // its length is twice the area: the weight
+                if n.z > 0 { n = -n }
+                let length = simd_length(n)
+                guard length > 0, n.z / length < -0.7 else { continue }
+                down += n
+            }
+            guard simd_length(down) > 0 else { break }
+            down = simd_normalize(down)
+            let angle = acos(min(1, -down.z)) * 180 / .pi
+            guard angle > 0.2, total + angle <= limit else { break }
+            let turn = simd_quatf(from: down, to: [0, 0, -1])
+            let centre = (lo + hi) / 2
+            for n in positions.indices { positions[n] = turn.act(positions[n] - centre) + centre }
+            total += angle
+        }
+        return total
+    }
+
     /// Points spread evenly over the surface, with the area each stands for (x, y, z, area):
     /// the centres of the triangles, long ones split until small. Blender measured the ground
     /// and the footprint on its remeshed vertices, which are even; the generator's are too, but

@@ -258,6 +258,28 @@ final class PrepTests: XCTestCase {
         XCTAssertEqual(result.lines.count, 1)
     }
 
+    /// An object the engine left leaning stands up straight on its bottom; a character, which
+    /// stands on its feet, is left as it is.
+    func testALeaningObjectIsLevelled() throws {
+        var m = Mesh()
+        m.add(Self.box(half: [1, 0.6, 0.4]), at: [0, 0, 0.4])
+        let lean = simd_quatf(angle: 12 * .pi / 180, axis: simd_normalize(SIMD3<Float>(1, 0.4, 0)))
+        m.positions = m.positions.map { lean.act($0) }
+        let (result, out, _) = try prep(["--fit", "longest", "--ground", "bottom", "--height", "40", "--no-base"], mesh: m)
+        let scale: Float = 40 / 2
+        XCTAssertGreaterThan(out.flatBottom, 0.9 * 2 * 1.2 * scale * scale, "stands on its whole bottom, not an edge")
+        XCTAssertEqual(out.bounds.hi.z - out.bounds.lo.z, 0.8 * scale + 0.16 - 0.4, accuracy: 0.4, "upright: its height is the box's")
+        XCTAssert(result.lines.isEmpty == false)
+
+        var tipped = m
+        XCTAssertEqual(tipped.level(), 12, accuracy: 0.5, "reads the lean")
+        var onItsSide = Mesh()
+        onItsSide.add(Self.box(half: [1, 0.6, 0.4]), at: [0, 0, 0.4])
+        let side = simd_quatf(angle: 50 * .pi / 180, axis: [1, 0, 0])
+        onItsSide.positions = onItsSide.positions.map { side.act($0) }
+        XCTAssertEqual(onItsSide.level(), 0, "past 30° it's left alone")
+    }
+
     /// Existing minis and jobs are untouched: no flags means exactly what the explicit
     /// character flags make, byte for byte.
     func testCharacterDefaultsAreTheExplicitDefaults() throws {

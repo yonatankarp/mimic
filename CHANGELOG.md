@@ -2,6 +2,19 @@
 
 What's new in each version of Mimic. The release workflow publishes a version's section here as its release notes, so write it for people who use Mimic, not for developers.
 
+## 0.3.0
+
+Mimic now shows you around, and makes more than characters.
+
+### New
+- **A quick tour** the first time you open Mimic. It points at the real buttons, and offers to make your first mini from a sample dwarf picture so you learn by doing. Replay it any time from Help → Show Tour.
+- **Make anything, not just characters.** New Mini starts with "What are you making?": a character (a mini, as before) or anything else, like a teapot, a vehicle or a statue. Objects get drawn and sculpted as objects, are sized by their longest side, are straightened to stand level on their own bottom, and get no round base unless you want one.
+- **Report a problem or share an idea** from the project page: the forms ask for exactly what helps.
+
+### Good to know
+- Your existing minis stay characters. Resize and Try Again keep whatever a mini was made as.
+- In Terminal: `mimic make teapot "a round teapot" --object`.
+
 ## 0.2.0
 
 Mimic is now a real Mac app. Download the disk image, drag Mimic to Applications, and open it.
