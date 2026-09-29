@@ -40,10 +40,10 @@ every box is ticked, in the app (and the command line where marked).
 
 ## Gallery
 - [x] Newest first, dated by the print file, "_" folders hidden
-- [ ] Search past six minis
-- [ ] Context menu: Open in <slicer>, Show in Finder, Rename…, Move to Trash…
+- [x] Search past six minis
+- [x] Context menu: Open in <slicer>, Show in Finder, Rename…, Move to Trash…
 - [x] Rename renames the folder and every file named after it; keeps the date
-- [ ] Move to Trash, with a confirmation
+- [x] Move to Trash, with a confirmation
 
 ## Settings
 - [ ] Nine health checks, run one at a time with a spinner each, required vs optional, "last checked"
