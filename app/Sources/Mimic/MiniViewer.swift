@@ -12,6 +12,8 @@ struct MiniViewer: View {
     let stl: URL
     /// The print file's date: a resize rewrites the file under the same name.
     let version: Date
+    /// "Dwarf Cleric", for VoiceOver.
+    let name: String
     @State private var mini: Entity?
     @State private var size: String?
     @State private var failed = false
@@ -43,6 +45,8 @@ struct MiniViewer: View {
                                        translation: .zero)
         }
         .realityViewCameraControls(.none)
+        .accessibilityElement()
+        .accessibilityLabel(size.map { "3D view of \(name), \($0)" } ?? "3D view of \(name)")
         .background(Color(nsColor: .windowBackgroundColor).opacity(0.6))
         .contentShape(Rectangle())
         .gesture(DragGesture(minimumDistance: 3).onChanged { g in
@@ -60,11 +64,12 @@ struct MiniViewer: View {
         .onTapGesture(count: 2) { front() }
         .overlay(alignment: .topTrailing) {
             HStack(spacing: 6) {
-                Button { front() } label: { Label("Front", systemImage: "arrow.counterclockwise") }
-                    .help("Back to the front view (or double-click the mini)")
-                Toggle(isOn: $zoomOn) { Label(zoomOn ? "Zoom On" : "Zoom Locked", systemImage: zoomOn ? "plus.magnifyingglass" : "lock") }
+                Button { front() } label: { Label("Face Front", systemImage: "arrow.counterclockwise") }
+                    .help("Turn the mini back to face you (or double-click it)")
+                // One label; the button looks pressed while it's on.
+                Toggle(isOn: $zoomOn) { Label("Pinch to Zoom", systemImage: "plus.magnifyingglass") }
                     .toggleStyle(.button)
-                    .help("When unlocked, pinch on the trackpad to zoom the mini")
+                    .help(zoomOn ? "On: pinch on the trackpad to zoom the mini. Click to turn off." : "Click, then pinch on the trackpad to zoom the mini")
                     .onChange(of: zoomOn) { _, on in if !on { zoom = 1 } }
             }
             .controlSize(.small)
@@ -76,6 +81,11 @@ struct MiniViewer: View {
                     .padding(.horizontal, 8).padding(.vertical, 3)
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
                     .padding(10)
+            }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if mini != nil {
+                Text("Drag to turn · double-click to face front").font(.caption).foregroundStyle(.secondary).padding(10)
             }
         }
         .overlay {
@@ -126,7 +136,7 @@ struct MiniViewer: View {
 
     /// Print files are Z-up millimetres; the scene is Y-up metres. The mini is centred and
     /// scaled so the default camera's framing fits it. Also returns its size in millimetres,
-    /// "34 mm tall · 25 × 33 mm".
+    /// "34 mm tall with base · 25 × 33 mm footprint".
     static func load(_ url: URL) throws -> (Entity, String) {
         let asset = MDLAsset(url: url)
         guard let mesh = asset.childObjects(of: MDLMesh.self).first as? MDLMesh else { throw CocoaError(.fileReadCorruptFile) }
@@ -144,7 +154,7 @@ struct MiniViewer: View {
             points.append(v); lo = simd_min(lo, v); hi = simd_max(hi, v)
         }
         let dims = hi - lo
-        let size = "\(Int(dims.y.rounded())) mm tall · \(Int(dims.x.rounded())) × \(Int(dims.z.rounded())) mm"
+        let size = "\(Int(dims.y.rounded())) mm tall with base · \(Int(dims.x.rounded())) × \(Int(dims.z.rounded())) mm footprint"
         let centre = (lo + hi) / 2  // the middle of the mini, so it turns in place
         let scale = 1 / max(dims.y, 1)  // 1 m tall: fills the default camera's view
         points = points.map { ($0 - centre) * scale }
