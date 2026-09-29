@@ -47,7 +47,9 @@ struct MiniViewer: View {
         .realityViewCameraControls(.none)
         .accessibilityElement()
         .accessibilityLabel(size.map { "3D view of \(name), \($0)" } ?? "3D view of \(name)")
-        .background(Color(nsColor: .windowBackgroundColor).opacity(0.6))
+        // A soft stage for the mini to stand on, lighter in the middle like a studio backdrop.
+        .background(RadialGradient(colors: [Color.primary.opacity(0.07), Color.primary.opacity(0.02)],
+                                   center: .center, startRadius: 40, endRadius: 520))
         .contentShape(Rectangle())
         .gesture(DragGesture(minimumDistance: 3).onChanged { g in
             let start = turnStart ?? turn
@@ -72,14 +74,15 @@ struct MiniViewer: View {
                     .help(zoomOn ? "On: pinch on the trackpad to zoom the mini. Click to turn off." : "Click, then pinch on the trackpad to zoom the mini")
                     .onChange(of: zoomOn) { _, on in if !on { zoom = 1 } }
             }
+            .glassButton()
             .controlSize(.small)
-            .padding(8)
+            .padding(10)
         }
         .overlay(alignment: .bottomLeading) {
             if let size {
-                Text(size).font(.caption.monospaced()).foregroundStyle(.secondary)
-                    .padding(.horizontal, 8).padding(.vertical, 3)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+                Text(size).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .glassCard(cornerRadius: 10)
                     .padding(10)
             }
         }

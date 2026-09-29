@@ -13,16 +13,15 @@ struct MiniDetail: View {
         let tips = PrintTips(nozzle: settings.made?.nozzle ?? settings.requested?.nozzle ?? SizeCard.remembered().nozzle)
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
-                if let made = settings.made {
-                    Text(PrintTips.nowLine(made)).foregroundStyle(.secondary)
-                }
                 Spacer()
                 Button("Resize This Mini…") { model.sheet = .resize(mini) }
                     .help("Remakes the print file with new sizes. About a minute. The character itself doesn't change.")
                     .disabled(!mini.hasModel || model.cantStart != nil)
+                    .glassButton()
                 Button("Show in Finder") { model.showInFinder(mini) }
+                    .glassButton()
                 Button("Open in \(model.slicerName)") { if let stl = mini.stl { model.openInSlicer(stl) } }
-                    .buttonStyle(.borderedProminent)
+                    .glassButton(prominent: true)
                     .disabled(mini.stl == nil)
             }
             if let job = model.job, job.name == mini.name, job.succeeded, job.fragile {
@@ -31,7 +30,7 @@ struct MiniDetail: View {
             }
             if let stl = mini.stl {
                 MiniViewer(stl: stl, version: mini.madeAt, name: mini.displayName)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
             } else {
                 ContentUnavailableView("This mini isn't finished yet.", systemImage: "hourglass")
             }
@@ -47,6 +46,8 @@ struct MiniDetail: View {
         }
         .padding()
         .navigationTitle(mini.displayName)
+        // What it was made at, under the name in the title bar, where the Mac puts a document's details.
+        .navigationSubtitle(settings.made.map(PrintTips.nowLine) ?? "")
         .sheet(item: $enlarged) { e in
             VStack(spacing: 12) {
                 Thumbnail(url: e.url, version: mini.madeAt)
@@ -71,7 +72,8 @@ struct MiniDetail: View {
                     VStack(spacing: 4) {
                         Thumbnail(url: url, version: mini.madeAt)
                             .frame(width: 96, height: 96)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .glassCard(cornerRadius: 12)
                         Text(caption).font(.caption).foregroundStyle(.secondary)
                     }
                 }
@@ -83,7 +85,8 @@ struct MiniDetail: View {
     }
 
     private func tipsBox(_ tips: PrintTips) -> some View {
-        GroupBox("🖨️ Print tips for a \(tips.nozzle) mm nozzle") {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("🖨️ Print tips for a \(tips.nozzle) mm nozzle").font(.headline)
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(tips.lines, id: \.self) { Text("• " + $0) }
                 Button(copied ? "✓ Copied" : "Copy Settings") {
@@ -92,11 +95,14 @@ struct MiniDetail: View {
                     copied = true
                     Task { try? await Task.sleep(for: .seconds(1.5)); copied = false }
                 }
+                .glassButton()
                 .padding(.top, 4)
             }
             .font(.callout)
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .glassCard(cornerRadius: 16)
     }
 }
 
