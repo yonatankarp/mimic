@@ -267,9 +267,12 @@ private struct Stage: NSViewRepresentable {
         /// leave the shadows black. A plain studio, lighter overhead than underfoot.
         static let ambience: Float = 0
         static func studio() -> EnvironmentResource? {
-            let (width, height) = (64, 32)
-            let pixels = (0..<height).flatMap { y in
-                [UInt8](repeating: UInt8(235 - 120 * y / (height - 1)), count: width)
+            let width = 64, height = 32
+            // Row by row, lighter overhead: written out because Swift 6.3 can't type-check it as one expression.
+            var pixels: [UInt8] = []
+            for y in 0..<height {
+                let shade: Int = 235 - 120 * y / (height - 1)
+                pixels += [UInt8](repeating: UInt8(shade), count: width)
             }
             guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width,
                                           space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue) else { return nil }
