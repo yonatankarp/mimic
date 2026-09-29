@@ -57,6 +57,25 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   doesn't. A percentile of the surface, like the ground's, trimmed thin tips: a real teapot's
   spouts came out 90 mm long for 80. Prep with neither flag writes the
   same bytes as before (checked against hashes taken before the change, and by a test).
+- **An object that can't stand is set on a side it can** (`Mesh.rest`, `MimicCore/Rest.swift`),
+  after levelling. Its sides are the faces of its convex hull (quickhull over one point per
+  1/256 grid cell of the main pieces, so floating specks don't hold it up), a side being the hull
+  faces lying flat together within 3°. Counting every point near the floor instead made a round
+  body a small flat disc, and every real model "stood" at every angle. It stands on a side if it
+  survives a 10° tilt there: atan(r/h), r from its centre of mass (the volume centroid when the
+  surface closes, else the area centroid, since the generator's winding isn't reliable) in to the
+  side's nearest edge, h its height. Measured: the real bases 14° (teapot2), 16° (vase), 24°
+  (teapot); round sides at most 6.5°; a vase upside down on its mouth's rim 7.5°; a 4:1 box on
+  its end 14°, so it stands, where a 6:1 one (9.5°) is laid down. Standing on a side within 10°
+  of down, it is left alone however much steadier lying would be: a vase, a pillar or a statue
+  with a flat back is never laid down, so "much more stable elsewhere" is deliberately not a
+  reason. Otherwise it goes onto the steadiest side (most lift, sqrt(r² + h²) − h, to tip it)
+  within 30° of down, else of all. The real teapot had been levelled 2.8° onto the edge of its
+  foot and printed 20° askew; it is now set on its foot. The other real objects, and every
+  character, give the same bytes as before; turned 90° either way or 180°, the teapots and the
+  vase all came back upright on their bases (0.3–0.5 s for a million triangles, release build).
+  Limit: a thin part hanging below the base (the test fixture's wisp) is something it rests on,
+  so such an object reads as unable to stand and is laid down.
 - **Same data on disk.** `runs/<name>/` with `<name>.stl`, `<name>_{front,side,back}.png`,
   `source.png` and `settings.json` (`requested` / `made` / how it was made), so minis made by
   the web version appear in the app unchanged.

@@ -152,13 +152,18 @@ final class PrepTests: XCTestCase {
         }
     }
 
+    /// What the last `prep` logged.
+    var logged: [String] = []
+
     func prep(_ extra: [String] = [], mesh: Mesh = fixture()) throws -> (Prep.Result, Printed, URL) {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("prep-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
         let glb = dir.appendingPathComponent("fixture.glb"), stl = dir.appendingPathComponent("out.stl")
         try Self.glb(mesh, translation: [0.8, -0.5, 0]).write(to: glb)
-        let result = try Prep.run(PrepOptions.parse([glb.path, stl.path] + extra))
+        var lines: [String] = []
+        let result = try Prep.run(PrepOptions.parse([glb.path, stl.path] + extra)) { lines.append($0) }
+        logged = lines
         return (result, try Printed(stl), stl)
     }
 
@@ -212,12 +217,17 @@ final class PrepTests: XCTestCase {
     /// turned round, not levelled against the wrong side.
     func testTurningAndLevellingCompose() throws {
         let (_, plain, _) = try prep(["--ground", "bottom", "--fit", "longest", "--faces", "20000"])
+        let plainRest = logged.filter { $0.contains("stable side") }
         let (_, turned, _) = try prep(["--ground", "bottom", "--fit", "longest", "--turn", "180", "--faces", "20000"])
         let (a, b) = (plain.bounds, turned.bounds)
         XCTAssertEqual(b.lo.x, -a.hi.x, accuracy: 0.3); XCTAssertEqual(b.hi.x, -a.lo.x, accuracy: 0.3)
         XCTAssertEqual(b.lo.y, -a.hi.y, accuracy: 0.3); XCTAssertEqual(b.hi.y, -a.lo.y, accuracy: 0.3)
         XCTAssertEqual(b.hi.z - b.lo.z, a.hi.z - a.lo.z, accuracy: 0.2)
         XCTAssertTrue(turned.watertight)
+        // As an object, the wisp hanging below its feet leaves it unable to stand (it rocks on
+        // the wisp's tip), so both are laid down: the same way, or this passes by symmetry alone.
+        XCTAssertEqual(logged.filter { $0.contains("stable side") }, plainRest)
+        XCTAssertEqual(plainRest.count, 1)
     }
 
     /// JobRunner marks a mini fragile when it reads this marker.
@@ -303,6 +313,96 @@ final class PrepTests: XCTestCase {
         let side = simd_quatf(angle: 50 * .pi / 180, axis: [1, 0, 0])
         onItsSide.positions = onItsSide.positions.map { side.act($0) }
         XCTAssertEqual(onItsSide.level(), 0, "past 30° it's left alone")
+    }
+
+    // MARK: Setting an object on a side it can stand on
+
+    static func turned(_ m: Mesh, _ degrees: Float, about axis: SIMD3<Float>) -> Mesh {
+        var m = m
+        let q = simd_quatf(angle: degrees * .pi / 180, axis: simd_normalize(axis))
+        m.positions = m.positions.map { q.act($0) }
+        return m
+    }
+
+    /// A frustum: a closed cylinder whose top is `top` times as wide as its bottom.
+    static func frustum(radius: Float, top: Float, depth: Float) -> Mesh {
+        var m = cylinder(radius: radius, depth: depth)
+        m.positions = m.positions.map { $0.z > 0 ? SIMD3($0.x * top, $0.y * top, $0.z) : $0 }
+        return m
+    }
+
+    func prepObject(_ m: Mesh) throws -> (Printed, Bool) {
+        let (_, out, _) = try prep(["--fit", "longest", "--ground", "bottom", "--height", "60", "--no-base", "--faces", "20000"], mesh: m)
+        return (out, logged.contains { $0.hasPrefix("prep: set on its most stable side") })
+    }
+
+    /// A box lying at 50°, past what levelling straightens, comes to rest on its biggest face.
+    func testABoxOnItsEdgeIsSetOnItsBiggestFace() throws {
+        var m = Mesh()
+        m.add(Self.box(half: [1, 0.6, 0.4]), at: [0, 0, 0])
+        let (out, turned) = try prepObject(Self.turned(m, 50, about: [1, 0, 0]))
+        let scale: Float = 60 / 2
+        XCTAssertTrue(turned, "\(logged)")
+        XCTAssertGreaterThan(out.flatBottom, 0.9 * 2 * 1.2 * scale * scale, "on its 2 x 1.2 face")
+        XCTAssertEqual(out.bounds.hi.z - out.bounds.lo.z, 0.8 * scale + 0.16 - 0.4, accuracy: 0.4)
+        XCTAssertTrue(out.watertight)
+    }
+
+    /// A box 4 times as tall as wide stands on its end, and stays standing: it can be tilted
+    /// 14° before it tips, and a vase or a tower is meant to stand. Past levelling's reach it
+    /// lies on its long side; and one 6 times as tall (9.5°) is too easily knocked over to print
+    /// standing, so it is laid down.
+    func testATallBoxStandsButATippedOrSpindlyOneLiesDown() throws {
+        var tall = Mesh()
+        tall.add(Self.box(half: [0.25, 0.25, 1]), at: [0, 0, 1])
+        var (out, turned) = try prepObject(tall)
+        XCTAssertFalse(turned, "\(logged)")
+        XCTAssertEqual(out.bounds.hi.z - out.bounds.lo.z, 60 + 0.16 - 0.4, accuracy: 0.4, "standing")
+
+        (out, turned) = try prepObject(Self.turned(tall, 60, about: [1, 0, 0]))
+        XCTAssertTrue(turned, "\(logged)")
+        XCTAssertEqual(out.bounds.hi.z - out.bounds.lo.z, 0.5 * 30 + 0.16 - 0.4, accuracy: 0.4, "on its long side")
+
+        var spindly = Mesh()
+        spindly.add(Self.box(half: [0.25, 0.25, 1.5]), at: [0, 0, 1.5])
+        (out, turned) = try prepObject(spindly)
+        XCTAssertTrue(turned, "\(logged)")
+        XCTAssertEqual(out.bounds.hi.z - out.bounds.lo.z, 0.5 * 20 + 0.16 - 0.4, accuracy: 0.4, "on its long side")
+    }
+
+    /// A teapot upside down on its lid's knob (it tips at 5°) is set back on its base; a cup
+    /// upside down on its wide rim stands there: like a vase, it isn't the steadier side that
+    /// decides, only whether it can stand. (On the mesh itself: at print size a fixture this
+    /// coarse loses its knob to the trim, which is what the real teapots are for.)
+    func testAnUpsideDownTeapotIsTurnedOverButAnUpsideDownCupStands() throws {
+        var pot = Mesh()
+        pot.add(Self.cylinder(radius: 0.5, depth: 0.6), at: [0, 0, 0.3])       // body on a flat base
+        pot.add(Self.cylinder(radius: 0.05, depth: 0.2), at: [0, 0, 0.65])    // the knob
+        pot.add(Self.box(half: [0.2, 0.06, 0.06]), at: [0.65, 0, 0.4])          // spout
+        pot.add(Self.box(half: [0.08, 0.03, 0.15]), at: [-0.55, 0, 0.35])       // handle
+        let knob = (32 * 2 + 2)..<(2 * (32 * 2 + 2))
+        var upside = Self.turned(pot, 180, about: [1, 0.2, 0])
+        XCTAssertEqual(upside.level(), 0)
+        XCTAssertEqual(upside.rest(), 180, accuracy: 0.5)
+        let (lo, hi) = upside.bounds
+        XCTAssertEqual(hi.z - lo.z, 0.75, accuracy: 0.01, "upright")
+        XCTAssertEqual(upside.positions[knob].map(\.z).max()!, hi.z, accuracy: 1e-4, "knob on top")
+        var upright = pot
+        XCTAssertEqual(upright.rest(), 0, "a teapot on its base stays")
+        XCTAssertEqual(upright.positions, pot.positions, "untouched")
+
+        var cup = Self.turned(Self.frustum(radius: 0.3, top: 5.0 / 3, depth: 0.8), 180, about: [1, 0, 0])
+        let before = cup.positions
+        XCTAssertEqual(cup.rest(), 0)
+        XCTAssertEqual(cup.positions, before)
+    }
+
+    /// Only objects: a character lying down is left lying, exactly as before.
+    func testACharacterIsNeverTurned() throws {
+        let (_, out, _) = try prep(["--faces", "20000"], mesh: Self.turned(Self.fixture(), 90, about: [1, 0, 0]))
+        XCTAssertFalse(logged.contains { $0.contains("stable side") }, "\(logged)")
+        let (lo, hi) = out.bounds
+        XCTAssertGreaterThan(hi.y - lo.y, 2 * (hi.z - lo.z), "still lying down")
     }
 
     /// Existing minis and jobs are untouched: no flags means exactly what the explicit

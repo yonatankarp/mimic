@@ -13,6 +13,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 - **Times that fit your Mac.** Mimic times every mini it makes and estimates the next from the ones like it: in New Mini ("about 8 minutes on this Mac"), in the progress window (time left for each step), for the queue, and for each 3D model in Settings. Until you've made a few, it uses its own figures.
 - Settings → Time estimates says how many minis the estimates are based on, with Clear to start over. The times are kept on your Mac only and never sent anywhere.
 - **Zoom with your mouse.** Scroll the wheel, or pinch or two-finger scroll on a trackpad, over the 3D view. The "Pinch to Zoom" switch is gone; Face Front zooms back out.
+- **Objects stand the right way up.** One that comes out on its side, upside down or tilted on the edge of its foot is set on its steadiest flat side before printing; one that already stands is left as it is.
 - **Better AI descriptions.** Glowing, sparks and smoke are taken out of improved descriptions (they don't print), and Settings suggests the best local model you have installed.
 
 ### Fixed
