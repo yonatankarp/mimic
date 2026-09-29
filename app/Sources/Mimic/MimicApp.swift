@@ -13,6 +13,7 @@ struct MimicApp: App {
         Window("Mimic", id: "main") {
             ContentView()
                 .modifier(MainWindowChrome())
+                .modifier(TourHost())
                 .frame(minWidth: 900, minHeight: 680)
                 .environment(model)
         }
@@ -26,6 +27,8 @@ struct MimicApp: App {
             MiniCommands(model: model)
             CommandGroup(replacing: .help) {
                 Button("Mimic Help") { NSWorkspace.shared.open(Self.help) }
+                Button("Show Tour") { TourGuide.shared.begin() }
+                    .disabled(!model.setup.installed || model.sheet != nil)
             }
         }
         Settings {

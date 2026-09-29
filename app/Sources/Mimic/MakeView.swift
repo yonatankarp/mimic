@@ -38,6 +38,7 @@ struct MakeView: View {
                         Text("✍️ Describe it").tag(Start.description)
                     }
                     .pickerStyle(.segmented)
+                    .tourStop(.start, arrow: .trailing)
                     .help("From a picture: art or a photo of your character. Describe it: Draw Things draws the character from your words first.")
                     if start == .picture { picturePane } else { descriptionPane }
                     TextField("Name your mini", text: $name, prompt: Text("e.g. Dwarf Cleric"))
@@ -77,11 +78,14 @@ struct MakeView: View {
                 Button("Make My Mini") { make() }
                     .help("Takes about 7–10 minutes. You can keep using your Mac meanwhile.")
                     .keyboardShortcut(.defaultAction)
+                    .tourStop(.make, arrow: .top)  // before .disabled, which its popover would inherit
                     .disabled(model.cantStart != nil || takenName != nil || missing != nil)
             }
             .padding(16)
             .fixedSize(horizontal: false, vertical: true)
         }
+        // The tour's "Use the Sample": its picture and name, ready to make.
+        .onAppear { if let url = TourGuide.shared.takeSample() { name = TourGuide.sampleName; take(url) } }
         .frame(width: 580, height: 640)  // fits under the toolbar of the smallest main window; the form scrolls
         .task {
             // Describe it and the grey sculpt need Draw Things, and Make needs every required
@@ -348,6 +352,7 @@ struct SizeSection: View {
                 Text("✨ Best print").tag(SizeCard.Purpose.display)
             }
             .pickerStyle(.segmented)
+            .tourStop(.size, arrow: .top)
             .help("Game scale: the same size as the other minis on your table. Best print: as big as your nozzle needs for faces to come out clearly.")
             if card.purpose == .game {  // Best print explains itself in its note below
                 Text("Matches the other minis on your table.").font(.callout).foregroundStyle(.secondary)

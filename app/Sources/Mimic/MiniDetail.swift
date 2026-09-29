@@ -24,6 +24,7 @@ struct MiniDetail: View {
                 Button("Open in \(model.slicerName)") { if let stl = mini.stl { model.openInSlicer(stl) } }
                     .help("Opens the print file in \(model.slicerName) to slice and print. Choose another slicer in Settings.")
                     .glassButton(prominent: true)
+                    .tourStop(.mini)  // before .disabled, which its popover would inherit
                     .disabled(mini.stl == nil)
             }
             if let job = model.job, job.name == mini.name, job.succeeded, job.fragile {

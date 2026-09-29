@@ -113,6 +113,15 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   folder, and reading that makes macOS ask for access to another app's data and block until
   answered: Settings sat on a spinner. The API's selected model comes first; the folder is a
   fallback with a 3-second limit.
+- **The first-run tour is popovers on the real controls** (`Sources/Mimic/TourGuide.swift`;
+  when it starts and what comes next is `MimicCore/Tour.swift`, tested). Anchor preferences
+  can't reach the toolbar or the New Mini sheet, which are hosted apart from the window's
+  content; a popover can, and never covers what it points at. `interactiveDismissDisabled`
+  keeps one up while you click around (without it a click anywhere ended the tour); Skip and
+  Esc end it, and a stop whose control isn't on screen (no mini yet) is skipped. The sample
+  picture ships in SwiftPM's `Mimic_Mimic.bundle`, which `bundle.sh` copies into
+  Contents/Resources; it's looked up by hand, not through `Bundle.module`, whose accessor
+  stops the app when the bundle is missing. Seen once: Help → Show Tour replays it.
 - **Self-signed, by decision.** The disk image is downloaded through a browser, so macOS
   quarantines it and the first open needs System Settings → Privacy & Security → Open Anyway,
   once; the README and a note in the disk image say so. A Developer ID would remove that step.

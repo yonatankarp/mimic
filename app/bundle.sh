@@ -22,6 +22,8 @@ rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin" "$app/Contents/MacOS/mimic"
 cp Mimic.icns "$app/Contents/Resources/Mimic.icns"
+# SwiftPM's resource bundle (the tour's sample picture); Bundle.main.resourceURL is where the app looks.
+cp -R "$(dirname "$bin")/Mimic_Mimic.bundle" "$app/Contents/Resources/"
 cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
