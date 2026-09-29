@@ -7,6 +7,9 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 ### New
 - **Mimic checks for updates.** Once a day, and from Mimic → Check for Updates…: a new version shows as a small note in the toolbar with what's new, and Update downloads it, checks it, replaces Mimic and opens it again (never while a mini is being made or waiting). Turn it off in Settings → Updates. Only GitHub's public release information is read; nothing about your Mac or your minis is sent.
 
+### Fixed
+- `mimic --help` prints the commands instead of opening the app.
+
 ## 0.5.0
 
 ### New
