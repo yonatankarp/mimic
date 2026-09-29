@@ -113,6 +113,10 @@ public struct SetupProgress: Sendable, Equatable {
     /// Bytes of `EngineDownload.totalBytes` that are in place and checked, or on their way.
     public var done: Int64
     public var total: Int64
+
+    public init(activity: Activity, done: Int64, total: Int64) {
+        self.activity = activity; self.done = done; self.total = total
+    }
 }
 
 /// First-launch setup: moves an old install's engine out of image-to-3dlab, then downloads

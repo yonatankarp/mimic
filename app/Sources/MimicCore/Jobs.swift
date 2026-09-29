@@ -13,6 +13,10 @@ public struct JobStatus: Equatable, Sendable {
     public var problem: String?
     public var fragile = false
     public var succeeded: Bool { !running && !canceled && exit == 0 }
+
+    public init(name: String, kind: JobKind, step: Int, started: Date) {
+        self.name = name; self.kind = kind; self.step = step; self.started = started
+    }
 }
 
 /// Where the picture for a new mini comes from.

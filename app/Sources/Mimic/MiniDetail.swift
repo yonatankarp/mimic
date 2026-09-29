@@ -114,15 +114,24 @@ private struct Enlarged: Identifiable {
 }
 
 /// A picture from a mini's folder, read again when the mini changes (a resize rewrites the
-/// previews under the same names, which a URL-keyed cache would miss).
-private struct Thumbnail: View {
+/// previews under the same names, which a URL-keyed cache would miss). A new picture fades in
+/// over the old one rather than popping; the progress sheet uses it too.
+struct Thumbnail: View {
     let url: URL?
     let version: Date
     @State private var image: NSImage?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        Group {
-            if let image { Image(nsImage: image).resizable().scaledToFit() } else { Color.secondary.opacity(0.15) }
+        ZStack {
+            if let image {
+                Image(nsImage: image).resizable().scaledToFit()
+                    .id(ObjectIdentifier(image))
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.94)))
+            } else {
+                Color.secondary.opacity(0.15)
+            }
         }
+        .animation(.easeOut(duration: 0.4), value: image.map(ObjectIdentifier.init))
         .task(id: "\(url?.path ?? "")\(version)") { image = url.flatMap(NSImage.init(contentsOf:)) }
     }
 }
