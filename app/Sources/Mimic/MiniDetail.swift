@@ -17,7 +17,7 @@ struct MiniDetail: View {
                     Text(PrintTips.nowLine(made)).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("🔁 Resize This Mini…") { model.sheet = .resize(mini) }
+                Button("Resize This Mini…") { model.sheet = .resize(mini) }
                     .help("Remakes the print file with new sizes. About 30 seconds. The character itself doesn't change.")
                     .disabled(!hasModel || model.cantStart != nil)
                 Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([mini.stl ?? mini.folder]) }
@@ -35,23 +35,14 @@ struct MiniDetail: View {
             } else {
                 ContentUnavailableView("This mini isn't finished yet.", systemImage: "hourglass")
             }
-            HStack(alignment: .top, spacing: 10) {
-                ForEach([("Your picture", mini.source)] + mini.renders.map { ($0.view.capitalized, Optional($0.url)) },
-                        id: \.0) { caption, url in
-                    Button { enlarged = url } label: {
-                        VStack(spacing: 4) {
-                            Thumbnail(url: url, version: mini.madeAt)
-                                .frame(width: 96, height: 96)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                            Text(caption).font(.caption).foregroundStyle(.secondary)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(url == nil)
-                    .help("Click to enlarge")
+            // Tips beside the previews when the window is wide enough, under them otherwise.
+            if mini.stl == nil {
+                previews
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 16) { previews; tipsBox(tips).frame(width: 330) }
+                    VStack(alignment: .leading, spacing: 10) { previews; tipsBox(tips) }
                 }
-                Spacer(minLength: 16)
-                if mini.stl != nil { tipsBox(tips) }
             }
         }
         .padding()
@@ -65,12 +56,31 @@ struct MiniDetail: View {
         }
     }
 
+    private var previews: some View {
+        HStack(alignment: .top, spacing: 10) {
+            ForEach([("Your picture", mini.source)] + mini.renders.map { ($0.view.capitalized, Optional($0.url)) },
+                    id: \.0) { caption, url in
+                Button { enlarged = url } label: {
+                    VStack(spacing: 4) {
+                        Thumbnail(url: url, version: mini.madeAt)
+                            .frame(width: 96, height: 96)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                        Text(caption).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+                .disabled(url == nil)
+                .help("Click to enlarge")
+            }
+        }
+    }
+
     private var hasModel: Bool { FileManager.default.fileExists(atPath: mini.folder.appendingPathComponent("model.glb").path) }
 
     private func tipsBox(_ tips: PrintTips) -> some View {
         GroupBox("🖨️ Print tips for a \(tips.nozzle) mm nozzle") {
             VStack(alignment: .leading, spacing: 4) {
-                ForEach(tips.lines, id: \.self) { Text("• " + $0).fixedSize(horizontal: false, vertical: true) }
+                ForEach(tips.lines, id: \.self) { Text("• " + $0) }
                 Button(copied ? "✓ Copied" : "Copy Settings") {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(tips.copyText, forType: .string)
@@ -82,7 +92,6 @@ struct MiniDetail: View {
             .font(.callout)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(maxWidth: 340)
     }
 }
 

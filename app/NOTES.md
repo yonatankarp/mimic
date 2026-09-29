@@ -27,6 +27,9 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   mesh takes 0.37 s (573 MB). Both are fine; SceneKit is no longer developed, so RealityKit.
   RealityKit can't open STL, so Model I/O reads it and the triangles become a `MeshResource`,
   flat-shaded (one normal per triangle, like every slicer).
+- **The 3D view turns the mini, not a camera.** RealityKit's orbit controls always zoom on
+  scroll and can't be told not to, so dragging rotates the mini and a pinch zooms it once
+  unlocked; Front and double-click reset that one transform. Scroll-wheel zoom isn't offered.
 - **Jobs run in their own session** (`GroupProcess`, `posix_spawn` + `POSIX_SPAWN_SETSID`),
   so Stop ends the whole chain. Foundation's `Process` can't do that. Proven by
   `GroupProcessTests`, including the test that shows the child surviving without a session.

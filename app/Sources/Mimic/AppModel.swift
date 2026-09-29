@@ -26,15 +26,11 @@ final class AppModel {
     var selection: Mini.ID?
     /// The job's latest status, updated on the main thread; nil before the first job.
     var job: JobStatus?
-    /// Why a job can't start (a required check failed), or nil. Set by Settings' health checks.
-    var requiredProblem: String?
+    /// Why a job can't start (a required check failed), or nil: the latest health checks.
+    var requiredProblem: String? { Health.shared.blocking }
     var sheet: AppSheet?
     /// The job has a place on screen: its sheet, or the toolbar item it went to. Close clears it.
     var jobShown = false
-    /// Draw Things is running with FLUX.2 Klein downloaded: needed to describe a character or
-    /// turn a picture into a grey sculpt.
-    var drawThingsReady = false
-    private let drawThings = DrawThings()
 
     init() {
         let install = Install.locate()
@@ -111,18 +107,6 @@ final class AppModel {
         reload()
         if s.succeeded { selection = s.name }
         if finished { announce(s) }
-    }
-
-    // MARK: Draw Things
-
-    /// Watches Draw Things for as long as the calling view is on screen: it can be opened or
-    /// quit at any moment.
-    func watchDrawThings() async {
-        while !Task.isCancelled {
-            let dt = drawThings
-            drawThingsReady = await Task.detached { dt.reachable() && dt.model() != nil }.value
-            try? await Task.sleep(for: .seconds(drawThingsReady ? 15 : 5))
-        }
     }
 
     // MARK: Telling you it's done

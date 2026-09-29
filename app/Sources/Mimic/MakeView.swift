@@ -9,6 +9,7 @@ struct MakeView: View {
     enum Start: String { case picture, description }
 
     @Environment(AppModel.self) private var model
+    private let health = Health.shared
     @State private var start = Start.picture
     @State private var picture: Picture?
     @State private var choosing = false
@@ -55,7 +56,7 @@ struct MakeView: View {
                 }
                 Spacer()
                 Button("Cancel") { model.sheet = nil }.keyboardShortcut(.cancelAction)
-                Button("✨ Make My Mini") { make() }
+                Button("Make My Mini") { make() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(model.cantStart != nil || takenName != nil)
             }
@@ -63,7 +64,12 @@ struct MakeView: View {
             .fixedSize(horizontal: false, vertical: true)
         }
         .frame(width: 580, height: 720)
-        .task { await model.watchDrawThings() }
+        .task {
+            // Describe it and the grey sculpt need Draw Things, and Make needs every required
+            // part: check them once if nothing has yet, then keep watching Draw Things.
+            if health.lastChecked == nil && !health.running { health.check(model.install) }
+            await health.watchDrawThings(model.install)
+        }
         // ⌘V: a picture on the clipboard becomes the picture; anything else pastes as usual.
         .background { Button("") { paste() }.keyboardShortcut("v").hidden() }
         .fileImporter(isPresented: $choosing, allowedContentTypes: [.image]) { result in
@@ -107,8 +113,8 @@ struct MakeView: View {
                 Text("Turn it into a grey sculpt first (recommended)")
                 Text("Best for drawings and photos. Turn it off only if your picture is already a grey 3D model.")
             }
-            .disabled(!model.drawThingsReady)
-            if !model.drawThingsReady { needsDrawThings }
+            .disabled(!health.drawThingsReady)
+            if !health.drawThingsReady { needsDrawThings }
         }
     }
 
@@ -127,11 +133,11 @@ struct MakeView: View {
                     name = Mini.displayName(MakeAdvice.name(fromDescription: text))
                     autoName = true
                 }
-            Button("🎲 Try a Different Version") {
+            Button("Try a Different Version", systemImage: "dice") {
                 seed = Int.random(in: 0..<1_000_000)
                 say("🎲 Next version picked. Press Make My Mini.")
             }
-            if !model.drawThingsReady { needsDrawThings }
+            if !health.drawThingsReady { needsDrawThings }
         }
     }
 
@@ -182,13 +188,13 @@ struct MakeView: View {
             guard let picture else { return say("Choose a picture first.", error: true) }
             source = .image(picture.url)
         case .description:
-            guard model.drawThingsReady else { return say("✍️ Describe it needs Draw Things. Open Settings to see how to set it up.", error: true) }
+            guard health.drawThingsReady else { return say("✍️ Describe it needs Draw Things. Open Settings to see how to set it up.", error: true) }
             let d = description.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !d.isEmpty else { return say("Describe the character first.", error: true) }
             source = .description(d)
         }
         do {
-            try model.make(name: slug, picture: source, restyle: start == .picture && restyle && model.drawThingsReady,
+            try model.make(name: slug, picture: source, restyle: start == .picture && restyle && health.drawThingsReady,
                            seed: seed, sizes: card.sizes)
         } catch {
             say("\(error)", error: true)
@@ -249,7 +255,7 @@ struct ResizeView: View {
                 }
                 Spacer()
                 Button("Cancel") { model.sheet = nil }.keyboardShortcut(.cancelAction)
-                Button("🔁 Resize") {
+                Button("Resize") {
                     do { try model.resize(mini, sizes: card.sizes) } catch { problem = "\(error)" }
                 }
                 .keyboardShortcut(.defaultAction)
