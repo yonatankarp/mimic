@@ -18,13 +18,15 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
 - A 3D printer, and a slicer for it, such as [Bambu Studio](https://github.com/bambulab/BambuStudio),
   [OrcaSlicer](https://github.com/OrcaSlicer/OrcaSlicer), [PrusaSlicer](https://github.com/prusa3d/PrusaSlicer)
   or [UltiMaker Cura](https://github.com/Ultimaker/Cura)
-- Optional: [Draw Things](https://apps.apple.com/app/id6444050820), a free app, if you want to
-  describe characters instead of starting from a picture. Mimic shows you how to set it up.
+- Optional: [Draw Things](https://apps.apple.com/app/id6444050820), a free app. With it, Mimic
+  can make a mini from a description, and turn your picture into a grey sculpt first, which
+  gives better minis. Mimic shows you how to set it up.
 
 ### Install
 
 1. Download the `.dmg` file from the [latest release](https://github.com/yonatankarp/mimic/releases/latest) and open it.
 2. Drag **Mimic** onto **Applications**, then open Mimic from your Applications folder.
+   If your Mac says it can't check Mimic, see the note below.
 3. Press **Download**. The first time, Mimic downloads its 3D engine (8.1 GB). You can keep
    using your Mac while it does.
 
