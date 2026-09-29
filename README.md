@@ -115,7 +115,7 @@ mimic list
 | `--seed N` | Try a different version of the same character |
 | `--object` | Make anything that isn't a character: no round base, sized by its longest side, set on its flat bottom |
 | `--size MM` | How big it is: for an object, its longest side (set from the nozzle unless you give it); for a character, the same as `--height` |
-| `--add-base` | Give an object a round base too |
+| `--add-base` | Give an object a round base too (sized to its shadow unless you give `--base`) |
 
 Ctrl-C stops a mini and everything it started.
 
