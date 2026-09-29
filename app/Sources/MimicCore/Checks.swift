@@ -29,19 +29,16 @@ public struct Checks: Sendable {
     public var install: Install
     public var appFolders: [URL]
     public var drawThings: DrawThings
-    /// Where to look for Blender: the same PATH jobs run with.
-    public var path: String
     public var run: Runner
     public var freeBytes: @Sendable (URL) -> Int64?
 
     public init(install: Install,
                 appFolders: [URL] = Slicer.appFolders(),
                 drawThings: DrawThings = DrawThings(),
-                path: String = Tools.childEnvironment()["PATH"]!,
                 run: @escaping Runner = Checks.execute,
                 freeBytes: @escaping @Sendable (URL) -> Int64? = Checks.freeBytes) {
         self.install = install; self.appFolders = appFolders; self.drawThings = drawThings
-        self.path = path; self.run = run; self.freeBytes = freeBytes
+        self.run = run; self.freeBytes = freeBytes
     }
 
     static let reinstall = "Run Install Mimic again: it only adds what's missing."
@@ -55,10 +52,6 @@ public struct Checks: Sendable {
                 s.isFile(s.install.engine.appendingPathComponent("models/pixal3d-sv/pixal3d_shape_flow_1024_sv.gguf"))
             },
             check("helpers", "Mimic's helper tools", true, Self.reinstall) { s.isFile(s.install.labPython) },
-            check("blender", "Blender (makes the print file)", true,
-                  "Blender is missing or won't start. Run Install Mimic again, or install Blender from blender.org.") {
-                s.blenderStarts()
-            },
             Check(id: "space", label: "Free disk space", required: true,
                   fix: "Free up some space: each mini takes about 150 MB while it's being made.") {
                 let gb = Double(s.freeBytes(s.install.runs) ?? 0) / 1e9
@@ -96,14 +89,6 @@ public struct Checks: Sendable {
         return isFile(cli) && run(cli.path, ["--help"], 10)?.status == 0
     }
 
-    /// Whether Blender actually runs, not just whether a `blender` exists: Homebrew's launcher
-    /// outlives the app, so after Blender.app was removed a `which` check still said yes while
-    /// every print prep died at start-up. Found the way jobs find it.
-    func blenderStarts() -> Bool {
-        guard let exe = Tools.which("blender", path: path), let r = run(exe, ["--version"], 30) else { return false }
-        return r.status == 0 && r.output.contains("Blender")
-    }
-
     private func isFile(_ u: URL) -> Bool {
         var dir: ObjCBool = false
         return FileManager.default.fileExists(atPath: u.path, isDirectory: &dir) && !dir.boolValue
@@ -115,7 +100,7 @@ public struct Checks: Sendable {
     }
 
     /// Runs a program with the environment jobs get, and returns its exit status and output.
-    /// nil if it can't start or outlives `timeout` (then it's killed: a hung Blender must not
+    /// nil if it can't start or outlives `timeout` (then it's killed: a hung program must not
     /// hang Settings).
     public static let execute: Runner = { executable, arguments, timeout in
         let p = Process()

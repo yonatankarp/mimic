@@ -2,7 +2,7 @@ import Foundation
 @testable import MimicCore
 
 /// A throwaway Mimic folder with fake tools: the job runner runs real processes, just not
-/// Blender or the 3D engine.
+/// print prep or the 3D engine.
 struct Fixture {
     let root: URL
     let install: Install
@@ -14,7 +14,7 @@ struct Fixture {
         install = Install(root: root)
     }
 
-    /// A shell script to stand in for Blender or the 3D engine.
+    /// A shell script to stand in for print prep or the 3D engine.
     func script(_ name: String, _ body: String) throws -> String {
         let url = root.appendingPathComponent(name)
         try "#!/bin/bash\n\(body)\n".write(to: url, atomically: true, encoding: .utf8)
@@ -22,9 +22,8 @@ struct Fixture {
         return url.path
     }
 
-    func tools(blender: String? = "/usr/bin/true", python: String = "/usr/bin/true") -> Tools {
-        Tools(blender: blender, python: python, pixal3dScript: "engine.py", labDir: root.path,
-              miniPrep: root.appendingPathComponent("pipeline/mini_prep.py").path,
+    func tools(prep: String = "/usr/bin/true", python: String = "/usr/bin/true") -> Tools {
+        Tools(prep: prep, python: python, pixal3dScript: "engine.py", labDir: root.path,
               environment: ["PATH": "/usr/bin:/bin"])
     }
 

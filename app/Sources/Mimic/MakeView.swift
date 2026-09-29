@@ -67,7 +67,7 @@ struct MakeView: View {
         .task {
             // Describe it and the grey sculpt need Draw Things, and Make needs every required
             // part: check them once if nothing has yet, then keep watching Draw Things.
-            // Not during a job: the checks start Blender and the 3D engine themselves.
+            // Not during a job: the checks start the 3D engine themselves.
             if health.lastChecked == nil && !health.running && !model.running { health.check(model.install) }
             await health.watchDrawThings(model.install)
         }

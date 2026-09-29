@@ -7,7 +7,7 @@ final class JobTests: XCTestCase {
 
     func testAFinishedRunRecordsWhatItMade() throws {
         let fx = try Fixture(); _ = try fx.mini("dwarf")
-        let jobs = JobRunner(install: fx.install, tools: fx.tools(blender: "/usr/bin/true"))
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(prep: "/usr/bin/true"))
         try jobs.resize(name: "dwarf", sizes: sizes)
         jobs.waitUntilDone()
         XCTAssertEqual(jobs.status?.succeeded, true)
@@ -17,7 +17,7 @@ final class JobTests: XCTestCase {
     func testAFailedRunRecordsNothing() throws {
         let fx = try Fixture(); let d = try fx.mini("dwarf")
         try MiniSettings.update(d) { $0.made = Sizes(height: "32") }
-        let jobs = JobRunner(install: fx.install, tools: fx.tools(blender: "/usr/bin/false"))
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(prep: "/usr/bin/false"))
         try jobs.resize(name: "dwarf", sizes: sizes)
         jobs.waitUntilDone()
         XCTAssertEqual(jobs.status?.exit, 1)
@@ -27,11 +27,11 @@ final class JobTests: XCTestCase {
     func testTryAgainRebuildsTheSameJob() throws {
         let fx = try Fixture()
         let d = fx.install.runs.appendingPathComponent("mini")
-        let tools = fx.tools(blender: "/opt/blender", python: "/lab/python")
+        let tools = fx.tools(prep: "/opt/mimic", python: "/lab/python")
         let src = d.appendingPathComponent("source.png"), up = d.appendingPathComponent("upload.img")
         let flags = ["--height", "100.0", "--base", "40.0", "--nozzle", "0.4"]
-        let prep = Step.run(executable: "/opt/blender",
-                            arguments: ["-b", "-P", tools.miniPrep, "--", d.appendingPathComponent("model.glb").path,
+        let prep = Step.run(executable: "/opt/mimic",
+                            arguments: ["_prep", d.appendingPathComponent("model.glb").path,
                                         d.appendingPathComponent("mini.stl").path] + flags,
                             directory: nil, log: d.appendingPathComponent("prep.log"))
         let mesh = Step.run(executable: "/lab/python", arguments: ["engine.py", src.path, d.appendingPathComponent("model.glb").path, "--seed", "7"],
@@ -52,19 +52,12 @@ final class JobTests: XCTestCase {
     func testFragileIsThisRunsWarningOnly() throws {
         let fx = try Fixture(); let d = try fx.mini("dwarf")
         try "mini_prep: WARNING thin parts\n".write(to: d.appendingPathComponent("prep.log"), atomically: true, encoding: .utf8)
-        let quiet = JobRunner(install: fx.install, tools: fx.tools(blender: "/usr/bin/true"))
+        let quiet = JobRunner(install: fx.install, tools: fx.tools(prep: "/usr/bin/true"))
         try quiet.resize(name: "dwarf", sizes: sizes); quiet.waitUntilDone()
         XCTAssertEqual(quiet.status?.fragile, false)
-        let warns = JobRunner(install: fx.install, tools: fx.tools(blender: try fx.script("blender", "echo 'mini_prep: WARNING thin parts'")))
+        let warns = JobRunner(install: fx.install, tools: fx.tools(prep: try fx.script("prep", "echo 'mini_prep: WARNING thin parts'")))
         try warns.resize(name: "dwarf", sizes: sizes); warns.waitUntilDone()
         XCTAssertEqual(warns.status?.fragile, true)
-    }
-
-    func testNoBlenderIsRefusedUpFront() throws {
-        let fx = try Fixture(); _ = try fx.mini("dwarf")
-        let jobs = JobRunner(install: fx.install, tools: fx.tools(blender: nil))
-        XCTAssertThrowsError(try jobs.resize(name: "dwarf", sizes: sizes)) { XCTAssertEqual($0 as? RequestError, .missing("Blender")) }
-        XCTAssertNil(jobs.status, "a refused job must not look like one that ran")
     }
 
     /// Stop during the 3D step: the job and its child end, it reads as stopped, and the
@@ -95,8 +88,8 @@ final class JobTests: XCTestCase {
 
     func testOneJobAtATime() throws {
         let fx = try Fixture(); _ = try fx.mini("a"); _ = try fx.mini("b")
-        let slow = try fx.script("slow-blender", "sleep 5")
-        let jobs = JobRunner(install: fx.install, tools: fx.tools(blender: slow))
+        let slow = try fx.script("slow-prep", "sleep 5")
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(prep: slow))
         try jobs.resize(name: "a", sizes: sizes)
         XCTAssertThrowsError(try jobs.resize(name: "b", sizes: sizes)) { XCTAssertEqual($0 as? RequestError, .busy("a")) }
         jobs.cancel(); jobs.waitUntilDone()

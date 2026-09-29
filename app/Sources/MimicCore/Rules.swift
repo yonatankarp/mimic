@@ -1,6 +1,6 @@
 import Foundation
 
-/// What a request may contain. Every value here ends up as an argument to Blender or the 3D
+/// What a request may contain. Every value here ends up as an argument to print prep or the 3D
 /// engine, so this is the trust boundary: nothing unchecked gets past it.
 public enum Rules {
     /// A mini's folder name: "dwarf-cleric". Shown to people as "Dwarf Cleric".
