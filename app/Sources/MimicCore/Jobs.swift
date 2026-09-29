@@ -24,7 +24,7 @@ public enum PictureSource: Sendable {
 /// Runs one job at a time: making a mini (three steps) or resizing one (print prep only).
 ///
 /// A job's programs run in their own session (GroupProcess) so Stop ends all of them. While a
-/// job runs, runs/.job.lock is held, which the web version checks too, and runs/.job.pid names
+/// job runs, runs/.job.lock is held, which a second Mimic (another window, or `mimic` in a terminal) checks too, and runs/.job.pid names
 /// the running program and its start time so a job orphaned by a crash can be stopped safely.
 public final class JobRunner: @unchecked Sendable {
     public let install: Install

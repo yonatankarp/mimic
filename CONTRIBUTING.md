@@ -5,27 +5,33 @@
 | Path | What |
 |---|---|
 | `Install Mimic.command`, `setup.sh` | The installer. `setup.sh --yes` skips the question; `--build-from-source` compiles Pixal3D instead of downloading it (needs Xcode). |
-| `Mimic.command` | Starts Mimic. The Mimic app in Applications runs it. |
-| `make_mini.sh` | One mini from start to finish: picture → 3D model → print prep. |
+| `app/` | The Mac app, a Swift package. `MimicCore` is everything but the windows (jobs, Draw Things, checks, the gallery on disk); `Mimic` is one binary that is the app, or the `mimic` command with arguments. `app/NOTES.md` has the design decisions and why. |
 | `pipeline/mini_prep.py` | Print prep in Blender. The comment at its top lists every tuning option. |
-| `pipeline/drawthings.py` | Talks to Draw Things, always naming the model and sampler. |
 | `pipeline/gen_views.py` | Experimental and unused: side and back views for Pixal3D's multiview mode. |
 | `pipeline/render_zoom.py` | Close-up render, for judging small details. |
-| `ui/` | The web page (`index.html`) and its server (`serve.py`). |
-| `tools/package_pixal3d.sh` | Builds the Pixal3D download the installer uses. |
-| `tests/` | See below. |
+| `tools/package_app.sh`, `tools/package_pixal3d.sh` | Build the app and Pixal3D downloads the installer uses. |
+| `tests/` | Print-prep tests (the app's own tests are in `app/Tests`). |
 | `runs/`, `image-to-3dlab/` | Generated minis, and the 3D engine with its models. Both are git-ignored. |
 
-## Tests
+## Building and testing
 
 ```bash
-tests/test_prep.sh           # print prep: watertight, flat bottom, right height, centred, one piece
-python3 tests/test_serve.py  # the web page's input checks
-python3 tests/test_checks.py # every Settings check goes red when its part is missing, green when present
-python3 tests/test_cancel.py   # Stop ends a job and everything it started
-python3 tests/test_settings.py # what each mini remembers, and what Try Again rebuilds
-python3 tests/test_rename.py   # a rename moves every file named after the mini
+cd app
+swift test                         # the engine: jobs, Stop, sizes, checks, rename, Draw Things
+./bundle.sh && open "build/Mimic Dev.app"
+MIMIC_HOME=.. swift run mimic list # the command line, without the app
+cd .. && tests/test_prep.sh        # print prep: watertight, flat bottom, right height, centred, one piece
 ```
+
+`bundle.sh` makes *Mimic Dev*, a separate app with its own settings, so it never replaces the
+Mimic you use. Several tests plant the bug they guard against first; keep that habit when
+adding one.
+
+## Releasing a new app build
+
+1. `tools/package_app.sh <out dir>` builds `Mimic.app`, zips it and prints its sha256.
+2. Upload the zip to a GitHub release.
+3. Update `MIMIC_APP_URL` and `MIMIC_APP_SHA256` in `setup.sh`.
 
 ## Releasing a new Pixal3D build
 

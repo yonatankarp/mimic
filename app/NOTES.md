@@ -1,7 +1,8 @@
 # Mimic for Mac: design notes
 
-The native app replaces the web page (`ui/`) and its Python server. Decisions below were made
-on measurements from milestone 0; read them before changing one.
+The Mac app replaced a web page and its Python server (removed once the app did everything
+they did; see git history for `ui/`). Decisions below were made on measurements; read them
+before changing one.
 
 ## Layout
 
@@ -17,8 +18,8 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
 
 - **Swift owns everything except two Python pieces.** The 3D engine's wrapper
   (image-to-3dlab's `pixal3d_generate.py`, third-party) and `pipeline/mini_prep.py` (it runs
-  inside Blender) stay Python. `make_mini.sh` and `drawthings.py` retire with the web page;
-  the terminal route becomes `mimic make …`, the same code as the app.
+  inside Blender) stay Python. The terminal route is `mimic make …`, the same code as the app;
+  the installer links the app's binary onto the PATH.
 - **Same data on disk.** `runs/<name>/` with `<name>.stl`, `<name>_{front,side,back}.png`,
   `source.png` and `settings.json` (`requested` / `made` / how it was made), so minis made by
   the web version appear in the app unchanged.
@@ -41,3 +42,15 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   the bundle reads the settings without a prompt (status 0, not yet asked).
 - **Dev and release builds are different apps** (name and bundle id), so development never
   replaces the Mimic you use or shares its settings.
+- **Draw Things' model is asked for, not looked up.** Its downloads are in its private
+  folder, and reading that makes macOS ask for access to another app's data and block until
+  answered: Settings sat on a spinner. The API's selected model comes first; the folder is a
+  fallback with a 3-second limit.
+- **The installer downloads the app with curl,** which doesn't set the quarantine flag, so the
+  ad hoc signed app opens without Gatekeeper's warning. Signing with a Developer ID would only
+  matter for downloads through a browser.
+
+## Not yet seen working
+
+- A notification arriving: the permission prompt is asked once after the first Make (seen:
+  status went from "not asked" to "denied" on the dev app), but none has been seen delivered.

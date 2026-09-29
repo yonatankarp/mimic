@@ -5,7 +5,7 @@ import XCTest
 final class GroupProcessTests: XCTestCase {
     private func alive(_ pid: pid_t) -> Bool { kill(pid, 0) == 0 }
 
-    /// A parent that starts a long-running child, like make_mini.sh starting the 3D engine.
+    /// A parent that starts a long-running child, like the 3D engine running under its wrapper.
     /// Returns the process and the child's pid.
     private func startParentWithChild(newSession: Bool) throws -> (GroupProcess, pid_t) {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

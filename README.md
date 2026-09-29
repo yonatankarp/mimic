@@ -1,4 +1,4 @@
-<p align="center"><img src="ui/logo.png" width="160" alt="Mimic's logo: a cartoon treasure-chest monster with a tiny grey miniature standing in its open mouth"></p>
+<p align="center"><img src="docs/images/logo.png" width="160" alt="Mimic's logo: a cartoon treasure-chest monster with a tiny grey miniature standing in its open mouth"></p>
 
 <h1 align="center">Mimic</h1>
 
@@ -45,41 +45,42 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
      *Install Mimic.command*.
    - The installer asks once before it starts, and may ask for your Mac password.
 3. **Wait 20–60 minutes.** Most of that is downloading about 10 GB of AI models.
-4. **Mimic opens by itself.** A short checklist shows how to finish setting up *Draw Things*,
-   the free app Mimic uses to draw and redraw pictures.
+4. **Mimic opens by itself.** If anything still needs doing, like setting up *Draw Things*
+   (the free app Mimic uses to draw and redraw pictures), **Settings** shows what and how.
 
 After that, open **Mimic** from your Applications folder whenever you want to make a mini.
 
 ## 🧙 Making a mini
 
-![Mimic's page: the character and size settings on the left, the finished dwarf cleric in a 3D view on the right, with print tips below](docs/images/ui.jpg)
+![Mimic: your minis on the left, the finished dwarf cleric in a 3D view on the right, with its previews and print tips below](docs/images/app.jpg)
 
 > [!TIP]
 > Chunky characters with bold shapes work best. Small details, like a pet on a shoulder,
 > may come out soft.
 
-1. **Your character.** Drop in a picture, or switch to ✍️ **Describe it** and write a
-   sentence. A full-body picture with a plain background works best. Leave *Turn it into a
+1. **➕ New Mini** (or ⌘N).
+2. **Your character.** Drop in a picture, paste one, or switch to ✍️ **Describe it** and write
+   a sentence. A full-body picture with a plain background works best. Leave *Turn it into a
    grey sculpt first* on for drawings and photos.
-2. **Size & printer.** Pick your printer's nozzle (if you're not sure, it's 0.4 mm), then
+3. **Size & printer.** Pick your printer's nozzle (if you're not sure, it's 0.4 mm), then
    what to size for:
    - **🎲 Game scale** matches the other minis on your table: type how tall the character is
      and pick the scale.
    - **✨ Best print** makes it big enough for faces to come out on your nozzle: about 64 mm
      on 0.2, 100 mm on 0.4 and 150 mm on 0.6.
-3. **✨ Make my mini** and wait about 7–10 minutes. Your Mac will be busy while it works.
-   **— Minimize** tucks the progress into the top bar; **⏹ Stop** cancels it.
-4. **🖨️ Open in your slicer** and print. The print tips under the 3D view match your nozzle.
+4. **Make My Mini** and wait about 7–10 minutes. Your Mac will be busy while it works.
+   **Run in Background** keeps the progress in the toolbar and on the Dock icon, and Mimic
+   tells you when it's done. **Stop…** cancels it.
+5. **Open in your slicer** and print. The print tips under the 3D view match your nozzle.
 
-Changed your mind about the size? **🔁 Apply new size** remakes the print file in seconds.
-Your character stays exactly the same. Don't want a mini any more? **🗑️ Delete** moves it to
-the Trash, so a wrong click can be undone.
+Changed your mind about the size? **Resize This Mini…** remakes the print file in about a
+minute. Your character stays exactly the same.
 
-**🗂️ Your minis** lists everything you've made, newest first, with when each was made.
-Search appears once you have more than six. Right-click a mini (or hover it and use **⋯**)
-to open it in your slicer, show it in Finder, rename it, or move it to the Trash.
+**Your minis** are listed on the left, newest first. Search appears once you have more than
+six. Right-click a mini to open it in your slicer, show it in Finder, rename it, or move it to
+the Trash. Press space to preview it.
 
-**⚙️ Settings** has three things:
+**Settings** (⌘,) has three things:
 - **Is everything set up?** A check of everything Mimic needs, with what to do about
   anything that's missing. A ⚠️ on the Settings button means something needs attention.
 - **Open minis in.** Any slicer Mimic finds: Bambu Studio, OrcaSlicer, PrusaSlicer, Cura,
@@ -128,9 +129,14 @@ flowchart TD
 
 ### From a terminal
 
+The installer adds a `mimic` command, the same engine as the app:
+
 ```bash
-./make_mini.sh dwarf-cleric "dwarf cleric, warhammer held against chest"
-./make_mini.sh tiefling --image art.png --restyle --height 38 --nozzle 0.2
+mimic make dwarf-cleric "dwarf cleric, warhammer held against chest"
+mimic make tiefling --image art.png --restyle --height 38 --nozzle 0.2
+mimic resize tiefling --height 32 --base 25
+mimic retry tiefling
+mimic list
 ```
 
 | Option | What it does |
@@ -141,7 +147,9 @@ flowchart TD
 | `--base MM` | Size of the round base |
 | `--nozzle 0.2` / `0.4` / `0.6` | Your printer's nozzle |
 | `--no-base` | Keep the character's own base instead of adding a round one |
-| `SEED=7` before the command | Try a different version of the same character |
+| `--seed N` | Try a different version of the same character |
+
+Ctrl-C stops a mini and everything it started.
 
 Want to change Mimic itself? See [CONTRIBUTING.md](CONTRIBUTING.md).
 

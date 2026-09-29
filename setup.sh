@@ -54,7 +54,7 @@ TEXT
 fi
 
 # Files from a downloaded ZIP carry macOS's "downloaded from the internet" flag, which makes
-# every double-click of Mimic.command ask again. They are this folder's own files.
+# every double-click of Install Mimic.command ask again. They are this folder's own files.
 xattr -dr com.apple.quarantine "$HERE" 2>/dev/null || true
 
 # --- Homebrew --------------------------------------------------------------------------------
