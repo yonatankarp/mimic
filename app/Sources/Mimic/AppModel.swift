@@ -230,6 +230,30 @@ final class AppModel {
         askForNotifications()
     }
 
+    /// Several pictures dropped on New Mini: a mini each, named after its file, all made the same
+    /// way, with one note on the progress sheet. A picture that can't be used is skipped and named
+    /// there. Returns why, in words, when none could be used.
+    func make(pictures: [URL], restyle: Bool, seed: Int, sizes: Sizes, kind: MiniKind, project: String?) -> String? {
+        var added: [String] = [], skipped: [String] = [], why = "Mimic can't read these pictures."
+        for url in pictures {
+            let name = Gallery.name(forPicture: url, in: install.runs)
+            do {
+                guard Picture(url) != nil else { throw RequestError.noPicture }
+                try make(name: name, picture: .image(url), restyle: restyle, seed: seed, sizes: sizes, kind: kind, project: project)
+                added.append(name)
+            } catch {
+                skipped.append(url.lastPathComponent)
+                if case RequestError.noPicture = error {} else { why = plainWords(error) }
+            }
+        }
+        guard let last = added.last else { return why }
+        let ready = queueTimes().first(where: { $0.entry.name == last })?.ready ?? runningLeft()
+        var text = "\(added.count) \(added.count == 1 ? "mini" : "minis") added to the queue — ready in \(JobProgress.about(ready))."
+        if !skipped.isEmpty { text += " Skipped \(skipped.joined(separator: ", ")): Mimic can't use \(skipped.count == 1 ? "it" : "them")." }
+        queuedNote = (last, text)
+        return nil
+    }
+
     /// A sibling of `mini` in its project, from the same picture or description, with a new
     /// seed; it waits its turn like any other.
     func makeAnotherVersion(_ mini: Mini) {
