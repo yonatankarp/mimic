@@ -2,6 +2,11 @@
 
 What's new in each version of Mimic. The release workflow publishes a version's section here as its release notes, so write it for people who use Mimic, not for developers.
 
+## 0.6.0
+
+### New
+- **Mimic checks for updates.** Once a day, and from Mimic → Check for Updates…: a new version shows as a small note in the toolbar with what's new, and Update downloads it, checks it, replaces Mimic and opens it again (never while a mini is being made or waiting). Turn it off in Settings → Updates. Only GitHub's public release information is read; nothing about your Mac or your minis is sent.
+
 ## 0.5.0
 
 ### New
@@ -18,7 +23,6 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 - **Better AI descriptions.** Glowing, sparks and smoke are taken out of improved descriptions (they don't print), and Settings suggests the best local model you have installed.
 - **Projects.** Group your minis into folders (the same folders in Finder): New Project at the bottom of the list (⇧⌘N), drag minis onto one or right-click → Move to Project, and rename or delete a project from its right-click menu. Deleting one asks whether to keep its minis (in Unsorted) or move them to the Trash too. New Mini asks which project it goes in; in Terminal, `mimic make … --project "Name"`, `mimic move`, `mimic projects`, and `mimic list` shows each project.
 - **Make Another Version.** Right-click a mini (or the Mini menu) to make it again from the same picture or description and settings with a different variation number, next to it in the same project: a pet on a shoulder that came out as a blob may come out right. It waits its turn in the queue, so you can line up a few and keep the best. In Terminal: `mimic make-another <name>`.
-- **Mimic checks for updates.** Once a day, and from Mimic → Check for Updates…: a new version shows as a small note in the toolbar with what's new, and Update downloads it, checks it, replaces Mimic and opens it again (never while a mini is being made or waiting). Turn it off in Settings → Updates. Only GitHub's public release information is read; nothing about your Mac or your minis is sent.
 
 ### Fixed
 - Mimic no longer asks again for your saved AI keys after an update: releases are now signed by the same signer every time.
