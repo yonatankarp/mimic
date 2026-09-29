@@ -9,6 +9,8 @@ struct JobProgressView: View {
     @Environment(\.openSettings) private var openSettings
     @State private var confirmingStop = false
     @State private var retryProblem: String?
+    /// The raw error behind retryProblem, for the tooltip only.
+    @State private var retryDetail: String?
 
     static let steps = [(1, "🖼️ Getting the picture ready"), (2, "🧊 Building the 3D shape (the long part)"),
                         (3, "🖨️ Making the print-ready file")]
@@ -88,6 +90,7 @@ struct JobProgressView: View {
                                                          : "Try again, or use a clearer, full-body picture.")
                     if let why = retryProblem ?? model.cantStart ?? s.problem {
                         Text(why).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
+                            .help(retryProblem != nil ? retryDetail ?? "" : "")
                     }
                 }
             }
@@ -97,7 +100,7 @@ struct JobProgressView: View {
 
     private func tryAgain() {
         retryProblem = nil
-        do { try model.retry() } catch { retryProblem = "\(error)" }
+        do { try model.retry() } catch { retryProblem = model.plainWords(error); retryDetail = "\(error)" }
     }
 
     private func title(_ s: JobStatus, who: String) -> String {
@@ -207,8 +210,8 @@ private final class DockTileView: NSView {
     }
 }
 
-/// What the main window adds around the gallery: the sheets, and the toolbar's New Mini button
-/// and job progress. Kept here so the window's own layout stays about the gallery.
+/// What the main window adds around the gallery: the sheets and questions, and the toolbar's
+/// New Mini button and job progress. Kept here so the window's own layout stays about the gallery.
 struct MainWindowChrome: ViewModifier {
     @Environment(AppModel.self) private var model
 
@@ -234,8 +237,24 @@ struct MainWindowChrome: ViewModifier {
                 switch sheet {
                 case .make: MakeView()
                 case .resize(let mini): ResizeView(mini: mini)
+                case .rename(let mini): RenameSheet(mini: mini)
                 case .progress: JobProgressView()
                 }
+            }
+            .confirmationDialog("Move “\(model.trashing?.displayName ?? "")” to the Trash?",
+                                isPresented: Binding(get: { model.trashing != nil }, set: { if !$0 { model.trashing = nil } }),
+                                presenting: model.trashing) { mini in
+                Button("Move to Trash", role: .destructive) { model.trash(mini) }
+                Button("Keep It", role: .cancel) {}
+            } message: { _ in
+                Text("You can put it back from the Trash if you change your mind.")
+            }
+            .alert(model.problem ?? "", isPresented: Binding(get: { model.problem != nil }, set: { if !$0 { model.problem = nil } })) {
+                Button("OK") {}
+            }
+            // Minis made from the terminal appear when you come back to the app.
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                model.reload()
             }
     }
 }

@@ -12,6 +12,8 @@ struct MiniViewer: View {
     let stl: URL
     /// The print file's date: a resize rewrites the file under the same name.
     let version: Date
+    /// "Dwarf Cleric", for VoiceOver.
+    let name: String
     @State private var mini: Entity?
     @State private var size: String?
     @State private var failed = false
@@ -20,6 +22,8 @@ struct MiniViewer: View {
     @State private var zoom: Float = 1
     @State private var zoomStart: Float?
     @AppStorage("zoomOn") private var zoomOn = false
+    /// While Front plays its animation, the view leaves the transform to it.
+    @State private var gliding = false
 
     var body: some View {
         RealityView { content in
@@ -35,12 +39,17 @@ struct MiniViewer: View {
                 content.entities.filter { $0.name == "mini" }.forEach { content.remove($0) }
                 content.add(mini)
             }
+            guard !gliding else { return }
             mini.transform = Transform(scale: SIMD3(repeating: zoom),
                                        rotation: simd_quatf(angle: turn.y, axis: [1, 0, 0]) * simd_quatf(angle: turn.x, axis: [0, 1, 0]),
                                        translation: .zero)
         }
         .realityViewCameraControls(.none)
-        .background(Color(nsColor: .windowBackgroundColor).opacity(0.6))
+        .accessibilityElement()
+        .accessibilityLabel(size.map { "3D view of \(name), \($0)" } ?? "3D view of \(name)")
+        // A soft stage for the mini to stand on, lighter in the middle like a studio backdrop.
+        .background(RadialGradient(colors: [Color.primary.opacity(0.07), Color.primary.opacity(0.02)],
+                                   center: .center, startRadius: 40, endRadius: 520))
         .contentShape(Rectangle())
         .gesture(DragGesture(minimumDistance: 3).onChanged { g in
             let start = turnStart ?? turn
@@ -57,22 +66,29 @@ struct MiniViewer: View {
         .onTapGesture(count: 2) { front() }
         .overlay(alignment: .topTrailing) {
             HStack(spacing: 6) {
-                Button { front() } label: { Label("Front", systemImage: "arrow.counterclockwise") }
-                    .help("Back to the front view (or double-click the mini)")
-                Toggle(isOn: $zoomOn) { Label(zoomOn ? "Zoom On" : "Zoom Locked", systemImage: zoomOn ? "plus.magnifyingglass" : "lock") }
+                Button { front() } label: { Label("Face Front", systemImage: "arrow.counterclockwise") }
+                    .help("Turn the mini back to face you (or double-click it)")
+                // One label; the button looks pressed while it's on.
+                Toggle(isOn: $zoomOn) { Label("Pinch to Zoom", systemImage: "plus.magnifyingglass") }
                     .toggleStyle(.button)
-                    .help("When unlocked, pinch on the trackpad to zoom the mini")
+                    .help(zoomOn ? "On: pinch on the trackpad to zoom the mini. Click to turn off." : "Click, then pinch on the trackpad to zoom the mini")
                     .onChange(of: zoomOn) { _, on in if !on { zoom = 1 } }
             }
+            .glassButton()
             .controlSize(.small)
-            .padding(8)
+            .padding(10)
         }
         .overlay(alignment: .bottomLeading) {
             if let size {
-                Text(size).font(.caption.monospaced()).foregroundStyle(.secondary)
-                    .padding(.horizontal, 8).padding(.vertical, 3)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+                Text(size).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .glassCard(cornerRadius: 10)
                     .padding(10)
+            }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if mini != nil {
+                Text("Drag to turn · double-click to face front").font(.caption).foregroundStyle(.secondary).padding(10)
             }
         }
         .overlay {
@@ -85,14 +101,29 @@ struct MiniViewer: View {
         .task(id: [stl.path, version.description]) {
             failed = false
             mini = nil; size = nil
-            front()
+            turn = .zero; zoom = 1
             // ponytail: loads on the main actor (about 0.4 s for the biggest print file); move the
             // file reading off it if bigger minis make that noticeable.
             if let (entity, mm) = try? Self.load(stl) { mini = entity; size = mm } else { failed = true }
         }
     }
 
-    private func front() { turn = .zero; zoom = 1 }
+    /// Turns the mini back to face you, gliding there rather than jumping, so you can see which
+    /// way it went. Jumps instead when the Mac is set to reduce motion.
+    private func front() {
+        let seconds = 0.45
+        guard let mini, !gliding, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
+            turn = .zero; zoom = 1
+            return
+        }
+        gliding = true
+        mini.move(to: Transform(), relativeTo: mini.parent, duration: seconds, timingFunction: .easeInOut)
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(seconds))
+            turn = .zero; zoom = 1
+            gliding = false
+        }
+    }
 
     static func lights() -> Entity {
         let key = DirectionalLight()
@@ -108,7 +139,7 @@ struct MiniViewer: View {
 
     /// Print files are Z-up millimetres; the scene is Y-up metres. The mini is centred and
     /// scaled so the default camera's framing fits it. Also returns its size in millimetres,
-    /// "34 mm tall · 25 × 33 mm".
+    /// "34 mm tall with base · 25 × 33 mm footprint".
     static func load(_ url: URL) throws -> (Entity, String) {
         let asset = MDLAsset(url: url)
         guard let mesh = asset.childObjects(of: MDLMesh.self).first as? MDLMesh else { throw CocoaError(.fileReadCorruptFile) }
@@ -126,7 +157,7 @@ struct MiniViewer: View {
             points.append(v); lo = simd_min(lo, v); hi = simd_max(hi, v)
         }
         let dims = hi - lo
-        let size = "\(Int(dims.y.rounded())) mm tall · \(Int(dims.x.rounded())) × \(Int(dims.z.rounded())) mm"
+        let size = "\(Int(dims.y.rounded())) mm tall with base · \(Int(dims.x.rounded())) × \(Int(dims.z.rounded())) mm footprint"
         let centre = (lo + hi) / 2  // the middle of the mini, so it turns in place
         let scale = 1 / max(dims.y, 1)  // 1 m tall: fills the default camera's view
         points = points.map { ($0 - centre) * scale }

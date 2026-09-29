@@ -24,7 +24,7 @@ struct SettingsView: View {
                 HStack {
                     Text(summary).foregroundStyle(.secondary)
                     Spacer()
-                    Button("Check Again") { health.check(model.install) }.disabled(health.running)
+                    Button("Check Again") { health.check(model.install) }.disabled(health.running || model.running)
                 }
             }
             if Checks.drawThingsIDs.contains(where: { health.results[$0]?.ok == false }) { drawThingsSteps }
@@ -39,17 +39,23 @@ struct SettingsView: View {
             }
             if let install = model.install {
                 Section {
-                    LabeledContent("Where your minis are saved") {
+                    LabeledContent {
                         Button("Open Minis Folder") { NSWorkspace.shared.open(install.runs) }
+                    } label: {
+                        Text("Your minis are saved in")
+                        Text((install.runs.path as NSString).abbreviatingWithTildeInPath)
                     }
                 }
             }
         }
         .formStyle(.grouped)
         .frame(width: 520, height: 640)
+        .onChange(of: model.running) { _, running in if !running { health.check(model.install) } }
         .task {
             slicers = Slicer.installed()
-            health.check(model.install)
+            // The checks start Blender and the 3D engine, which a running job is already using
+            // heavily; they run when it ends instead (below).
+            if !model.running { health.check(model.install) }
             // Cancelled when the window closes, which ends the watching.
             await health.watchDrawThings(model.install)
         }
@@ -63,10 +69,11 @@ struct SettingsView: View {
 
     private var summary: String {
         if health.running { return "Checking…" }
+        if model.running { return "Checks paused while a mini is being made." }
         guard let when = health.lastChecked else { return "" }
         let bad = health.results.values.filter { !$0.ok }.count
         let head = bad == 0 ? "Everything's ready." : "\(bad) thing\(bad > 1 ? "s" : "") to look at."
-        return "\(head) Last checked at \(when.formatted(date: .omitted, time: .standard))."
+        return "\(head) Last checked at \(when.formatted(date: .omitted, time: .shortened))."
     }
 
     private var drawThingsSteps: some View {

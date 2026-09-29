@@ -21,10 +21,16 @@ struct MakeView: View {
     @State private var card = SizeCard.remembered()
     @State private var message: String?
     @State private var messageIsError = false
+    /// The raw error behind a message, for the tooltip only.
+    @State private var messageDetail: String?
     @FocusState private var nameFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
+            // A sheet shows no window title, so it carries its own.
+            Text("New Mini").font(.title2.bold())
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding([.horizontal, .top], 20)
             Form {
                 Section("🧙 Your character") {
                     Picker("Start from", selection: $start) {
@@ -50,20 +56,24 @@ struct MakeView: View {
             Divider()
             HStack(alignment: .firstTextBaseline) {
                 if let reason = model.cantStart {
-                    Label(reason, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    CantStart(reason: reason)
+                } else if let message, messageIsError {
+                    Text(message).foregroundStyle(.red).help(messageDetail ?? "")
+                } else if let missing {
+                    Text(missing).foregroundStyle(.secondary)
                 } else if let message {
-                    Text(message).foregroundStyle(messageIsError ? .red : .secondary)
+                    Text(message).foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button("Cancel") { model.sheet = nil }.keyboardShortcut(.cancelAction)
                 Button("Make My Mini") { make() }
                     .keyboardShortcut(.defaultAction)
-                    .disabled(model.cantStart != nil || takenName != nil)
+                    .disabled(model.cantStart != nil || takenName != nil || missing != nil)
             }
             .padding(16)
             .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(width: 580, height: 600)  // fits under the toolbar of the smallest main window; the form scrolls
+        .frame(width: 580, height: 640)  // fits under the toolbar of the smallest main window; the form scrolls
         .task {
             // Describe it and the grey sculpt need Draw Things, and Make needs every required
             // part: check them once if nothing has yet, then keep watching Draw Things.
@@ -115,7 +125,7 @@ struct MakeView: View {
                 Text("Best for drawings and photos. Turn it off only if your picture is already a grey 3D model.")
             }
             .disabled(!health.drawThingsReady)
-            if !health.drawThingsReady { needsDrawThings }
+            if !health.drawThingsReady { needsDrawThings("The grey sculpt needs Draw Things.") }
         }
     }
 
@@ -123,10 +133,13 @@ struct MakeView: View {
         Group {
             TextEditor(text: $description)
                 .frame(minHeight: 70)
+                .padding(4)
+                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.secondary.opacity(0.4)))
+                .accessibilityLabel("Describe your character")
                 .overlay(alignment: .topLeading) {
                     if description.isEmpty {
                         Text("e.g. dwarf cleric holding a warhammer against his chest, shield on his back")
-                            .foregroundStyle(.tertiary).padding(.leading, 5).allowsHitTesting(false)
+                            .foregroundStyle(.tertiary).padding(.leading, 9).padding(.top, 4).allowsHitTesting(false)
                     }
                 }
                 .onChange(of: description) { _, text in
@@ -134,16 +147,17 @@ struct MakeView: View {
                     name = Mini.displayName(MakeAdvice.name(fromDescription: text))
                     autoName = true
                 }
-            Button("Try a Different Version", systemImage: "dice") {
-                seed = Int.random(in: 0..<1_000_000)
-                say("🎲 Next version picked. Press Make My Mini.")
-            }
-            if !health.drawThingsReady { needsDrawThings }
+            if !health.drawThingsReady { needsDrawThings("✍️ Describe it needs Draw Things.") }
         }
     }
 
-    private var needsDrawThings: some View {
-        Text("Needs Draw Things. Open Settings to see how to set it up.").font(.callout).foregroundStyle(.secondary)
+    private func needsDrawThings(_ text: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(text).foregroundStyle(.secondary)
+            Spacer()
+            SettingsLink { Text("Open Settings") }
+        }
+        .font(.callout)
     }
 
     private func take(_ url: URL, pasted: Bool = false) {
@@ -181,28 +195,40 @@ struct MakeView: View {
         return Mini.displayName(slug)
     }
 
+    private var trimmedDescription: String { description.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    /// What Make My Mini is waiting for, said in the footer while the button is off.
+    private var missing: String? {
+        switch start {
+        case .picture where picture == nil: return "Add a picture to start"
+        case .description where trimmedDescription.isEmpty: return "Describe your character to start"
+        default: break
+        }
+        if slug.isEmpty { return "Give your mini a name" }
+        if start == .description && !health.drawThingsReady { return "Describe it needs Draw Things first" }
+        return nil
+    }
+
     private func make() {
-        guard !slug.isEmpty else { return say("Give your mini a name first.", error: true) }
+        guard missing == nil else { return }
         let source: PictureSource
         switch start {
         case .picture:
-            guard let picture else { return say("Choose a picture first.", error: true) }
+            guard let picture else { return }
             source = .image(picture.url)
         case .description:
-            guard health.drawThingsReady else { return say("✍️ Describe it needs Draw Things. Open Settings to see how to set it up.", error: true) }
-            let d = description.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !d.isEmpty else { return say("Describe the character first.", error: true) }
-            source = .description(d)
+            source = .description(trimmedDescription)
         }
         do {
             try model.make(name: slug, picture: source, restyle: start == .picture && restyle && health.drawThingsReady,
                            seed: seed, sizes: card.sizes)
         } catch {
-            say("\(error)", error: true)
+            say(model.plainWords(error), error: true)
+            messageDetail = "\(error)"
         }
     }
 
-    private func say(_ text: String, error: Bool = false) { message = text; messageIsError = error }
+    private func say(_ text: String, error: Bool = false) { message = text; messageIsError = error; messageDetail = nil }
 }
 
 /// A picture chosen for a new mini, with its warnings worked out from its real pixel size.
@@ -229,7 +255,8 @@ struct ResizeView: View {
     let mini: Mini
     @Environment(AppModel.self) private var model
     @State private var card: SizeCard
-    @State private var problem: String?
+    /// A refused resize: in words for people, and the raw error for the tooltip.
+    @State private var problem: (words: String, detail: String)?
 
     init(mini: Mini) {
         self.mini = mini
@@ -241,9 +268,12 @@ struct ResizeView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            Text("Resize \(mini.displayName)").font(.title2.bold())
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding([.horizontal, .top], 20)
             Form {
                 Section {
-                    Text("Remakes the print file with these sizes. About 30 seconds. The character itself doesn't change.")
+                    Text("Remakes the print file with these sizes. About a minute. The character itself doesn't change.")
                         .foregroundStyle(.secondary)
                 }
                 SizeSection(card: $card, seed: nil)
@@ -251,13 +281,16 @@ struct ResizeView: View {
             .formStyle(.grouped)
             Divider()
             HStack(alignment: .firstTextBaseline) {
-                if let reason = model.cantStart ?? problem {
-                    Label(reason, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                if let reason = model.cantStart {
+                    CantStart(reason: reason)
+                } else if let problem {
+                    Label(problem.words, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                        .help(problem.detail)
                 }
                 Spacer()
                 Button("Cancel") { model.sheet = nil }.keyboardShortcut(.cancelAction)
                 Button("Resize") {
-                    do { try model.resize(mini, sizes: card.sizes) } catch { problem = "\(error)" }
+                    do { try model.resize(mini, sizes: card.sizes) } catch { problem = (model.plainWords(error), "\(error)") }
                 }
                 .keyboardShortcut(.defaultAction)
                 .disabled(model.cantStart != nil)
@@ -265,8 +298,18 @@ struct ResizeView: View {
             .padding(16)
             .fixedSize(horizontal: false, vertical: true)
         }
-        .navigationTitle("Resize \(mini.displayName)")
-        .frame(width: 580, height: 560)
+        .frame(width: 580, height: 600)
+    }
+}
+
+/// Why Make or Resize can't start, with a way to Settings when the reason is the setup
+/// rather than a job already running.
+struct CantStart: View {
+    @Environment(AppModel.self) private var model
+    let reason: String
+    var body: some View {
+        Label(reason, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+        if model.requiredProblem != nil { SettingsLink { Text("Open Settings") } }
     }
 }
 
@@ -294,8 +337,9 @@ struct SizeSection: View {
                 Text("✨ Best print").tag(SizeCard.Purpose.display)
             }
             .pickerStyle(.segmented)
-            Text(card.purpose == .game ? "Matches the other minis on your table." : "Sized so the details come out well.")
-                .font(.callout).foregroundStyle(.secondary)
+            if card.purpose == .game {  // Best print explains itself in its note below
+                Text("Matches the other minis on your table.").font(.callout).foregroundStyle(.secondary)
+            }
             Picker("🖨️ Your printer's nozzle", selection: bind(\.nozzle, { $0.setNozzle($1) })) {
                 Text("0.2 mm · fine").tag("0.2")
                 Text("0.4 mm · standard").tag("0.4")
@@ -305,12 +349,17 @@ struct SizeSection: View {
             Text("Not sure? Most printers come with 0.4 mm. Choose the same nozzle in your slicer.")
                 .font(.callout).foregroundStyle(.secondary)
             if card.purpose == .game {
-                LabeledContent("How tall is the character?") {
-                    HStack(spacing: 4) {
-                        TextField("", text: bind(\.realHeight, { $0.setRealHeight($1) }), prompt: Text("1.80"))
-                            .labelsHidden().frame(width: 64).multilineTextAlignment(.trailing)
-                        Text("m")
+                VStack(alignment: .leading, spacing: 4) {
+                    LabeledContent("How tall is the character?") {
+                        HStack(spacing: 4) {
+                            TextField("", text: bind(\.realHeight, { $0.setRealHeight($1) }), prompt: Text("1.80"))
+                                .labelsHidden().frame(width: 64).multilineTextAlignment(.trailing)
+                            Text("m")
+                        }
                     }
+                    // SizeCard.gameHeight: blank (or not a number) counts as 1.8 m.
+                    Text("In metres. 6 ft ≈ 1.83 m, a halfling ≈ 1 m. Leave blank for an average human (1.8 m).")
+                        .font(.callout).foregroundStyle(.secondary)
                 }
                 Picker("Scale", selection: bind(\.scale, { $0.setScale($1) })) {
                     Text("28 mm").tag(28)
@@ -318,24 +367,31 @@ struct SizeSection: View {
                     Text("54 mm").tag(54)
                 }
                 .pickerStyle(.segmented)
-                Text("Use the scale of the other minis on your table. An average human (1.8 m) is 28, 32 or 54 mm tall.")
+                Text("Pick the scale your other minis use. At 32 mm scale, an average 1.8 m human stands 32 mm tall.")
                     .font(.callout).foregroundStyle(.secondary)
             }
             if !card.note.isEmpty {
                 Text(card.note).font(.callout).foregroundStyle(card.warns ? .orange : .secondary)
             }
-            slider("📏 Character height", \.height, { $0.setHeight($1) }, SizeCard.heightRange, unit: "mm",
+            slider("Character height", \.height, { $0.setHeight($1) }, SizeCard.heightRange, unit: "mm",
                    hint: "Set for you by the choices above; type a value or drag to change it. The base adds about 2 mm.")
             slider("Base size", \.base, { $0.setBase($1) }, SizeCard.baseRange, unit: "mm", hint: nil)
-            DisclosureGroup("⚙️ Advanced", isExpanded: $advanced) {
+            // A plain button as the label, so a click or VoiceOver's press on the words opens it too.
+            DisclosureGroup(isExpanded: $advanced) {
                 slider("Extra thickness for thin parts", \.inflate, { $0.setInflate($1) }, SizeCard.inflateRange, unit: "mm",
                        hint: "Set by your nozzle. More keeps swords and capes in one piece, but softens faces.", decimals: 2)
                 Toggle("Use the character's own base instead of a round one", isOn: $card.noBase)
                 if let seed {
-                    LabeledContent("Variation number") {
-                        TextField("", value: seed, format: .number.grouping(.never)).labelsHidden().frame(width: 90)
+                    VStack(alignment: .leading, spacing: 4) {
+                        LabeledContent("Variation number") {
+                            TextField("", value: seed, format: .number.grouping(.never)).labelsHidden().frame(width: 90)
+                        }
+                        Text("Same description + same number = same drawing. Change it for a different take.")
+                            .font(.callout).foregroundStyle(.secondary)
                     }
                 }
+            } label: {
+                Button("Advanced") { withAnimation { advanced.toggle() } }.buttonStyle(.plain)
             }
         }
         .onChange(of: card.purpose) { _, p in UserDefaults.standard.set(p.rawValue, forKey: "purpose") }

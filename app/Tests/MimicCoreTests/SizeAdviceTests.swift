@@ -16,6 +16,7 @@ final class SizeAdviceTests: XCTestCase {
         c.setNozzle("0.4"); XCTAssertEqual(c.height, 100)
         c.setNozzle("0.6"); XCTAssertEqual(c.height, 150)
         XCTAssertFalse(c.warns)
+        XCTAssertEqual(c.note, "✨ Sized so faces come out clearly on a 0.6 mm nozzle: about 150 mm tall. Chunky characters also look good a bit smaller.")
     }
 
     func testBase() {
@@ -26,11 +27,29 @@ final class SizeAdviceTests: XCTestCase {
         var c = SizeCard(purpose: .game, nozzle: "0.4")
         c.setScale(54); c.setRealHeight("1.67")  // 50.1 → 50
         XCTAssertFalse(c.warns)
-        c.setRealHeight("1.62")  // 48.6 → 49
-        XCTAssertTrue(c.warns)
-        XCTAssertTrue(c.note.contains("At 49 mm, a 0.4 mm nozzle"), c.note)
-        c.setNozzle("0.2")
+        XCTAssertEqual(c.note, "")
+        c.setRealHeight("1.62")  // 48.6 → 49: a tip on 0.4, a warning on 0.6
         XCTAssertFalse(c.warns)
+        XCTAssertTrue(c.note.hasPrefix("💡 At 49 mm, a 0.4 mm nozzle softens faces"), c.note)
+        c.setNozzle("0.6")
+        XCTAssertTrue(c.warns)
+        XCTAssertTrue(c.note.contains("At 49 mm, a 0.6 mm nozzle turns faces into bumps"), c.note)
+        c.setRealHeight("")  // 54 mm: 0.6's sweet spot
+        XCTAssertFalse(c.warns); XCTAssertEqual(c.note, "")
+        c.setNozzle("0.2"); c.setRealHeight("1.62")
+        XCTAssertFalse(c.warns); XCTAssertEqual(c.note, "")
+    }
+
+    /// The default card (32 mm on a 0.4 nozzle) gets a tip, not an orange warning.
+    func testDefaultGameScaleIsATipNotAWarning() {
+        var c = SizeCard(purpose: .game, nozzle: "0.4")
+        XCTAssertFalse(c.warns)
+        XCTAssertEqual(c.note, "💡 At 32 mm, a 0.4 mm nozzle softens faces a little. For sharper faces, use a 0.2 mm nozzle or choose ✨ Best print.")
+        c.setScale(28)
+        XCTAssertFalse(c.warns, "28 mm is the edge: still a tip")
+        c.setRealHeight("1.7")  // 26 mm
+        XCTAssertTrue(c.warns)
+        XCTAssertTrue(c.note.hasPrefix("⚠️ At 26 mm"), c.note)
     }
 
     /// The note names the height worked out; the slider holds only its own range.
@@ -121,7 +140,7 @@ final class SizeAdviceTests: XCTestCase {
 
 final class JobProgressTests: XCTestCase {
     func testNotes() {
-        XCTAssertEqual(JobProgress.note(.prep, elapsed: 12), "About 30 seconds · 0:12 so far.")
+        XCTAssertEqual(JobProgress.note(.prep, elapsed: 12), "About a minute · 0:12 so far.")
         XCTAssertTrue(JobProgress.note(.generate, elapsed: 12 * 60).hasPrefix("About 7–10 minutes · 12:00 so far."))
         XCTAssertTrue(JobProgress.note(.generate, elapsed: 12 * 60 + 1).contains("Taking longer than usual"))
         XCTAssertTrue(JobProgress.note(.generate, elapsed: 25 * 60 + 1).contains("unusually slow"))
@@ -133,7 +152,7 @@ final class JobProgressTests: XCTestCase {
         XCTAssertEqual(JobProgress.fraction(s, now: start.addingTimeInterval(270)), 0.5)
         XCTAssertEqual(JobProgress.fraction(s, now: start.addingTimeInterval(3000)), 0.95)
         s.kind = .prep
-        XCTAssertEqual(JobProgress.fraction(s, now: start.addingTimeInterval(20)), 0.5)
+        XCTAssertEqual(JobProgress.fraction(s, now: start.addingTimeInterval(30)), 0.5)
         s.running = false; s.exit = 0
         XCTAssertEqual(JobProgress.fraction(s), 1)
         s.exit = 1

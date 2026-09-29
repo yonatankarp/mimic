@@ -3,21 +3,16 @@ import MimicCore
 import QuickLook
 import SwiftUI
 
-/// The gallery on the left: search, the right-click menu, rename, trash and Quick Look.
+/// The gallery on the left: search, the right-click menu and Quick Look. Rename and trash are
+/// asked at window level (MainWindowChrome), so the Mini menu can ask too, sidebar hidden or not.
 struct Sidebar: View {
     @Environment(AppModel.self) private var model
     @State private var query = ""
-    @State private var renaming: Mini?
-    @State private var trashing: Mini?
-    @State private var problem: String?
     @State private var preview: URL?
 
-    /// The mini being made right now, which can't be renamed or trashed under the job.
-    private var busyWith: String? { model.job?.running == true ? model.job?.name : nil }
-
     var body: some View {
-        // Only the search field sits inside the branch: a sheet or dialog on the other side
-        // would close, losing what was typed, when a mini comes or goes past the seventh.
+        // Only the search field sits inside the branch: anything attached on the other side
+        // would be torn down when a mini comes or goes past the seventh.
         Group {
             // Same threshold as the filter, so the field and the filtering never disagree.
             if model.minis.count > Gallery.searchAfter {
@@ -36,32 +31,20 @@ struct Sidebar: View {
             return .handled
         }
         .quickLookPreview($preview)
-        // Minis made from the terminal appear when you come back to the app.
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            model.reload()
-        }
-        .sheet(item: $renaming) { mini in
-            RenameSheet(mini: mini, busyWith: busyWith)
-        }
-        .confirmationDialog("Move “\(trashing?.displayName ?? "")” to the Trash?",
-                            isPresented: Binding(get: { trashing != nil }, set: { if !$0 { trashing = nil } }),
-                            presenting: trashing) { mini in
-            Button("Move to Trash", role: .destructive) { trash(mini) }
-            Button("Keep It", role: .cancel) {}
-        } message: { _ in
-            Text("You can put it back from the Trash if you change your mind.")
-        }
-        .alert(problem ?? "", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
-            Button("OK") {}
-        }
     }
 
     private var list: some View {
         @Bindable var model = model
         let shown = Gallery.search(model.minis, query)
-        return List(shown, selection: $model.selection) { mini in
-            GalleryRow(mini: mini).contextMenu { menu(for: mini) }
+        return List(selection: $model.selection) {
+            Section("Your Minis") {
+                ForEach(shown) { mini in
+                    GalleryRow(mini: mini).contextMenu { menu(for: mini) }
+                }
+            }
         }
+        // Delete (or ⌘⌫ from the Mini menu) asks before trashing, as the context menu does.
+        .onDeleteCommand { if let mini = model.selected, model.sheet == nil { model.trashing = mini } }
         .overlay {
             if shown.isEmpty && !model.minis.isEmpty {
                 ContentUnavailableView.search(text: query)
@@ -74,33 +57,18 @@ struct Sidebar: View {
             if let stl = mini.stl { model.openInSlicer(stl) }
         }
         .disabled(mini.stl == nil)  // not made yet: nothing to print
-        Button("Show in Finder", systemImage: "folder") {
-            NSWorkspace.shared.activateFileViewerSelecting([mini.stl ?? mini.folder])
-        }
+        Button("Show in Finder", systemImage: "folder") { model.showInFinder(mini) }
         Divider()
-        Button("Rename…", systemImage: "pencil") { renaming = mini }
-        Button("Move to Trash…", systemImage: "trash", role: .destructive) { trashing = mini }
-    }
-
-    private func trash(_ mini: Mini) {
-        guard let install = model.install else { return }
-        do {
-            try Gallery.moveToTrash(install.runs, name: mini.name, busyWith: busyWith)
-        } catch let e as RequestError {
-            problem = e.description
-        } catch {
-            problem = "Couldn't move it to the Trash. Try Show in Finder and delete it there."
-        }
-        model.reload()  // picks the newest mini if this one was selected
+        Button("Rename…", systemImage: "pencil") { model.sheet = .rename(mini) }
+        Button("Move to Trash…", systemImage: "trash", role: .destructive) { model.trashing = mini }
     }
 }
 
 /// Asks for the new name as people see it ("Dwarf Cleric") and says why one is refused.
-private struct RenameSheet: View {
+struct RenameSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     let mini: Mini
-    let busyWith: String?
     @State private var text = ""
     @State private var problem: String?
 
@@ -127,11 +95,9 @@ private struct RenameSheet: View {
         let new = Rules.slug(text)
         guard !new.isEmpty else { problem = "Give it a name with at least one letter or number."; return }
         do {
-            try Gallery.rename(install.runs, from: mini.name, to: new, busyWith: busyWith)
-        } catch let e as RequestError {
-            problem = e.description; return
+            try Gallery.rename(install.runs, from: mini.name, to: new, busyWith: model.busyWith)
         } catch {
-            problem = "Couldn't rename it. Is its folder open in another app?"; return
+            problem = model.plainWords(error, else: "Couldn't rename it. Is its folder open in another app?"); return
         }
         let wasSelected = model.selection == mini.id
         // Both in one go, so the window never shows another mini in between.
@@ -157,5 +123,7 @@ struct GalleryRow: View {
             }
         }
         .padding(.vertical, 2)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(mini.displayName), made \(mini.madeAt.formatted(.relative(presentation: .named)))")
     }
 }

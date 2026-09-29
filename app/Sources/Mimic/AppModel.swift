@@ -6,11 +6,12 @@ import UserNotifications
 /// The sheet over the main window. One at a time, so swapping Make for its progress is a single
 /// change rather than a dismiss and a present racing each other.
 enum AppSheet: Identifiable, Equatable {
-    case make, resize(Mini), progress
+    case make, resize(Mini), rename(Mini), progress
     var id: String {
         switch self {
         case .make: "make"
         case .resize(let m): "resize-\(m.name)"
+        case .rename(let m): "rename-\(m.name)"
         case .progress: "progress"
         }
     }
@@ -31,6 +32,10 @@ final class AppModel {
     var sheet: AppSheet?
     /// The job has a place on screen: its sheet, or the toolbar item it went to. Close clears it.
     var jobShown = false
+    /// The mini waiting on "Move to Trash?", asked from the sidebar or the Mini menu.
+    var trashing: Mini?
+    /// A rename or trash that was refused, shown as an alert.
+    var problem: String?
 
     init() {
         let install = Install.locate()
@@ -79,6 +84,32 @@ final class AppModel {
     }
 
     func stop() { jobs?.cancel() }
+
+    /// The mini being made right now, which can't be renamed or trashed under the job.
+    var busyWith: String? { running ? job?.name : nil }
+
+    func trash(_ mini: Mini) {
+        guard let install else { return }
+        do {
+            try Gallery.moveToTrash(install.runs, name: mini.name, busyWith: busyWith)
+        } catch {
+            problem = plainWords(error, else: "Couldn't move it to the Trash. Try Show in Finder and delete it there.")
+        }
+        reload()  // picks the newest mini if this one was selected
+    }
+
+    /// An error in words for people. Mimic's own refusals already are; anything else (a Cocoa
+    /// error, a failed launch) gets `fallback`, and its raw text goes only in the tooltip.
+    func plainWords(_ error: Error, else fallback: String = "Couldn't start. Check that Mimic's folder is still there, then try again.") -> String {
+        switch error {
+        // Gallery doesn't know what the job is doing; the running job does.
+        case RequestError.busy(let n, _) where n == job?.name: RequestError.busy(n, job?.kind ?? .generate).description
+        case let e as RequestError: e.description
+        case let e as Refusal: e.description
+        case let e as DrawThingsError: e.description
+        default: fallback
+        }
+    }
 
     /// Hides the progress sheet; the job carries on and shows in the toolbar and the Dock.
     func runInBackground() { if sheet == .progress { sheet = nil } }
@@ -144,6 +175,9 @@ final class AppModel {
     }
 
     var slicerName: String { Slicer.preferred()?.name ?? "your slicer" }
+
+    /// The print file selected in Finder, or the folder when there's no print file yet.
+    func showInFinder(_ mini: Mini) { NSWorkspace.shared.activateFileViewerSelecting([mini.stl ?? mini.folder]) }
 }
 
 /// A job refused before it started, in words for people.
