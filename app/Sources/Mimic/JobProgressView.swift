@@ -285,6 +285,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return .terminateLater
     }
 
+    /// Closing the window quits Mimic, except while setup is downloading: that carries on, and
+    /// the Dock icon brings the window back.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { !model.setup.running }
+
     func applicationDidBecomeActive(_ notification: Notification) {
         NSApp.dockTile.badgeLabel = nil  // seen it
     }

@@ -36,7 +36,13 @@ final class SetupModel {
         problem = nil
         progress = nil
         samples = []
-        let setup = EngineSetup(install: install)
+        var setup = EngineSetup(install: install)
+        // Development: try setup against a local copy of the files instead of the internet.
+        if let mirror = ProcessInfo.processInfo.environment["MIMIC_DOWNLOAD_MIRROR"].flatMap(URL.init(string:)) {
+            let local = { (f: EngineFile) in EngineFile(name: f.name, url: mirror.appendingPathComponent(f.name), bytes: f.bytes, sha256: f.sha256) }
+            setup.engineFile = local(setup.engineFile)
+            setup.models = setup.models.map(local)
+        }
         Task {
             do {
                 try await setup.run { p in Task { @MainActor in self.update(p) } }
