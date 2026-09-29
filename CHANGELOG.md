@@ -2,6 +2,14 @@
 
 What's new in each version of Mimic. The release workflow publishes a version's section here as its release notes, so write it for people who use Mimic, not for developers.
 
+## 0.4.1
+
+### New
+- **See which Mimic you have.** The bottom of Settings shows the exact build (for example "Mimic 0.4.1 · build 106 · 04e41b1"), and so do Mimic → About Mimic and `mimic --version` in Terminal. Include it when you report a problem.
+
+### Fixed
+- **First launch could fail with "error 404"** while downloading the 3D engine, because the file's release page had been removed. It's back, and Mimic now checks every day that everything it downloads is still there.
+
 ## 0.4.0
 
 Choose the 3D model Mimic uses, and let an AI helper flesh out your descriptions.
