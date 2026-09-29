@@ -12,6 +12,18 @@ stage="$(mktemp -d)/Mimic"
 mkdir -p "$stage" "$out"
 ditto "$app" "$stage/Mimic.app"
 ln -s /Applications "$stage/Applications"
+# Mimic is signed by its makers rather than by Apple, so the first open needs one extra step.
+cat > "$stage/If Mimic won't open.txt" <<'TEXT'
+The first time you open Mimic, your Mac may say it can't check it ("Apple could not verify
+Mimic"). That's because Mimic is a free app that isn't registered with Apple. To open it:
+
+1. Press Done on that message.
+2. Open System Settings, then Privacy & Security.
+3. Scroll down to "Mimic was blocked" and press Open Anyway.
+4. Confirm with your Mac password or Touch ID.
+
+You only need to do this once.
+TEXT
 dmg="$out/Mimic-$version.dmg"
 rm -f "$dmg"
 hdiutil create -quiet -volname Mimic -srcfolder "$stage" -fs HFS+ -format UDZO -ov "$dmg"
