@@ -41,11 +41,12 @@ final class EngineTests: XCTestCase {
     }
 
     /// A soft edge pixel takes the character's colour, not the backdrop's; its alpha stays.
+    /// Clear pixels beyond reach are black, never the backdrop (trellis-cli sees their RGB).
     func testEdgesTakeTheCharactersColour() {
         var p: [UInt8] = [200, 0, 0, 255,  90, 90, 90, 128,  90, 90, 90, 0,  90, 90, 90, 0,  90, 90, 90, 0,  90, 90, 90, 0]
         Engine.cleanEdges(&p, width: 6, height: 1)
         XCTAssertEqual(Array(p[4..<8]), [200, 0, 0, 128])
-        XCTAssertEqual(Array(p[20..<24]), [90, 90, 90, 0], "colour spread further than 4 pixels")
+        XCTAssertEqual(Array(p[20..<24]), [0, 0, 0, 0], "the backdrop stayed under a clear pixel")
     }
 
     // MARK: The real `mimic _engine`

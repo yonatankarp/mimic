@@ -101,7 +101,12 @@ public enum Engine {
     /// soft edge keeps part of the backdrop's colour, a light rim the 3D engine then paints onto
     /// the model. Colours spread in from solid pixels, one pixel per round; alpha is untouched.
     /// Straight (not premultiplied) RGBA. Same as image-to-3dlab's clean_edges.
+    ///
+    /// Fully clear pixels start black, as rembg left them: trellis-cli hands the picture's RGB
+    /// to the model as it is, clear or not, and a backdrop left under alpha 0 was measured
+    /// reaching the staged input.
     static func cleanEdges(_ p: inout [UInt8], width: Int, height: Int, solid: UInt8 = 250, reach: Int = 4) {
+        for i in stride(from: 0, to: p.count, by: 4) where p[i + 3] == 0 { p[i] = 0; p[i + 1] = 0; p[i + 2] = 0 }
         var known = (0..<width * height).map { p[$0 * 4 + 3] >= solid }
         for _ in 0..<reach {
             var grown: [(Int, UInt8, UInt8, UInt8)] = []
