@@ -1,8 +1,8 @@
 # Generated minis: images, meshes and STLs, tens of MB each.
 runs/
 
-# Third-party lab and its ~20 GB of model weights; setup.sh recreates it at a pinned tag.
-image-to-3dlab/
+# The 3D engine and its 8.4 GB of model files; setup.sh downloads both at pinned versions.
+engine/
 
 __pycache__/
 *.log

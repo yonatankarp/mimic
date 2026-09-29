@@ -29,11 +29,9 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
 
 | What | What it's for | Get it |
 |---|---|---|
-| Homebrew | Installs the tools below | [Homebrew/brew](https://github.com/Homebrew/brew) |
+| Homebrew | Installs Blender and Draw Things | [Homebrew/brew](https://github.com/Homebrew/brew) |
 | Blender | Makes the print-ready file | [blender/blender](https://github.com/blender/blender) |
 | Draw Things | Draws the pictures | [App Store](https://apps.apple.com/app/id6444050820) |
-| git | Fetches Mimic's 3D engine | [git/git](https://github.com/git/git) |
-| uv | Runs Mimic's 3D engine | [astral-sh/uv](https://github.com/astral-sh/uv) |
 | Pixal3D and its 3D model (8.4 GB) | Turns a picture into a 3D model | [raven38/pixal3d.cpp](https://github.com/raven38/pixal3d.cpp) |
 
 ### Install
@@ -120,9 +118,9 @@ flowchart TD
 
 1. **The picture.** FLUX.2 Klein, running in Draw Things, draws your character from a
    description, or redraws your picture as a grey sculpt so it's easier to turn into 3D.
-2. **The 3D model.** [Pixal3D](https://github.com/raven38/pixal3d.cpp), through
-   [image-to-3dlab](https://github.com/Bingeljell/image-to-3dlab), builds a 3D model from the
-   picture on your Mac's graphics chip.
+2. **The 3D model.** Your Mac cuts the character out of the picture, then
+   [Pixal3D](https://github.com/raven38/pixal3d.cpp) builds a 3D model from it on your Mac's
+   graphics chip.
 3. **Print prep.** Blender sizes the model, centres it on a round base, makes it one solid
    piece, thickens thin parts to suit your nozzle, and flattens the bottom so it sits on the
    print bed.

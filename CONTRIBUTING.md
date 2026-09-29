@@ -4,14 +4,14 @@
 
 | Path | What |
 |---|---|
-| `Install Mimic.command`, `setup.sh` | The installer. `setup.sh --yes` skips the question; `--build-from-source` compiles Pixal3D instead of downloading it (needs Xcode). |
+| `Install Mimic.command`, `setup.sh` | The installer. `setup.sh --yes` skips the question. |
 | `app/` | The Mac app, a Swift package. `MimicCore` is everything but the windows (jobs, Draw Things, checks, the gallery on disk); `Mimic` is one binary that is the app, or the `mimic` command with arguments. `app/NOTES.md` has the design decisions and why. |
 | `pipeline/mini_prep.py` | Print prep in Blender. The comment at its top lists every tuning option. |
 | `pipeline/gen_views.py` | Experimental and unused: side and back views for Pixal3D's multiview mode. |
 | `pipeline/render_zoom.py` | Close-up render, for judging small details. |
 | `tools/package_app.sh`, `tools/package_pixal3d.sh` | Build the app and Pixal3D downloads the installer uses. |
 | `tests/` | Print-prep tests (the app's own tests are in `app/Tests`). |
-| `runs/`, `image-to-3dlab/` | Generated minis, and the 3D engine with its models. Both are git-ignored. |
+| `runs/`, `engine/` | Generated minis, and the 3D engine (`trellis-cli`) with its models in `engine/models/pixal3d-sv/`. Both are git-ignored. |
 
 ## Building and testing
 
@@ -39,6 +39,8 @@ The installer downloads a pre-built Pixal3D so that nobody needs Xcode.
 
 1. Build it as the header of `tools/package_pixal3d.sh` describes. It has to target macOS 14,
    and it has to map the source path away so your home folder doesn't end up in the files.
+   It also has to honour `PIXAL3D_STEPS` (its log says "PIXAL3D_STEPS=8 overrides 12 steps"):
+   stock pixal3d.cpp ignores it, and Mimic stops any run whose engine does.
 2. Run the script to package it.
 3. Upload the tarball to a GitHub release.
-4. Update `PIXAL3D_URL` and `PIXAL3D_SHA256` in `setup.sh`.
+4. Update `PIXAL3D_URL`, `PIXAL3D_VERSION` and `PIXAL3D_SHA256` in `setup.sh`.
