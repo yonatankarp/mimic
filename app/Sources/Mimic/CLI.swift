@@ -267,6 +267,7 @@ enum CLI {
         if s.canceled { print("Stopped."); return 130 }
         if s.succeeded {
             print("Done: \(folder.appendingPathComponent("\(s.name).stl").path)")
+            for note in s.notes { print("Heads up: \(note)") }
             if s.fragile { print("Heads up: some thin parts may be fragile. Check it in your slicer before printing.") }
             return 0
         }

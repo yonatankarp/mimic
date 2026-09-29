@@ -11,7 +11,10 @@ public struct JobStatus: Equatable, Sendable {
     public var canceled = false
     public var exit: Int32?
     public var problem: String?
+    /// Print prep warned about something other than a left-out part (the footprint).
     public var fragile = false
+    /// What print prep said to tell the person, as it said it: a part it left out.
+    public var notes: [String] = []
     /// When the step it's on began: time left is counted per step.
     public var stepStarted: Date?
     /// Step 1 is waiting for Draw Things to open.
@@ -366,13 +369,21 @@ public final class JobRunner: @unchecked Sendable {
             try? h.seek(toOffset: prepLogStart)
             return String(decoding: h.readDataToEndOfFile(), as: UTF8.self)
         }()
-        let fragile = ((try? String(contentsOf: log, encoding: .utf8)) ?? "").contains("mini_prep: WARNING")
-            || thisRun.contains("mini_prep: WARNING")
+        let warnings = (((try? String(contentsOf: log, encoding: .utf8)) ?? "") + "\n" + thisRun)
+            .split(separator: "\n").filter { $0.contains("mini_prep: WARNING") }
+        let fragile = warnings.contains { !$0.contains(Prep.partWarning) }
+        var notes: [String] = []
+        for w in warnings {
+            guard let r = w.range(of: Prep.partWarning) else { continue }
+            let note = String(w[r.upperBound...])
+            if !notes.contains(note) { notes.append(note) }  // the job log and prep.log can both carry it
+        }
         let finished: JobStatus? = lock.withLock {
             current?.running = false
             current?.exit = code
             current?.problem = canceled ? nil : problem
             current?.fragile = fragile && code == 0
+            current?.notes = code == 0 ? notes : []
             process = nil
             return current
         }

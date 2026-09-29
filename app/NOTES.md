@@ -42,6 +42,23 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
     triangles from them).
   - Inflate is a true offset of the surface, not Blender's push along vertex normals: the
     uninflated dwarf comes out at 204.6 mm³ against the model's own 204.7 (Blender: 232).
+  - **Pieces print prep leaves out** (#17). Only the largest connected piece is kept, and the
+    rest are of two kinds, told apart by the sign of their volume, not their size. The inner
+    wall of a hollow is a piece of its own, inside out, so its volume is negative: dropping it
+    fills the hollow, and these are the big ones (the elf's was 575 mm³ and its whole body's
+    length; the tieflings' up to 234 mm³ and 29% of the height). A solid dropped piece is
+    either a speck or a held thing the generator didn't join to the hands, and a solid piece
+    whose longest side is at least 10% of the height is the second: it's still left out, but
+    prep prints `mini_prep: WARNING part: <what to tell the person>`, which the mini's page,
+    the progress window and `mimic make` show as it is. Measured on the seven minis in the
+    gallery at their own sizes: the Pixal3D elf's bow was 30 mm long (93% of 32 mm) and
+    54 mm³; the largest solid speck on any of them was 0.93 mm (0.93% of 100 mm) and 0.001
+    mm³. The 10% leaves an order of magnitude either side. `testRealMinisWarnOnlyOfARealPart`
+    reruns that on a folder of model.glb files (`MIMIC_PREP_MINIS`). The part is left out
+    rather than kept as a second body in the STL: slicers print several bodies, but this one
+    floats where the hands held it, so it prints as a loose piece needing supports and glue,
+    not as held. Make Another Version or TRELLIS.2 (which joined the bow on every seed, #2)
+    is the fix, so that's what the warning says.
   - Trimming to `--faces` is quadric edge collapse that refuses any collapse that would make
     an edge not shared by exactly two triangles.
   - Renders are drawn in software, so a child process needs no window server or GPU, and it

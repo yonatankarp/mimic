@@ -230,6 +230,57 @@ final class PrepTests: XCTestCase {
         XCTAssertEqual(plainRest.count, 1)
     }
 
+    /// A held thing the generator didn't join to the figure (a Pixal3D elf's bow): a bar in
+    /// front of the body, clear of it by far more than the inflate, and 1.2 of the 2.65 tall.
+    /// It's left out, as a speck would be, but said, with how long it was.
+    func testASeparatePartIsLeftOutAndSaid() throws {
+        var m = Self.fixture()
+        m.add(Self.box(half: [0.03, 0.03, 0.6]), at: [0, -0.55, 1.4])
+        let (result, out, _) = try prep(["--faces", "20000"], mesh: m)
+        let parts = result.lines.filter { $0.hasPrefix(Prep.partWarning) }
+        XCTAssertEqual(parts.count, 1, "\(result.lines)")
+        // 1.2 × (32 / 2.65) = 14.5 mm, plus the inflate at each end.
+        XCTAssertTrue(parts.first?.contains("A part came out separate from the figure (about 15 mm long) and was left out.") == true, "\(parts)")
+        XCTAssertTrue(parts.first?.hasSuffix("Try Make Another Version, or TRELLIS.2 in Settings → 3D model, which joins held things more reliably.") == true)
+        XCTAssertEqual(out.pieces, 1)
+        let above = out.positions.filter { $0.z > out.bounds.lo.z + 5 }  // above the base
+        XCTAssertGreaterThan(above.map(\.y).min()!, -6, "the bar (at y ≈ -6.6 mm) is out of the print file")
+        XCTAssertEqual(result.lines.count, 2, "the fixture's speck said nothing")
+    }
+
+    /// The generator's figures are often hollow, and the solid's wall round the hollow is a
+    /// piece of its own, bigger than any part (the elf's was its whole body's length). Dropping
+    /// it fills the hollow, which is right, and says nothing: it's inside out, so its volume is
+    /// negative. The hollow here is about 6 mm across, well over a tenth of the height.
+    func testAHollowIsFilledWithoutAWarning() throws {
+        var m = Self.fixture()
+        var hollow = Self.sphere(radius: 0.25)
+        hollow.triangles = hollow.triangles.map { SIMD3($0.x, $0.z, $0.y) }
+        m.add(hollow, at: [0, 0, 1])
+        let (result, out, _) = try prep(["--faces", "20000"], mesh: m)
+        XCTAssertGreaterThanOrEqual(result.dropped, 2, "the hollow's wall and the speck were both pieces")
+        XCTAssertEqual(result.lines.count, 1, "\(result.lines)")
+        XCTAssertEqual(out.pieces, 1)
+    }
+
+    /// Real minis, opt-in (each is a 36 MB model.glb and a minute of debug-build prep):
+    /// MIMIC_PREP_MINIS=<folder of .glb files>. A file named `*-part.glb` must warn of a part
+    /// (the Pixal3D elf that lost its bow); every other must not (they drop only specks and
+    /// hollows). Measured on seven: NOTES.md, "Pieces print prep leaves out".
+    func testRealMinisWarnOnlyOfARealPart() throws {
+        guard let folder = ProcessInfo.processInfo.environment["MIMIC_PREP_MINIS"] else { throw XCTSkip("set MIMIC_PREP_MINIS") }
+        let glbs = try FileManager.default.contentsOfDirectory(atPath: folder).filter { $0.hasSuffix(".glb") }.sorted()
+        XCTAssertFalse(glbs.isEmpty)
+        for name in glbs {
+            let dir = FileManager.default.temporaryDirectory.appendingPathComponent("prep-\(UUID().uuidString)")
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            defer { try? FileManager.default.removeItem(at: dir) }
+            let result = try Prep.run(PrepOptions.parse([folder + "/" + name, dir.appendingPathComponent("out.stl").path]))
+            let parts = result.lines.filter { $0.hasPrefix(Prep.partWarning) }
+            XCTAssertEqual(parts.count, name.hasSuffix("-part.glb") ? 1 : 0, "\(name): \(result.lines)")
+        }
+    }
+
     /// JobRunner marks a mini fragile when it reads this marker.
     func testAFootprintWiderThanTheBaseWarns() throws {
         let (result, _, stl) = try prep(["--base", "8", "--faces", "20000"])
