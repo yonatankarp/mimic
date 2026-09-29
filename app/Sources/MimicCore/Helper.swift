@@ -63,6 +63,12 @@ public enum Keychain {
         return String(data: data, encoding: .utf8)
     }
 
+    /// Whether a key is saved, without reading it: an attribute lookup never shows the "wants to
+    /// use confidential information" prompt, so Settings can ask on the main thread.
+    public static func has(account: String, service: String = service) -> Bool {
+        SecItemCopyMatching(query(account, service) as CFDictionary, nil) == errSecSuccess
+    }
+
     public static func save(_ value: String, account: String, service: String = service) throws {
         let data = Data(value.utf8)
         var status = SecItemUpdate(query(account, service) as CFDictionary, [kSecValueData as String: data] as CFDictionary)
@@ -113,15 +119,17 @@ public struct DescriptionHelper: Sendable {
     }
 
     /// Improves a description. Throws a HelperError in plain words; callers keep the original.
-    public func improve(_ text: String, kind: String = "character", timeout: TimeInterval = 120) throws -> String {
+    public func improve(_ text: String, kind: String = "character", timeout: TimeInterval = 300) throws -> String {
         let out = Self.clean(try send(system: Self.systemPrompt(kind: kind), user: text, maxTokens: 400, timeout: timeout))
         guard !out.isEmpty else { throw HelperError.empty }
         return out
     }
 
     /// Settings' Test button: one tiny call that proves the address, key and model.
-    public func test(timeout: TimeInterval = 120) throws {
-        _ = try send(system: "Reply with the single word OK.", user: "Are you there?", maxTokens: 5, timeout: timeout)
+    /// Any answer counts, even an empty one: the call only has to prove the address, key and model.
+    public func test(timeout: TimeInterval = 300) throws {
+        do { _ = try send(system: "Reply with the single word OK.", user: "Are you there?", maxTokens: 5, timeout: timeout) }
+        catch HelperError.empty {}
     }
 
     // MARK: Requests
@@ -154,7 +162,9 @@ public struct DescriptionHelper: Sendable {
             req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
             body = ["model": model, "messages": [["role": "system", "content": system], ["role": "user", "content": user]]]
         default:
-            body = ["model": model, "stream": false, "options": ["num_predict": maxTokens],
+            // think: false, or a thinking model (gemma4, glm-4.7-flash) spends minutes and the
+            // token cap reasoning first. Models that don't think accept it too (all three tried).
+            body = ["model": model, "stream": false, "think": false, "options": ["num_predict": maxTokens],
                     "messages": [["role": "system", "content": system], ["role": "user", "content": user]]]
         }
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -202,7 +212,7 @@ public struct DescriptionHelper: Sendable {
 
     private func send(system: String, user: String, maxTokens: Int, timeout: TimeInterval) throws -> String {
         var req = try request(system: system, user: user, maxTokens: maxTokens)
-        req.timeoutInterval = timeout  // Ollama loads the model on the first call: tens of seconds
+        req.timeoutInterval = timeout  // Ollama loads the model on the first call: up to a minute or more
         let (provider, model, key) = (config.provider, config.model, key)
         let done = DispatchSemaphore(value: 0)
         nonisolated(unsafe) var result: Result<String, Error> = .failure(HelperError.empty)

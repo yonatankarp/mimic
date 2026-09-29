@@ -45,12 +45,14 @@ struct ImproveBox: View {
     }
 
     private func improve() {
-        guard let helper = DescriptionHelper.configured(defaults: .standard) else { return }
         let text = description.trimmingCharacters(in: .whitespacesAndNewlines), kind = kind
         working = true
         problem = nil
         Task {
-            let result = await Task.detached { Result { try helper.improve(text, kind: kind) } }.value
+            // Off the main thread: reading the key may wait on a Keychain prompt after an update.
+            let result = await Task.detached {
+                Result { try (DescriptionHelper.configured(defaults: .standard) ?? { throw HelperError.off }()).improve(text, kind: kind) }
+            }.value
             working = false
             switch result {
             case .success(let better): improved = better
@@ -160,7 +162,7 @@ struct HelperSection: View {
     }
 
     private func load() {
-        hasKey = current.isCloud && Keychain.read(account: provider) != nil
+        hasKey = current.isCloud && Keychain.has(account: provider)
         guard current == .ollama else { return }
         Task {
             let result = await Task.detached { Result { try DescriptionHelper.ollamaModels() } }.value
@@ -177,11 +179,12 @@ struct HelperSection: View {
     }
 
     private func test() {
-        guard let helper = DescriptionHelper.configured(defaults: .standard) else { return }
         testing = true
         testResult = nil
         Task {
-            let result = await Task.detached { Result { try helper.test() } }.value
+            let result = await Task.detached {
+                Result { try (DescriptionHelper.configured(defaults: .standard) ?? { throw HelperError.off }()).test() }
+            }.value
             testing = false
             switch result {
             case .success: testResult = (true, "It works.")

@@ -123,9 +123,13 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   improved text is saved as `desc` (what was drawn) and what the person typed as
   `descOriginal`, so Try Again redraws exactly and never asks the helper again. Its answer goes
   into `characterPrompt` after "miniature of a", so the prompt asks for a noun phrase and a
-  leading article or a repeated "miniature of a" (gemma3 did) is cut off. Measured with
-  gemma3:4b on this Mac: 7–11 s per description once loaded, 25–35 s for the first. Cloud
-  providers are proven against a local fake server only.
+  leading article or a repeated "miniature of a" (gemma3 did) is cut off. Ollama gets
+  `think: false`: without it gemma4 and glm-4.7-flash reasoned past the 120 s limit. Measured on
+  this Mac, once loaded: gemma3:4b 7–12 s per description, gemma4 8–15 s, glm-4.7-flash 8–10 s
+  (and once described a dwarf when asked for an elf archer); a first call that loads the model
+  took up to about a minute, so the limit is 300 s. Cloud providers are proven against a local
+  fake server only. Key reads happen off the main thread: an ad-hoc-signed update is a new
+  identity to the Keychain, so macOS may ask once to let Mimic use the saved key.
 - **Self-signed, by decision.** The disk image is downloaded through a browser, so macOS
   quarantines it and the first open needs System Settings → Privacy & Security → Open Anyway,
   once; the README and a note in the disk image say so. A Developer ID would remove that step.

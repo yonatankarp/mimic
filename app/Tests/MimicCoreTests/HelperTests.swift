@@ -46,6 +46,7 @@ final class HelperTests: XCTestCase {
         XCTAssertNil(req.value(forHTTPHeaderField: "Authorization"))
         let b = try json(req)
         XCTAssertEqual(b["stream"] as? Bool, false)
+        XCTAssertEqual(b["think"] as? Bool, false, "thinking models otherwise reason for minutes first")
         XCTAssertEqual((b["options"] as? [String: Int])?["num_predict"], 5)
     }
 
@@ -158,9 +159,11 @@ final class HelperTests: XCTestCase {
         let service = "com.mimic.app.tests.\(UUID().uuidString)"
         defer { Keychain.delete(account: "anthropic", service: service) }
         XCTAssertNil(Keychain.read(account: "anthropic", service: service))
+        XCTAssertFalse(Keychain.has(account: "anthropic", service: service))
         try Keychain.save("first", account: "anthropic", service: service)
         try Keychain.save("second", account: "anthropic", service: service)
         XCTAssertEqual(Keychain.read(account: "anthropic", service: service), "second", "saving again replaces")
+        XCTAssertTrue(Keychain.has(account: "anthropic", service: service))
         let suite = "mimic-test-\(UUID().uuidString)", d = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { d.removePersistentDomain(forName: suite) }
         d.set("anthropic", forKey: HelperConfig.providerKey)
