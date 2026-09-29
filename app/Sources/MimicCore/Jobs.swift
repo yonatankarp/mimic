@@ -13,7 +13,10 @@ public struct JobStatus: Equatable, Sendable {
     public var problem: String?
     public var fragile = false
     public var succeeded: Bool { !running && !canceled && exit == 0 }
+}
 
+// In an extension, so the memberwise initialiser the tests use stays.
+extension JobStatus {
     public init(name: String, kind: JobKind, step: Int, started: Date) {
         self.name = name; self.kind = kind; self.step = step; self.started = started
     }
