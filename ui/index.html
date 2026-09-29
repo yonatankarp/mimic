@@ -225,18 +225,12 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
 
     <div class="card stack" id="sizeCard">
       <h2>2 · 📏 Size &amp; printer</h2>
-      <div class="row" style="flex-wrap:wrap">
-        <label for="real" style="font-weight:500">How tall is the character?</label>
-        <span class="row"><input id="real" type="number" min="0.3" max="8" step="0.01" placeholder="1.80" style="width:84px"> m</span>
-      </div>
       <div>
-        <label class="f" id="scaleL">Scale</label>
-        <div class="seg" role="radiogroup" aria-labelledby="scaleL" id="scale">
-          <button type="button" role="radio" data-v="28" aria-checked="false">28 mm</button>
-          <button type="button" role="radio" data-v="32" aria-checked="true">32 mm<small>most common</small></button>
-          <button type="button" role="radio" data-v="54" aria-checked="false">54 mm</button>
+        <label class="f" id="purposeL">Size for</label>
+        <div class="seg" role="radiogroup" aria-labelledby="purposeL" id="purpose">
+          <button type="button" role="radio" data-v="game" aria-checked="true">🎲 Game scale<small>matches your table</small></button>
+          <button type="button" role="radio" data-v="display" aria-checked="false">✨ Best print<small>sized for detail</small></button>
         </div>
-        <div class="hint" style="margin-top:6px">An average human (1.8 m) comes out at 28, 32 or 54 mm. Add a little for horns or a raised weapon.</div>
       </div>
       <div>
         <label class="f" id="nozzleL">🖨️ Your printer's nozzle</label>
@@ -247,10 +241,27 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
         </div>
         <div class="hint" style="margin-top:6px">Not sure? Most printers come with 0.4 mm. Choose the same nozzle in your slicer.</div>
       </div>
-      <div class="slider"><label for="height">📏 Mini height</label><output id="heightV"></output>
-        <input id="height" type="range" min="15" max="120" step="1" value="32"></div>
+      <div id="gamePane" class="stack">
+        <div class="row" style="flex-wrap:wrap">
+          <label for="real" style="font-weight:500">How tall is the character?</label>
+          <span class="row"><input id="real" type="number" min="0.3" max="8" step="0.01" placeholder="1.80" style="width:84px"> m</span>
+        </div>
+        <div>
+          <label class="f" id="scaleL">Scale</label>
+          <div class="seg" role="radiogroup" aria-labelledby="scaleL" id="scale">
+            <button type="button" role="radio" data-v="28" aria-checked="false">28 mm</button>
+            <button type="button" role="radio" data-v="32" aria-checked="true">32 mm<small>most common</small></button>
+            <button type="button" role="radio" data-v="54" aria-checked="false">54 mm</button>
+          </div>
+          <div class="hint" style="margin-top:6px">Use the scale of the other minis on your table. An average human (1.8 m) is 28, 32 or 54 mm tall.</div>
+        </div>
+      </div>
+      <div id="sizeNote" class="msg" role="status"></div>
+      <div class="slider"><label for="height">📏 Character height</label><output id="heightV"></output>
+        <input id="height" type="range" min="15" max="200" step="1" value="32">
+        <span class="hint" style="grid-column:1/-1">Set for you by the choices above; drag to change it. The base adds about 2 mm.</span></div>
       <div class="slider"><label for="base">Base size</label><output id="baseV"></output>
-        <input id="base" type="range" min="20" max="50" step="1" value="25"></div>
+        <input id="base" type="range" min="20" max="80" step="1" value="25"></div>
       <details class="adv">
         <summary>⚙️ Advanced</summary>
         <div class="stack">
@@ -360,11 +371,41 @@ radios($("modeImage").parentElement, b => {
   $("imagePane").hidden = mode !== "image";
   $("descPane").hidden = mode !== "desc";
 });
-radios($("scale"), () => fromReal());
+// ---- size: suggested from what the mini is for ----
+// Game scale matches the other minis on the table. Best print sizes the figure so faces come
+// out on the chosen nozzle: judged on a realistic-proportion character (a 2 m tiefling), faces
+// read from about 64 mm on a 0.2 nozzle and 100 mm on a 0.4; 0.6 is extrapolated.
+const DISPLAY = { "0.2": 64, "0.4": 100, "0.6": 150 };
+let heightTouched = false, baseTouched = false;
+const baseFor = h => Math.min(80, Math.max(25, Math.round(h * 0.4 / 5) * 5));
+function suggest() {
+  const purpose = value($("purpose")), nozzle = value($("nozzle"));
+  $("gamePane").hidden = purpose !== "game";
+  let h, note = "", warn = false;
+  if (purpose === "game") {
+    h = Math.round((parseFloat($("real").value) || 1.8) * value($("scale")) / 1.8);
+    if (nozzle !== "0.2" && h < 50) {
+      note = `⚠️ At ${h} mm, a ${nozzle} mm nozzle turns faces into bumps. Use a 0.2 mm nozzle, or choose ✨ Best print.`;
+      warn = true;
+    }
+  } else {
+    h = DISPLAY[nozzle];
+    note = `Sized so faces come out clearly with a ${nozzle} mm nozzle. Chunky characters also look good a bit smaller.`;
+  }
+  if (!heightTouched) { $("height").value = h; showSlider("height"); }
+  if (!baseTouched) { $("base").value = baseFor(+$("height").value); showSlider("base"); }
+  $("sizeNote").textContent = note;
+  $("sizeNote").className = "msg " + (warn ? "warn" : "hint");
+}
+// Choosing again means "size it for me again"; dragging a slider means "I'll size it".
+const resuggest = () => { heightTouched = baseTouched = false; suggest(); };
+const setPurpose = radios($("purpose"), b => { store.set("purpose", b.dataset.v); resuggest(); });
+radios($("scale"), resuggest);
 const setNozzle = radios($("nozzle"), b => {
   store.set("nozzle", b.dataset.v);
   if (!inflateTouched) { $("inflate").value = (0.4 * b.dataset.v).toFixed(2); showSlider("inflate"); }
   tips();
+  resuggest();
 });
 
 $("dice").onclick = () => { $("seed").value = Math.floor(Math.random() * 1e6); say("🎲 Next version picked. Press ✨ Make my mini."); };
@@ -374,13 +415,9 @@ function showSlider(k) { $(k + "V").textContent = $(k).value + units[k]; }
 for (const k of Object.keys(units)) { $(k).addEventListener("input", () => showSlider(k)); showSlider(k); }
 $("inflate").addEventListener("input", () => inflateTouched = true);
 
-function fromReal() {
-  const m = parseFloat($("real").value);
-  if (!(m > 0)) return;
-  $("height").value = Math.round(m * value($("scale")) / 1.8);
-  showSlider("height");
-}
-$("real").oninput = fromReal;
+$("real").oninput = resuggest;
+$("height").addEventListener("input", () => heightTouched = true);
+$("base").addEventListener("input", () => baseTouched = true);
 
 // ---- picture ----
 const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
@@ -778,6 +815,7 @@ function resize() {
 }
 renderer.setAnimationLoop(() => { resize(); controls.update(); renderer.render(scene, camera); });
 
+setPurpose(store.get("purpose") || "game");
 setNozzle(store.get("nozzle") || "0.4");
 await loadRuns();
 // ?run=<name> opens that mini; otherwise the newest.

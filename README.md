@@ -61,9 +61,12 @@ After that, open **Mimic** from your Applications folder whenever you want to ma
 1. **Your character.** Drop in a picture, or switch to ✍️ **Describe it** and write a
    sentence. A full-body picture with a plain background works best. Leave *Turn it into a
    grey sculpt first* on for drawings and photos.
-2. **Size & printer.**
-   - Type how tall the character is and pick a scale; Mimic works out the size of the mini.
-   - Pick your printer's nozzle. If you're not sure, it's 0.4 mm.
+2. **Size & printer.** Pick your printer's nozzle (if you're not sure, it's 0.4 mm), then
+   what to size for:
+   - **🎲 Game scale** matches the other minis on your table: type how tall the character is
+     and pick the scale.
+   - **✨ Best print** makes it big enough for faces to come out on your nozzle: about 64 mm
+     on 0.2, 100 mm on 0.4 and 150 mm on 0.6.
 3. **✨ Make my mini** and wait about 7–10 minutes. Your Mac will be busy while it works.
 4. **🖨️ Open in your slicer** and print. The print tips under the 3D view match your nozzle.
 
