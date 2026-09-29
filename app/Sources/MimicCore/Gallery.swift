@@ -8,6 +8,8 @@ public struct Mini: Identifiable, Hashable, Sendable {
     public var id: String { name }
     public var stl: URL? { existing("\(name).stl") }
     public var source: URL? { existing("source.png") }
+    /// The picture it was given, before step 1 made source.png from it.
+    public var upload: URL? { existing("upload.img") }
     public var renders: [(view: String, url: URL)] {
         ["front", "side", "back"].compactMap { v in existing("\(name)_\(v).png").map { (v, $0) } }
     }

@@ -231,25 +231,39 @@ final class JobTests: XCTestCase {
         XCTAssertEqual(spy.trashed.map(\.lastPathComponent), ["mini"])
     }
 
+    /// A second job while one runs waits its turn instead of being refused, then runs.
     func testOneJobAtATime() throws {
         let fx = try Fixture(); _ = try fx.mini("a"); _ = try fx.mini("b")
-        let slow = try fx.script("slow-prep", "sleep 5")
+        let slow = try fx.script("slow-prep", "sleep 1")
         let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: slow))
-        try jobs.resize(name: "a", sizes: sizes)
-        XCTAssertThrowsError(try jobs.resize(name: "b", sizes: sizes)) { XCTAssertEqual($0 as? RequestError, .busy("a", .prep)) }
+        XCTAssertNil(try jobs.resize(name: "a", sizes: sizes), "nothing was running: it starts at once")
+        XCTAssertEqual(try jobs.resize(name: "b", sizes: sizes), 1, "one ahead of it: the running one")
+        XCTAssertEqual(jobs.status?.name, "a")
+        XCTAssertThrowsError(try jobs.resize(name: "a", sizes: sizes)) { XCTAssertEqual($0 as? RequestError, .busy("a", .prep)) }
+        XCTAssertThrowsError(try jobs.resize(name: "b", sizes: sizes)) { XCTAssertEqual($0 as? RequestError, .queued("b")) }
         XCTAssertEqual(RequestError.busy("a", .prep).description, "Mimic is still resizing A. Wait for it to finish.")
-        jobs.cancel(); jobs.waitUntilDone()
+        jobs.waitUntilDone()
+        XCTAssertEqual(jobs.status?.name, "b", "the waiting job ran after the first")
+        XCTAssertEqual(jobs.status?.succeeded, true)
+        XCTAssertEqual(jobs.queue.entries(), [])
     }
 
-    /// Another Mimic (the web version, or a second app) holding the lock refuses the job.
-    func testAnotherMimicHoldingTheLockRefuses() throws {
+    /// Another Mimic holding the lock: the job waits in the queue for it, and starts once that
+    /// Mimic is gone and anyone looks again.
+    func testAnotherMimicHoldingTheLockQueues() throws {
         let fx = try Fixture(); _ = try fx.mini("a")
         let fd = open(fx.install.runs.appendingPathComponent(".job.lock").path, O_CREAT | O_RDWR, 0o644)
         XCTAssertEqual(flock(fd, LOCK_EX | LOCK_NB), 0)
-        defer { close(fd) }
         let jobs = JobRunner(install: fx.install, tools: fx.tools())
-        XCTAssertThrowsError(try jobs.resize(name: "a", sizes: sizes)) { XCTAssertEqual($0 as? RequestError, .busy("another Mimic window")) }
-        XCTAssertEqual(RequestError.busy("another Mimic window").description, "Another Mimic is making a mini right now. Wait for it to finish.")
+        XCTAssertEqual(try jobs.resize(name: "a", sizes: sizes), 1)
+        XCTAssertEqual(jobs.queue.entries().map(\.name), ["a"])
+        jobs.pump()
+        XCTAssertNil(jobs.status, "started while another Mimic held the lock")
+        close(fd)  // that Mimic quit (or crashed)
+        jobs.pump()
+        jobs.waitUntilDone()
+        XCTAssertEqual(jobs.status?.succeeded, true)
+        XCTAssertEqual(jobs.queue.entries(), [])
     }
 
     /// A job orphaned by a crash is stopped on the next launch; a stale record naming a pid that

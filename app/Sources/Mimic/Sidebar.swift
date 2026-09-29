@@ -41,7 +41,7 @@ struct Sidebar: View {
         return List(selection: $model.selection) {
             Section("Your Minis") {
                 ForEach(shown) { mini in
-                    GalleryRow(mini: mini).contextMenu { menu(for: mini) }
+                    GalleryRow(mini: mini, status: rowStatus(mini)).contextMenu { menu(for: mini) }
                         .help("Press space to preview it. Right-click for more.")
                 }
             }
@@ -57,6 +57,13 @@ struct Sidebar: View {
         }
     }
 
+    /// "Waiting (2nd)" for a mini in the queue, "Being made…" for the one running.
+    private func rowStatus(_ mini: Mini) -> String? {
+        if let n = model.waiting(mini.name) { return "Waiting (\(AppModel.ordinal(n)))" }
+        if let s = model.current, s.name == mini.name { return s.kind == .prep ? "Resizing…" : "Being made…" }
+        return nil
+    }
+
     @ViewBuilder private func menu(for mini: Mini) -> some View {
         Button("Open in \(model.slicerName)", systemImage: "printer") {
             if let stl = mini.stl { model.openInSlicer(stl) }
@@ -65,6 +72,7 @@ struct Sidebar: View {
         Button("Show in Finder", systemImage: "folder") { model.showInFinder(mini) }
         Divider()
         Button("Rename…", systemImage: "pencil") { model.sheet = .rename(mini) }
+            .disabled(model.waiting(mini.name) != nil)
         Button("Move to Trash…", systemImage: "trash", role: .destructive) { model.trashing = mini }
     }
 }
@@ -99,6 +107,7 @@ struct RenameSheet: View {
         let install = model.install
         let new = Rules.slug(text)
         guard !new.isEmpty else { problem = "Give it a name with at least one letter or number."; return }
+        guard model.waiting(mini.name) == nil else { problem = "It's waiting in the queue. Rename it once it's made."; return }
         do {
             try Gallery.rename(install.runs, from: mini.name, to: new, busyWith: model.busyWith)
         } catch {
@@ -114,21 +123,28 @@ struct RenameSheet: View {
 
 struct GalleryRow: View {
     let mini: Mini
+    /// Shown instead of when it was made: "Waiting (2nd)".
+    var status: String?
     var body: some View {
         HStack(spacing: 10) {
-            AsyncImage(url: mini.renders.first?.url ?? mini.source) { img in
+            // A mini waiting in the queue has only the picture it was given.
+            AsyncImage(url: mini.renders.first?.url ?? mini.source ?? mini.upload) { img in
                 img.resizable().scaledToFill()
             } placeholder: { Color.secondary.opacity(0.15) }
             .frame(width: 44, height: 44)
             .clipShape(RoundedRectangle(cornerRadius: 6))
             VStack(alignment: .leading, spacing: 2) {
                 Text(mini.displayName).lineLimit(1)
-                Text(mini.madeAt, format: .relative(presentation: .named))
-                    .font(.caption).foregroundStyle(.secondary)
+                if let status {
+                    Text(status).font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Text(mini.madeAt, format: .relative(presentation: .named))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
             }
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(mini.displayName), made \(mini.madeAt.formatted(.relative(presentation: .named)))")
+        .accessibilityLabel("\(mini.displayName), \(status ?? "made \(mini.madeAt.formatted(.relative(presentation: .named)))")")
     }
 }

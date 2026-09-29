@@ -59,7 +59,9 @@ struct MakeView: View {
                             if new != Mini.displayName(MakeAdvice.name(fromDescription: description)) { autoName = false }
                         }
                     if let taken = takenName {
-                        Text("You already have a mini called \(taken). Pick a new name, or use Resize This Mini to change its size.")
+                        Text(model.waiting(slug) != nil || model.current?.name == slug
+                             ? "\(taken) is already being made or waiting in the queue. Pick a new name."
+                             : "You already have a mini called \(taken). Pick a new name, or use Resize This Mini to change its size.")
                             .font(.callout).foregroundStyle(.red)
                     }
                 } header: {
@@ -91,11 +93,13 @@ struct MakeView: View {
                     Text(missing).foregroundStyle(.secondary)
                 } else if let message {
                     Text(message).foregroundStyle(.secondary)
+                } else {
+                    Text(timing).foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button("Cancel") { model.sheet = nil }.keyboardShortcut(.cancelAction)
                 Button("Make My Mini") { make() }
-                    .help("Takes about 7–10 minutes. You can keep using your Mac meanwhile.")
+                    .help("Takes \(JobProgress.about(estimate.total))\(estimate.learned ? " on this Mac" : ""). You can keep using your Mac meanwhile.")
                     .keyboardShortcut(.defaultAction)
                     .disabled(model.cantStart != nil || takenName != nil || missing != nil)
                     .tourCallout(.make, arrow: .top)
@@ -232,8 +236,23 @@ struct MakeView: View {
         let runs = model.install.runs
         guard !slug.isEmpty,
               FileManager.default.fileExists(atPath: runs.appendingPathComponent(slug).appendingPathComponent("model.glb").path)
+                || model.waiting(slug) != nil || model.current?.name == slug
         else { return nil }
         return Mini.displayName(slug)
+    }
+
+    private var estimate: Estimate {
+        model.estimateNew(drawn: start == .description || (restyle && health.drawThingsReady), sizes: card.sizes)
+    }
+
+    /// "⏱ About 8 minutes on this Mac", or when it would wait: how long until it's ready.
+    private var timing: String {
+        let e = estimate
+        let own = "\(JobProgress.about(e.total).capitalizedFirst)\(e.learned ? " on this Mac" : "")"
+        guard model.current != nil else { return "⏱ \(own)" }
+        let ahead = model.queue.count + 1
+        let ready = model.queueTimes().last?.ready ?? model.runningLeft()
+        return "⏱ Joins the queue, \(ahead) ahead · ready in \(JobProgress.about(ready + e.total))"
     }
 
     private var trimmedDescription: String { description.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -317,7 +336,7 @@ struct ResizeView: View {
                 .padding([.horizontal, .top], 20)
             Form {
                 Section {
-                    Text("Remakes the print file with these sizes. About a minute. The \(card.kind == .object ? "object" : "character") itself doesn't change.")
+                    Text("Remakes the print file with these sizes. \(JobProgress.about(model.estimate(mini.name, .prep, sizes: card.sizes).total).capitalizedFirst)\(model.current == nil ? "" : ", once the jobs ahead of it are done"). The \(card.kind == .object ? "object" : "character") itself doesn't change.")
                         .foregroundStyle(.secondary)
                 }
                 SizeSection(card: $card, seed: nil)
@@ -337,7 +356,7 @@ struct ResizeView: View {
                     do { try model.resize(mini, sizes: card.sizes) } catch { problem = (model.plainWords(error), "\(error)") }
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(model.cantStart != nil)
+                .disabled(model.cantStart != nil || model.waiting(mini.name) != nil)
             }
             .padding(16)
             .fixedSize(horizontal: false, vertical: true)

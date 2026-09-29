@@ -21,15 +21,24 @@ public struct EngineModel: Sendable, Equatable, Identifiable {
     public let id: String
     /// Plain words, for the setup screen and Settings.
     public let name: String
+    /// What it's like, without its time: `described` adds that.
     public let summary: String
+    /// Whole minutes a mini takes, measured on an M2 Max (app/NOTES.md): what the time
+    /// estimates start from until this Mac has made a few minis of its own.
+    public let minutes: Int
     public let family: Family
     public var files: [EngineFile]
     /// Degrees print prep turns the engine's model so the figure faces the front render: the
     /// TRELLIS.2 pipeline writes it facing away (seen on every TRELLIS.2 run of the dwarf).
     public var turn: Int { family == .trellis2 ? 180 : 0 }
 
-    public init(id: String, name: String, summary: String, family: Family, files: [EngineFile]) {
-        self.id = id; self.name = name; self.summary = summary; self.family = family; self.files = files
+    public init(id: String, name: String, summary: String, minutes: Int = 8, family: Family, files: [EngineFile]) {
+        self.id = id; self.name = name; self.summary = summary; self.minutes = minutes; self.family = family; self.files = files
+    }
+
+    /// The summary and how long a mini takes: `minutes` learned on this Mac when given.
+    public func described(minutes learned: Int? = nil) -> String {
+        "\(summary) About \(learned ?? minutes) minutes a mini\(learned == nil ? "" : " on this Mac")."
     }
 
     public var bytes: Int64 { files.reduce(0) { $0 + $1.bytes } }
@@ -106,7 +115,7 @@ public enum EngineDownload {
     /// minis (cutout, 3D, print prep) on an M2 Max, measured in app/NOTES.md.
     static let pixal3d = EngineModel(
         id: "pixal3d-sv", name: "Pixal3D",
-        summary: "The sharpest faces and finest detail, and the fastest: about 8 minutes a mini.",
+        summary: "The sharpest faces and finest detail, and the fastest.", minutes: 8,
         family: .pixal3dSingleView,
         files: files(pixal3dURL, [
             ("dinov3.gguf", 323_657_920, "0dd4ffd4b46a248f5b7d49c35275d68461fbf73f57ddb4c1fa8afb4f7bb45a0d"),
@@ -128,7 +137,7 @@ public enum EngineDownload {
     /// downloaded. birefnet.gguf is left out: Mimic always hands the engine a cutout.
     static let trellis2Q8 = EngineModel(
         id: "trellis2-q8", name: "TRELLIS.2",
-        summary: "Microsoft's model that Pixal3D grew from. Can place things in depth better, like a weapon held against the body. About 14 minutes a mini.",
+        summary: "Microsoft's model that Pixal3D grew from. Can place things in depth better, like a weapon held against the body.", minutes: 14,
         family: .trellis2,
         files: files(trellis2URL, [
             ("q8/dinov3.gguf", 323_657_920, "0dd4ffd4b46a248f5b7d49c35275d68461fbf73f57ddb4c1fa8afb4f7bb45a0d"),
@@ -145,7 +154,7 @@ public enum EngineDownload {
     /// TRELLIS.2 at 4 bits: the smallest set.
     static let trellis2Q4 = EngineModel(
         id: "trellis2-q4", name: "TRELLIS.2 Lite",
-        summary: "TRELLIS.2 made smaller: nearly the same look and the smallest download. About 12 minutes a mini.",
+        summary: "TRELLIS.2 made smaller: nearly the same look and the smallest download.", minutes: 12,
         family: .trellis2,
         files: files(trellis2URL, [
             ("q4/dinov3.gguf", 172_662_976, "6473cf96fd275bf84f5cc0556975a2abaa10b641e4a07101dcad561df1917ef2"),

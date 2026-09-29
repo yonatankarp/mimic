@@ -285,7 +285,7 @@ struct ModelChoice: View {
                             .foregroundStyle(m == selection ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
                         VStack(alignment: .leading, spacing: 2) {
                             Text(m == EngineDownload.standard ? "\(m.name) (recommended)" : m.name)
-                            Text(m.summary).font(.callout).foregroundStyle(.secondary)
+                            Text(m.described()).font(.callout).foregroundStyle(.secondary)
                         }
                         Spacer()
                         Text("\(Checks.gigabytes(m.bytes)) GB").foregroundStyle(.secondary).monospacedDigit()

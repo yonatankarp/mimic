@@ -21,7 +21,7 @@ public enum Rules {
 }
 
 public enum RequestError: Error, Equatable, CustomStringConvertible {
-    case badName, badNumber(String), badNozzle, nameTaken(String), busy(String, JobKind = .generate), nothingToRetry, noModelYet, notFound, missing(String), modelNotDownloaded(String), unknownModel(String)
+    case badName, badNumber(String), badNozzle, nameTaken(String), busy(String, JobKind = .generate), nothingToRetry, noModelYet, notFound, missing(String), modelNotDownloaded(String), unknownModel(String), queued(String), noPicture
     public var description: String {
         switch self {
         case .badName: "Names can only use lowercase letters, numbers and dashes."
@@ -36,6 +36,8 @@ public enum RequestError: Error, Equatable, CustomStringConvertible {
         case .notFound: "That mini doesn't exist."
         case .missing(let what): "\(what) is missing or won't start. Open Settings to see how to fix it."
         case .modelNotDownloaded(let name): "The \(name) 3D model isn't downloaded. Open Settings → 3D model to download it."
+        case .queued(let n): "\(Mini.displayName(n)) is already waiting in the queue."
+        case .noPicture: "That picture can't be found any more. Choose it again."
         case .unknownModel(let id): "This Mimic doesn't know a 3D model called \(id). Update Mimic, or make it again with another model."
         }
     }

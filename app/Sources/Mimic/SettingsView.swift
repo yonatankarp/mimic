@@ -61,6 +61,7 @@ struct SettingsView: View {
                     Text((model.install.runs.path as NSString).abbreviatingWithTildeInPath)
                 }
             }
+            TimingsSection()
             TerminalSection()
             ResetSection()
             Section {
@@ -202,7 +203,7 @@ private struct ModelsSection: View {
         return HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(m.name) · \(Checks.gigabytes(m.bytes)) GB")
-                Text(m.summary).font(.callout).foregroundStyle(.secondary)
+                Text(m.described(minutes: model.learnedMinutes(m))).font(.callout).foregroundStyle(.secondary)
                 if downloading {
                     ProgressView(value: setup.fraction)
                     Text(setup.status).font(.callout).foregroundStyle(.secondary).monospacedDigit()
@@ -264,6 +265,33 @@ struct DrawThingsSteps: View {
                   detail: "In Draw Things: Settings → Advanced → API Server. Turn it on, choose HTTP, set the port to 7860.")
         SetupStep(done: health.ok("drawthings-model"), title: "Download FLUX.2 Klein.",
                   detail: "In Draw Things' model list, search for FLUX.2 Klein and download it. It's big, so give it a few minutes.")
+    }
+}
+
+/// What the time estimates are learned from, and a way to forget it.
+private struct TimingsSection: View {
+    @Environment(AppModel.self) private var model
+    @State private var asking = false
+
+    var body: some View {
+        Section {
+            LabeledContent {
+                Button("Clear…") { asking = true }.disabled(model.history.isEmpty)
+            } label: {
+                Text("Time estimates")
+                Text(model.learnedFrom == 0 ? "Mimic's own figures, until you've made a few minis"
+                     : "Based on \(model.learnedFrom) mini\(model.learnedFrom == 1 ? "" : "s") made on this Mac")
+            }
+        } footer: {
+            Text("Mimic times every mini it makes on this Mac to tell you how long the next will take. The times are kept on this Mac only and never sent anywhere.")
+                .foregroundStyle(.secondary)
+        }
+        .confirmationDialog("Clear the time estimates?", isPresented: $asking) {
+            Button("Clear", role: .destructive) { model.clearTimings() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Mimic forgets how long your minis took, and uses its own figures until you've made a few more. Your minis are kept.")
+        }
     }
 }
 

@@ -40,13 +40,25 @@ final class AppModel {
     /// A rename or trash that was refused, shown as an alert.
     var problem: String?
 
+    /// Every job this Mac has finished, which the time estimates come from. On this Mac only.
+    let timings: Timings
+    private(set) var history: [TimingRecord] = []
+    /// The jobs waiting their turn, shared with every other Mimic on this Mac; read again
+    /// every few seconds, since another Mimic may add or start one.
+    private(set) var queue: [QueueEntry] = []
+    /// The job another Mimic is running (the dev app, `mimic` in Terminal), when this one isn't.
+    private(set) var elsewhere: JobStatus?
+    /// Jobs that ended since the progress sheet was last closed, the latest last: the queue can
+    /// start the next straight away, so the sheet lists these under the one it shows.
+    var ended: [JobStatus] = []
+    /// "Added to the queue — …", at the top of the progress sheet until that mini starts.
+    var queuedNote: (name: String, text: String)?
+
     init() {
         let install = Install.locate()
-        // A job left running by a Mimic that crashed (or was force-quit) is stopped first:
-        // otherwise a 3D engine or print prep could run on with nothing watching it.
-        Leftover.stop(install.runs)
         self.install = install
-        jobs = JobRunner(install: install)
+        timings = Timings.standard()
+        jobs = JobRunner(install: install, timings: timings, version: BuildInfo.version)
         setup = SetupModel(install: install)
         jobs.onChange = { [weak self] s in Task { @MainActor in self?.jobChanged(s) } }
         reload()
@@ -54,6 +66,22 @@ final class AppModel {
         Health.shared.check(install)
         // An old install's engine is only moved, which needs no asking.
         if setup.hasOldInstall { setup.start() }
+        // Past minis seed the time estimates, once; off the main thread, it reads every folder.
+        let timings = timings, runs = install.runs
+        Task.detached {
+            timings.seedIfNeeded(runs: runs)
+            let history = timings.load()
+            await MainActor.run { self.history = history }
+        }
+        // A job left running by a Mimic that crashed (or was force-quit) is stopped, and jobs
+        // left waiting start, asking nothing: they were asked for. Then every few seconds,
+        // since another Mimic may quit or crash with jobs still waiting.
+        Task { [weak self] in
+            while let self {
+                self.watchQueue()
+                try? await Task.sleep(for: .seconds(3))
+            }
+        }
         #if DEBUG
         if let spec = ProcessInfo.processInfo.environment["MIMIC_DEMO_PROGRESS"] { demoProgress(spec) }
         #endif
@@ -67,38 +95,133 @@ final class AppModel {
         if selection == nil || selected == nil { selection = minis.first?.id }
     }
 
+    // MARK: The queue
+
+    private func watchQueue() {
+        // A crashed Mimic's job may still be running with nothing watching it: stopped as soon
+        // as no live Mimic holds the job lock, queue or no queue.
+        if !running && Leftover.recorded(install.runs) { jobs.cleanUpLeftovers() }
+        // Not while a required part is broken (the engine needs Repair): each job would fail in
+        // turn, so the queue waits until it's fixed.
+        if !running && requiredProblem == nil && setup.installed && !JobQueue(runs: install.runs).entries().isEmpty { jobs.pump() }
+        refreshQueue()
+    }
+
+    func refreshQueue() {
+        let q = jobs.queue.entries()
+        if q != queue { queue = q; reload() }
+        let other = running ? nil : SharedJob.read(install.runs)?.status
+        if other?.name != elsewhere?.name { reload() }  // another Mimic started, or finished, a mini
+        if other != elsewhere { elsewhere = other }
+        updateBadge()
+    }
+
+    /// The number waiting, on the Dock icon; a finished job's ✓ or ! when nothing is.
+    func updateBadge() {
+        let tile = NSApp.dockTile
+        if !queue.isEmpty { tile.badgeLabel = "\(queue.count)" }
+        else if let label = tile.badgeLabel, Int(label) != nil { tile.badgeLabel = nil }
+    }
+
+    /// The running job, here or in another Mimic.
+    var current: JobStatus? { running ? job : elsewhere }
+
+    /// A mini's place in the queue, from 1, or nil when it isn't waiting.
+    func waiting(_ name: String) -> Int? { queue.firstIndex { $0.name == name }.map { $0 + 1 } }
+
+    /// "1st", "2nd"…
+    static func ordinal(_ n: Int) -> String {
+        let f = NumberFormatter(); f.numberStyle = .ordinal
+        return f.string(from: n as NSNumber) ?? "\(n)"
+    }
+
+    func removeFromQueue(_ name: String) {
+        do { try jobs.remove(name) } catch { problem = plainWords(error, else: "Couldn't take it out of the queue. Try again.") }
+        refreshQueue()
+        reload()
+    }
+
+    func moveInQueue(_ name: String, by offset: Int) {
+        try? jobs.move(name, by: offset)
+        refreshQueue()
+    }
+
+    // MARK: Time estimates
+
+    func estimate(_ name: String, _ kind: JobKind, sizes: Sizes? = nil) -> Estimate {
+        jobs.estimate(name, kind, sizes: sizes, history: history)
+    }
+
+    func estimate(_ s: JobStatus) -> Estimate { estimate(s.name, s.kind) }
+
+    /// A new mini with the model in use.
+    func estimateNew(drawn: Bool, sizes: Sizes) -> Estimate {
+        Estimator.estimate(JobShape(job: .generate, model: setup.chosen.id, drawn: drawn, nozzle: sizes.nozzle ?? "0.4",
+                                    height: sizes.height.flatMap(Double.init)), history: history)
+    }
+
+    /// Seconds until the running job is done, here or elsewhere.
+    func runningLeft(now: Date = Date()) -> TimeInterval {
+        guard let s = current else { return 0 }
+        return estimate(s).left(s, now: now)
+    }
+
+    /// Each waiting job with its estimate and when it should be ready.
+    func queueTimes(now: Date = Date()) -> [(entry: QueueEntry, estimate: Estimate, ready: TimeInterval)] {
+        jobs.queueTimes(queue, running: current, history: history, now: now)
+    }
+
+    /// Minutes a mini takes with `m` on this Mac, when it has made enough to know (Settings).
+    func learnedMinutes(_ m: EngineModel) -> Int? {
+        let e = Estimator.estimate(JobShape(job: .generate, model: m.id, drawn: true), history: history)
+        return e.learned ? Int((e.total / 60).rounded()) : nil
+    }
+
+    /// How many minis the estimates have learned from: finished makes on this Mac.
+    var learnedFrom: Int {
+        history.filter { $0.outcome == .finished && $0.jobKind == .generate && $0.machine == Machine.current }.count
+    }
+
+    func clearTimings() {
+        timings.clear()
+        history = []
+    }
+
     // MARK: Jobs
 
-    /// Why Make, Resize or Try Again can't start right now, or nil.
-    var cantStart: String? {
-        if let requiredProblem { return requiredProblem }
-        if let job, job.running { return RequestError.busy(job.name).description }
-        return nil
-    }
+    /// Why Make, Resize or Try Again can't start right now, or nil. A job already running is
+    /// no reason: the new one waits its turn.
+    var cantStart: String? { requiredProblem }
 
     func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes, kind: MiniKind = .character) throws {
         let chosen = setup.chosen
-        try start { try $0.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, kind: kind, model: chosen) }
+        try start(name) { try $0.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, kind: kind, model: chosen) }
         askForNotifications()
     }
 
     func resize(_ mini: Mini, sizes: Sizes) throws {
-        try start { try $0.resize(name: mini.name, sizes: sizes) }
+        try start(mini.name) { try $0.resize(name: mini.name, sizes: sizes) }
     }
 
-    /// Runs the last job again with the inputs it saved.
-    func retry() throws {
-        guard let name = job?.name else { return }
-        try start { try $0.retry(name: name) }
+    /// Runs a failed mini again with the inputs it saved.
+    func retry(_ name: String) throws {
+        try start(name) { try $0.retry(name: name) }
+        ended.removeAll { $0.name == name }
     }
 
     func stop() { jobs.cancel() }
 
-    /// The mini being made right now, which can't be renamed or trashed under the job.
-    var busyWith: String? { running ? job?.name : nil }
+    /// A mini that can't be renamed or trashed right now: being made here or in another Mimic.
+    var busyWith: String? { current?.name }
 
     func trash(_ mini: Mini) {
         do {
+            // Waiting to be made: out of the queue first (a new mini's folder goes to the Trash then).
+            if let entry = queue.first(where: { $0.name == mini.name }) {
+                try jobs.remove(mini.name)
+                refreshQueue()
+                if entry.job == .generate { return reload() }
+            }
             try Gallery.moveToTrash(install.runs, name: mini.name, busyWith: busyWith)
         } catch {
             problem = plainWords(error, else: "Couldn't move it to the Trash. Try Show in Finder and delete it there.")
@@ -111,7 +234,7 @@ final class AppModel {
     func plainWords(_ error: Error, else fallback: String = "Couldn't start. Check that Mimic's folder is still there, then try again.") -> String {
         switch error {
         // Gallery doesn't know what the job is doing; the running job does.
-        case RequestError.busy(let n, _) where n == job?.name: RequestError.busy(n, job?.kind ?? .generate).description
+        case RequestError.busy(let n, _) where n == current?.name: RequestError.busy(n, current?.kind ?? .generate).description
         case let e as RequestError: e.description
         case let e as Refusal: e.description
         case let e as DrawThingsError: e.description
@@ -124,29 +247,51 @@ final class AppModel {
 
     func showProgress() { sheet = .progress }
 
-    /// Closes a finished job's sheet and removes it from the toolbar.
+    /// Closes the sheet; a finished job (with nothing running or waiting) leaves the toolbar too.
     func closeJob() {
-        guard !running else { return runInBackground() }
-        jobShown = false
         if sheet == .progress { sheet = nil }
+        queuedNote = nil
+        guard !running && queue.isEmpty && elsewhere == nil else { return }
+        ended = []
+        jobShown = false
     }
 
-    private func start(_ begin: (JobRunner) throws -> Void) throws {
+    /// Starts the job, or adds it to the queue, and shows the progress sheet either way.
+    private func start(_ name: String, _ begin: (JobRunner) throws -> Int?) throws {
         if let requiredProblem { throw Refusal(description: requiredProblem) }
-        try begin(jobs)
-        job = jobs.status  // at once, so the sheet never opens on the previous job
+        let ahead = try begin(jobs)
+        refreshQueue()
+        if let ahead, let ready = queueTimes().first(where: { $0.entry.name == name })?.ready {
+            queuedNote = (name, "Added to the queue — \(ahead) ahead of it, ready in \(JobProgress.about(ready)).")
+        } else {
+            queuedNote = nil
+            job = jobs.status  // at once, so the sheet never opens on the previous job
+            DockProgress.follow(self)
+        }
         jobShown = true
         sheet = .progress
-        DockProgress.follow(self)
     }
 
     private func jobChanged(_ s: JobStatus) {
-        let finished = job?.running == true && !s.running
+        let previous = job
+        let started = s.running && (previous?.running != true || previous?.name != s.name)
+        let finished = !s.running && (previous?.running == true || previous?.name != s.name || previous?.started != s.started)
+        // The job the sheet showed has ended and another came after it: listed under the new one.
+        if let previous, !previous.running, previous.name != s.name || previous.started != s.started { ended.append(previous) }
         job = s
+        if started {
+            jobShown = true
+            if queuedNote?.name == s.name { queuedNote = nil }
+            DockProgress.follow(self)
+        }
+        refreshQueue()
         guard !s.running else { return }
         reload()
         if s.succeeded { selection = s.name }
-        if finished { announce(s) }
+        if finished {
+            history = timings.load()
+            announce(s)
+        }
     }
 
     #if DEBUG
@@ -164,6 +309,7 @@ final class AppModel {
         Task {
             try? await Task.sleep(for: .seconds(1))  // the window first
             var s = JobStatus(name: parts[0], kind: resize ? .prep : .generate, step: plan[0].step, started: Date())
+            s.stepStarted = s.started
             job = s; jobShown = true; sheet = .progress
             DockProgress.follow(self)
             var t = 0.0
@@ -172,7 +318,9 @@ final class AppModel {
                 t += 0.25 * speed
                 if hold { t = min(t, 300) }
                 s.started = Date().addingTimeInterval(-t)
-                s.step = plan.last { $0.at <= t }!.step
+                let at = plan.last { $0.at <= t }!
+                s.stepStarted = s.started.addingTimeInterval(at.at)
+                s.step = at.step
                 if fail && s.step == 3 { break }
                 job = s
             }
@@ -197,7 +345,7 @@ final class AppModel {
 
     private func announce(_ s: JobStatus) {
         guard !s.canceled, !NSApp.isActive else { return }
-        NSApp.dockTile.badgeLabel = s.succeeded ? "✓" : "!"
+        if queue.isEmpty { NSApp.dockTile.badgeLabel = s.succeeded ? "✓" : "!" }
         guard Bundle.main.bundleIdentifier != nil else { return }
         let who = Mini.displayName(s.name)
         let content = UNMutableNotificationContent()

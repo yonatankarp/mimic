@@ -17,42 +17,67 @@ struct JobProgressView: View {
                         (3, "🖨️ Making the print-ready file")]
 
     var body: some View {
-        if let s = model.job {
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                content(s, now: context.date)
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            VStack(alignment: .leading, spacing: 14) {
+                if let note = model.queuedNote {
+                    Label(note.text, systemImage: "tray.and.arrow.down.fill")
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                // This Mimic's job while it runs (or ended, when nothing else is running); else
+                // what another Mimic is running.
+                if let s = model.job, s.running || model.elsewhere == nil {
+                    content(s, now: context.date)
+                } else if let other = model.elsewhere {
+                    elsewhere(other, now: context.date)
+                }
+                if !model.queue.isEmpty { QueueList(now: context.date) }
+                if !model.ended.isEmpty { endedList }
+                if model.job == nil || model.job?.running == false && model.elsewhere != nil {  // the job's own view has its buttons
+                    HStack { Spacer(); Button("Close") { model.closeJob() }.keyboardShortcut(.cancelAction) }
+                }
             }
-            .padding(20)
-            .frame(width: 460)
-            .onExitCommand { model.closeJob() }  // Esc while running means Run in Background
-            .onChange(of: s.running) { _, running in if !running { confirmingStop = false } }
-            .alert(stopTitle(s), isPresented: $confirmingStop) {
-                Button("Keep Going", role: .cancel) {}
-                Button("Stop", role: .destructive) { model.stop() }
-            } message: {
-                Text(s.kind == .prep ? "It keeps its previous size." : "What's been made so far will be thrown away.")
-            }
+        }
+        .padding(20)
+        .frame(width: 460)
+        .onExitCommand { model.closeJob() }  // Esc while running means Run in Background
+        .onChange(of: model.job?.running) { _, running in if running != true { confirmingStop = false } }
+        .alert(model.job.map(stopTitle) ?? "", isPresented: $confirmingStop) {
+            Button("Keep Going", role: .cancel) {}
+            Button("Stop", role: .destructive) { model.stop() }
+        } message: {
+            let s = model.job
+            Text((s?.kind == .prep ? "It keeps its previous size." : "What's been made so far will be thrown away.")
+                 + (model.queue.isEmpty ? "" : " The queue carries on with the next one."))
         }
     }
 
     private func content(_ s: JobStatus, now: Date) -> some View {
         let who = Mini.displayName(s.name)
+        let estimate = model.estimate(s)
         return VStack(alignment: .leading, spacing: 14) {
             Text(title(s, who: who)).font(.title2.bold())
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(Self.steps.filter { s.kind == .generate || $0.0 == 3 }, id: \.0) { n, label in
-                        HStack(spacing: 8) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
                             StepMark(state: state(of: n, in: s), number: n)
-                            Text(label).foregroundStyle(state(of: n, in: s) == .pending ? .secondary : .primary)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(label).foregroundStyle(state(of: n, in: s) == .pending ? .secondary : .primary)
+                                // Its time left, or how long it should take.
+                                if let left = JobProgress.stepNote(n, of: s, estimate: estimate, now: now) {
+                                    Text(left.capitalizedFirst).font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                                }
+                            }
                         }
                     }
                 }
                 Spacer(minLength: 0)
                 JobPicture(status: s, folder: model.install.runs.appendingPathComponent(s.name))
             }
-            ProgressView(value: JobProgress.fraction(s, now: now))
+            ProgressView(value: JobProgress.fraction(s, estimate: estimate, now: now))
                 .progressViewStyle(GlidingBar(working: s.running))
-            note(s, now: now)
+            note(s, estimate: estimate, now: now)
             HStack {
                 if s.running {
                     Button("Stop…") { confirmingStop = true }
@@ -67,24 +92,56 @@ struct JobProgressView: View {
                         if JobProgress.drawThingsCaused(s) {
                             Button("Open Setup") { model.closeJob(); openSettings() }
                         }
-                        Button("Try Again") { tryAgain() }
+                        Button("Try Again") { tryAgain(s.name) }
                             .keyboardShortcut(.defaultAction)
-                            .disabled(model.cantStart != nil)
+                            .disabled(model.cantStart != nil || model.waiting(s.name) != nil)
                     }
                 }
             }
         }
     }
 
-    @ViewBuilder private func note(_ s: JobStatus, now: Date) -> some View {
-        let elapsed = now.timeIntervalSince(s.started)
+    /// Another Mimic (the dev app, or `mimic` in Terminal) is running the job: shown, not controlled.
+    private func elsewhere(_ s: JobStatus, now: Date) -> some View {
+        let estimate = model.estimate(s)
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("\(s.kind == .prep ? "🔁 Resizing" : "⏳ Making") \(Mini.displayName(s.name))").font(.title2.bold())
+            Text("Another Mimic is doing this one (another copy of the app, or Terminal): stop it there. Step \(s.step) of 3 · \(JobProgress.about(estimate.left(s, now: now))) left.")
+                .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            ProgressView(value: JobProgress.fraction(s, estimate: estimate, now: now)).progressViewStyle(GlidingBar(working: true))
+        }
+    }
+
+    /// Jobs that ended while the next one went on: how each went, and Try Again for a failure.
+    private var endedList: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Divider()
+            Text("Finished while you waited").font(.headline)
+            ForEach(Array(model.ended.enumerated().reversed()), id: \.offset) { _, s in
+                HStack {
+                    Image(systemName: s.succeeded ? "checkmark.circle.fill" : s.canceled ? "stop.circle" : "exclamationmark.circle.fill")
+                        .foregroundStyle(s.succeeded ? .green : s.canceled ? .secondary : .red)
+                    Text(s.succeeded ? "\(Mini.displayName(s.name)) is ready" : s.canceled ? "Stopped \(Mini.displayName(s.name))"
+                                                                            : "\(Mini.displayName(s.name)) didn't finish")
+                    Spacer()
+                    if !s.succeeded && !s.canceled {
+                        Button("Try Again") { tryAgain(s.name) }
+                            .disabled(model.cantStart != nil || model.waiting(s.name) != nil)
+                            .help(s.problem ?? "")
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private func note(_ s: JobStatus, estimate: Estimate, now: Date) -> some View {
         Group {
             if s.running {
-                Text(JobProgress.note(s.kind, elapsed: elapsed))
-                    .foregroundStyle(s.kind == .generate && elapsed > 12 * 60 ? Color.orange : .secondary)
+                Text(JobProgress.note(s, estimate: estimate, now: now))
+                    .foregroundStyle(JobProgress.pace(s, estimate: estimate, now: now) == .usual ? Color.secondary : .orange)
                     // The time so far rolls from one second to the next.
                     .contentTransition(.numericText())
-                    .animation(reduceMotion ? nil : .default, value: Int(elapsed))
+                    .animation(reduceMotion ? nil : .default, value: Int(now.timeIntervalSince(s.started)))
             } else if s.canceled {
                 Text(s.kind == .prep ? "It keeps its previous size." : "Nothing was kept. It's in the Trash if you want the pieces.")
                     .foregroundStyle(.secondary)
@@ -107,9 +164,9 @@ struct JobProgressView: View {
         .fixedSize(horizontal: false, vertical: true)
     }
 
-    private func tryAgain() {
+    private func tryAgain(_ name: String) {
         retryProblem = nil
-        do { try model.retry() } catch { retryProblem = model.plainWords(error); retryDetail = "\(error)" }
+        do { try model.retry(name) } catch { retryProblem = model.plainWords(error); retryDetail = "\(error)" }
     }
 
     private func title(_ s: JobStatus, who: String) -> String {
@@ -129,6 +186,62 @@ struct JobProgressView: View {
         if s.succeeded { return .done }
         if s.canceled { return .pending }
         return n < s.step ? .done : n == s.step ? .failed : .pending
+    }
+}
+
+/// The jobs waiting their turn: each with how long it takes and when it should be ready, and
+/// ways to move it up or take it out.
+private struct QueueList: View {
+    @Environment(AppModel.self) private var model
+    let now: Date
+    @State private var removing: QueueEntry?
+
+    var body: some View {
+        let rows = model.queueTimes(now: now)
+        VStack(alignment: .leading, spacing: 8) {
+            Divider()
+            HStack(alignment: .firstTextBaseline) {
+                Text("Waiting (\(rows.count))").font(.headline)
+                Spacer()
+                if let last = rows.last {
+                    Text("All done in \(JobProgress.about(last.ready))").foregroundStyle(.secondary).monospacedDigit()
+                }
+            }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(Array(rows.enumerated()), id: \.element.entry.name) { i, row in
+                        HStack(spacing: 8) {
+                            Text(row.entry.job == .prep ? "🔁" : "🧙").accessibilityHidden(true)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(Mini.displayName(row.entry.name))
+                                Text("\(row.entry.job == .prep ? "Resize" : "Make") · takes \(JobProgress.about(row.estimate.total)) · ready in \(JobProgress.about(row.ready))")
+                                    .font(.callout).foregroundStyle(.secondary).monospacedDigit()
+                            }
+                            Spacer()
+                            Button { model.moveInQueue(row.entry.name, by: -1) } label: { Image(systemName: "arrow.up") }
+                                .buttonStyle(.borderless)
+                                .disabled(i == 0)
+                                .help("Make this one sooner")
+                                .accessibilityLabel("Move \(Mini.displayName(row.entry.name)) up")
+                            Button { removing = row.entry } label: { Image(systemName: "xmark.circle.fill") }
+                                .buttonStyle(.borderless)
+                                .foregroundStyle(.secondary)
+                                .help("Take it out of the queue")
+                                .accessibilityLabel("Take \(Mini.displayName(row.entry.name)) out of the queue")
+                        }
+                    }
+                }
+            }
+            .frame(maxHeight: 180)
+            .fixedSize(horizontal: false, vertical: rows.count <= 3)
+        }
+        .confirmationDialog(removing.map { "Take “\(Mini.displayName($0.name))” out of the queue?" } ?? "",
+                            isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), presenting: removing) { e in
+            Button(e.job == .prep ? "Don't Resize" : "Take Out and Move to Trash", role: .destructive) { model.removeFromQueue(e.name) }
+            Button("Keep It Waiting", role: .cancel) {}
+        } message: { e in
+            Text(e.job == .prep ? "It keeps its current size." : "It hasn't been made yet, so its picture and settings go to the Trash, where you can get them back.")
+        }
     }
 }
 
@@ -236,12 +349,12 @@ struct JobToolbarItem: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        if model.jobShown, let s = model.job {
+        if let s = model.job.flatMap({ model.jobShown || $0.running ? $0 : nil }) ?? model.elsewhere {
             Button { model.showProgress() } label: {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     HStack(spacing: 6) {
                         if s.running {
-                            ProgressRing(fraction: JobProgress.fraction(s, now: context.date))
+                            ProgressRing(fraction: JobProgress.fraction(s, estimate: model.estimate(s), now: context.date))
                                 .transition(.opacity)
                         } else {
                             Image(systemName: s.succeeded ? "checkmark.circle.fill" : s.canceled ? "stop.circle" : "exclamationmark.circle.fill")
@@ -261,9 +374,10 @@ struct JobToolbarItem: View {
 
     private func label(_ s: JobStatus, now: Date) -> String {
         let who = Mini.displayName(s.name)
-        if s.running { return "\(s.kind == .prep ? "Resizing" : "Making") \(who) · \(JobProgress.clock(now.timeIntervalSince(s.started)))" }
-        if s.canceled { return "Stopped \(who)" }
-        return s.succeeded ? "\(who) is ready" : "\(who) didn't finish"
+        let waiting = model.queue.isEmpty ? "" : " · \(model.queue.count) waiting"
+        if s.running { return "\(s.kind == .prep ? "Resizing" : "Making") \(who) · \(JobProgress.clock(now.timeIntervalSince(s.started)))\(waiting)" }
+        if s.canceled { return "Stopped \(who)\(waiting)" }
+        return (s.succeeded ? "\(who) is ready" : "\(who) didn't finish") + waiting
     }
 }
 
@@ -298,9 +412,10 @@ enum DockProgress {
         task = Task { @MainActor in
             let tile = NSApp.dockTile, view = DockTileView()
             tile.badgeLabel = nil
+            model.updateBadge()  // the number waiting stays
             tile.contentView = view
             while !Task.isCancelled, let s = model.job, s.running {
-                view.fraction = JobProgress.fraction(s)
+                view.fraction = JobProgress.fraction(s, estimate: model.estimate(s))
                 tile.display()
                 // Every second, like the sheet's clock: a 2-second step read as a stutter.
                 try? await Task.sleep(for: .seconds(1))
@@ -390,11 +505,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let alert = NSAlert()
         let who = Mini.displayName(s.name)
         alert.messageText = s.kind == .prep ? "Mimic is still resizing “\(who)”" : "Mimic is still making “\(who)”"
-        alert.informativeText = s.kind == .prep ? "Quitting stops it, and it keeps its previous size."
-                                                : "Quitting stops it, and what's been made so far will be thrown away."
+        let waiting = model.queue.count
+        alert.informativeText = (s.kind == .prep ? "Quitting stops it, and it keeps its previous size."
+                                                 : "Quitting stops it, and what's been made so far will be thrown away.")
+            + (waiting == 0 ? "" : " The \(waiting == 1 ? "mini" : "\(waiting) minis") waiting in the queue will start the next time you open Mimic.")
         alert.addButton(withTitle: "Keep Going")
         alert.addButton(withTitle: "Stop and Quit").hasDestructiveAction = true
         guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }
+        jobs.keepGoing = { _ in false }  // the queue waits for the next launch
         jobs.cancel()
         // The job's own thread tidies up (the Trash, the lock) once its programs have ended;
         // waiting here on the main thread would block the updates it sends.
@@ -411,5 +529,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidBecomeActive(_ notification: Notification) {
         NSApp.dockTile.badgeLabel = nil  // seen it
+        model.updateBadge()  // the number waiting stays
     }
 }
