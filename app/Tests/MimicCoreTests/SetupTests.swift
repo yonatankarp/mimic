@@ -448,6 +448,14 @@ final class FileServer: @unchecked Sendable {
                     return off
                 }
                 lock.withLock { sent += max(0, written - (reply.count - body.count)) }
+                // A gentle close: stop sending, let the client read what was sent, then close.
+                // Closing at once can reset the connection, and a reset throws away whatever the
+                // client hadn't read yet: on a slow CI runner, all of a cut download's bytes.
+                shutdown(c, SHUT_WR)
+                var wait = timeval(tv_sec: 2, tv_usec: 0)
+                setsockopt(c, SOL_SOCKET, SO_RCVTIMEO, &wait, socklen_t(MemoryLayout<timeval>.size))
+                var drain = [UInt8](repeating: 0, count: 4096)
+                while read(c, &drain, drain.count) > 0 {}
                 close(c)
             }
         }
