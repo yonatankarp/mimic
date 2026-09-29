@@ -18,6 +18,9 @@ struct MimicApp: App {
                 .environment(model)
         }
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") { Task { await model.updates.check(manual: true) } }
+            }
             CommandGroup(replacing: .newItem) {
                 Button("New Mini…") { model.sheet = .make }
                     .keyboardShortcut("n")

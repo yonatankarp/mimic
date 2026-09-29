@@ -16,6 +16,6 @@ let package = Package(
         .target(name: "MimicCore", swiftSettings: [.unsafeFlags(["-O"], .when(configuration: .debug))]),
         // The app and the `mimic` command-line tool: one binary, same code.
         .executableTarget(name: "Mimic", dependencies: ["MimicCore"], resources: [.copy("Resources/sample-dwarf.png")]),
-        .testTarget(name: "MimicCoreTests", dependencies: ["MimicCore"]),
+        .testTarget(name: "MimicCoreTests", dependencies: ["MimicCore"], exclude: ["Fixtures"]),
     ]
 )

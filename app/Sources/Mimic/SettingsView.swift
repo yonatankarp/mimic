@@ -67,6 +67,7 @@ struct SettingsView: View {
             }
             TimingsSection()
             TerminalSection()
+            UpdatesSection()
             ResetSection()
             Section {
                 // Selectable, so it can be copied into a bug report.

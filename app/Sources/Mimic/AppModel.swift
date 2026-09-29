@@ -6,7 +6,7 @@ import UserNotifications
 /// The sheet over the main window. One at a time, so swapping Make for its progress is a single
 /// change rather than a dismiss and a present racing each other.
 enum AppSheet: Identifiable, Equatable {
-    case make, resize(Mini), rename(Mini), progress
+    case make, resize(Mini), rename(Mini), progress, update
     /// A new project, and the mini to move into it when asked from Move to Project.
     case newProject(moving: Mini?)
     case renameProject(String)
@@ -16,6 +16,7 @@ enum AppSheet: Identifiable, Equatable {
         case .resize(let m): "resize-\(m.name)"
         case .rename(let m): "rename-\(m.name)"
         case .progress: "progress"
+        case .update: "update"
         case .newProject(let m): "new-project-\(m?.name ?? "")"
         case .renameProject(let p): "rename-project-\(p)"
         }
@@ -31,6 +32,8 @@ final class AppModel {
     /// First-launch setup, and Repair from Settings. Here rather than in a view, so a download
     /// carries on when the window closes.
     let setup: SetupModel
+    /// Checking for a newer Mimic, and installing it.
+    let updates = Updater()
     var minis: [Mini] = []
     /// The projects (folders of minis), alphabetical, empty ones included.
     var projects: [String] = []
@@ -76,6 +79,7 @@ final class AppModel {
         timings = Timings.standard()
         jobs = JobRunner(install: install, timings: timings, version: BuildInfo.version)
         setup = SetupModel(install: install)
+        updates.model = self
         jobs.onChange = { [weak self] s in Task { @MainActor in self?.jobChanged(s) } }
         reload()
         // Run the checks at launch, so Make is blocked (and Settings flagged) before anyone opens Settings.
@@ -100,6 +104,15 @@ final class AppModel {
         }
         #if DEBUG
         if let spec = ProcessInfo.processInfo.environment["MIMIC_DEMO_PROGRESS"] { demoProgress(spec) }
+        // Development only: check for an update at launch and install it at once, as pressing
+        // Check for Updates… then Update would (how the updater was tried end to end).
+        if ProcessInfo.processInfo.environment["MIMIC_UPDATE_NOW"] != nil {
+            Task { [updates] in
+                await updates.check(manual: true)
+                while updates.phase == .checking { try? await Task.sleep(for: .seconds(0.2)) }  // the launch check's
+                updates.install()
+            }
+        }
         #endif
     }
 
@@ -122,6 +135,7 @@ final class AppModel {
         // turn, so the queue waits until it's fixed.
         if !running && requiredProblem == nil && setup.installed && !JobQueue(runs: install.runs).entries().isEmpty { jobs.pump() }
         refreshQueue()
+        updates.tick()
     }
 
     func refreshQueue() {
