@@ -40,10 +40,15 @@ public struct Slicer: Hashable, Sendable, Identifiable {
         }
     }
 
+    /// What the `slicer` default holds when the person picked the Mac's default app for 3D files.
+    public static let macDefault = "default"
+
     /// The picked slicer (the `slicer` default), else the first installed, else nil, which means
-    /// the Mac's default app for STL files.
+    /// the Mac's default app for STL files. Picking that app explicitly also gives nil.
     public static func preferred(defaults: UserDefaults = .standard, in folders: [URL] = appFolders()) -> Slicer? {
+        let picked = defaults.string(forKey: "slicer")
+        if picked == macDefault { return nil }
         let all = installed(in: folders)
-        return all.first { $0.id == defaults.string(forKey: "slicer") } ?? all.first
+        return all.first { $0.id == picked } ?? all.first
     }
 }

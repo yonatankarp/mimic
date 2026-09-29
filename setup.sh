@@ -13,6 +13,9 @@ LAB_TAG="v0.3.4"   # the release Mimic is built and tested against
 # pixal3d.cpp d1b4926, built for macOS 14+ by tools/package_pixal3d.sh, so nobody needs Xcode.
 PIXAL3D_URL="https://github.com/yonatankarp/mimic/releases/download/pixal3d-d1b4926/pixal3d-metal-d1b4926-macos14.0.tar.gz"
 PIXAL3D_SHA256="58aa276c7605bddf250533c982ccd43c2e0791791b6cf2f5e2c777ff56c7dede"
+# The app itself, built and zipped by tools/package_app.sh.
+MIMIC_APP_URL="https://github.com/yonatankarp/mimic/releases/download/app-PENDING/Mimic-PENDING.zip"
+MIMIC_APP_SHA256="PENDING"
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 LAB="$HERE/image-to-3dlab"
@@ -108,10 +111,15 @@ ok "3D model"
 step "The Mimic app"
 app="$HOME/Applications/Mimic.app"
 mkdir -p "$HOME/Applications"
+zip="$TMPDIR/Mimic.zip"
+curl -fL --progress-bar -o "$zip" "$MIMIC_APP_URL"
+echo "$MIMIC_APP_SHA256  $zip" | shasum -a 256 -c - >/dev/null || die "The Mimic app download is damaged. Run the installer again."
 rm -rf "$app"
-osacompile -o "$app" -e "do shell script \"/bin/bash \" & quoted form of \"$HERE/Mimic.command\" & \" > /dev/null 2>&1 &\""
-cp "$HERE/ui/Mimic.icns" "$app/Contents/Resources/applet.icns"
-touch "$app"
+ditto -x -k "$zip" "$HOME/Applications"
+# Where this folder is: the app keeps its minis here, next to the 3D engine.
+defaults write com.mimic.app installDir "$HERE"
+# `mimic make …` in a terminal: the app's own binary, which has a command-line mode.
+ln -sf "$app/Contents/MacOS/mimic" /opt/homebrew/bin/mimic
 ok "Mimic is in your Applications folder ($app)"
 
 printf '\n🎉 \033[1mAll set!\033[0m Opening Mimic. If anything is still missing, ⚙️ Settings in Mimic says what.\n'

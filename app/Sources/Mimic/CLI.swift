@@ -16,7 +16,10 @@ enum CLI {
 
     static func run(_ args: [String]) -> Int32 {
         if args.first == "--probe-notifications" { return probeNotifications() }
-        guard let install = Install.locate() else { return fail("Can't find the Mimic folder. Set MIMIC_HOME or run the installer.") }
+        // Run through a symlink (the installer puts one on the PATH), the binary isn't seen as part of
+        // its app, so it would read its own empty settings rather than the app's.
+        let defaults = Bundle.main.bundleIdentifier == nil ? UserDefaults(suiteName: "com.mimic.app") ?? .standard : .standard
+        guard let install = Install.locate(defaults: defaults) else { return fail("Can't find the Mimic folder. Set MIMIC_HOME or run the installer.") }
         Leftover.stop(install.runs)
         var rest = Array(args.dropFirst())
         switch args.first {

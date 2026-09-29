@@ -175,7 +175,7 @@ public final class JobRunner: @unchecked Sendable {
                 code = try run(step)
             } catch {
                 code = 1
-                problem = (error as? CustomStringConvertible)?.description ?? error.localizedDescription
+                problem = String(describing: error)
             }
             if code != 0 { break }
         }
