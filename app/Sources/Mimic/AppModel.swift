@@ -227,7 +227,6 @@ final class AppModel {
     func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes, kind: MiniKind = .character, project: String? = nil) throws {
         let chosen = setup.chosen
         try start(name) { try $0.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, kind: kind, model: chosen, project: project) }
-        askForNotifications()
     }
 
     /// Several pictures dropped on New Mini: a mini each, named after its file, all made the same
@@ -363,6 +362,7 @@ final class AppModel {
     private func start(_ name: String, _ begin: (JobRunner) throws -> Int?) throws {
         if let requiredProblem { throw Refusal(description: requiredProblem) }
         let ahead = try begin(jobs)
+        askForNotifications()
         refreshQueue()
         if let ahead, let ready = queueTimes().first(where: { $0.entry.name == name })?.ready {
             queuedNote = (name, "Added to the queue — \(ahead) ahead of it, ready in \(JobProgress.about(ready)).")
