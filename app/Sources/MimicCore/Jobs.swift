@@ -436,7 +436,8 @@ public final class JobRunner: @unchecked Sendable {
     private func nextNeedsDrawThings() -> Bool {
         let entries = queue.entries()
         guard let next = entries.first, next.job == .generate, keepGoing(entries) else { return false }
-        let s = MiniSettings.load(install.runs.appendingPathComponent(next.name))
+        guard let folder = Gallery.folder(install.runs, next.name) else { return false }
+        let s = MiniSettings.load(folder)
         return s.source == .desc || s.restyle == true
     }
 

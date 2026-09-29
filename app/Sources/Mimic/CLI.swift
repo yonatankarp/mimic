@@ -229,6 +229,7 @@ enum CLI {
         private let lock = NSLock()
         private var last: JobStatus?
         private var shown: (String, Int)?
+        private var openingSaid = false
         init(name: String) { self.name = name }
         var status: JobStatus? { lock.withLock { last } }
 
@@ -242,6 +243,9 @@ enum CLI {
                 return "[\(s.step)/3] \(who)\(JobRunner.label(s.step))"
             }
             if let line { print(line) }
+            if s.openingDrawThings, lock.withLock({ () -> Bool in defer { openingSaid = true }; return !openingSaid }) {
+                print("Opening Draw Things…")
+            }
         }
     }
 
