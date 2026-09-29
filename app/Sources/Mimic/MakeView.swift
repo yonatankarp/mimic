@@ -31,6 +31,7 @@ struct MakeView: View {
             Text("New Mini").font(.title2.bold())
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding([.horizontal, .top], 20)
+            ScrollViewReader { scroller in
             Form {
                 Section {
                     Picker("What are you making?", selection: Binding(get: { card.kind }, set: { card.setKind($0) })) {
@@ -70,6 +71,13 @@ struct MakeView: View {
                 SizeSection(card: $card, seed: $seed)
             }
             .formStyle(.grouped)
+            // The tour's stops in here can be below the fold (a popover on a control scrolled out
+            // of sight doesn't show), so the form brings each one into view as the tour gets to it.
+            .onChange(of: TourGuide.shared.step) { _, stop in
+                guard let stop, stop.inNewMini else { return }
+                withAnimation { scroller.scrollTo(stop, anchor: .center) }
+            }
+            }
 
             Divider()
             HStack(alignment: .firstTextBaseline) {

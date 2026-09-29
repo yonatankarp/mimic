@@ -122,6 +122,7 @@ private struct TourStopModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .id(stop)  // so a scroll view can bring it into view (New Mini's form)
             .onAppear { guide.appeared(stop) }
             .onDisappear { guide.disappeared(stop) }
             .popover(isPresented: Binding(get: { shown }, set: { if !$0 { guide.dismissed(stop) } }),
