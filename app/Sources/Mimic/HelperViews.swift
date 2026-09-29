@@ -145,6 +145,15 @@ struct HelperSection: View {
                 Button("Refresh") { load() }
             }
             if let ollamaProblem { Text(ollamaProblem).font(.callout).foregroundStyle(.secondary) }
+            // Small models add glow and props the prompt rules out; a bigger one installed here does better.
+            if let better = DescriptionHelper.recommendedOllama(ollamaModels), better != model {
+                HStack {
+                    Text("💡 \(better) is installed and follows the instructions better. It takes a few seconds longer.")
+                        .font(.callout).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Use It") { model = better }
+                }
+            }
         }
     }
 
@@ -170,7 +179,7 @@ struct HelperSection: View {
             case .success(let names):
                 ollamaModels = names
                 ollamaProblem = names.isEmpty ? "No models installed yet. In Terminal: ollama pull gemma3" : nil
-                if model.isEmpty, let first = names.first { model = first }
+                if model.isEmpty, let first = names.first { model = DescriptionHelper.recommendedOllama(names) ?? first }
             case .failure(let error):
                 ollamaModels = []
                 ollamaProblem = "\(error)"

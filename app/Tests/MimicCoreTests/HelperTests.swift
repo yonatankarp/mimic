@@ -237,6 +237,30 @@ final class HelperTests: XCTestCase {
         jobs.waitUntilDone()
         XCTAssertEqual(server.requests.count, 1, "Try Again asked the helper again")
     }
+
+    /// Effects don't print, and gemma3:4b adds them despite the prompt: these are its real replies.
+    func testEffectsAreTakenOutAndTheRestKept() {
+        let dwarf = "stout dwarf blacksmith with a grizzled face. His arms are bent, hammering a large, glowing metal ingot held close to his chest, sparks erupting around the blow. Thick leather gauntlets cover his hands."
+        XCTAssertEqual(DescriptionHelper.dropEffects(dwarf),
+                       "stout dwarf blacksmith with a grizzled face. His arms are bent, hammering a large metal ingot held close to his chest. Thick leather gauntlets cover his hands.")
+        let hammer = "One hand grips a hefty warhammer, while the other holds a glowing forge hammer, sparks flying around it, a worn leather apron covers his torso."
+        let kept = DescriptionHelper.dropEffects(hammer)
+        XCTAssertFalse(kept.lowercased().contains("glow") || kept.lowercased().contains("spark"), kept)
+        XCTAssertTrue(kept.contains("forge hammer") && kept.contains("leather apron"), "the real things stay: \(kept)")
+        XCTAssertEqual(DescriptionHelper.dropEffects("tall elf archer with a longbow held close."), "tall elf archer with a longbow held close.",
+                       "nothing to take out: unchanged")
+        XCTAssertEqual(DescriptionHelper.dropEffects("lean ranger, light leather armour, a fire-red cloak."), "lean ranger, light leather armour, a fire-red cloak.",
+                       "light armour and fire-red aren't effects")
+        XCTAssertEqual(DescriptionHelper.dropEffects("The lantern, held close to his chest, illuminating his mischievous expression and simple boots."),
+                       "The lantern, held close to his chest.", "a phrase led by a verb for light goes whole, from gemma3:4b")
+    }
+
+    func testTheBestInstalledOllamaModelIsSuggested() {
+        XCTAssertEqual(DescriptionHelper.recommendedOllama(["gemma3:4b", "glm-4.7-flash:latest", "gemma4:latest"]), "gemma4:latest")
+        XCTAssertEqual(DescriptionHelper.recommendedOllama(["glm-4.7-flash:latest", "gemma3:4b"]), "gemma3:4b")
+        XCTAssertNil(DescriptionHelper.recommendedOllama(["glm-4.7-flash:latest"]), "not one we'd suggest")
+    }
+
 }
 
 /// A local stand-in for an LLM API: reads each whole request (headers, then Content-Length bytes
@@ -282,4 +306,5 @@ final class FakeLLM: @unchecked Sendable {
     }
 
     func stop() { shutdown(fd, SHUT_RDWR); close(fd) }
+
 }

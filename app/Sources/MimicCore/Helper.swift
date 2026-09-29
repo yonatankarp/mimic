@@ -225,7 +225,54 @@ public struct DescriptionHelper: Sendable {
         s = s.replacingOccurrences(of: "^(a |an )?(full-body )?(fantasy )?(tabletop )?miniature of (a |an )?", with: "",
                                    options: [.regularExpression, .caseInsensitive])
         for article in ["a ", "an ", "the "] where s.lowercased().hasPrefix(article) { s.removeFirst(article.count); break }
-        return s.trimmingCharacters(in: .whitespaces)
+        return dropEffects(s.trimmingCharacters(in: .whitespaces))
+    }
+
+    /// Things that don't print: light, fire, smoke and magic. The prompt forbids them, and small
+    /// local models add them anyway ("a glowing metal ingot… sparks erupting around the blow",
+    /// from gemma3:4b). A phrase about one of these goes whole.
+    static let effectNouns: Set = ["glow", "spark", "sparks", "flame", "flames", "fire", "smoke", "embers", "mist",
+                                   "steam", "aura", "lightning", "shimmer"]
+    /// The same, describing something real: only the word goes ("a glowing ingot" keeps the ingot).
+    static let effectAdjectives: Set = ["glowing", "glows", "sparking", "sparkling", "shimmering", "luminous", "radiant",
+                                        "radiating", "flaming", "fiery", "smoking", "smoky", "misty", "steaming",
+                                        "crackling", "blazing", "magical", "ethereal"]
+
+    /// Leading a phrase, these make the phrase about light: "illuminating his face" goes whole.
+    static let effectVerbs: Set = ["illuminating", "illuminates", "lighting", "casting", "emitting"]
+
+    static func dropEffects(_ text: String) -> String {
+        func bare(_ w: Substring) -> String { w.lowercased().trimmingCharacters(in: .punctuationCharacters) }
+        let sentences = text.components(separatedBy: ". ").map { sentence -> String in
+            let ends = sentence.hasSuffix(".")
+            var out = ""
+            for phrase in (ends ? String(sentence.dropLast()) : sentence).components(separatedBy: ", ") {
+                let words = phrase.split(separator: " ")
+                // "sparks erupting around the blow", "smoke curling from the pipe": about an effect.
+                if let first = words.first, effectNouns.contains(bare(first)) || effectVerbs.contains(bare(first)) { continue }
+                if words.count <= 4, words.contains(where: { effectNouns.contains(bare($0)) }) { continue }
+                let kept = words.filter { !effectAdjectives.contains(bare($0)) }.joined(separator: " ")
+                guard !kept.isEmpty else { continue }
+                // "a large, glowing metal ingot": the adjective went, so "large" and "metal ingot"
+                // are one phrase again, not two.
+                let joinsList = words.first.map { effectAdjectives.contains(bare($0)) } ?? false
+                out += out.isEmpty ? kept : (joinsList ? " " : ", ") + kept
+            }
+            return out.isEmpty ? "" : out + (ends ? "." : "")
+        }
+        return sentences.filter { !$0.isEmpty }.joined(separator: ". ").trimmingCharacters(in: .whitespaces)
+    }
+
+    /// The installed Ollama model to suggest, best first: bigger models follow the rules better
+    /// (gemma3:4b adds glow and props; gemma4 kept to the brief in testing), and one that
+    /// mixed up the character asked for (glm-4.7-flash described a dwarf for an elf) is left out.
+    public static let preferredOllama = ["gemma4", "gemma3:27b", "gemma3:12b", "qwen3", "llama3.3", "llama3.1", "gemma3"]
+
+    public static func recommendedOllama(_ installed: [String]) -> String? {
+        for family in preferredOllama {
+            if let hit = installed.first(where: { $0 == family || $0.hasPrefix(family + ":") || $0.hasPrefix(family + "-") }) { return hit }
+        }
+        return nil
     }
 
     private func send(system: String, user: String, maxTokens: Int, timeout: TimeInterval) throws -> String {
