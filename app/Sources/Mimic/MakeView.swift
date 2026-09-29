@@ -16,6 +16,8 @@ struct MakeView: View {
     @State private var dropTargeted = false
     @State private var restyle = true
     @State private var description = ""
+    /// The AI helper's version of `description`, used instead of it while shown.
+    @State private var improved: String?
     @State private var name = ""
     @State private var seed = 42
     @State private var card = SizeCard.remembered()
@@ -157,6 +159,7 @@ struct MakeView: View {
                     name = Mini.displayName(MakeAdvice.name(fromDescription: text))
                     autoName = true
                 }
+            ImproveBox(description: description, improved: $improved)
             if !health.drawThingsReady { needsDrawThings("✍️ Describe it needs Draw Things.") }
         }
     }
@@ -228,7 +231,8 @@ struct MakeView: View {
             guard let picture else { return }
             source = .image(picture.url)
         case .description:
-            source = .description(trimmedDescription)
+            let better = improved?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            source = better.isEmpty ? .description(trimmedDescription) : .description(better, original: trimmedDescription)
         }
         do {
             try model.make(name: slug, picture: source, restyle: start == .picture && restyle && health.drawThingsReady,

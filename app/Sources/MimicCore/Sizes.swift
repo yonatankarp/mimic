@@ -60,7 +60,11 @@ extension Sizes: Codable {
 public struct MiniSettings: Codable, Equatable, Sendable {
     public enum Source: String, Codable, Sendable { case image, desc }
     public var source: Source?
+    /// The description the picture was drawn from; when the AI helper improved it, the improved
+    /// text (Try Again reuses it and never asks the helper again).
     public var desc: String?
+    /// What the person typed, kept only when the helper's improved text was used instead.
+    public var descOriginal: String?
     public var restyle: Bool?
     public var seed: Int?
     public var requested: Sizes?

@@ -113,6 +113,19 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   folder, and reading that makes macOS ask for access to another app's data and block until
   answered: Settings sat on a spinner. The API's selected model comes first; the folder is a
   fallback with a 3-second limit.
+- **The AI helper for descriptions is optional and off by default** (`MimicCore/Helper.swift`).
+  Claude, any OpenAI-compatible service (key + address + model, only `model` and `messages`
+  sent, since some models refuse `max_tokens` or `temperature`), or Ollama on this Mac. Claude
+  defaults to Haiku 4.5: the rewrite is short and the person waits for it in the sheet, and it
+  costs half of Sonnet 5.5. Keys are generic passwords in the login Keychain (service
+  `com.mimic.app`, one account per provider), never in UserDefaults, settings.json or a log;
+  error text a service sends back has the key cut out. Only the description is sent. The
+  improved text is saved as `desc` (what was drawn) and what the person typed as
+  `descOriginal`, so Try Again redraws exactly and never asks the helper again. Its answer goes
+  into `characterPrompt` after "miniature of a", so the prompt asks for a noun phrase and a
+  leading article or a repeated "miniature of a" (gemma3 did) is cut off. Measured with
+  gemma3:4b on this Mac: 7–11 s per description once loaded, 25–35 s for the first. Cloud
+  providers are proven against a local fake server only.
 - **Self-signed, by decision.** The disk image is downloaded through a browser, so macOS
   quarantines it and the first open needs System Settings → Privacy & Security → Open Anyway,
   once; the README and a note in the disk image say so. A Developer ID would remove that step.
