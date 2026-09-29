@@ -56,11 +56,13 @@ final class TourGuide {
     /// New Mini asks once when it opens.
     func takeSample() -> URL? { defer { sample = nil }; return sample }
 
-    /// New Mini opened or closed by hand: from New Mini's stop, pressing + goes inside; inside,
-    /// Cancel or Make My Mini carries on in the main window (after the progress, if it's up).
+    /// New Mini opened or closed by hand: from New Mini's stop, pressing + goes inside. Inside,
+    /// Make My Mini carries on in the main window once the progress is out of the way; Cancel
+    /// (and Esc, which presses it) leaves the tour.
     func sheetChanged(_ model: AppModel) {
         guard let step else { return }
         if step == .newMini, model.sheet == .make { go(to: .start, wait: 0.5) }
+        if step.inNewMini, model.sheet == nil { return leave() }
         if step.inNewMini, model.sheet != .make {
             usingSample = false
             Tour.next(after: .make, onScreen: onScreen).map { go(to: $0, wait: 0.5) } ?? leave()
@@ -93,7 +95,10 @@ final class TourGuide {
         step = next
         Task {
             try? await Task.sleep(for: .seconds(wait))
-            if step == next { visible = true }
+            guard step == next else { return }
+            visible = true
+            // VoiceOver doesn't notice a popover opening by itself.
+            AccessibilityNotification.Announcement("Tour: \(TourCallout.title(next))").post()
         }
     }
 }
@@ -128,7 +133,7 @@ private struct TourStopModifier: ViewModifier {
 }
 
 /// What one stop says.
-private struct TourCallout: View {
+struct TourCallout: View {
     let stop: TourStep
     @Environment(AppModel.self) private var model
     private var guide: TourGuide { .shared }
@@ -165,7 +170,9 @@ private struct TourCallout: View {
             && !FileManager.default.fileExists(atPath: model.install.runs.appendingPathComponent(Rules.slug(TourGuide.sampleName)).path)
     }
 
-    private var title: String {
+    private var title: String { Self.title(stop) }
+
+    static func title(_ stop: TourStep) -> String {
         switch stop {
         case .welcome: "Welcome to Mimic 👋"
         case .newMini: "Start a new mini"
