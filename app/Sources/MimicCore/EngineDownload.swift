@@ -80,10 +80,12 @@ public enum EngineDownload {
     /// The model sets Mimic can run, the default first. Each is downloaded into its own folder,
     /// `engine/models/<id>`, from Hugging Face at a pinned revision (the big files' sha256s are
     /// Hugging Face's own LFS hashes). The licences travel with the weights.
-    public static let catalogue: [EngineModel] = [pixal3d, trellis2Q8, trellis2Q4]
+    /// TRELLIS.2 first, the default: in the comparison on issue #2 it kept what figures hold (a
+    /// hammer, a bow, a raven on a shoulder) right 9 times out of 9, against 4 out of 10 for
+    /// Pixal3D, which stays as the choice for the crispest surface.
+    public static let catalogue: [EngineModel] = [trellis2Q8, pixal3d]
 
-    /// What an install with no choice recorded uses: the model set every Mimic before 0.4.0
-    /// downloaded, so those installs stay valid with nothing to download.
+    /// What an install or a mini with no model recorded uses.
     public static var standard: EngineModel { catalogue[0] }
 
     public static func model(_ id: String?) -> EngineModel? {
@@ -115,7 +117,7 @@ public enum EngineDownload {
     /// minis (cutout, 3D, print prep) on an M2 Max, measured in app/NOTES.md.
     static let pixal3d = EngineModel(
         id: "pixal3d-sv", name: "Pixal3D",
-        summary: "The sharpest faces and finest detail, and the fastest.", minutes: 8,
+        summary: "The crispest surface detail, and the fastest. Sometimes loses or misplaces something a figure holds; Make Another Version usually fixes it.", minutes: 8,
         family: .pixal3dSingleView,
         files: files(pixal3dURL, [
             ("dinov3.gguf", 323_657_920, "0dd4ffd4b46a248f5b7d49c35275d68461fbf73f57ddb4c1fa8afb4f7bb45a0d"),
@@ -137,7 +139,7 @@ public enum EngineDownload {
     /// downloaded. birefnet.gguf is left out: Mimic always hands the engine a cutout.
     static let trellis2Q8 = EngineModel(
         id: "trellis2-q8", name: "TRELLIS.2",
-        summary: "Microsoft's model that Pixal3D grew from. Can place things in depth better, like a weapon held against the body.", minutes: 14,
+        summary: "The most reliable with what a figure holds or carries: a weapon, a bow, a pet on a shoulder. A slightly softer surface, and slower on bulky figures.", minutes: 12,
         family: .trellis2,
         files: files(trellis2URL, [
             ("q8/dinov3.gguf", 323_657_920, "0dd4ffd4b46a248f5b7d49c35275d68461fbf73f57ddb4c1fa8afb4f7bb45a0d"),
@@ -149,23 +151,6 @@ public enum EngineDownload {
             ("q8/tex_flow_512.gguf", 1_376_178_176, "389a2cbdda59d53b21e5989650d9d36b7ac603266eaef06712cd07a9fc377210"),
             ("q8/tex_flow_1024.gguf", 1_376_178_176, "cb2cb3aee74ba09c018f918ed8c146bc7e4f96335b61fa0d1fc1ff1a7811e6da"),
             ("q8/tex_dec.gguf", 881_344_576, "88b4fced46455e02f316664d5c43584a311921dd9a1cdc1b7b7d981cca9214d4"),
-        ]) + licences)
-
-    /// TRELLIS.2 at 4 bits: the smallest set.
-    static let trellis2Q4 = EngineModel(
-        id: "trellis2-q4", name: "TRELLIS.2 Lite",
-        summary: "TRELLIS.2 made smaller: nearly the same look and the smallest download.", minutes: 12,
-        family: .trellis2,
-        files: files(trellis2URL, [
-            ("q4/dinov3.gguf", 172_662_976, "6473cf96fd275bf84f5cc0556975a2abaa10b641e4a07101dcad561df1917ef2"),
-            ("q4/ss_flow.gguf", 730_496_672, "a43c6393ee4a763a03e382de750d4f62752bacf969940442fd856230e62b88c2"),
-            ("q4/ss_dec.gguf", 147_379_392, "2790b5eecb261cc877d9bf175ce2bd6dd48cd65be8c042c5f5bc023dfca01cf7"),
-            ("q4/shape_flow_512.gguf", 730_520_576, "de7b87a92280035258c94314258e3b8314de39e5f001eac1ada0b4087785fb63"),
-            ("q4/shape_flow_1024.gguf", 730_520_576, "54e49e3408b9f77bdc85c3f5a400a58a1d9fc091e111986eda7caeaea621b305"),
-            ("q4/shape_dec.gguf", 845_423_552, "79a52ddfed3454f724683940c11cfbfcf76c427ab3b7fdeb4c3cfc6d26647de4"),
-            ("q4/tex_flow_512.gguf", 730_548_224, "fff7bca6418ad607b8b9ff24034ff63f591d0a9b72f308960bffd6f5cd17390b"),
-            ("q4/tex_flow_1024.gguf", 730_548_224, "028d3be82075f8a4d8b4bd08985e1215ac3783ed332dbf7e8fd6535fcdd3d5a8"),
-            ("q4/tex_dec.gguf", 845_414_272, "20b208e402db907c6800dd4ad486a0d6e927e4511a6ff87fb51049794988927b"),
         ]) + licences)
 
     /// Everything a first launch with `model` downloads, as the setup screen counts it.
@@ -255,7 +240,8 @@ public struct SetupProgress: Sendable, Equatable {
 public struct EngineSetup: Sendable {
     public var install: Install
     public var engineFile: EngineFile = EngineDownload.engine
-    /// The model set to download. An old install's files are always the standard set's.
+    /// The model set to download. An old install's files (Pixal3D's) are moved into it where
+    /// it has files of the same name, and checked like any others.
     public var model: EngineModel = EngineDownload.standard
     /// Where identical files may already be on disk, so they're copied instead of downloaded.
     public var catalogue: [EngineModel] = EngineDownload.catalogue
@@ -332,13 +318,13 @@ public struct EngineSetup: Sendable {
     // MARK: Moving an old install
 
     /// Installs before the Swift engine kept it inside a clone of image-to-3dlab: move it rather
-    /// than download 8 GB again. Its trellis-cli is kept only if it's the build this Mimic pins;
+    /// than download it again. Its trellis-cli is kept only if it's the build this Mimic pins;
     /// the model files are checked by the download pass that follows, like any others. The rest
     /// of image-to-3dlab (a git clone and a Python setup) is no longer used, and is removed only
     /// once everything worth keeping has moved.
     func migrate(from lab: URL) throws {
         let fm = FileManager.default
-        // Old installs only ever had the standard set (as this setup has it, when it's that one).
+        // Old installs had Pixal3D: whichever of its files this set shares by name are moved in.
         let standard = model.id == EngineDownload.standard.id ? model : EngineDownload.standard
         let models = standard.folder(in: install)
         let old = lab.appendingPathComponent("vendor/pixal3d-cpp")

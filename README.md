@@ -28,9 +28,9 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
 1. Download the `.dmg` file from the [latest release](https://github.com/yonatankarp/mimic/releases/latest) and open it.
 2. Drag **Mimic** onto **Applications**, then open Mimic from your Applications folder.
    If your Mac says it can't check Mimic, see the note below.
-3. Pick a 3D model (Pixal3D, the default, is the fastest and sharpest; the others are listed
-   with their size) and press **Download**. The first time, Mimic downloads its 3D engine
-   (5.7 to 9.1 GB, depending on the model). You can keep using your Mac while it does, and
+3. Pick a 3D model (TRELLIS.2, the default, keeps what a figure holds most reliably; Pixal3D
+   is faster, with the crispest surface) and press **Download**. The first time, Mimic
+   downloads its 3D engine (8.1 to 9.1 GB, depending on the model). You can keep using your Mac while it does, and
    switch models later in Settings.
 
 > [!IMPORTANT]
@@ -89,7 +89,7 @@ flowchart TD
   redraw --> image["Character image"]
   draw --> image
   image --> cut["✂️ Cut out the character<br/><i>Apple Vision</i>"]
-  cut --> mesh["🧊 3D model<br/><i>Pixal3D</i>"]
+  cut --> mesh["🧊 3D model<br/><i>TRELLIS.2 or Pixal3D</i>"]
   mesh --> prep["🖨️ Print prep<br/><i>Swift, in Mimic</i>"]
   prep --> out["STL + front, side and back previews"]
   out --> slicer["Your slicer"]
@@ -98,8 +98,9 @@ flowchart TD
 1. **The picture.** FLUX.2 Klein, running in Draw Things, draws your character from a
    description, or redraws your picture as a grey sculpt so it's easier to turn into 3D.
 2. **The 3D model.** Apple's Vision framework cuts the character out of the picture, then
-   [Pixal3D](https://github.com/raven38/pixal3d.cpp) builds a 3D model from it on your Mac's
-   graphics chip.
+   [TRELLIS.2](https://github.com/microsoft/TRELLIS.2) (or Pixal3D, if you choose it in Settings),
+   run by [pixal3d.cpp](https://github.com/raven38/pixal3d.cpp), builds a 3D model from it on
+   your Mac's graphics chip.
 3. **Print prep.** Mimic's own Swift code sizes the model, centres it on a round base, makes it
    one solid piece, thickens thin parts to suit your nozzle, and flattens the bottom so it
    sits on the print bed.
@@ -146,6 +147,7 @@ Want to change Mimic itself? See [CONTRIBUTING.md](CONTRIBUTING.md).
 ## Licences
 
 - **Mimic:** MIT (see [LICENSE](LICENSE)).
-- **Pixal3D:** MIT, except the image encoder its model includes, which uses Meta's DINOv3 licence.
+- **TRELLIS.2 and Pixal3D:** MIT, except the image encoder their models include, which uses
+  Meta's DINOv3 licence.
 - **FLUX.2 Klein:** Black Forest Labs' licence. Check it before selling prints of generated
   characters.

@@ -12,8 +12,8 @@ final class SetupModel {
     static let drawThingsStore = URL(string: "https://apps.apple.com/app/id6444050820")!
 
     let install: Install
-    /// The 3D model minis are made with: the `model` default (absent = the standard set, which
-    /// is every install before there was a choice). It only ever names a set that finished
+    /// The 3D model minis are made with: the `model` default (absent = the standard set,
+    /// TRELLIS.2). It only ever names a set that finished
     /// downloading, except on a new Mac, where setup is showing.
     private(set) var chosen: EngineModel
     /// The set being downloaded, or the one the last download was for.
@@ -78,7 +78,7 @@ final class SetupModel {
         Task {
             #if DEBUG
             // Development: MIMIC_DEMO_SETUP plays a pretend download (about 30 s) and a finish,
-            // to look at the setup screen's animations without downloading 8.1 GB.
+            // to look at the setup screen's animations without downloading 9 GB.
             if ProcessInfo.processInfo.environment["MIMIC_DEMO_SETUP"] != nil {
                 let total = EngineDownload.totalBytes(target)
                 for i in 1...150 {
@@ -141,7 +141,7 @@ final class SetupModel {
         return seconds >= 2 && last.done > first.done ? Double(last.done - first.done) / seconds : nil
     }
 
-    /// "2.1 of 8.1 GB · 24 MB/s · about 4 minutes left"
+    /// "2.1 of 9.1 GB · 24 MB/s · about 4 minutes left"
     var status: String {
         guard let p = progress else { return "Starting…" }
         switch p.activity {

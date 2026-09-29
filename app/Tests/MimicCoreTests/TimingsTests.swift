@@ -22,7 +22,7 @@ final class TimingsTests: XCTestCase {
         XCTAssertFalse(e.learned)
         XCTAssertEqual(e, Estimator.fixed(make))
         XCTAssertEqual(e.total, 8 * 60, "Pixal3D's fixed time is the 8 minutes Settings has always said")
-        XCTAssertEqual(Estimator.estimate(JobShape(job: .generate, model: "trellis2-q8", drawn: true), history: [], machine: mac).total, 14 * 60)
+        XCTAssertEqual(Estimator.estimate(JobShape(job: .generate, model: "trellis2-q8", drawn: true), history: [], machine: mac).total, 12 * 60)
         XCTAssertEqual(Estimator.estimate(JobShape(job: .prep, model: "pixal3d-sv", drawn: false), history: [], machine: mac).total, 45)
     }
 

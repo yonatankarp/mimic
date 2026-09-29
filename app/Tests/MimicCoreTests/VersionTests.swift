@@ -23,7 +23,7 @@ final class VersionTests: XCTestCase {
     /// reaches both the drawing and the 3D engine.
     func testAnotherVersionCopiesTheSettingsWithANewSeed() throws {
         let fx = try Fixture(), runs = fx.install.runs
-        try fx.modelFiles(); try fx.modelFiles(EngineDownload.model("trellis2-q4")!)
+        try fx.modelFiles(); try fx.modelFiles(EngineDownload.model("pixal3d-sv")!)
         let tools = fx.tools()
         let picture = fx.root.appendingPathComponent("pic.png"); fm.createFile(atPath: picture.path, contents: Data("the picture".utf8))
         try Gallery.createProject(runs, "Tiefling Party")
@@ -33,7 +33,7 @@ final class VersionTests: XCTestCase {
         try jobs.resize(name: "busy", sizes: sizes)
         let big = Sizes(height: "100", base: "40", nozzle: "0.2")
         try jobs.make(name: "wizard", picture: .image(picture), restyle: false, seed: 7, sizes: big, kind: .object,
-                      model: EngineDownload.model("trellis2-q4")!, project: "Tiefling Party")
+                      model: EngineDownload.model("pixal3d-sv")!, project: "Tiefling Party")
         try jobs.make(name: "sculpted", picture: .image(picture), restyle: true, seed: 7, sizes: big, model: EngineDownload.standard, project: "Tiefling Party")
         try jobs.make(name: "elf", picture: .description("an elf ranger", original: "elf"), restyle: false, seed: 42, sizes: sizes,
                       model: EngineDownload.standard)
