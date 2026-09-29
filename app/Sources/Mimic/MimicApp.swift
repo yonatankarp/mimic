@@ -10,7 +10,7 @@ struct MimicApp: App {
         WindowGroup("Mimic") {
             ContentView()
                 .modifier(MainWindowChrome())
-                .frame(minWidth: 900, minHeight: 600)
+                .frame(minWidth: 900, minHeight: 680)
                 .environment(model)
         }
         .commands {

@@ -63,7 +63,7 @@ struct MakeView: View {
             .padding(16)
             .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(width: 580, height: 720)
+        .frame(width: 580, height: 600)  // fits under the toolbar of the smallest main window; the form scrolls
         .task {
             // Describe it and the grey sculpt need Draw Things, and Make needs every required
             // part: check them once if nothing has yet, then keep watching Draw Things.
@@ -266,7 +266,7 @@ struct ResizeView: View {
             .fixedSize(horizontal: false, vertical: true)
         }
         .navigationTitle("Resize \(mini.displayName)")
-        .frame(width: 580, height: 620)
+        .frame(width: 580, height: 560)
     }
 }
 

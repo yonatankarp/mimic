@@ -110,12 +110,12 @@ final class CheckTests: XCTestCase {
     }
 }
 
-/// Answers every request with 200, like Draw Things' API server with nothing else to say.
+/// Answers every request with 200 and `body`, like Draw Things' API server.
 final class FakeDrawThings: @unchecked Sendable {
     private let fd: Int32
     let port: UInt16
 
-    init() throws {
+    init(body: String = "{}") throws {
         let fd = socket(AF_INET, SOCK_STREAM, 0)
         self.fd = fd
         var addr = sockaddr_in()
@@ -133,7 +133,7 @@ final class FakeDrawThings: @unchecked Sendable {
             while case let c = accept(fd, nil, nil), c >= 0 {
                 var buf = [UInt8](repeating: 0, count: 4096)
                 _ = read(c, &buf, buf.count)
-                let reply = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}"
+                let reply = "HTTP/1.1 200 OK\r\nContent-Length: \(body.utf8.count)\r\nConnection: close\r\n\r\n\(body)"
                 _ = reply.withCString { write(c, $0, strlen($0)) }
                 close(c)
             }

@@ -136,9 +136,16 @@ public enum MakeAdvice {
     /// "A dwarf cleric holding a warhammer" → "dwarf-cleric-holding-a": the first four words,
     /// skipping a leading a, an or the.
     public static func name(fromDescription text: String) -> String {
-        var words = text.split(whereSeparator: \.isWhitespace)
-        if let first = words.first, ["a", "an", "the"].contains(first.lowercased()), words.count > 1 { words.removeFirst() }
-        return Rules.slug(words.prefix(4).joined(separator: " "))
+        // The character is what comes before its gear: "a dwarf cleric holding a warhammer" is a
+        // dwarf-cleric. Articles go wherever they are, and a name never ends on a joining word.
+        let all = text.split(whereSeparator: \.isWhitespace)
+        let kept = all.filter { !["a", "an", "the"].contains($0.lowercased()) }
+        var words = Array(kept.isEmpty ? all : kept)
+        let joining: Set = ["with", "and", "of", "in", "on", "at", "holding", "wearing", "carrying", "riding"]
+        if let cut = words.firstIndex(where: { joining.contains($0.lowercased()) }), cut >= 2 { words = Array(words[..<cut]) }
+        words = Array(words.prefix(4))
+        while words.count > 1, let last = words.last, joining.contains(last.lowercased()) { words.removeLast() }
+        return Rules.slug(words.joined(separator: " "))
     }
 }
 

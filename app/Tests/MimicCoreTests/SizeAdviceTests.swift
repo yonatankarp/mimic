@@ -93,7 +93,10 @@ final class SizeAdviceTests: XCTestCase {
     }
 
     func testNameFromDescription() {
-        XCTAssertEqual(MakeAdvice.name(fromDescription: "A dwarf cleric holding a warhammer"), "dwarf-cleric-holding-a")
+        XCTAssertEqual(MakeAdvice.name(fromDescription: "A dwarf cleric holding a warhammer"), "dwarf-cleric")
+        XCTAssertEqual(MakeAdvice.name(fromDescription: "an elf ranger with a longbow"), "elf-ranger")
+        XCTAssertEqual(MakeAdvice.name(fromDescription: "orc chief with a big axe"), "orc-chief")
+        XCTAssertEqual(MakeAdvice.name(fromDescription: "knight with a sword and a shield"), "knight-with-sword", "one word before the gear is too little to name it")
         XCTAssertEqual(MakeAdvice.name(fromDescription: "  the Tiefling wizard"), "tiefling-wizard")
         XCTAssertEqual(MakeAdvice.name(fromDescription: "an"), "an")
         XCTAssertEqual(MakeAdvice.name(fromDescription: "anvil golem"), "anvil-golem")

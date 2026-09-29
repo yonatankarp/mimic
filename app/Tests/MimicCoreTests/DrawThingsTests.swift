@@ -15,6 +15,22 @@ final class DrawThingsTests: XCTestCase {
         XCTAssertEqual(b["seed"] as? Int, 7)
     }
 
+    /// Nothing listens on port 9, so these never reach the Draw Things running on this Mac.
+    private let offline = ["DRAWTHINGS_URL": "http://127.0.0.1:9"]
+
+    /// Asked first, so the private folder (and the macOS prompt reading it brings) is only a fallback.
+    func testUsesTheKleinSelectedInDrawThings() throws {
+        let klein = try FakeDrawThings(body: #"{"model":"flux_2_klein_4b_q8p.ckpt"}"#)
+        defer { klein.stop() }
+        let nowhere = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        XCTAssertEqual(DrawThings(environment: ["DRAWTHINGS_URL": "http://127.0.0.1:\(klein.port)"], home: nowhere).model(),
+                       "flux_2_klein_4b_q8p.ckpt")
+        let sdxl = try FakeDrawThings(body: #"{"model":"sdxl_base.ckpt"}"#)
+        defer { sdxl.stop() }
+        XCTAssertNil(DrawThings(environment: ["DRAWTHINGS_URL": "http://127.0.0.1:\(sdxl.port)"], home: nowhere).model(),
+                     "another model selected and no Klein downloaded")
+    }
+
     func testPicksTheLargestKleinModel() throws {
         let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let models = home.appendingPathComponent("Library/Containers/com.liuliu.draw-things/Data/Documents/Models")
@@ -22,9 +38,9 @@ final class DrawThingsTests: XCTestCase {
         for f in ["flux_2_klein_4b_q8p.ckpt", "flux_2_klein_9b_q6p.ckpt", "sdxl_base.ckpt"] {
             FileManager.default.createFile(atPath: models.appendingPathComponent(f).path, contents: Data())
         }
-        XCTAssertEqual(DrawThings(environment: [:], home: home).model(), "flux_2_klein_9b_q6p.ckpt")
+        XCTAssertEqual(DrawThings(environment: offline, home: home).model(), "flux_2_klein_9b_q6p.ckpt")
         XCTAssertEqual(DrawThings(environment: ["DRAWTHINGS_MODEL": "mine.ckpt"], home: home).model(), "mine.ckpt")
-        XCTAssertNil(DrawThings(environment: [:], home: home.appendingPathComponent("nothing")).model())
+        XCTAssertNil(DrawThings(environment: offline, home: home.appendingPathComponent("nothing")).model())
     }
 
     /// Draw Things refuses sizes that aren't multiples of 64 or don't match the picture.

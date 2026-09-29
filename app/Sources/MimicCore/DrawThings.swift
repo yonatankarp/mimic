@@ -31,12 +31,39 @@ public final class DrawThings: @unchecked Sendable {
         pinnedModel = environment["DRAWTHINGS_MODEL"]
     }
 
-    /// The Klein checkpoint to ask for: DRAWTHINGS_MODEL, else the largest one downloaded
-    /// ("9b" sorts after "4b").
-    public func model() -> String? {
+    /// The Klein checkpoint to ask for: DRAWTHINGS_MODEL, else the one Draw Things has selected if
+    /// it's a Klein, else the largest one downloaded ("9b" sorts after "4b").
+    ///
+    /// Asking the app comes first because the downloads live in Draw Things' private folder:
+    /// reading it makes macOS ask the person for access to another app's data, and the read
+    /// waits for the answer. So it's the fallback, and it gives up after `timeout`.
+    public func model(timeout: TimeInterval = 3) -> String? {
         if let pinnedModel { return pinnedModel }
-        let names = (try? FileManager.default.contentsOfDirectory(atPath: modelsDir.path)) ?? []
-        return names.filter { $0.hasPrefix("flux_2_klein") && $0.hasSuffix(".ckpt") }.sorted().last
+        if let current = selectedModel(), current.hasPrefix("flux_2_klein") { return current }
+        let done = DispatchSemaphore(value: 0)
+        nonisolated(unsafe) var found: String?
+        let dir = modelsDir.path
+        DispatchQueue.global().async {
+            let names = (try? FileManager.default.contentsOfDirectory(atPath: dir)) ?? []
+            found = names.filter { $0.hasPrefix("flux_2_klein") && $0.hasSuffix(".ckpt") }.sorted().last
+            done.signal()
+        }
+        // ponytail: a read still waiting on the prompt is left behind, not cancelled; the next call starts another.
+        return done.wait(timeout: .now() + timeout) == .success ? found : nil
+    }
+
+    /// The model selected in Draw Things right now, or nil when it isn't reachable.
+    func selectedModel(timeout: TimeInterval = 1.5) -> String? {
+        var req = URLRequest(url: base.appendingPathComponent("sdapi/v1/options"))
+        req.timeoutInterval = timeout
+        let done = DispatchSemaphore(value: 0)
+        nonisolated(unsafe) var model: String?
+        URLSession.shared.dataTask(with: req) { data, _, _ in
+            model = (data.flatMap { try? JSONSerialization.jsonObject(with: $0) } as? [String: Any])?["model"] as? String
+            done.signal()
+        }.resume()
+        done.wait()
+        return model
     }
 
     public func reachable(timeout: TimeInterval = 1.5) -> Bool {
