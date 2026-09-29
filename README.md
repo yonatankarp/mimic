@@ -20,7 +20,8 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
   or [UltiMaker Cura](https://github.com/Ultimaker/Cura)
 - Optional: [Draw Things](https://apps.apple.com/app/id6444050820), a free app. With it, Mimic
   can make a mini from a description, and turn your picture into a grey sculpt first, which
-  gives better minis. Mimic shows you how to set it up.
+  gives better minis. Mimic shows you how to set it up. The easiest way to connect it is its
+  command line tool: `brew install draw-things-cli`.
 
 ### Install
 

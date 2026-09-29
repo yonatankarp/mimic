@@ -66,9 +66,13 @@ public struct Checks: Sendable {
                                    fix: "Free up some space: each mini takes about 150 MB while it's being made.")
             },
             check("drawthings-app", "Draw Things app", false, "Install Draw Things from the Mac App Store. It's free.") {
-                s.drawThingsInstalled()
+                s.drawThings.cli != nil || s.drawThingsInstalled()
             },
             Check(id: "drawthings-api", label: "Draw Things is open and connected", required: false, fix: Self.apiFix) {
+                // With the command line tool, the app and its API server aren't needed at all.
+                if s.drawThings.cli != nil {
+                    return CheckResult(id: "drawthings-api", label: Self.commandLine, required: false, ok: true, fix: Self.apiFix)
+                }
                 // Closed is fine when Mimic opens it: informative, not something to fix.
                 let connected = s.drawThings.reachable()
                 let ok = connected || (s.autoOpen && s.drawThingsInstalled())
@@ -85,7 +89,10 @@ public struct Checks: Sendable {
         ]
     }
 
-    static let apiFix = "Open Draw Things, then Settings → Advanced → API Server: turn it on, choose HTTP, port 7860."
+    /// The API check's label when `draw-things-cli` makes the pictures.
+    public static let commandLine = "Draw Things command line tool installed"
+    static let apiFix = "Easiest: in Terminal, run brew install draw-things-cli. "
+        + "Or open Draw Things, then Settings → Advanced → API Server: turn it on, choose HTTP, port 7860."
 
     func drawThingsInstalled() -> Bool { appFolders.contains { isDirectory($0.appendingPathComponent("Draw Things.app")) } }
 

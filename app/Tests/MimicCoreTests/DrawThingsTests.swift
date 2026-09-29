@@ -64,8 +64,61 @@ final class DrawThingsTests: XCTestCase {
     }
 
     func testUnreachableServerReadsAsNotRunning() {
-        let dt = DrawThings(environment: ["DRAWTHINGS_URL": "http://127.0.0.1:9", "DRAWTHINGS_MODEL": "x"])
+        let dt = DrawThings(environment: ["DRAWTHINGS_URL": "http://127.0.0.1:9", "DRAWTHINGS_MODEL": "x"], cli: nil)
         XCTAssertFalse(dt.reachable())
         XCTAssertThrowsError(try dt.draw(description: "a dwarf", seed: 1)) { XCTAssertEqual($0 as? DrawThingsError, .notRunning) }
+    }
+
+    /// The CLI gets the same request, and always `--local`: without it, it may use Draw Things' cloud.
+    func testCLIArguments() {
+        let draw = DrawThings.cliArguments(model: "m.ckpt", prompt: "a dwarf", seed: 7, width: 1024, height: 1024, output: "/o.png")
+        XCTAssertEqual(draw.first, "generate")
+        XCTAssertTrue(draw.contains("--local"))
+        XCTAssertTrue(draw.contains("--no-download-missing"))
+        XCTAssertFalse(draw.contains("--image"))
+        for (flag, value) in [("--model", "m.ckpt"), ("--prompt", "a dwarf"), ("--seed", "7"), ("--width", "1024"), ("--output", "/o.png")] {
+            XCTAssertEqual(draw[draw.firstIndex(of: flag)! + 1], value, flag)
+        }
+        let edit = DrawThings.cliArguments(model: "m", prompt: "p", seed: 1, width: 704, height: 1536, image: "/in.png", output: "/o.png")
+        XCTAssertTrue(edit.contains("--local"))
+        XCTAssertEqual(edit[edit.firstIndex(of: "--image")! + 1], "/in.png")
+        XCTAssertEqual(edit[edit.firstIndex(of: "--height")! + 1], "1536")
+    }
+
+    func testCLIOutput() {
+        let out = "\u{1B}[2K\rStep 1/4\n\u{1B}[2K\rStep 4/4\n\u{1B}[2KWrote: /tmp/a b.png\n"
+        XCTAssertEqual(DrawThings.wrotePath(out), "/tmp/a b.png")
+        XCTAssertNil(DrawThings.wrotePath("Step 1/4\n"))
+        XCTAssertEqual(DrawThings.tail("\u{1B}[1mError:\u{1B}[0m model not found\n\n"), "Error: model not found")
+    }
+
+    /// Stop ends the CLI, and reads as stopped, not as Draw Things refusing.
+    func testStopEndsTheCLI() throws {
+        let cli = FileManager.default.temporaryDirectory.appendingPathComponent("fake-dt-\(UUID().uuidString)")
+        try "#!/bin/sh\nsleep 30\n".write(to: cli, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: cli.path)
+        defer { try? FileManager.default.removeItem(at: cli) }
+        let dt = DrawThings(environment: ["DRAWTHINGS_MODEL": "x"], cli: cli.path)
+        XCTAssertNil(try dt.openIfNeeded(), "the CLI needs no app")
+        DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) { dt.cancel() }
+        let started = Date()
+        XCTAssertThrowsError(try dt.draw(description: "a dwarf", seed: 1)) { XCTAssertEqual($0 as? DrawThingsError, .cancelled) }
+        XCTAssertLessThan(Date().timeIntervalSince(started), 10)
+    }
+}
+
+/// A real drawing and sculpt through draw-things-cli, about a minute each. Only with
+/// MIMIC_LIVE_DRAW set; the pictures are left in the temporary folder, and their paths printed.
+final class LiveDrawTests: XCTestCase {
+    func testDrawAndSculptThroughTheCLI() throws {
+        try XCTSkipIf(ProcessInfo.processInfo.environment["MIMIC_LIVE_DRAW"] == nil, "a real generation")
+        let dt = DrawThings()
+        try XCTSkipIf(dt.cli == nil, "draw-things-cli isn't installed")
+        let drawn = FileManager.default.temporaryDirectory.appendingPathComponent("live-draw.png")
+        try dt.draw(description: "stout dwarf warrior with an axe", seed: 7).write(to: drawn)
+        let sculpt = FileManager.default.temporaryDirectory.appendingPathComponent("live-sculpt.png")
+        try dt.sculpt(picture: drawn, seed: 7).write(to: sculpt)
+        print("LIVE \(drawn.path) \(sculpt.path)")
+        XCTAssertFalse(DrawThingsApp.mac.running(), "the CLI path opened Draw Things")
     }
 }

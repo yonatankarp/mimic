@@ -7,6 +7,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 ### New
 - `mimic --version` (also `-v` and `mimic version`) says which Mimic you have, and `mimic --help` lists it.
 - **Mimic checks for updates.** Once a day, and from Mimic → Check for Updates…: a new version shows as a small note in the toolbar with what's new, and Update downloads it, checks it, replaces Mimic and opens it again (never while a mini is being made or waiting). Turn it off in Settings → Updates. Only GitHub's public release information is read; nothing about your Mac or your minis is sent.
+- **Draw Things without its API server.** With its command line tool installed (`brew install draw-things-cli`), Mimic draws with it directly: Draw Things doesn't have to be open, and there's no API server to turn back on after it restarts. Pictures are always made on your Mac.
 
 ### Fixed
 - When several minis finish while you're away, each gets its own notification instead of replacing the last one.
