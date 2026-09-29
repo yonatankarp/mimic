@@ -27,15 +27,16 @@ final class JobTests: XCTestCase {
     func testTryAgainRebuildsTheSameJob() throws {
         let fx = try Fixture()
         let d = fx.install.runs.appendingPathComponent("mini")
-        let tools = fx.tools(blender: "/opt/blender", python: "/lab/python")
+        let tools = fx.tools(blender: "/opt/blender", mimic: "/app/mimic")
         let src = d.appendingPathComponent("source.png"), up = d.appendingPathComponent("upload.img")
         let flags = ["--height", "100.0", "--base", "40.0", "--nozzle", "0.4"]
         let prep = Step.run(executable: "/opt/blender",
                             arguments: ["-b", "-P", tools.miniPrep, "--", d.appendingPathComponent("model.glb").path,
                                         d.appendingPathComponent("mini.stl").path] + flags,
                             directory: nil, log: d.appendingPathComponent("prep.log"))
-        let mesh = Step.run(executable: "/lab/python", arguments: ["engine.py", src.path, d.appendingPathComponent("model.glb").path, "--seed", "7"],
-                            directory: fx.root.path, log: d.appendingPathComponent("pixal3d.log"))
+        let mesh = Step.run(executable: "/app/mimic", arguments: ["_engine", src.path, d.appendingPathComponent("model.glb").path,
+                                                                  "--seed", "7", "--engine", fx.install.engine.path],
+                            directory: nil, log: d.appendingPathComponent("pixal3d.log"))
         func settings(_ f: (inout MiniSettings) -> Void) -> MiniSettings { var s = MiniSettings(); s.seed = 7; s.requested = sizes; f(&s); return s }
         let cases: [(String, JobKind, MiniSettings, [Step])] = [
             ("picture", .generate, settings { $0.source = .image; $0.restyle = false }, [.copyPicture(from: up, to: src), mesh, prep]),
@@ -76,7 +77,7 @@ final class JobTests: XCTestCase {
         let picture = fx.root.appendingPathComponent("pic.png")
         FileManager.default.createFile(atPath: picture.path, contents: Data([1]))
         let spy = TrashSpy()
-        let jobs = JobRunner(install: fx.install, tools: fx.tools(python: engine), trash: { spy($0) })
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: engine), trash: { spy($0) })
         try jobs.make(name: "mini", picture: .image(picture), restyle: false, seed: 1, sizes: sizes)
         var child: pid_t = 0
         for _ in 0..<100 {

@@ -51,10 +51,7 @@ public struct Checks: Sendable {
         let s = self
         return [
             check("engine", "3D engine", true, Self.reinstall) { s.engineStarts() },
-            check("models", "3D model files", true, Self.reinstall + " This part downloads 8.4 GB.") {
-                s.isFile(s.install.engine.appendingPathComponent("models/pixal3d-sv/pixal3d_shape_flow_1024_sv.gguf"))
-            },
-            check("helpers", "Mimic's helper tools", true, Self.reinstall) { s.isFile(s.install.labPython) },
+            check("models", "3D model files", true, Self.reinstall + " This part downloads 8.4 GB.") { s.modelsComplete() },
             check("blender", "Blender (makes the print file)", true,
                   "Blender is missing or won't start. Run Install Mimic again, or install Blender from blender.org.") {
                 s.blenderStarts()
@@ -92,8 +89,28 @@ public struct Checks: Sendable {
     /// Whether the 3D engine launches (~10 ms): present but broken, like a copy whose libraries
     /// went missing, is red.
     func engineStarts() -> Bool {
-        let cli = install.engine.appendingPathComponent("build/trellis-cli")
-        return isFile(cli) && run(cli.path, ["--help"], 10)?.status == 0
+        isFile(install.trellisCLI) && run(install.trellisCLI.path, ["--help"], 10)?.status == 0
+    }
+
+    /// The model files trellis-cli loads and their sizes (setup.sh checks their sha256 too).
+    /// Every one: any missing file fails a run minutes in. Sizes catch a download cut short.
+    static let modelFiles: [(name: String, bytes: Int64)] = [
+        ("dinov3.gguf", 323_657_920),
+        ("pixal3d_naf.gguf", 1_334_656),
+        ("pixal3d_ss_flow_sv.gguf", 1_426_559_744),
+        ("ss_dec.gguf", 147_379_392),
+        ("pixal3d_shape_flow_512_sv.gguf", 1_476_761_760),
+        ("shape_dec.gguf", 881_361_568),
+        ("pixal3d_shape_flow_1024_sv.gguf", 1_476_761_760),
+        ("pixal3d_tex_flow_1024_sv.gguf", 1_476_813_984),
+        ("tex_dec.gguf", 881_344_576),
+    ]
+
+    func modelsComplete() -> Bool {
+        Self.modelFiles.allSatisfy { f in
+            let size = (try? FileManager.default.attributesOfItem(atPath: install.models.appendingPathComponent(f.name).resolvingSymlinksInPath().path))?[.size] as? Int64
+            return size == f.bytes
+        }
     }
 
     /// Whether Blender actually runs, not just whether a `blender` exists: Homebrew's launcher

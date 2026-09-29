@@ -10,6 +10,7 @@ struct Fixture {
         root = FileManager.default.temporaryDirectory.appendingPathComponent("mimic-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: root.appendingPathComponent("pipeline"), withIntermediateDirectories: true)
         FileManager.default.createFile(atPath: root.appendingPathComponent("pipeline/mini_prep.py").path, contents: Data())
+        FileManager.default.createFile(atPath: root.appendingPathComponent("setup.sh").path, contents: Data())
         try FileManager.default.createDirectory(at: root.appendingPathComponent("runs"), withIntermediateDirectories: true)
         install = Install(root: root)
     }
@@ -22,8 +23,9 @@ struct Fixture {
         return url.path
     }
 
-    func tools(blender: String? = "/usr/bin/true", python: String = "/usr/bin/true") -> Tools {
-        Tools(blender: blender, python: python, pixal3dScript: "engine.py", labDir: root.path,
+    /// `mimic` stands in for Mimic's own binary, which step 2 runs as `mimic _engine …`.
+    func tools(blender: String? = "/usr/bin/true", mimic: String = "/usr/bin/true") -> Tools {
+        Tools(blender: blender, mimic: mimic, engine: install.engine.path,
               miniPrep: root.appendingPathComponent("pipeline/mini_prep.py").path,
               environment: ["PATH": "/usr/bin:/bin"])
     }

@@ -16,6 +16,9 @@ enum CLI {
 
     static func run(_ args: [String]) -> Int32 {
         if args.first == "--probe-notifications" { return probeNotifications() }
+        // Before finding the Mimic folder or stopping leftovers: this *is* the running job's
+        // program (named in runs/.job.pid), and it's told where the engine is.
+        if args.first == "_engine" { return engine(Array(args.dropFirst())) }
         // Run through a symlink (the installer puts one on the PATH), the binary isn't seen as part of
         // its app, so it would read its own empty settings rather than the app's.
         let defaults = Bundle.main.bundleIdentifier == nil ? UserDefaults(suiteName: "com.mimic.app") ?? .standard : .standard
@@ -91,6 +94,32 @@ enum CLI {
             return 0
         }
         return fail("It didn't finish: \(s.problem ?? "a step failed (exit \(s.exit ?? -1))"). See the logs in \(folder.path)")
+    }
+
+    /// Step 2 of a job, run by the job itself (not for people, so not in the usage):
+    /// `mimic _engine <source.png> <model.glb> --seed N --engine <dir>`.
+    private static func engine(_ args: [String]) -> Int32 {
+        var rest = args, seed = 42, engine: String?, files: [String] = []
+        while let a = rest.first {
+            rest.removeFirst()
+            switch a {
+            case "--seed": guard let v = rest.first.flatMap(Int.init) else { return fail("--seed needs a number") }; seed = v; rest.removeFirst()
+            case "--engine": guard let v = rest.first else { return fail("--engine needs a folder") }; engine = v; rest.removeFirst()
+            default: files.append(a)
+            }
+        }
+        guard files.count == 2, let engine else { return fail("usage: mimic _engine <source.png> <model.glb> --seed N --engine <dir>") }
+        let out = FileHandle.standardOutput
+        do {
+            try Engine.make(source: URL(fileURLWithPath: files[0]), output: URL(fileURLWithPath: files[1]), seed: seed,
+                            engine: URL(fileURLWithPath: engine), environment: ProcessInfo.processInfo.environment) {
+                out.write(Data(($0 + "\n").utf8))
+            }
+            return 0
+        } catch {
+            _ = fail("\(error)")
+            return 1
+        }
     }
 
     private static func probeNotifications() -> Int32 {

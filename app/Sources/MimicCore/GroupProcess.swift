@@ -14,9 +14,12 @@ public final class GroupProcess: @unchecked Sendable {
 
     /// Starts `executable` with exactly `environment` (nothing inherited: launched from the
     /// Dock, the app's own PATH is launchd's bare one) and output appended to `log`.
-    /// `newSession` is only false in the test that proves why it has to be true.
+    /// `output` sends stdout and stderr to that file descriptor instead (the write end of a
+    /// pipe; `closeInChild` is its read end). `newSession` is false only for a program that
+    /// must stay in its parent's group, so that stopping the parent's group stops it too.
     public init(executable: String, arguments: [String], environment: [String: String],
-                workingDirectory: String? = nil, log: String? = nil, newSession: Bool = true) throws {
+                workingDirectory: String? = nil, log: String? = nil,
+                output: (fd: Int32, closeInChild: Int32)? = nil, newSession: Bool = true) throws {
         var attr = posix_spawnattr_t(nil as OpaquePointer?)
         posix_spawnattr_init(&attr)
         defer { posix_spawnattr_destroy(&attr) }
@@ -29,6 +32,12 @@ public final class GroupProcess: @unchecked Sendable {
         if let log {
             posix_spawn_file_actions_addopen(&actions, 1, log, O_WRONLY | O_CREAT | O_APPEND, 0o644)
             posix_spawn_file_actions_adddup2(&actions, 1, 2)
+        }
+        if let output {
+            posix_spawn_file_actions_adddup2(&actions, output.fd, 1)
+            posix_spawn_file_actions_adddup2(&actions, output.fd, 2)
+            posix_spawn_file_actions_addclose(&actions, output.fd)
+            posix_spawn_file_actions_addclose(&actions, output.closeInChild)
         }
         if let workingDirectory { posix_spawn_file_actions_addchdir_np(&actions, workingDirectory) }
 

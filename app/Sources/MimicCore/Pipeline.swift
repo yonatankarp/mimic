@@ -4,23 +4,23 @@ import Foundation
 /// launched from the Dock, the app's own PATH is launchd's bare one, where Blender isn't.
 public struct Tools: Sendable {
     public var blender: String?
-    public var python: String
-    public var pixal3dScript: String
-    public var labDir: String
+    /// Mimic's own binary: step 2 runs it as `mimic _engine …`.
+    public var mimic: String
+    /// The 3D engine's folder (trellis-cli, its libraries, `models/`).
+    public var engine: String
     public var miniPrep: String
     public var environment: [String: String]
 
-    public init(blender: String?, python: String, pixal3dScript: String, labDir: String, miniPrep: String, environment: [String: String]) {
-        self.blender = blender; self.python = python; self.pixal3dScript = pixal3dScript
-        self.labDir = labDir; self.miniPrep = miniPrep; self.environment = environment
+    public init(blender: String?, mimic: String, engine: String, miniPrep: String, environment: [String: String]) {
+        self.blender = blender; self.mimic = mimic; self.engine = engine
+        self.miniPrep = miniPrep; self.environment = environment
     }
 
     public static func resolve(_ install: Install) -> Tools {
         let env = childEnvironment()
         return Tools(blender: which("blender", path: env["PATH"]!),
-                     python: install.labPython.path,
-                     pixal3dScript: install.lab.appendingPathComponent("scripts/pixal3d_generate.py").path,
-                     labDir: install.lab.path,
+                     mimic: (Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0])).resolvingSymlinksInPath().path,
+                     engine: install.engine.path,
                      miniPrep: install.pipeline.appendingPathComponent("mini_prep.py").path,
                      environment: env)
     }
@@ -79,10 +79,10 @@ public enum Pipeline {
         case nil:
             throw RequestError.nothingToRetry
         }
-        let mesh: Step = .run(executable: tools.python,
-                              arguments: [tools.pixal3dScript, source.path, folder.appendingPathComponent("model.glb").path,
-                                          "--seed", String(seed)],
-                              directory: tools.labDir, log: folder.appendingPathComponent("pixal3d.log"))
+        let mesh: Step = .run(executable: tools.mimic,
+                              arguments: ["_engine", source.path, folder.appendingPathComponent("model.glb").path,
+                                          "--seed", String(seed), "--engine", tools.engine],
+                              directory: nil, log: folder.appendingPathComponent("pixal3d.log"))
         return [(1, picture), (2, mesh), (3, prep)]
     }
 }

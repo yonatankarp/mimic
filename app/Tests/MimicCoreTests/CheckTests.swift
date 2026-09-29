@@ -7,7 +7,7 @@ import XCTest
 /// on this Mac" proves nothing: each test builds its world from scratch in a temp folder, and
 /// the checks really start the stand-in programs.
 final class CheckTests: XCTestCase {
-    static let ids = ["engine", "models", "helpers", "blender", "space",
+    static let ids = ["engine", "models", "blender", "space",
                       "drawthings-app", "drawthings-api", "drawthings-model", "slicer"]
 
     var f: Fixture!
@@ -47,11 +47,8 @@ final class CheckTests: XCTestCase {
     }
 
     func testEverythingPresentIsGreen() throws {
-        try executable(f.install.engine.appendingPathComponent("build/trellis-cli"), "exit 0")
-        let models = f.install.engine.appendingPathComponent("models/pixal3d-sv")
-        try FileManager.default.createDirectory(at: models, withIntermediateDirectories: true)
-        FileManager.default.createFile(atPath: models.appendingPathComponent("pixal3d_shape_flow_1024_sv.gguf").path, contents: Data("x".utf8))
-        try executable(f.install.labPython, "exit 0")
+        try executable(f.install.trellisCLI, "exit 0")
+        try modelFiles()
         try executable(bin.appendingPathComponent("blender"), "echo Blender 5.2.2")
         for a in ["Draw Things.app", "OrcaSlicer.app"] {
             try FileManager.default.createDirectory(at: apps.appendingPathComponent(a), withIntermediateDirectories: true)
@@ -80,8 +77,31 @@ final class CheckTests: XCTestCase {
 
     /// Present but broken, like a copy whose libraries went missing: exists is not enough.
     func testAnEngineThatDoesNotStartIsRed() throws {
-        try executable(f.install.engine.appendingPathComponent("build/trellis-cli"), "exit 1")
+        try executable(f.install.trellisCLI, "exit 1")
         XCTAssertFalse(results(checks(freeGB: 100))["engine"]!)
+    }
+
+    /// Every model file, at its full size (sparse here, so 8.4 GB costs nothing): one missing,
+    /// or one cut short by an interrupted download, is red.
+    func modelFiles(except short: String? = nil) throws {
+        try FileManager.default.createDirectory(at: f.install.models, withIntermediateDirectories: true)
+        for m in Checks.modelFiles {
+            let url = f.install.models.appendingPathComponent(m.name)
+            FileManager.default.createFile(atPath: url.path, contents: nil)
+            let h = try FileHandle(forWritingTo: url)
+            try h.truncate(atOffset: UInt64(m.name == short ? m.bytes - 1 : m.bytes))
+            try h.close()
+        }
+    }
+
+    func testModelFilesMustAllBeComplete() throws {
+        try modelFiles()
+        XCTAssertTrue(results(checks(freeGB: 100))["models"]!)
+        try modelFiles(except: "tex_dec.gguf")
+        XCTAssertFalse(results(checks(freeGB: 100))["models"]!, "a file cut short passed")
+        try modelFiles()
+        try FileManager.default.removeItem(at: f.install.models.appendingPathComponent("ss_dec.gguf"))
+        XCTAssertFalse(results(checks(freeGB: 100))["models"]!, "a missing file passed")
     }
 
     /// A program that hangs is killed and reads as not starting, instead of hanging Settings.
