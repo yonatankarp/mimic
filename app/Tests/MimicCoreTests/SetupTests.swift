@@ -81,14 +81,18 @@ final class SetupTests: XCTestCase {
             try await setup.fetch(file, to: dest) { _ in }
             XCTFail("the cut connection didn't stop it")
         } catch {}
+        // What survives the cut depends on how much the Mac had received when the connection
+        // dropped (all of it here; 16 KB on a slower CI runner), so resuming is judged against
+        // what was kept, not against what the server sent.
         let part = URL(fileURLWithPath: dest.path + ".part")
-        XCTAssertEqual(EngineDownload.size(part), 1_000_000, "the partial file wasn't kept")
+        let kept = EngineDownload.size(part) ?? 0
+        XCTAssert(kept > 0 && kept <= 1_000_000, "the partial file wasn't kept (\(kept) bytes)")
 
         try await setup.fetch(file, to: dest) { _ in }
         XCTAssertEqual(EngineDownload.sha256(dest), file.sha256)
         XCTAssertFalse(FileManager.default.fileExists(atPath: part.path))
-        XCTAssertEqual(server.log.map(\.range), [nil, "bytes=1000000-"], "the second request didn't resume")
-        XCTAssertEqual(server.served, 1_000_000 + 2_000_000, "more than the remainder was downloaded")
+        XCTAssertEqual(server.log.map(\.range), [nil, "bytes=\(kept)-"], "the second request didn't resume")
+        XCTAssertEqual(Int64(server.served), 1_000_000 + (3_000_000 - kept), "more than the remainder was downloaded")
     }
 
     func testAServerThatIgnoresRangeStartsTheFileOver() async throws {
