@@ -3,7 +3,7 @@
 # that binary inside a folder with an Info.plist and an icon.
 #
 #   ./bundle.sh          # "Mimic Dev.app" in app/build/, id com.mimic.app.dev
-#   ./bundle.sh release  # "Mimic.app", id com.mimic.app: what the installer ships
+#   ./bundle.sh release  # "Mimic.app", id com.mimic.app: what the disk image ships
 #
 # The dev build has its own name and id so it never replaces or reuses the settings of the
 # Mimic you actually use.
@@ -39,7 +39,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
 </dict></plist>
 PLIST
 codesign --force --deep -s - "$app" 2>/dev/null
-# Where the Mimic folder is (runs/, the 3D engine, the Blender script). The installer writes it
-# for the release build, which is packaged and so mustn't carry this checkout's path.
+# The dev build uses this checkout as its Mimic folder (runs/, engine/, the Blender script). The
+# release build finds its own: ~/Documents/Mimic and ~/Library/Application Support/Mimic.
 [ "$kind" = release ] || defaults write "$id" installDir "$(cd .. && pwd)"
 echo "$app"

@@ -48,6 +48,7 @@ final class CheckTests: XCTestCase {
 
     func testEverythingPresentIsGreen() throws {
         try executable(f.install.trellisCLI, "exit 0")
+        try version(EngineDownload.version)
         try modelFiles()
         try executable(bin.appendingPathComponent("blender"), "echo Blender 5.2.2")
         for a in ["Draw Things.app", "OrcaSlicer.app"] {
@@ -78,7 +79,21 @@ final class CheckTests: XCTestCase {
     /// Present but broken, like a copy whose libraries went missing: exists is not enough.
     func testAnEngineThatDoesNotStartIsRed() throws {
         try executable(f.install.trellisCLI, "exit 1")
+        try version(EngineDownload.version)
         XCTAssertFalse(results(checks(freeGB: 100))["engine"]!)
+    }
+
+    /// An older build starts but isn't the one Mimic pins: red, so Repair replaces it.
+    func testAnotherEngineBuildIsRed() throws {
+        try executable(f.install.trellisCLI, "exit 0")
+        try version(EngineDownload.version)
+        XCTAssertTrue(results(checks(freeGB: 100))["engine"]!)
+        try version("pixal3d.cpp 0000000")
+        XCTAssertFalse(results(checks(freeGB: 100))["engine"]!)
+    }
+
+    func version(_ v: String) throws {
+        try "\(v) (abc), Metal\n".write(to: f.install.engine.appendingPathComponent("VERSION"), atomically: true, encoding: .utf8)
     }
 
     /// Every model file, at its full size (sparse here, so 8.1 GB costs nothing): one missing,

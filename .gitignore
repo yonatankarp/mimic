@@ -1,7 +1,8 @@
 # Generated minis: images, meshes and STLs, tens of MB each.
 runs/
 
-# The 3D engine and its 8.1 GB of model files; setup.sh downloads both at pinned versions.
+# The 3D engine and its 8.1 GB of model files, in a Mimic folder made by the old installer
+# (the app downloads both, at pinned versions, into ~/Library/Application Support/Mimic otherwise).
 engine/
 
 __pycache__/

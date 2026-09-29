@@ -23,28 +23,31 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
 | What | What it's for | Get it |
 |---|---|---|
 | A slicer | Turns your mini into instructions for your printer | [Bambu Studio](https://github.com/bambulab/BambuStudio), [OrcaSlicer](https://github.com/OrcaSlicer/OrcaSlicer), [PrusaSlicer](https://github.com/prusa3d/PrusaSlicer), [UltiMaker Cura](https://github.com/Ultimaker/Cura) |
+| Blender | Makes the print-ready file | [blender.org](https://www.blender.org/download/) |
+| Draw Things | Draws the pictures. Optional: Mimic's setup screen links to it | [App Store](https://apps.apple.com/app/id6444050820) |
 | FLUX.2 Klein | Draws and redraws character pictures. Only needed for ✍️ Describe it and the grey-sculpt step | Inside Draw Things' model list; Mimic's setup checklist shows where |
 
-**The installer sets these up for you** (it uses any you already have)
+**Mimic downloads this for you**
 
 | What | What it's for | Get it |
 |---|---|---|
-| Homebrew | Installs Blender and Draw Things | [Homebrew/brew](https://github.com/Homebrew/brew) |
-| Blender | Makes the print-ready file | [blender/blender](https://github.com/blender/blender) |
-| Draw Things | Draws the pictures | [App Store](https://apps.apple.com/app/id6444050820) |
-| Pixal3D and its 3D model (8.1 GB) | Turns a picture into a 3D model | [raven38/pixal3d.cpp](https://github.com/raven38/pixal3d.cpp) |
+| Pixal3D and its 3D model (8.1 GB) | Turns a picture into a 3D model. Downloaded the first time you open Mimic | [raven38/pixal3d.cpp](https://github.com/raven38/pixal3d.cpp) |
 
 ### Install
 
-1. **Download Mimic.** On this page, press the green **Code** button, then **Download ZIP**. Open the ZIP.
-2. **Double-click `Install Mimic.command`.**
-   - If your Mac says it can't check the file for malicious software, open
-     **System Settings → Privacy & Security**, scroll down, and press **Open Anyway** next to
-     *Install Mimic.command*.
-   - The installer asks once before it starts, and may ask for your Mac password.
-3. **Wait 20–60 minutes.** Most of that is downloading about 10 GB of AI models.
-4. **Mimic opens by itself.** If anything still needs doing, like setting up *Draw Things*
-   (the free app Mimic uses to draw and redraw pictures), **Settings** shows what and how.
+1. **Download Mimic.** Get the `.dmg` file from the
+   [latest release](https://github.com/yonatankarp/mimic/releases/latest) and open it.
+2. **Drag Mimic onto Applications,** then open Mimic from your Applications folder.
+   - The first time, your Mac may say it can't check Mimic. Mimic is a free app that isn't
+     registered with Apple, so it needs one extra step: open **System Settings → Privacy &
+     Security**, scroll down, and press **Open Anyway** next to *Mimic*. You only do this once.
+3. **Press Download.** The first time it opens, Mimic downloads its 3D engine (about 8.1 GB).
+   You can keep using your Mac, or close the window: it carries on, and picks up where it left
+   off if it stops. Meanwhile, the same screen shows how to set up *Draw Things* (optional:
+   the free app Mimic uses to draw and redraw pictures).
+
+Your minis are saved in **Documents → Mimic**. Mimic's 3D engine lives in
+*~/Library/Application Support/Mimic*.
 
 After that, open **Mimic** from your Applications folder whenever you want to make a mini.
 
@@ -78,13 +81,15 @@ minute. Your character stays exactly the same.
 six. Right-click a mini to open it in your slicer, show it in Finder, rename it, or move it to
 the Trash. Press space to preview it.
 
-**Settings** (⌘,) has three things:
+**Settings** (⌘,) has four things:
 - **Is everything set up?** A check of everything Mimic needs, with what to do about
-  anything that's missing. A ⚠️ on the Settings button means something needs attention.
+  anything that's missing, and Download or Repair for Mimic's 3D engine. A ⚠️ on the Settings
+  button means something needs attention.
 - **Open minis in.** Any slicer Mimic finds: Bambu Studio, OrcaSlicer, PrusaSlicer, Cura,
   Creality Print, ElegooSlicer, Anycubic and more. Or your Mac's default app for 3D files,
   which covers any other slicer.
 - **Where your minis are saved.**
+- **Use Mimic from Terminal.** The one command that adds `mimic` to Terminal, to copy.
 
 ## 🖨️ Printing tips
 
@@ -127,7 +132,8 @@ flowchart TD
 
 ### From a terminal
 
-The installer adds a `mimic` command, the same engine as the app:
+Mimic has a `mimic` command too, the same engine as the app. **Settings → Use Mimic from
+Terminal** shows the one command that makes it available, with a Copy button:
 
 ```bash
 mimic make dwarf-cleric "dwarf cleric, warhammer held against chest"

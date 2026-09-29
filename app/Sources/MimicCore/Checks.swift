@@ -87,10 +87,12 @@ public struct Checks: Sendable {
         }
     }
 
-    /// Whether the 3D engine launches (~10 ms): present but broken, like a copy whose libraries
-    /// went missing, is red.
+    /// Whether the 3D engine is the pinned build and launches (~10 ms): present but broken, like
+    /// a copy whose libraries went missing, is red, and so is an older build, which Repair replaces.
     func engineStarts() -> Bool {
-        isFile(install.trellisCLI) && run(install.trellisCLI.path, ["--help"], 10)?.status == 0
+        let version = try? String(contentsOf: install.engine.appendingPathComponent("VERSION"), encoding: .utf8)
+        return version?.hasPrefix(EngineDownload.version + " ") == true
+            && isFile(install.trellisCLI) && run(install.trellisCLI.path, ["--help"], 10)?.status == 0
     }
 
     /// Every file trellis-cli loads, at its full size (setup checks their sha256 too).

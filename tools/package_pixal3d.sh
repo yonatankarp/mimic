@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Maintainer tool: package a pixal3d.cpp Metal build as the relocatable tarball that
-# setup.sh downloads, so users never need Xcode.
+# app downloads on first launch (app/Sources/MimicCore/EngineDownload.swift), so users never need Xcode.
 #
 #   tools/package_pixal3d.sh <pixal3d.cpp checkout> <build dir> <out dir>
 #

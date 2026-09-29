@@ -17,7 +17,11 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
 ## Decisions
 
 - **Swift owns everything except print prep.** `pipeline/mini_prep.py` runs inside Blender. The terminal route is `mimic make …`, the same code as the app;
-  the installer links the app's binary onto the PATH.
+  Settings → Use Mimic from Terminal shows the one command that links the app's binary onto
+  the PATH (`sudo`, because `/usr/local/bin` is on every Mac's PATH but a new Mac doesn't have
+  it and only an administrator can make it; `~/.local/bin` needs no password but isn't on the
+  PATH, which would be a second step). Through the symlink the binary reads `com.mimic.app`'s
+  settings, so it finds the same install as the app.
 - **Same data on disk.** `runs/<name>/` with `<name>.stl`, `<name>_{front,side,back}.png`,
   `source.png` and `settings.json` (`requested` / `made` / how it was made), so minis made by
   the web version appear in the app unchanged.
@@ -56,8 +60,27 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   against its sha256; the app's check compares every file's size.
 - **Children get an explicit environment,** never the app's own: launched from the Dock, the
   app has launchd's bare PATH (`/usr/bin:/bin:/usr/sbin:/sbin`), which lost Blender once.
-- **Finding the Mimic folder:** the `installDir` default (written by the installer and by
-  `bundle.sh` for the dev build), overridden by `MIMIC_HOME`. The app asks if neither works.
+- **Where things live (the disk image has no Mimic folder):** minis in `~/Documents/Mimic`,
+  where people look for their files; the engine and its 8.1 GB of models in
+  `~/Library/Application Support/Mimic/engine`, out of their way (and out of Documents, which
+  iCloud may sync). `Install` keeps the two separate. An install made by the old `setup.sh` has
+  one folder with `runs/` and `engine/` inside, stored as the `installDir` default: that still
+  wins while the folder exists, and `MIMIC_HOME` beats both for development and tests.
+  `Install.locate` always answers; a missing engine is setup's job, not a "not installed" screen.
+  The first launch shows the one-time ~/Documents permission prompt macOS asks of every app.
+- **First launch sets itself up** (`EngineDownload.swift`, ported from `setup.sh`): the pinned
+  engine tarball and Hugging Face files, each with its size and sha256 in one manifest that the
+  health check also reads. Downloads go to `<name>.part` and resume with HTTP Range (checked
+  against a local server that logs the Range asked for and the bytes served: a re-download
+  would end with the same sha256); a finished file with the wrong sha256 is deleted so Try
+  Again starts it afresh; files already right are hashed and kept. It runs in the app, so
+  closing the window doesn't stop it (the app stays open while it runs). An old install's
+  `image-to-3dlab/vendor/pixal3d-cpp` is moved, never downloaded again, starts automatically at
+  launch, and image-to-3dlab is removed only after every move succeeded; the pass after it
+  checks every moved file's sha256. Settings offers Download / Repair on the two engine checks;
+  the engine check also wants the pinned `VERSION`, so a new engine pin shows up as Repair.
+  `MIMIC_FAKE_HOME` (a new Mac's home folder, `installDir` ignored) and `MIMIC_DOWNLOAD_MIRROR`
+  (a local server instead of the internet) are for trying it.
 - **Notifications work from the self-assembled app:** `mimic --probe-notifications` inside
   the bundle reads the settings without a prompt (status 0, not yet asked).
 - **Dev and release builds are different apps** (name and bundle id), so development never
@@ -66,11 +89,16 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   folder, and reading that makes macOS ask for access to another app's data and block until
   answered: Settings sat on a spinner. The API's selected model comes first; the folder is a
   fallback with a 3-second limit.
-- **The installer downloads the app with curl,** which doesn't set the quarantine flag, so the
-  ad hoc signed app opens without Gatekeeper's warning. Signing with a Developer ID would only
-  matter for downloads through a browser.
+- **Self-signed, by decision.** The disk image is downloaded through a browser, so macOS
+  quarantines it and the first open needs System Settings → Privacy & Security → Open Anyway,
+  once; the README and a note in the disk image say so. A Developer ID would remove that step.
 
 ## Not yet seen working
+
+- Setup's full 8.1 GB download through the app, and closing the window mid-download: the
+  download path is proven by tests against a local server and by a real run of the engine and
+  the small files; the window close is `applicationShouldTerminateAfterLastWindowClosed`, and
+  before it closing the setup window quit Mimic (seen).
 
 - A notification arriving: the permission prompt is asked once after the first Make (seen:
   status went from "not asked" to "denied" on the dev app), but none has been seen delivered.
