@@ -19,6 +19,16 @@ final class VersionTests: XCTestCase {
         XCTAssertEqual(Gallery.nextVersionName(runs, long).count, 64)
     }
 
+    /// Several pictures dropped on New Mini: each named after its file.
+    func testANameFromThePicturesFile() throws {
+        let fx = try Fixture(), runs = fx.install.runs
+        _ = try fx.mini("tiefling")
+        let pic = { (file: String) in URL(fileURLWithPath: "/tmp/\(file)") }
+        XCTAssertEqual(Gallery.name(forPicture: pic("Dwarf Cleric.png"), in: runs), "dwarf-cleric")
+        XCTAssertEqual(Gallery.name(forPicture: pic("Tiefling.jpg"), in: runs), "tiefling-2", "tiefling is taken")
+        XCTAssertEqual(Gallery.name(forPicture: pic("日本.png"), in: runs), "mini")
+    }
+
     /// A sibling from the same source and settings, in the same project, with a new seed that
     /// reaches both the drawing and the 3D engine.
     func testAnotherVersionCopiesTheSettingsWithANewSeed() throws {
