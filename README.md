@@ -68,6 +68,7 @@ After that, open **Mimic** from your Applications folder whenever you want to ma
    - **✨ Best print** makes it big enough for faces to come out on your nozzle: about 64 mm
      on 0.2, 100 mm on 0.4 and 150 mm on 0.6.
 3. **✨ Make my mini** and wait about 7–10 minutes. Your Mac will be busy while it works.
+   **— Minimize** tucks the progress into the top bar; **⏹ Stop** cancels it.
 4. **🖨️ Open in your slicer** and print. The print tips under the 3D view match your nozzle.
 
 Changed your mind about the size? **🔁 Apply new size** remakes the print file in seconds.

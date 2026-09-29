@@ -11,6 +11,7 @@ import math
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import threading
@@ -54,8 +55,10 @@ SLICERS = {
 NOZZLES = {"0.2", "0.4", "0.6"}
 STATIC = {"/logo.png"}  # served from ui/ as they are
 
-job = {"running": False, "name": None, "kind": None, "log": "", "exit": None, "started": 0}
+job = {"running": False, "name": None, "kind": None, "log": "", "exit": None, "started": 0,
+       "canceled": False}
 lock = threading.Lock()
+proc = {"p": None}  # the running job's process; kept out of `job`, which is sent to the page
 
 
 def prep_flags(q):
@@ -76,15 +79,55 @@ def prep_flags(q):
     return flags
 
 
+def _kill_group(p):
+    """Stop a job and everything it started (the 3D engine, Blender, the picture step): each
+    job gets its own process group, so one signal reaches all of them."""
+    try:
+        os.killpg(p.pid, signal.SIGTERM)
+    except (ProcessLookupError, PermissionError):
+        return
+    try:
+        p.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(p.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+
+
 def run_job(name, kind, cmd, env=None):
     log = RUNS / name / f"{kind}.job.log"
     with lock:
-        job.update(running=True, name=name, kind=kind, log="", exit=None, started=time.time())
+        job.update(running=True, name=name, kind=kind, log="", exit=None, started=time.time(), canceled=False)
     with open(log, "w") as fh:
-        p = subprocess.Popen(cmd, stdout=fh, stderr=subprocess.STDOUT, env=env)
+        p = subprocess.Popen(cmd, stdout=fh, stderr=subprocess.STDOUT, env=env, start_new_session=True)
+        with lock:
+            proc["p"] = p
+            stop_now = job["canceled"]  # Stop pressed before the process existed
+        if stop_now:
+            _kill_group(p)
         code = p.wait()
     with lock:
-        job.update(running=False, exit=code, log=log.read_text(errors="replace"))
+        proc["p"] = None
+        canceled = job["canceled"]
+    if canceled and kind == "generate":
+        # A half-made new mini is clutter, not a result: to the Trash, where it can be recovered.
+        subprocess.run(["/usr/bin/trash", str(RUNS / name)], capture_output=True)
+    text = "Stopped.\n" if canceled else (log.read_text(errors="replace") if log.exists() else "")
+    with lock:
+        job.update(running=False, exit=code, log=text)
+
+
+def cancel_job():
+    """Stop the running job. False when there is nothing to stop."""
+    with lock:
+        if not job["running"]:
+            return False
+        job["canceled"] = True
+        p = proc["p"]
+    if p is not None:
+        threading.Thread(target=_kill_group, args=(p,), daemon=True).start()
+    return True
 
 
 def job_status():
@@ -259,6 +302,8 @@ class H(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path, q = urlparse(self.path).path, self.query()
+        if path == "/api/cancel":
+            return self.send(200, {"ok": True}) if cancel_job() else self.send(409, {"error": "nothing is being made"})
         if path == "/api/reveal-folder":
             RUNS.mkdir(exist_ok=True)
             subprocess.run(["open", str(RUNS)], check=False)

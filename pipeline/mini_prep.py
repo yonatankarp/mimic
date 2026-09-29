@@ -1,7 +1,7 @@
 """Turn a generated GLB into a printable mini STL, plus preview renders.
 
     blender -b -P pipeline/mini_prep.py -- in.glb out.stl [--height 32] [--base 25]
-        [--base-height 3] [--nozzle 0.4] [--inflate MM] [--voxel 0.05] [--faces 800000]
+        [--base-height 3] [--nozzle 0.4] [--inflate MM] [--voxel MM] [--faces 800000]
         [--no-base] [--flatten 0.4]
 
 Units are millimetres. Steps: join meshes, scale to --height, inflate the surface
@@ -28,7 +28,8 @@ p.add_argument("--base-height", type=float, default=3.0)
 p.add_argument("--nozzle", type=float, default=0.4, help="printer nozzle, mm; sets --inflate")
 p.add_argument("--inflate", type=float, default=None,
                help="surface offset, mm (default 0.4 x nozzle: 0.08 keeps a 0.2 nozzle's cloth whole)")
-p.add_argument("--voxel", type=float, default=0.05, help="remesh voxel size, mm; finer keeps detail, --faces trims the result")
+p.add_argument("--voxel", type=float, default=None,
+               help="remesh voxel size, mm (default nozzle / 4); finer keeps detail, --faces trims the result")
 p.add_argument("--no-base", action="store_true", help="keep the model's own base")
 p.add_argument("--flatten", type=float, default=0.4, help="slice this much off the bottom, mm")
 p.add_argument("--faces", type=int, default=800_000, help="decimate to about this many triangles")
@@ -37,6 +38,11 @@ if a.inflate is None:
     # A wider nozzle drops thinner walls, so thin parts need more help to survive the slicer.
     # 0.4 x nozzle was tuned on a 0.2 nozzle (0.08 mm); 0.15 there already looked melted.
     a.inflate = round(0.4 * a.nozzle, 3)
+if a.voxel is None:
+    # A quarter of the nozzle: finer than any printer line, and never finer than that line
+    # can show. A fixed 0.05 mm, tuned on a 0.2 nozzle, made a 100 mm figure on a 0.4 nozzle
+    # remesh ~10x the faces and sit in Blender for many minutes using 8 GB.
+    a.voxel = round(a.nozzle / 4, 3)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=a.glb)

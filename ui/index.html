@@ -42,7 +42,7 @@ header .tag { color:var(--muted); font-size:13px; }
 .ghost:hover { border-color:var(--line); color:var(--text); }
 .titlewrap { display:flex; align-items:center; gap:6px; min-width:0; }
 .titlewrap h2 { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-#del:hover { color:var(--err); }
+#del:hover, #jobStop:hover { color:var(--err); }
 .chk { display:grid; grid-template-columns:24px 1fr; gap:2px 10px; padding:9px 0; border-top:1px solid var(--line); }
 .chk:first-child { border-top:0; }
 .chk .em { font-size:17px; line-height:1.3; }
@@ -104,6 +104,14 @@ details.adv > div { padding-top:8px; }
 @media (prefers-reduced-motion: reduce) { details.adv > summary::before { transition:none; } }
 #offline { max-width:1392px; margin:4px auto 0; padding:12px 16px; border-radius:var(--r-sm); background:var(--warn-soft); color:var(--text); border:1px solid var(--warn); }
 @media (max-width: 900px) { #offline { margin:4px 16px 0; } }
+#jobCard { width:min(92vw,560px); max-width:none; padding:20px; }
+#jobCard::backdrop { background:rgba(20,15,10,.35); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+.jobhead { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+.jobhead h2 { font:600 16px Inter, sans-serif; margin:0; }
+.pill { height:32px; padding:0 12px; border-radius:999px; border:1px solid var(--accent); background:var(--panel); color:var(--text); font:500 13px Inter, sans-serif; cursor:pointer; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.pill.done { border-color:var(--ok); }
+.pill.fail { border-color:var(--err); }
+.pill:hover { background:var(--panel-2); }
 /* setup checklist */
 #setup { border-left:4px solid var(--gold); }
 #setup h2 { font:600 15px Inter, sans-serif; }
@@ -161,7 +169,7 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
   header { padding:14px 16px 4px; }
   .card { padding:14px; }
   #left, #right { display:contents; }
-  #setup { order:1; } #viewCard { order:2; } #charCard { order:3; } #sizeCard { order:4; } #jobCard { order:5; } #galleryCard { order:6; }
+  #setup { order:1; } #viewCard { order:2; } #charCard { order:3; } #sizeCard { order:4; } #galleryCard { order:6; }
   #viewerWrap { height:min(56vh,420px); }
   .topbar .actions { display:grid; grid-template-columns:1fr 1fr; width:100%; }
   #open { grid-column:1 / -1; }
@@ -184,11 +192,33 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
   <img src="/logo.png" alt="">
   <h1>Mimic</h1><span class="tag">Turn any character into a miniature you can print</span>
   <div class="hdr">
+    <button class="pill" id="jobPill" type="button" hidden aria-live="polite"></button>
     <button class="ghost" id="settingsBtn" type="button">⚙️ Settings<span id="warnDot" hidden> ⚠️</span></button>
     <button id="quit" type="button">⏻ Quit Mimic</button>
   </div>
 </header>
 <div id="offline" role="alert" hidden>⚠️ <b>Mimic has stopped running.</b> Open Mimic from your Applications folder, then reload this page.</div>
+<dialog id="jobCard" class="jobdlg" aria-labelledby="jobTitle">
+  <div class="jobhead">
+    <h2 id="jobTitle"></h2>
+    <div class="row">
+      <button class="ghost" id="jobStop" type="button">⏹ Stop</button>
+      <button class="ghost" id="jobMin" type="button" title="Keep it as a small badge at the top">— Minimize</button>
+      <button class="ghost" id="jobClose" type="button" hidden>✕ Close</button>
+    </div>
+  </div>
+  <ol class="steps" id="steps">
+    <li data-s="1"><span class="dot">1</span>🖼️ Getting the picture ready</li>
+    <li data-s="2"><span class="dot">2</span>🧊 Building the 3D shape (the long part)</li>
+    <li data-s="3"><span class="dot">3</span>🖨️ Making the print-ready file</li>
+  </ol>
+  <div class="bar"><i id="barFill"></i></div>
+  <p class="hint" id="jobNote" style="margin:8px 0 0"></p>
+  <div class="row" id="jobDone" hidden style="justify-content:flex-end;margin-top:14px">
+    <button class="btn primary" id="jobOpen" type="button">🖨️ Open in your slicer</button>
+  </div>
+  <details class="adv" style="margin-top:10px"><summary class="hint">Technical details (for troubleshooting)</summary><pre class="log" id="log"></pre></details>
+</dialog>
 <main>
   <section id="left">
     <div class="card" id="setup" hidden aria-live="polite">
@@ -278,17 +308,6 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
       <div id="msg" class="msg" role="status"></div>
     </div>
 
-    <div class="card" id="jobCard" hidden>
-      <h2 id="jobTitle" style="font:600 15px Inter,sans-serif;margin:0"></h2>
-      <ol class="steps" id="steps">
-        <li data-s="1"><span class="dot">1</span>🖼️ Getting the picture ready</li>
-        <li data-s="2"><span class="dot">2</span>🧊 Building the 3D shape (the long part)</li>
-        <li data-s="3"><span class="dot">3</span>🖨️ Making the print-ready file</li>
-      </ol>
-      <div class="bar"><i id="barFill"></i></div>
-      <p class="hint" id="jobNote" style="margin:8px 0 0"></p>
-      <details class="adv" style="margin-top:10px"><summary class="hint">Technical details (for troubleshooting)</summary><pre class="log" id="log"></pre></details>
-    </div>
   </section>
 
   <section id="right">
@@ -333,6 +352,12 @@ dialog::backdrop { background:rgba(0,0,0,.55); }
   <p id="delText" style="margin:0 0 16px"></p>
   <form method="dialog" class="row" style="justify-content:flex-end">
     <button class="btn" value="no">Keep it</button><button class="btn primary" value="yes">🗑️ Move to Trash</button>
+  </form>
+</dialog>
+<dialog id="stopDlg">
+  <p id="stopText" style="margin:0 0 16px"></p>
+  <form method="dialog" class="row" style="justify-content:flex-end">
+    <button class="btn" value="no">Keep going</button><button class="btn primary" value="yes">⏹ Stop it</button>
   </form>
 </dialog>
 <dialog id="quitDlg">
@@ -382,7 +407,7 @@ let heightTouched = false, baseTouched = false;
 const baseFor = h => Math.min(80, Math.max(25, Math.round(h * 0.4 / 5) * 5));
 function suggest() {
   const purpose = value($("purpose")), nozzle = value($("nozzle"));
-  $("gamePane").hidden = purpose !== "game";
+  $("gamePane").hidden = purpose !== "game";  // Best print doesn't use the real height or scale
   let h, note = "", warn = false;
   if (purpose === "game") {
     h = Math.round((parseFloat($("real").value) || 1.8) * value($("scale")) / 1.8);
@@ -553,6 +578,77 @@ async function health() {
 
 // ---- job progress ----
 const STEP = { 1: ["🖼️", "Getting the picture ready"], 2: ["🧊", "Building the 3D shape"], 3: ["🖨️", "Making the print-ready file"] };
+// The progress panel sits at the top while a mini is made. Minimized, it becomes a pill in
+// the header that keeps ticking; the choice is remembered. Close hides a finished job.
+let jobMin = store.get("jobMin") === "1", jobShown = false, jobRunning = false, jobName = null, jobKind = null, ourClose = false;
+function layoutJob(running) {
+  jobRunning = running;
+  const want = jobShown && !jobMin, dlg = $("jobCard");
+  if (want && !dlg.open) dlg.showModal();
+  if (!want && dlg.open) { ourClose = true; dlg.close(); ourClose = false; }
+  $("jobPill").hidden = !jobShown || !jobMin;
+  $("jobClose").hidden = running;
+  $("jobStop").hidden = !running;
+}
+// Minimize flies the popup into its pill in the header, so you see where it went; opening it
+// from the pill plays the same flight backwards. Skipped when the Mac asks for less motion.
+const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+function flight(a, b) {  // from the popup's box a to the pill's box b
+  const dx = (b.left + b.width / 2) - (a.left + a.width / 2), dy = (b.top + b.height / 2) - (a.top + a.height / 2);
+  return [{ transform: "none", opacity: 1 },
+          { transform: `translate(${dx}px, ${dy}px) scale(${Math.max(0.05, b.width / a.width)})`, opacity: 0.2 }];
+}
+function minimize() {
+  const dlg = $("jobCard"), pill = $("jobPill");
+  const done = () => { dlg.getAnimations().forEach(a => a.cancel()); jobMin = true; store.set("jobMin", "1"); layoutJob(jobRunning);
+                       if (!calm()) pill.animate([{ transform: "scale(1.18)" }, { transform: "scale(1)" }], { duration: 260, easing: "ease-out" }); };
+  if (!dlg.open || calm()) return done();
+  pill.hidden = false;  // measured where it will land
+  pill.style.visibility = "hidden";
+  const frames = flight(dlg.getBoundingClientRect(), pill.getBoundingClientRect());
+  pill.style.visibility = "";
+  pill.hidden = true;
+  try { dlg.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 320, pseudoElement: "::backdrop" }); } catch {}
+  // Browsers freeze animations in background tabs; the timer makes sure a minimize still
+  // completes if the tab is switched mid-flight. Whichever comes first wins.
+  let landed = false;
+  const land = () => { if (!landed) { landed = true; done(); } };
+  dlg.animate(frames, { duration: 320, easing: "cubic-bezier(.5,0,.75,0)" }).onfinish = land;
+  setTimeout(land, 450);
+}
+function restore() {
+  const pill = $("jobPill"), dlg = $("jobCard");
+  const from = pill.getBoundingClientRect();  // before it's hidden: a hidden pill has no box
+  jobMin = false; store.set("jobMin", "0");
+  layoutJob(jobRunning);
+  const frames = calm() ? null : flight(dlg.getBoundingClientRect(), from);
+  if (frames) {
+    dlg.animate([...frames].reverse(), { duration: 320, easing: "cubic-bezier(.25,1,.5,1)" });
+    try { dlg.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 320, pseudoElement: "::backdrop" }); } catch {}
+  }
+}
+$("jobMin").onclick = () => { minimize(); $("jobPill").focus(); };
+$("jobPill").onclick = restore;
+$("jobClose").onclick = () => { jobShown = false; layoutJob(false); };
+$("jobStop").onclick = () => {
+  $("stopText").textContent = jobKind === "prep"
+    ? `Stop resizing ${jobName}? It keeps its previous size.`
+    : `Stop making ${jobName}? What's been made so far is thrown away.`;
+  ask($("stopDlg"));
+};
+$("stopDlg").onclose = async () => {
+  if ($("stopDlg").returnValue !== "yes") return;
+  try { await post("/api/cancel"); } catch (e) { say(plain(e, jobName), "err"); }
+};
+$("jobOpen").onclick = () => post(`/api/open?name=${jobName}&app=${slicerChoice()}`).catch(e => say(plain(e, jobName), "err"));
+// Esc or a click on the blurred page: while it's running that means "minimize", never "lose
+// the progress"; once it's finished it means close.
+$("jobCard").addEventListener("cancel", e => { if (jobRunning) { e.preventDefault(); minimize(); } });
+$("jobCard").addEventListener("close", () => {
+  if (ourClose) return;
+  if (jobRunning) minimize(); else { jobShown = false; layoutJob(false); }
+});
+
 async function poll() {
   let s;
   try { s = await getJSON("/api/job"); } catch { if (wasRunning) setTimeout(poll, 5000); return; }
@@ -561,8 +657,9 @@ async function poll() {
   const prep = s.kind === "prep";
   const step = prep ? 3 : log.includes("[3/3]") ? 3 : log.includes("[2/3]") ? 2 : 1;
   const failed = !s.running && s.exit !== null && s.exit !== 0;
-  if (!s.running && !wasRunning && !failed) return;  // an old job from an earlier visit
-  $("jobCard").hidden = false;
+  if (!s.running && !wasRunning) return;  // an old job from an earlier visit: don't pop it up again
+  if (!jobShown || jobName !== s.name) jobShown = true;
+  jobName = s.name; jobKind = s.kind;
   for (const li of $("steps").children) {
     const n = +li.dataset.s;
     li.hidden = prep && n < 3;
@@ -576,7 +673,14 @@ async function poll() {
   if (s.running) {
     $("jobTitle").textContent = prep ? `🔁 Updating ${s.name}'s size… about 30 seconds` : `⏳ Making ${s.name}… this takes about 7–10 minutes`;
     $("jobNote").textContent = prep ? "" : `${mm}:${ss} so far. You can leave this page open and come back. Your Mac will be busy, and the fan may get loud.`;
-    $("busy").hidden = false; $("overlay").hidden = true;
+    $("jobDone").hidden = true;
+    $("jobPill").className = "pill";
+    $("jobPill").textContent = `⏳ ${prep ? "Updating" : "Making"} ${s.name} · ${mm}:${ss}`;
+    $("jobPill").title = "Show progress";
+    layoutJob(true);
+    // Dim the viewer only when it shows the mini being made, not another one you're looking at.
+    const here = selected === s.name;
+    $("busy").hidden = !here; if (here) $("overlay").hidden = true;
     $("busyEm").textContent = STEP[step][0]; $("busyStep").textContent = `${s.name}: ${STEP[step][1].toLowerCase()}`;
     $("busyTime").textContent = `${mm}:${ss}` + (prep ? "" : ` · about ${Math.max(1, Math.round((total - s.elapsed) / 60))} min left`);
     wasRunning = true;
@@ -585,6 +689,24 @@ async function poll() {
     return;
   }
   $("busy").hidden = true;
+  if (s.canceled) {
+    $("jobPill").className = "pill";
+    $("jobPill").textContent = `⏹ Stopped ${s.name}`;
+    $("jobTitle").textContent = prep ? `⏹ Stopped resizing ${s.name}.` : `⏹ Stopped making ${s.name}.`;
+    $("jobNote").textContent = prep ? "It keeps its previous size." : "Nothing was kept. It's in the Trash if you want the pieces.";
+    for (const li of $("steps").children) li.className = "";
+    $("barFill").style.width = "0%";
+    $("jobDone").hidden = true;
+    layoutJob(false);
+    $("go").disabled = false; $("reprep").disabled = !selected;
+    if (wasRunning) { wasRunning = false; await loadRuns(); if (!runs.some(r => r.name === selected)) { selected = null; if (runs[0]) select(runs[0].name); } }
+    return;
+  }
+  $("jobPill").className = "pill " + (failed ? "fail" : "done");
+  $("jobPill").textContent = failed ? `❌ ${s.name} didn't finish` : `🎉 ${s.name} is ready`;
+  $("jobDone").hidden = failed;
+  $("jobOpen").textContent = $("open").textContent;
+  layoutJob(false);
   $("go").disabled = false;
   $("reprep").disabled = !selected;
   if (failed) {
@@ -765,7 +887,9 @@ for (const dlg of document.querySelectorAll("dialog")) {
   dlg.addEventListener("click", e => {
     if (e.target !== dlg) return;
     const r = dlg.getBoundingClientRect();
-    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dlg.close("");
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) {
+      if (dlg.id === "jobCard" && jobRunning) minimize(); else dlg.close("");
+    }
   });
 }
 // Esc and an outside click leave returnValue as the last button pressed, so without this

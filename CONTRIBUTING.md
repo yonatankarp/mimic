@@ -22,6 +22,7 @@
 tests/test_prep.sh           # print prep: watertight, flat bottom, right height, centred, one piece
 python3 tests/test_serve.py  # the web page's input checks
 python3 tests/test_checks.py # every Settings check goes red when its part is missing, green when present
+python3 tests/test_cancel.py # Stop ends a job and everything it started
 ```
 
 ## Releasing a new Pixal3D build
