@@ -38,6 +38,9 @@ public enum Step: Equatable, Sendable {
     case copyPicture(from: URL, to: URL)
     case drawCharacter(description: String, seed: Int, to: URL)
     case sculptPicture(from: URL, seed: Int, to: URL)
+    /// The same two for anything that isn't a character (see `MiniKind`).
+    case drawObject(description: String, seed: Int, to: URL)
+    case sculptObject(from: URL, seed: Int, to: URL)
     case run(executable: String, arguments: [String], directory: String?, log: URL)
 }
 
@@ -49,7 +52,11 @@ public enum Pipeline {
     public static func plan(_ kind: JobKind, folder: URL, settings: MiniSettings, tools: Tools) throws -> [(number: Int, step: Step)] {
         let name = folder.lastPathComponent
         guard let model = EngineDownload.model(settings.model) else { throw RequestError.unknownModel(settings.model ?? "") }
-        let flags = try (settings.requested ?? Sizes()).flags() + (model.turn == 0 ? [] : ["--turn", String(model.turn)])
+        // An object is sized by its longest side and stood on its whole bottom, not its feet;
+        // a TRELLIS.2 model is turned round to face the front first (Prep turns before it levels).
+        let flags = try (settings.requested ?? Sizes()).flags()
+            + (settings.isObject ? ["--fit", "longest", "--ground", "bottom"] : [])
+            + (model.turn == 0 ? [] : ["--turn", String(model.turn)])
         let prep: Step = .run(executable: tools.mimic,
                               arguments: ["_prep", folder.appendingPathComponent("model.glb").path,
                                           folder.appendingPathComponent("\(name).stl").path] + flags,
@@ -62,11 +69,13 @@ public enum Pipeline {
         switch settings.source {
         case .image:
             let upload = folder.appendingPathComponent("upload.img")
-            picture = settings.restyle == true ? .sculptPicture(from: upload, seed: seed, to: source)
-                                               : .copyPicture(from: upload, to: source)
+            picture = settings.restyle != true ? .copyPicture(from: upload, to: source)
+                : settings.isObject ? .sculptObject(from: upload, seed: seed, to: source)
+                : .sculptPicture(from: upload, seed: seed, to: source)
         case .desc:
             guard let desc = settings.desc, !desc.isEmpty else { throw RequestError.nothingToRetry }
-            picture = .drawCharacter(description: desc, seed: seed, to: source)
+            picture = settings.isObject ? .drawObject(description: desc, seed: seed, to: source)
+                                        : .drawCharacter(description: desc, seed: seed, to: source)
         case nil:
             throw RequestError.nothingToRetry
         }

@@ -1,3 +1,38 @@
+# Contributing to Mimic
+
+Thanks for helping. Mimic is a hobby project, so every bug report, idea and fix makes a real
+difference.
+
+## Reporting a problem
+
+[Open an issue](https://github.com/yonatankarp/mimic/issues/new/choose) and pick **Something
+went wrong**. The form asks for what helps most:
+
+- Your Mimic version (Mimic → About Mimic), your Mac (Apple menu → About This Mac) and macOS version.
+- What you did, what you expected, and what happened instead.
+- For a mini that failed or came out wrong: its picture, and its log files. Right-click the mini
+  → **Show in Finder**; the logs are `generate.job.log`, `pixal3d.log` and `prep.log` in its folder.
+- **Settings** (⌘,): a screenshot, if any check is red.
+
+## Suggesting something
+
+Open an issue and pick **An idea**. Say what you'd like to do that Mimic doesn't let you do yet;
+the problem matters more than a specific solution.
+
+## Sending a change
+
+1. For anything bigger than a small fix, open an issue first, so we can agree on the approach
+   before you spend time on it.
+2. Fork, make a branch, and keep the change focused on one thing.
+3. `cd app && swift test` passes, and anything new has a test. The tests here plant the bug
+   they guard against first (see `app/NOTES.md`); keep that habit.
+4. Text people see is plain English, for people who aren't technical. No jargon, no file names.
+5. If people will notice the change, add a line to the next version in `CHANGELOG.md`.
+6. Open a pull request that says what changed and why, and how you checked it.
+
+By contributing, you agree that your contribution is licensed under Mimic's
+[MIT licence](LICENSE).
+
 # Working on Mimic
 
 ## Layout
@@ -39,14 +74,18 @@ downloads the real engine and the small model files, never the 8 GB of weights.
 
 ## Releasing
 
-Push a version tag:
+1. Add a `## 0.3.0` section to `CHANGELOG.md`, written for people who use Mimic. It becomes the
+   release notes; a tag without one fails before anything is published. Keep each bullet on one line:
+   GitHub shows line breaks in release notes as they are.
+2. Push a version tag:
 
-```bash
-git tag v0.2.0 && git push origin v0.2.0
-```
+   ```bash
+   git tag v0.3.0 && git push origin v0.3.0
+   ```
 
-The workflow tests, builds `Mimic-0.2.0.dmg` and publishes it as a GitHub release. The README's
-install steps link to the latest release, so nothing else needs updating.
+The workflow tests, builds `Mimic-0.3.0.dmg` and publishes it as a GitHub release with that
+section as its notes. The README's install steps link to the latest release, so nothing else
+needs updating.
 
 ## Releasing a new Pixal3D build
 

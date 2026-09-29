@@ -1,0 +1,36 @@
+name: Something went wrong
+description: Mimic didn't work, a mini failed, or it came out wrong.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Mimic version
+      description: Mimic → About Mimic
+      placeholder: "0.2.0"
+    validations:
+      required: true
+  - type: input
+    id: mac
+    attributes:
+      label: Your Mac and macOS version
+      description: Apple menu → About This Mac
+      placeholder: "MacBook Pro M2 Max, 32 GB, macOS 26.6"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and pictures
+      description: For a mini, right-click it → Show in Finder and attach generate.job.log, pixal3d.log and prep.log, and its picture. A screenshot of Settings (⌘,) helps if a check is red.
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else?

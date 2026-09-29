@@ -114,6 +114,82 @@ final class JobTests: XCTestCase {
                       "an install from before the choice would be sent to setup")
     }
 
+    /// An object mini: the object prompts, and print prep sizes it by its longest side and
+    /// stands it on its whole bottom, on every route Try Again and Resize take.
+    func testObjectMinisPlanObjectStepsAndPrepFlags() throws {
+        let fx = try Fixture()
+        let d = fx.install.runs.appendingPathComponent("pot")
+        let src = d.appendingPathComponent("source.png"), up = d.appendingPathComponent("upload.img")
+        func settings(_ f: (inout MiniSettings) -> Void) -> MiniSettings {
+            var s = MiniSettings(); s.seed = 7; s.kind = .object; s.requested = Sizes(height: "80", nozzle: "0.4", noBase: true); f(&s); return s
+        }
+        func plan(_ kind: JobKind, _ s: MiniSettings) throws -> [Step] { try Pipeline.plan(kind, folder: d, settings: s, tools: fx.tools(mimic: "/app/mimic")).map(\.step) }
+        let prepArgs = ["_prep", d.appendingPathComponent("model.glb").path, d.appendingPathComponent("pot.stl").path,
+                        "--height", "80.0", "--nozzle", "0.4", "--no-base", "--fit", "longest", "--ground", "bottom"]
+        guard case let .run(_, args, _, _) = try plan(.prep, settings { _ in })[0] else { return XCTFail("resize runs print prep") }
+        XCTAssertEqual(args, prepArgs)
+        XCTAssertEqual(try plan(.generate, settings { $0.source = .desc; $0.desc = "a teapot" })[0], .drawObject(description: "a teapot", seed: 7, to: src))
+        XCTAssertEqual(try plan(.generate, settings { $0.source = .image; $0.restyle = true })[0], .sculptObject(from: up, seed: 7, to: src))
+        XCTAssertEqual(try plan(.generate, settings { $0.source = .image; $0.restyle = false })[0], .copyPicture(from: up, to: src))
+    }
+
+    /// make records the kind every time: a folder left by a failed object attempt doesn't turn
+    /// the next character into an object, and a character's settings.json has no kind.
+    func testMakeRecordsTheKind() throws {
+        let fx = try Fixture()
+        let picture = fx.root.appendingPathComponent("pic.png")
+        FileManager.default.createFile(atPath: picture.path, contents: Data([1]))
+        let d = fx.install.runs.appendingPathComponent("mini")
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/false"), trash: { _ in })
+        try fx.modelFiles()
+        try jobs.make(name: "mini", picture: .image(picture), restyle: false, seed: 1, sizes: sizes, kind: .object, model: EngineDownload.standard)
+        jobs.waitUntilDone()
+        XCTAssertEqual(MiniSettings.load(d).kind, .object)
+        try jobs.make(name: "mini", picture: .image(picture), restyle: false, seed: 1, sizes: sizes, model: EngineDownload.standard)
+        jobs.waitUntilDone()
+        let json = try JSONSerialization.jsonObject(with: Data(contentsOf: d.appendingPathComponent("settings.json"))) as! [String: Any]
+        XCTAssertNil(json["kind"])
+    }
+
+    /// Object mode and the model choice together: the plan passes both the object's flags and
+    /// TRELLIS.2's turn; a character with TRELLIS.2 gets the turn alone (as before object mode)
+    /// and an object with Pixal3D gets the object flags alone (as before the choice).
+    func testObjectFlagsAndTheModelsTurnCompose() throws {
+        let fx = try Fixture()
+        let d = fx.install.runs.appendingPathComponent("mini")
+        func prepArgs(_ f: (inout MiniSettings) -> Void) throws -> [String] {
+            var s = MiniSettings(); s.source = .image; s.seed = 7; s.requested = sizes; f(&s)
+            guard case let .run(_, args, _, _) = try Pipeline.plan(.generate, folder: d, settings: s, tools: fx.tools(mimic: "/app/mimic")).last!.step
+            else { XCTFail(); return [] }
+            return Array(args.dropFirst(3))
+        }
+        let base = try sizes.flags()
+        let object = ["--fit", "longest", "--ground", "bottom"], turn = ["--turn", "180"]
+        XCTAssertEqual(try prepArgs { $0.kind = .object; $0.model = "trellis2-q8" }, base + object + turn)
+        XCTAssertEqual(try prepArgs { $0.kind = .object; $0.model = "trellis2-q4" }, base + object + turn)
+        XCTAssertEqual(try prepArgs { $0.model = "trellis2-q8" }, base + turn, "a TRELLIS.2 character changed")
+        XCTAssertEqual(try prepArgs { $0.kind = .object }, base + object, "a Pixal3D object changed")
+        XCTAssertEqual(try prepArgs { _ in }, base)
+    }
+
+    /// Kind, model and the helper's original description all survive a round trip through
+    /// settings.json, and a mini without them reads as a Pixal3D character.
+    func testKindModelAndDescriptionRoundTrip() throws {
+        let fx = try Fixture()
+        let d = fx.install.runs.appendingPathComponent("mini")
+        try FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
+        try MiniSettings.update(d) { $0.kind = .object; $0.model = "trellis2-q4"; $0.desc = "a teapot, rounded" }
+        let s = MiniSettings.load(d)
+        XCTAssertEqual(s.kind, .object)
+        XCTAssertEqual(s.model, "trellis2-q4")
+        XCTAssertEqual(s.desc, "a teapot, rounded")
+        let json = try JSONSerialization.jsonObject(with: Data(contentsOf: d.appendingPathComponent("settings.json"))) as! [String: Any]
+        XCTAssertEqual(json["kind"] as? String, "object")
+        XCTAssertEqual(json["model"] as? String, "trellis2-q4")
+        XCTAssertFalse(MiniSettings().isObject)
+        XCTAssertEqual(EngineDownload.model(MiniSettings().model), EngineDownload.standard)
+    }
+
     /// prep.log is appended to, so a warning from an earlier run must not follow the mini around.
     func testFragileIsThisRunsWarningOnly() throws {
         let fx = try Fixture(); let d = try fx.mini("dwarf")

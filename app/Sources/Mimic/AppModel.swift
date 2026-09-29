@@ -76,9 +76,9 @@ final class AppModel {
         return nil
     }
 
-    func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes) throws {
+    func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes, kind: MiniKind = .character) throws {
         let chosen = setup.chosen
-        try start { try $0.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, model: chosen) }
+        try start { try $0.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, kind: kind, model: chosen) }
         askForNotifications()
     }
 

@@ -24,6 +24,7 @@ struct Sidebar: View {
         }
         .navigationSplitViewColumnWidth(min: 200, ideal: 240)
         .navigationTitle("Your Minis")
+        .tourStop(.gallery, arrow: .trailing)
         // Space previews the print file, as in Finder; a second space closes it.
         .onKeyPress(.space) {
             if preview != nil { preview = nil; return .handled }

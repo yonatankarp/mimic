@@ -152,12 +152,12 @@ final class PrepTests: XCTestCase {
         }
     }
 
-    func prep(_ extra: [String] = []) throws -> (Prep.Result, Printed, URL) {
+    func prep(_ extra: [String] = [], mesh: Mesh = fixture()) throws -> (Prep.Result, Printed, URL) {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("prep-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
         let glb = dir.appendingPathComponent("fixture.glb"), stl = dir.appendingPathComponent("out.stl")
-        try Self.glb(Self.fixture(), translation: [0.8, -0.5, 0]).write(to: glb)
+        try Self.glb(mesh, translation: [0.8, -0.5, 0]).write(to: glb)
         let result = try Prep.run(PrepOptions.parse([glb.path, stl.path] + extra))
         return (result, try Printed(stl), stl)
     }
@@ -208,6 +208,18 @@ final class PrepTests: XCTestCase {
         XCTAssertEqual(try PrepOptions.parse(["a.glb", "b.stl", "--turn", "180"]).turn, 180)
     }
 
+    /// Turn and levelling compose: an object turned 180° comes out as the same levelled solid
+    /// turned round, not levelled against the wrong side.
+    func testTurningAndLevellingCompose() throws {
+        let (_, plain, _) = try prep(["--ground", "bottom", "--fit", "longest", "--faces", "20000"])
+        let (_, turned, _) = try prep(["--ground", "bottom", "--fit", "longest", "--turn", "180", "--faces", "20000"])
+        let (a, b) = (plain.bounds, turned.bounds)
+        XCTAssertEqual(b.lo.x, -a.hi.x, accuracy: 0.3); XCTAssertEqual(b.hi.x, -a.lo.x, accuracy: 0.3)
+        XCTAssertEqual(b.lo.y, -a.hi.y, accuracy: 0.3); XCTAssertEqual(b.hi.y, -a.lo.y, accuracy: 0.3)
+        XCTAssertEqual(b.hi.z - b.lo.z, a.hi.z - a.lo.z, accuracy: 0.2)
+        XCTAssertTrue(turned.watertight)
+    }
+
     /// JobRunner marks a mini fragile when it reads this marker.
     func testAFootprintWiderThanTheBaseWarns() throws {
         let (result, _, stl) = try prep(["--base", "8", "--faces", "20000"])
@@ -247,12 +259,71 @@ final class PrepTests: XCTestCase {
         XCTAssertGreaterThan(volume, 0, "wound outward")
     }
 
+    /// An object lying flat: a long box with a spout sticking out of one end at mid-height, and
+    /// a thin tip on that, and a speck floating far off to the side. Sized by its longest side
+    /// (box, spout and tip, not the speck; a percentile of the surface trimmed the tip), standing
+    /// on its whole bottom, centred on its whole shadow, spout included.
+    func testAnObjectLyingFlatIsSizedByItsLongestSideAndStandsOnItsWholeBottom() throws {
+        var m = Mesh()
+        m.add(Self.box(half: [1, 0.25, 0.15]), at: [0, 0, 0.15])       // 2 x 0.5 x 0.3, lying flat
+        m.add(Self.box(half: [0.3, 0.05, 0.05]), at: [1.25, 0, 0.2])   // spout: shadow reaches x = 1.55
+        m.add(Self.sphere(radius: 0.02), at: [0, 3, 1])                // speck, 3 units off in y
+        m.add(Self.box(half: [0.08, 0.015, 0.015]), at: [1.6, 0, 0.2]) // a thin tip, its own piece: shadow reaches x = 1.68
+        let (result, out, _) = try prep(["--fit", "longest", "--ground", "bottom", "--height", "60", "--no-base"], mesh: m)
+        let (lo, hi) = out.bounds
+        let scale: Float = 60 / 2.68
+        XCTAssertEqual(hi.x - lo.x, 60 + 2 * 0.16, accuracy: 0.6, "the longest side is 60 mm (plus the inflate)")
+        XCTAssertEqual(hi.z - lo.z, 0.3 * scale + 0.16 - 0.4, accuracy: 0.3, "lying flat: its height is the box's, not 60 mm")
+        XCTAssertEqual((lo.x + hi.x) / 2, 0, accuracy: 0.3, "centred on its whole shadow, spout included")
+        XCTAssertEqual((lo.y + hi.y) / 2, 0, accuracy: 0.3)
+        XCTAssertGreaterThan(out.flatBottom, 0.9 * 2 * 0.5 * scale * scale, "stands on its whole bottom")
+        XCTAssertTrue(out.watertight)
+        XCTAssertEqual(out.pieces, 1)
+        XCTAssertGreaterThanOrEqual(result.dropped, 1, "the speck was dropped, and didn't count as its size")
+        XCTAssertEqual(result.lines.count, 1)
+    }
+
+    /// An object the engine left leaning stands up straight on its bottom; a character, which
+    /// stands on its feet, is left as it is.
+    func testALeaningObjectIsLevelled() throws {
+        var m = Mesh()
+        m.add(Self.box(half: [1, 0.6, 0.4]), at: [0, 0, 0.4])
+        let lean = simd_quatf(angle: 12 * .pi / 180, axis: simd_normalize(SIMD3<Float>(1, 0.4, 0)))
+        m.positions = m.positions.map { lean.act($0) }
+        let (result, out, _) = try prep(["--fit", "longest", "--ground", "bottom", "--height", "40", "--no-base"], mesh: m)
+        let scale: Float = 40 / 2
+        XCTAssertGreaterThan(out.flatBottom, 0.9 * 2 * 1.2 * scale * scale, "stands on its whole bottom, not an edge")
+        XCTAssertEqual(out.bounds.hi.z - out.bounds.lo.z, 0.8 * scale + 0.16 - 0.4, accuracy: 0.4, "upright: its height is the box's")
+        XCTAssert(result.lines.isEmpty == false)
+
+        var tipped = m
+        XCTAssertEqual(tipped.level(), 12, accuracy: 0.5, "reads the lean")
+        var onItsSide = Mesh()
+        onItsSide.add(Self.box(half: [1, 0.6, 0.4]), at: [0, 0, 0.4])
+        let side = simd_quatf(angle: 50 * .pi / 180, axis: [1, 0, 0])
+        onItsSide.positions = onItsSide.positions.map { side.act($0) }
+        XCTAssertEqual(onItsSide.level(), 0, "past 30° it's left alone")
+    }
+
+    /// Existing minis and jobs are untouched: no flags means exactly what the explicit
+    /// character flags make, byte for byte.
+    func testCharacterDefaultsAreTheExplicitDefaults() throws {
+        let (_, _, plain) = try prep(["--faces", "20000"])
+        let (_, _, explicit) = try prep(["--faces", "20000", "--fit", "height", "--ground", "feet"])
+        XCTAssertEqual(try Data(contentsOf: plain), try Data(contentsOf: explicit))
+    }
+
     func testOptionsAndTheirDefaults() throws {
         let o = try PrepOptions.parse(["a.glb", "b.stl"])
         XCTAssertEqual([o.height, o.base, o.baseHeight, o.nozzle, o.flatten], [32, 25, 3, 0.4, 0.4])
         XCTAssertEqual([o.effectiveInflate, o.effectiveVoxel], [0.16, 0.1])
         XCTAssertEqual(o.faces, 800_000)
         XCTAssertFalse(o.noBase)
+        XCTAssertFalse(o.fitLongest || o.groundBottom)
+        let object = try PrepOptions.parse(["a.glb", "b.stl", "--fit", "longest", "--ground", "bottom"])
+        XCTAssertTrue(object.fitLongest && object.groundBottom)
+        XCTAssertThrowsError(try PrepOptions.parse(["a.glb", "b.stl", "--fit", "widest"]))
+        XCTAssertThrowsError(try PrepOptions.parse(["a.glb", "b.stl", "--ground"]))
         let fine = try PrepOptions.parse(["--height", "100.0", "a.glb", "--nozzle", "0.2", "--no-base", "b.stl", "--inflate", "0"])
         XCTAssertEqual([fine.height, fine.effectiveInflate, fine.effectiveVoxel], [100, 0, 0.05])
         XCTAssertTrue(fine.noBase)

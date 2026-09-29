@@ -58,8 +58,9 @@ public final class JobRunner: @unchecked Sendable {
 
     // MARK: Starting
 
-    /// Makes a new mini with `model`. Everything is checked before anything is written.
-    public func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes, model: EngineModel) throws {
+    /// Makes a new mini of `kind` with `model`. Everything is checked before anything is written.
+    public func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes,
+                     kind: MiniKind = .character, model: EngineModel) throws {
         guard Rules.isValidName(name) else { throw RequestError.badName }
         _ = try sizes.flags()
         guard model.complete(in: install) else { throw RequestError.modelNotDownloaded(model.name) }
@@ -80,6 +81,7 @@ public final class JobRunner: @unchecked Sendable {
             }
             try MiniSettings.update(folder) { s in
                 s.source = settings.source; s.desc = settings.desc; s.restyle = restyle; s.seed = seed; s.requested = sizes
+                s.kind = kind == .object ? .object : nil  // always set: a failed attempt's folder may say otherwise
                 s.model = model.id
             }
             try begin(.generate, folder: folder)
@@ -232,6 +234,12 @@ public final class JobRunner: @unchecked Sendable {
             return 0
         case let .sculptPicture(from, seed, to):
             try drawThings.sculpt(picture: from, seed: seed).write(to: to, options: .atomic)
+            return 0
+        case let .drawObject(description, seed, to):
+            try drawThings.draw(description: description, seed: seed, kind: .object).write(to: to, options: .atomic)
+            return 0
+        case let .sculptObject(from, seed, to):
+            try drawThings.sculpt(picture: from, seed: seed, kind: .object).write(to: to, options: .atomic)
             return 0
         case let .run(executable, arguments, directory, log):
             let p = try GroupProcess(executable: executable, arguments: arguments, environment: tools.environment,

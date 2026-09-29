@@ -55,6 +55,10 @@ extension Sizes: Codable {
     }
 }
 
+/// What a mini is of. Stored as settings.json's "kind" only for an object: absent means a
+/// character, so minis made before objects existed (and by the web version) read unchanged.
+public enum MiniKind: String, Codable, Sendable { case character, object }
+
 /// A mini's settings.json: how it was made, the sizes last requested (what Try Again reuses)
 /// and the sizes a finished run made (what "Now: …" shows).
 public struct MiniSettings: Codable, Equatable, Sendable {
@@ -68,8 +72,12 @@ public struct MiniSettings: Codable, Equatable, Sendable {
     public var model: String?
     public var requested: Sizes?
     public var made: Sizes?
+    /// nil is a character.
+    public var kind: MiniKind?
 
     public init() {}
+
+    public var isObject: Bool { kind == .object }
 
     static func file(_ folder: URL) -> URL { folder.appendingPathComponent("settings.json") }
 

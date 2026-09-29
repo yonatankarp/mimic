@@ -4,7 +4,8 @@ import simd
 /// Print prep: turns the 3D engine's model into a printable mini, plus preview renders.
 ///
 ///     mimic _prep in.glb out.stl [--height 32] [--base 25] [--base-height 3] [--nozzle 0.4]
-///         [--inflate MM] [--voxel MM] [--faces 800000] [--no-base] [--flatten 0.4] [--turn DEG]
+///         [--inflate MM] [--voxel MM] [--faces 800000] [--no-base] [--flatten 0.4]
+///         [--fit height|longest] [--ground feet|bottom] [--turn DEG]
 ///
 /// Units are millimetres. Steps: scale to --height, centre on what the figure stands on,
 /// inflate the surface by --inflate (thickens blades and staffs by twice that), stand it on a
@@ -14,11 +15,18 @@ import simd
 /// Ported from pipeline/mini_prep.py, which ran inside Blender; every step exists because of a
 /// real failure, and the comments keep why. It runs as its own program (a hidden subcommand of
 /// the app's binary) so Stop can end it like any other step.
+///
+/// An object (anything that isn't a character) is `--fit longest --ground bottom`: --height is
+/// then its longest side, and it is centred on its whole shadow rather than on its feet.
 public struct PrepOptions: Equatable, Sendable {
     public var glb: String
     public var stl: String
-    /// Figure height, feet to top.
+    /// Figure height, feet to top; with `fitLongest`, the longest side.
     public var height = 32.0
+    /// Size by the longest side (x, y or z) instead of the height.
+    public var fitLongest = false
+    /// Centre on the whole object's shadow instead of the cross-sections through its feet.
+    public var groundBottom = false
     /// Base diameter.
     public var base = 25.0
     public var baseHeight = 3.0
@@ -66,6 +74,18 @@ public struct PrepOptions: Equatable, Sendable {
             case "--faces": o.faces = Int(try number(a))
             case "--turn": o.turn = try number(a)
             case "--no-base": o.noBase = true
+            case "--fit":
+                switch rest.popFirst() {
+                case "height": o.fitLongest = false
+                case "longest": o.fitLongest = true
+                default: throw PrepError("--fit needs height or longest")
+                }
+            case "--ground":
+                switch rest.popFirst() {
+                case "feet": o.groundBottom = false
+                case "bottom": o.groundBottom = true
+                default: throw PrepError("--ground needs feet or bottom")
+                }
             default:
                 guard !a.hasPrefix("-") else { throw PrepError("unknown option \(a)") }
                 files.append(a)
@@ -101,6 +121,15 @@ public enum Prep {
                 mesh.positions[n] = SIMD3(c * p.x - s * p.y, s * p.x + c * p.y, p.z)
             }
         }
+        // The 3D engine can leave an object leaning a few degrees (a teapot came out at 5, one
+        // drawn from above at 20), and a leaning object prints on the edge of its bottom. A
+        // character stands on its feet, which aren't a surface to level, so only objects.
+        // After the turn: a turn is about the vertical, so levelling finds the same tilt either
+        // way, and the figure's facing is settled before anything is measured.
+        if o.groundBottom {
+            let degrees = mesh.level()
+            if degrees > 0 { log(String(format: "prep: levelled by %.1f°", degrees)) }
+        }
         let height = Float(o.height)
 
         // Ground is where most of the bottom is, not the lowest vertex: a trailing wisp or
@@ -109,24 +138,38 @@ public enum Prep {
         let top = mesh.bounds.hi.z
         var samples = mesh.surfaceSamples()
         let ground0 = Mesh.percentileZ(samples, 0.005)
-        let scale = height / (top - ground0)
+        // An object's extents leave out the floating specks the generator left (dropped later),
+        // so one can't count as part of its longest side. Not a percentile of the surface, like
+        // the ground: that trims thin tips, and a teapot's spouts came out 90 mm long, not 80.
+        let extent = o.fitLongest || o.groundBottom ? mesh.mainBounds() : nil
+        let span: Float
+        if o.fitLongest, let e = extent { span = max(e.hi.x - e.lo.x, e.hi.y - e.lo.y, e.hi.z - ground0) } else { span = top - ground0 }
+        let scale = height / span
         for n in mesh.positions.indices { mesh.positions[n] *= scale }
         for n in samples.indices { samples[n] *= SIMD4(scale, scale, scale, scale * scale) }
         let ground = ground0 * scale
 
-        // Centre on what the figure stands on: the solid cross-sections through its lower body.
-        // Not a box, which a raised weapon or a trailing wisp stretches by its whole length, and
-        // not the surface vertices, which count a thin wisp's skin as heavily as a leg's: on the
-        // test fixture those were off by 2.0 mm (box) and 0.65 mm (vertex mean).
-        var total: Float = 0, sum = SIMD2<Float>()
-        for f: Float in [0.03, 0.06, 0.09, 0.12] {
-            let s = mesh.section(ground + f * height)
-            total += s.area; sum += s.area * s.centroid
-        }
-        let centre = total > 0 ? sum / total : .zero
+        let centre: SIMD2<Float>
         var reach: Float = 0
-        for p in samples where p.z >= ground && p.z <= ground + 0.15 * height {
-            reach = max(reach, simd_length(SIMD2(p.x, p.y) - centre))
+        if o.groundBottom, let e = extent {
+            // An object lies on its whole bottom, so it's centred on its shadow on the bed: a
+            // teapot's spout counts, where a character's raised weapon mustn't.
+            centre = scale * (SIMD2(e.lo.x, e.lo.y) + SIMD2(e.hi.x, e.hi.y)) / 2
+            for p in samples { reach = max(reach, simd_length(SIMD2(p.x, p.y) - centre)) }
+        } else {
+            // Centre on what the figure stands on: the solid cross-sections through its lower body.
+            // Not a box, which a raised weapon or a trailing wisp stretches by its whole length, and
+            // not the surface vertices, which count a thin wisp's skin as heavily as a leg's: on the
+            // test fixture those were off by 2.0 mm (box) and 0.65 mm (vertex mean).
+            var total: Float = 0, sum = SIMD2<Float>()
+            for f: Float in [0.03, 0.06, 0.09, 0.12] {
+                let s = mesh.section(ground + f * height)
+                total += s.area; sum += s.area * s.centroid
+            }
+            centre = total > 0 ? sum / total : .zero
+            for p in samples where p.z >= ground && p.z <= ground + 0.15 * height {
+                reach = max(reach, simd_length(SIMD2(p.x, p.y) - centre))
+            }
         }
         let footprint = 2 * Double(reach)
 
@@ -167,7 +210,8 @@ public enum Prep {
         let (lo, hi) = out.bounds
         var lines = [String(format: "mini_prep: %@  size %.1f x %.1f x %.1f mm  faces %d  loose pieces dropped %d  footprint %.1f mm",
                             o.stl, hi.x - lo.x, hi.y - lo.y, hi.z - lo.z, out.triangles.count, dropped, footprint)]
-        if !o.noBase && footprint > o.base {
+        // An object on a base is a plinth, not a figure that must stand on it: no warning.
+        if !o.noBase && !o.groundBottom && footprint > o.base {
             lines.append(String(format: "mini_prep: WARNING footprint %.1f mm is wider than the %.0f mm base; raise the base to at least %d mm",
                                 footprint, o.base, Int((footprint + 1).rounded(.up))))
         }
@@ -176,6 +220,39 @@ public enum Prep {
 }
 
 extension Mesh {
+    /// Turns the mesh so what it stands on faces straight down, and returns by how many degrees.
+    /// What it stands on is the downward-facing surface in its lowest tenth: the area-weighted
+    /// average of those triangles' facing, which is exact for a flat bottom and the axis for a
+    /// round one. Facing is taken as pointing down whichever way a triangle is wound, since the
+    /// generator's winding isn't reliable. Past 30° it's more likely a misreading (an object
+    /// lying on its side on purpose) than a lean, so it's left alone.
+    mutating func level(limit: Float = 30) -> Float {
+        var total: Float = 0
+        for _ in 0..<3 {  // the lowest tenth moves as it turns; three passes settle it
+            let (lo, hi) = bounds
+            let band = lo.z + 0.1 * (hi.z - lo.z)
+            var down = SIMD3<Float>.zero
+            for t in triangles {
+                let a = positions[Int(t.x)], b = positions[Int(t.y)], c = positions[Int(t.z)]
+                guard min(a.z, b.z, c.z) <= band else { continue }
+                var n = simd_cross(b - a, c - a)  // its length is twice the area: the weight
+                if n.z > 0 { n = -n }
+                let length = simd_length(n)
+                guard length > 0, n.z / length < -0.7 else { continue }
+                down += n
+            }
+            guard simd_length(down) > 0 else { break }
+            down = simd_normalize(down)
+            let angle = acos(min(1, -down.z)) * 180 / .pi
+            guard angle > 0.2, total + angle <= limit else { break }
+            let turn = simd_quatf(from: down, to: [0, 0, -1])
+            let centre = (lo + hi) / 2
+            for n in positions.indices { positions[n] = turn.act(positions[n] - centre) + centre }
+            total += angle
+        }
+        return total
+    }
+
     /// Points spread evenly over the surface, with the area each stands for (x, y, z, area):
     /// the centres of the triangles, long ones split until small. Blender measured the ground
     /// and the footprint on its remeshed vertices, which are even; the generator's are too, but
@@ -196,6 +273,33 @@ extension Mesh {
         }
         for t in triangles { add(positions[Int(t.x)], positions[Int(t.y)], positions[Int(t.z)], 0) }
         return out
+    }
+
+    /// The bounds of every connected piece holding at least `share` of the surface area: the
+    /// object with its overlapping parts (a separate spout or blade), without the specks. A
+    /// mesh with no such piece (not welded, say) gives its whole bounds.
+    func mainBounds(share: Float = 0.002) -> (lo: SIMD3<Float>, hi: SIMD3<Float>) {
+        var parent = Array(0..<Int32(positions.count))
+        func find(_ x: Int32) -> Int32 {
+            var x = x
+            while parent[Int(x)] != x { parent[Int(x)] = parent[Int(parent[Int(x)])]; x = parent[Int(x)] }
+            return x
+        }
+        for t in triangles {
+            let a = find(Int32(t.x)), b = find(Int32(t.y)), c = find(Int32(t.z))
+            parent[Int(b)] = a; parent[Int(c)] = a
+        }
+        var area: [Int32: Float] = [:], total: Float = 0
+        for t in triangles {
+            let a = positions[Int(t.x)], b = positions[Int(t.y)], c = positions[Int(t.z)]
+            let da = simd_length(simd_cross(b - a, c - a)) / 2
+            area[find(Int32(t.x)), default: 0] += da; total += da
+        }
+        var lo = SIMD3<Float>(repeating: .infinity), hi = -lo
+        for t in triangles where area[find(Int32(t.x)), default: 0] >= share * total {
+            for v in [t.x, t.y, t.z] { lo = simd_min(lo, positions[Int(v)]); hi = simd_max(hi, positions[Int(v)]) }
+        }
+        return lo.x <= hi.x ? (lo, hi) : bounds
     }
 
     /// The z below which `fraction` of the surface area lies.

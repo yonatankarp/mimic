@@ -1,0 +1,16 @@
+name: An idea
+description: Something you'd like Mimic to do.
+labels: [idea]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to do?
+      description: What you're trying to make or do that Mimic doesn't let you do yet. The problem matters more than a specific solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How might it work?
+      description: Optional. Any idea of how it could look.

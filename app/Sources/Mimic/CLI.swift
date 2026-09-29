@@ -13,6 +13,7 @@ enum CLI {
       mimic list
       mimic models
     options: --height MM  --base MM  --nozzle 0.2|0.4|0.6  --inflate MM  --no-base  --seed N  --model ID
+    anything that isn't a character: make … --object  [--size MM (longest side)]  [--add-base]
     """
 
     static func run(_ args: [String]) -> Int32 {
@@ -51,11 +52,14 @@ enum CLI {
             rest.removeFirst()
             var sizes = Sizes(), image: String?, restyle = false, seed = 42, description: String?
             var model = EngineDownload.selected(defaults: defaults)
+            var object = false, addBase = false
             while let a = rest.first {
                 rest.removeFirst()
                 func value() -> String? { rest.isEmpty ? nil : rest.removeFirst() }
                 switch a {
-                case "--height": sizes.height = value()
+                case "--height", "--size": sizes.height = value()
+                case "--object": object = true
+                case "--add-base": addBase = true
                 case "--base": sizes.base = value()
                 case "--nozzle": sizes.nozzle = value()
                 case "--inflate": sizes.inflate = value()
@@ -73,6 +77,16 @@ enum CLI {
                     description = a
                 }
             }
+            // An object has no round base unless asked for one; a resize keeps what the mini is.
+            if args[0] == "resize" { object = MiniSettings.load(install.runs.appendingPathComponent(name)).isObject }
+            if object {
+                if !addBase { sizes.noBase = true }
+                // An object's base goes under its whole shadow, as in the app (SizeCard).
+                else if sizes.base == nil, let h = sizes.height.flatMap(Double.init) ?? SizeCard.objectSize[sizes.nozzle ?? "0.4"] {
+                    sizes.base = SizeCard.text(min(80, max(25, (h * 0.8 / 5).rounded() * 5)))
+                }
+                if sizes.height == nil { sizes.height = SizeCard.text(SizeCard.objectSize[sizes.nozzle ?? "0.4"] ?? 80) }
+            }
             let jobs = JobRunner(install: install)
             do {
                 switch args[0] {
@@ -81,7 +95,8 @@ enum CLI {
                     if let image { picture = .image(URL(fileURLWithPath: image)) }
                     else if let description { picture = .description(description) }
                     else { return fail(usage) }
-                    try jobs.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, model: model)
+                    try jobs.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes,
+                                  kind: object ? .object : .character, model: model)
                 case "resize": try jobs.resize(name: name, sizes: sizes)
                 default: try jobs.retry(name: name)
                 }

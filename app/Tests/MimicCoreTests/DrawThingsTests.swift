@@ -15,6 +15,18 @@ final class DrawThingsTests: XCTestCase {
         XCTAssertEqual(b["seed"] as? Int, 7)
     }
 
+    /// A character keeps today's prompts word for word; anything else gets neutral ones.
+    func testPromptsFollowTheKind() {
+        XCTAssertEqual(DrawThings.drawPrompt("dwarf", kind: .character), String(format: DrawThings.characterPrompt, "dwarf"))
+        XCTAssertEqual(DrawThings.redrawPrompt(kind: .character), DrawThings.sculptPrompt)
+        let draw = DrawThings.drawPrompt("round teapot", kind: .object)
+        XCTAssertTrue(draw.hasPrefix("round teapot. One single object"), draw)
+        for p in [draw, DrawThings.redrawPrompt(kind: .object)] {
+            for word in ["miniature", "character", "feet", "fantasy"] { XCTAssertFalse(p.contains(word), "\(word) in: \(p)") }
+            for want in ["whole", "centered", "light grey", "grey"] { XCTAssertTrue(p.contains(want), "\(want) missing: \(p)") }
+        }
+    }
+
     /// Nothing listens on port 9, so these never reach the Draw Things running on this Mac.
     private let offline = ["DRAWTHINGS_URL": "http://127.0.0.1:9"]
 

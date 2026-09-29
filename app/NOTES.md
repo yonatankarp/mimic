@@ -46,6 +46,17 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
     an edge not shared by exactly two triangles.
   - Renders are drawn in software, so a child process needs no window server or GPU, and it
     doesn't compete with the 3D engine.
+- **Characters and anything else.** New Mini asks what you're making. A character is exactly
+  what Mimic always made. Anything else (`"kind": "object"` in settings.json, written only for
+  objects, so older minis and the web version's files read as characters) gets neutral Draw
+  Things prompts, no round base unless asked for, a size that is its longest side
+  (`SizeCard.objectSize`, per nozzle) and print prep's `--fit longest --ground bottom`: scaled by
+  its longest extent and centred on its whole shadow, where a character is centred on the
+  cross-sections through its feet. Its extents come from every connected piece holding at least
+  0.2% of the surface (`Mesh.mainBounds`), so a separate spout counts and a floating speck
+  doesn't. A percentile of the surface, like the ground's, trimmed thin tips: a real teapot's
+  spouts came out 90 mm long for 80. Prep with neither flag writes the
+  same bytes as before (checked against hashes taken before the change, and by a test).
 - **Same data on disk.** `runs/<name>/` with `<name>.stl`, `<name>_{front,side,back}.png`,
   `source.png` and `settings.json` (`requested` / `made` / how it was made), so minis made by
   the web version appear in the app unchanged.
@@ -144,6 +155,15 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   folder, and reading that makes macOS ask for access to another app's data and block until
   answered: Settings sat on a spinner. The API's selected model comes first; the folder is a
   fallback with a 3-second limit.
+- **The first-run tour is popovers on the real controls** (`Sources/Mimic/TourGuide.swift`;
+  when it starts and what comes next is `MimicCore/Tour.swift`, tested). Anchor preferences
+  can't reach the toolbar or the New Mini sheet, which are hosted apart from the window's
+  content; a popover can, and never covers what it points at. `interactiveDismissDisabled`
+  keeps one up while you click around (without it a click anywhere ended the tour); Skip and
+  Esc end it, and a stop whose control isn't on screen (no mini yet) is skipped. The sample
+  picture ships in SwiftPM's `Mimic_Mimic.bundle`, which `bundle.sh` copies into
+  Contents/Resources; it's looked up by hand, not through `Bundle.module`, whose accessor
+  stops the app when the bundle is missing. Seen once: Help → Show Tour replays it.
 - **Self-signed, by decision.** The disk image is downloaded through a browser, so macOS
   quarantines it and the first open needs System Settings → Privacy & Security → Open Anyway,
   once; the README and a note in the disk image say so. A Developer ID would remove that step.

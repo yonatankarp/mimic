@@ -107,6 +107,40 @@ final class SizeAdviceTests: XCTestCase {
         XCTAssertEqual(c.sizes, Sizes(height: "50", base: "40", nozzle: "0.4", inflate: "0.2"))
     }
 
+    /// Anything else: sized by its longest side for the nozzle, no Game scale, no base unless asked.
+    func testAnObjectCard() throws {
+        var c = SizeCard(purpose: .game, nozzle: "0.2", kind: .object)
+        XCTAssertEqual([c.height, c.base], [50, 40])
+        XCTAssertTrue(c.noBase)
+        XCTAssertEqual(c.note, "✨ Sized so details come out clearly on a 0.2 mm nozzle: about 50 mm on its longest side. Change it to the size you want.")
+        c.setScale(54); c.setRealHeight("3")
+        XCTAssertEqual(c.height, 50, "Game scale doesn't size an object")
+        c.setNozzle("0.4"); XCTAssertEqual(c.height, 80)
+        c.setNozzle("0.6"); XCTAssertEqual(c.height, 120)
+        XCTAssertEqual(try c.sizes.flags(), ["--height", "120.0", "--base", "80.0", "--nozzle", "0.6", "--no-base"])
+        c.noBase = false
+        XCTAssertEqual(c.sizes.noBase, false)
+        c.setKind(.character)
+        XCTAssertFalse(c.noBase)
+        var character = SizeCard(purpose: .game, nozzle: "0.6"); character.setScale(54); character.setRealHeight("3")
+        XCTAssertEqual(c.sizes, character.sizes, "back to a character: exactly a character's card")
+        c.setKind(.object)
+        c.load(Sizes(height: "70", nozzle: "0.6", noBase: true))  // Resize: the kind first, then what it is now
+        XCTAssertEqual(c.sizes.height, "70")
+    }
+
+    func testObjectAdvice() {
+        XCTAssertEqual(MakeAdvice.pictureWarnings(width: 1600, height: 1000, kind: .object), [], "a wide object is fine")
+        XCTAssertEqual(MakeAdvice.pictureWarnings(width: 400, height: 300, kind: .object).count, 1)
+        let tips = PrintTips(nozzle: "0.2", kind: .object)
+        XCTAssertEqual(tips.copyText, "Layer height 0.06–0.08 mm · Supports: Tree (auto) · Walls: 3–4 · Flat side down")
+        XCTAssertFalse(tips.lines.joined().contains("face"))
+        XCTAssertEqual(PrintTips.nowLine(Sizes(height: "80", base: "25", nozzle: "0.4", noBase: true), kind: .object),
+                       "Now: 80 mm longest side · no base · made for a 0.4 mm nozzle")
+        XCTAssertEqual(PrintTips.nowLine(Sizes(height: "80", base: "60", nozzle: "0.4"), kind: .object),
+                       "Now: 80 mm longest side · 60 mm base · made for a 0.4 mm nozzle")
+    }
+
     func testSizesPassTheRequestChecks() throws {
         XCTAssertEqual(try SizeCard().sizes.flags(), ["--height", "32.0", "--base", "25.0", "--nozzle", "0.4"])
     }
