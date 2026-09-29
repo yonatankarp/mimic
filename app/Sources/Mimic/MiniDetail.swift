@@ -50,7 +50,7 @@ struct MiniDetail: View {
         .sheet(item: $enlarged) { e in
             VStack(spacing: 12) {
                 Thumbnail(url: e.url, version: mini.madeAt)
-                    .frame(minWidth: 400, idealWidth: 700, minHeight: 400, idealHeight: 700)
+                    .frame(minWidth: 400, idealWidth: 560, minHeight: 400, idealHeight: 560)  // with the caption row, fits the smallest main window
                     .onTapGesture { enlarged = nil }
                 HStack {
                     Text("\(mini.displayName) · \(e.caption)").foregroundStyle(.secondary)
