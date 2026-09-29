@@ -84,14 +84,10 @@ the Trash, so a wrong click can be undone.
 | Nozzle | Layer height | Walls | What to expect |
 |---|---|---|---|
 | 0.2 mm | 0.06–0.08 mm | 3–4 | Sharp faces and small details; slow |
-| 0.4 mm | 0.12 mm | 3 | Faces and weapons read clearly; fine hair gets softened |
+| 0.4 mm | 0.12 mm | 3 | Faces and weapons read clearly; fine hair gets softened. For game-size minis (28–32 mm), a 0.2 mm nozzle does much better |
 | 0.6 mm | 0.2 mm | 2–3 | Quick and sturdy; best at 54 mm scale or bigger |
 
 For every nozzle: supports on **Tree (auto)**, stand the mini upright on its base, no brim.
-
-> [!TIP]
-> **Bigger shows more.** At 32 mm a face is about 5 mm tall. At 54 mm scale (about 6 cm for a
-> tall character) faces, small pets and props come out much better on a home printer.
 
 ---
 
