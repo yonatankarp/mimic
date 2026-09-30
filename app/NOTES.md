@@ -332,7 +332,13 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   runner that finishes a job with more waiting starts the next without letting go. Whoever holds
   the job lock runs the queue: the app always carries on; `mimic make` carries on only until its
   own mini is made, then leaves the rest; quitting the app stops carrying on (the queue waits
-  for the next launch, which starts it without asking). A crash lets go of the job lock outside
+  for the next launch, which starts it without asking). A job stopped by quitting goes back to
+  the front of the queue while its runner still holds the job lock, instead of to the Trash
+  (#82): the step it was on loses its half-written file (the picture, or
+  model.glb, which trellis-cli writes in place), and the plan skips every step whose file is
+  there, so it carries on from the last step it finished. A log-out, restart or shutdown (the
+  quit event's reason) doesn't ask first: the question would hold the Mac up, and quitting
+  loses nothing but the step in progress. A crash lets go of the job lock outside
   that rule, so the app looks every 3 seconds and at launch. `runs/.job.json` names the running
   job and its holder's pid and start time, so another Mimic can show it (a record left by a
   crash reads as nothing). Proven with two `JobRunner`s on one folder, which is exactly two
@@ -391,7 +397,8 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   says "installs when the queue is done", and the queue's 3-second watch gives it back once the
   queue is empty, closing any sheet first (a window with a sheet up refuses to quit; seen with
   the first updater). An update installed on quit instead needs nothing: quitting already asks
-  about a running mini, and the queue carries on at the next launch. Sparkle sends no system
+  about a running mini, which goes back to the front of the queue, and the queue carries on at
+  the next launch. Sparkle sends no system
   profile (`SUEnableSystemProfiling` is off by default).
   Releasing: the release job (macOS, for `hdiutil`) runs `generate_appcast` from the pinned
   Sparkle 2.10.0 tarball on the disk image, with the version's CHANGELOG section as Markdown
