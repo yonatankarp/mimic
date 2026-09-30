@@ -295,6 +295,67 @@ final class JobTests: XCTestCase {
         XCTAssertEqual(spy.trashed.map(\.lastPathComponent), ["mini"])
     }
 
+    /// Quitting during a make (#82): the mini goes back to the front of the queue, not to the
+    /// Trash, and the next run starts at the step it was on. The step's half-written file goes,
+    /// so it isn't taken for a finished one.
+    func testQuittingPutsTheMiniBackAtTheFrontAndKeepsTheWork() throws {
+        let fx = try Fixture(); _ = try fx.mini("b")
+        let started = fx.root.appendingPathComponent("started").path
+        // Step 2 writes part of its 3D shape and waits to be stopped.
+        let fake = try fx.script("fake-mimic", """
+            if [ "$1" = _engine ]; then echo half > "$3"; touch \(started); sleep 60 & wait; fi
+            """)
+        let picture = fx.root.appendingPathComponent("pic.png")
+        FileManager.default.createFile(atPath: picture.path, contents: Data([1]))
+        let spy = TrashSpy()
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: fake), trash: { spy($0) })
+        try fx.modelFiles()
+        try jobs.make(name: "mini", picture: .image(picture), restyle: false, seed: 1, sizes: sizes, model: EngineDownload.standard)
+        XCTAssertEqual(try jobs.resize(name: "b", sizes: sizes), 1)
+        for _ in 0..<100 where !FileManager.default.fileExists(atPath: started) { usleep(50_000) }
+        XCTAssertEqual(jobs.status?.step, 2)
+        jobs.keepGoing = { _ in false }
+        XCTAssertTrue(jobs.cancel(keepingWork: true))
+        jobs.waitUntilDone()
+        let d = fx.install.runs.appendingPathComponent("mini")
+        XCTAssertEqual(spy.trashed, [], "quitting threw the mini away")
+        XCTAssertEqual(jobs.queue.entries().map(\.name), ["mini", "b"], "it goes back first")
+        XCTAssertEqual(jobs.queue.entries().first?.job, .generate)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: d.appendingPathComponent("model.glb").path), "a half-built shape was kept")
+        XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: MiniSettings.load(d), tools: fx.tools()).map(\.number), [2, 3],
+                       "the picture is kept")
+        XCTAssertNil(MiniSettings.load(d).failed, "quitting isn't a failure")
+    }
+
+    /// Quitting in the last step keeps the 3D shape, so it isn't built again (minutes).
+    func testQuittingInTheLastStepKeepsTheShape() throws {
+        let fx = try Fixture()
+        let started = fx.root.appendingPathComponent("started").path
+        let fake = try fx.script("fake-mimic", """
+            if [ "$1" = _engine ]; then echo shape > "$3"; else touch \(started); sleep 60 & wait; fi
+            """)
+        let picture = fx.root.appendingPathComponent("pic.png")
+        FileManager.default.createFile(atPath: picture.path, contents: Data([1]))
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: fake), trash: { _ in })
+        try fx.modelFiles()
+        try jobs.make(name: "mini", picture: .image(picture), restyle: false, seed: 1, sizes: sizes, model: EngineDownload.standard)
+        for _ in 0..<100 where !FileManager.default.fileExists(atPath: started) { usleep(50_000) }
+        XCTAssertEqual(jobs.status?.step, 3)
+        jobs.keepGoing = { _ in false }
+        XCTAssertTrue(jobs.cancel(keepingWork: true))
+        jobs.waitUntilDone()
+        let d = fx.install.runs.appendingPathComponent("mini")
+        XCTAssertEqual(jobs.queue.entries().map(\.name), ["mini"])
+        XCTAssertEqual(try String(contentsOf: d.appendingPathComponent("model.glb"), encoding: .utf8), "shape\n")
+        XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: MiniSettings.load(d), tools: fx.tools()).map(\.number), [3])
+        // The next launch carries on with it, and it finishes.
+        let next = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/true"))
+        next.pump(); next.waitUntilDone()
+        XCTAssertEqual(next.status?.name, "mini")
+        XCTAssertEqual(next.status?.succeeded, true)
+        XCTAssertEqual(next.queue.entries(), [])
+    }
+
     /// A second job while one runs waits its turn instead of being refused, then runs.
     func testOneJobAtATime() throws {
         let fx = try Fixture(); _ = try fx.mini("a"); _ = try fx.mini("b")
