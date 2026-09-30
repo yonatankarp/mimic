@@ -5,11 +5,11 @@ import simd
 ///
 ///     mimic _prep in.glb out.stl [--height 32] [--base 25] [--base-height 3] [--nozzle 0.4]
 ///         [--inflate MM] [--voxel MM] [--faces 800000] [--no-base] [--flatten 0.4]
-///         [--fit height|longest] [--ground feet|bottom] [--turn DEG]
+///         [--fit height|longest] [--ground feet|bottom] [--turn DEG] [--base-shape round|square|hex]
 ///
 /// Units are millimetres. Steps: scale to --height, centre on what the figure stands on,
 /// inflate the surface by --inflate (thickens blades and staffs by twice that), stand it on a
-/// round base, make everything one watertight solid, keep the largest piece, slice the bottom
+/// base (round, square or hex; --base is its width, across the flats for a hex), make everything one watertight solid, keep the largest piece, slice the bottom
 /// flat, trim the face count, write the STL, render front/left/right/back PNGs next to it.
 ///
 /// Ported from pipeline/mini_prep.py, which ran inside Blender; every step exists because of a
@@ -27,8 +27,9 @@ public struct PrepOptions: Equatable, Sendable {
     public var fitLongest = false
     /// Centre on the whole object's shadow instead of the cross-sections through its feet.
     public var groundBottom = false
-    /// Base diameter.
+    /// Base width: a round base's diameter, a square's side, a hex's width across the flats.
     public var base = 25.0
+    public var baseShape = BaseShape.round
     public var baseHeight = 3.0
     /// Printer nozzle; sets the inflate and the voxel.
     public var nozzle = 0.4
@@ -74,6 +75,9 @@ public struct PrepOptions: Equatable, Sendable {
             case "--faces": o.faces = Int(try number(a))
             case "--turn": o.turn = try number(a)
             case "--no-base": o.noBase = true
+            case "--base-shape":
+                guard let s = rest.popFirst().flatMap(BaseShape.init) else { throw PrepError("--base-shape needs round, square or hex") }
+                o.baseShape = s
             case "--fit":
                 switch rest.popFirst() {
                 case "height": o.fitLongest = false
@@ -188,7 +192,7 @@ public enum Prep {
         // (like a commercial base), cut flat underneath because generated bases carry bumps.
         // z = 0 is the base's underside, or the ground with --no-base; anything below --flatten goes.
         let base = o.noBase ? nil : Solid.Base(radius: Float(o.base) / 2, height: Float(o.baseHeight),
-                                               bevel: min(0.6, Float(o.baseHeight) / 3))
+                                               bevel: min(0.6, Float(o.baseHeight) / 3), shape: o.baseShape)
         let solid = Solid(mesh: mesh, voxel: Float(o.effectiveVoxel), inflate: Float(o.effectiveInflate),
                           base: base, cut: o.flatten > 0 ? Float(o.flatten) : nil)
         var out = solid.surface(mesh)

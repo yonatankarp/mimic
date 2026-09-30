@@ -298,6 +298,25 @@ final class PrepTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: side), "the old side view stayed beside left and right")
     }
 
+    /// A square base is its size along each side; a hex is its size across the flat sides, which
+    /// face the figure's front and back (±y), and 2/√3 of it across the corners (±x). Measured
+    /// through the middle of the base, below the feet and the rounded top edge.
+    func testSquareAndHexBases() throws {
+        let root3 = Float(3).squareRoot()
+        let shapes: [(String, area: Float, x: Float, y: Float)] = [
+            ("round", .pi * 156.25, 25, 25), ("square", 625, 25, 25), ("hex", 2 * root3 * 156.25, 50 / root3, 25)]
+        for (shape, area, x, y) in shapes {
+            let (result, out, _) = try prep(["--base-shape", shape, "--faces", "40000"])
+            XCTAssertTrue(out.watertight, shape)
+            XCTAssertEqual(out.pieces, 1, shape)
+            XCTAssertEqual(result.mesh.section(1.3).area, area, accuracy: 3, shape)
+            let base = out.positions.filter { $0.z < 1.9 }
+            let xs: [Float] = base.map { $0.x }, ys: [Float] = base.map { $0.y }
+            XCTAssertEqual(xs.max()! - xs.min()!, x, accuracy: 0.3, "\(shape) across x")
+            XCTAssertEqual(ys.max()! - ys.min()!, y, accuracy: 0.3, "\(shape) across y")
+        }
+    }
+
     /// Each view is the figure's own: facing +y, its left is -x. A figure with a nose (+y) and
     /// its left hand held out (-x): from the front the hand is on the picture's right, as when
     /// facing someone; from its left the nose points left, from its right it points right. The

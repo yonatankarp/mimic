@@ -5,6 +5,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 ## 0.7.0
 
 ### New
+- **Square and hex bases.** In New Mini and Resize, choose a round, square or hex base; a hex is measured across its flat sides, so a 25 mm hex fits a 1-inch hex map. The figure faces a flat side, and Resize, Try Again and Make Another Version keep the shape. In Terminal: `--base-shape square`.
 - **Previews show both sides of a mini,** left and right, not just one. A mini made before this gets them the next time it's resized.
 - **An enlarged preview closes with a click anywhere around it,** and ← → go through the previews, in the enlarged picture and on the mini's page once you've clicked one. On the page, ↑ ↓ move up and down the grid.
 

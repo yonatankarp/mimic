@@ -54,6 +54,25 @@ final class SettingsTests: XCTestCase {
         XCTAssertFalse(MiniSettings.load(folder).isObject)
     }
 
+    /// A square or hex base is written; round, and any shape with no base, isn't, so a mini
+    /// made before shapes and one made round now read the same.
+    func testABaseShapeIsWrittenOnlyWhenItIsntRound() throws {
+        try MiniSettings.update(folder) { $0.requested = Sizes(height: "32", nozzle: "0.4", shape: .hex) }
+        var json = try JSONSerialization.jsonObject(with: Data(contentsOf: folder.appendingPathComponent("settings.json"))) as! [String: Any]
+        XCTAssertEqual(json["requested"] as? [String: String], ["height": "32", "nozzle": "0.4", "shape": "hex"])
+        XCTAssertEqual(MiniSettings.load(folder).requested?.shape, .hex)
+        XCTAssertEqual(try Sizes(shape: .hex).flags(), ["--base-shape", "hex"])
+        for sizes in [Sizes(height: "32", shape: .round), Sizes(height: "32", noBase: true, shape: .square)] {
+            try MiniSettings.update(folder) { $0.requested = sizes }
+            json = try JSONSerialization.jsonObject(with: Data(contentsOf: folder.appendingPathComponent("settings.json"))) as! [String: Any]
+            XCTAssertNil((json["requested"] as? [String: String])?["shape"])
+            XCTAssertFalse(try sizes.flags().contains("--base-shape"))
+            XCTAssertEqual(MiniSettings.load(folder).requested, sizes)
+        }
+        try #"{"requested": {"height": "32", "shape": "star"}}"#.write(to: folder.appendingPathComponent("settings.json"), atomically: true, encoding: .utf8)
+        XCTAssertEqual(MiniSettings.load(folder).requested?.shape, .round, "a shape it doesn't know reads as round")
+    }
+
     /// And the web version must be able to read what the app writes (strings, nobase "1").
     func testWritesTheWebFormat() throws {
         try MiniSettings.update(folder) { $0.requested = Sizes(height: "32", nozzle: "0.4", noBase: true) }

@@ -108,6 +108,18 @@ final class SizeAdviceTests: XCTestCase {
         XCTAssertEqual(c.sizes, Sizes(height: "50", base: "25", nozzle: "0.4", inflate: "0.2"))
     }
 
+    /// Resize keeps a mini's base shape; one without a base keeps the card's, for if one is added.
+    func testLoadingABaseShape() {
+        var c = SizeCard()
+        c.load(Sizes(height: "32", base: "25", nozzle: "0.4", shape: .hex))
+        XCTAssertEqual(c.sizes.shape, .hex)
+        c.load(Sizes(height: "32", nozzle: "0.4", noBase: true))
+        XCTAssertEqual(c.shape, .hex)
+        XCTAssertEqual(c.sizes.shape, .round, "no base, no shape")
+        c.noBase = false
+        XCTAssertEqual(c.sizes.shape, .hex)
+    }
+
     /// Resize starts from the last New Mini's choice; a loaded mini's sizes say what it was made for.
     func testLoadedSizesChooseWhatTheyMatch() {
         var c = SizeCard(purpose: .display, nozzle: "0.4")
@@ -198,6 +210,8 @@ final class SizeAdviceTests: XCTestCase {
         XCTAssertEqual(made(Sizes(height: "32", base: "25", nozzle: "0.2")), ["Character: 32 mm", "Base: 25 mm", "Nozzle: 0.2 mm"])
         XCTAssertEqual(made(Sizes(height: "0", noBase: true)), ["Character: 32 mm", "Base: 25 mm", "Nozzle: 0.4 mm"],
                        "missing or 0 is the default; a character always has a base")
+        XCTAssertEqual(made(Sizes(height: "32", base: "25", shape: .hex))[1], "Base: 25 mm hex")
+        XCTAssertEqual(made(Sizes(height: "32", base: "25", shape: .square))[1], "Base: 25 mm square")
         XCTAssertEqual(PrintTips.shortLine(Sizes(height: "54.4", nozzle: "0.2")), "54 mm · 0.2 mm nozzle")
         XCTAssertEqual(PrintTips.shortLine(Sizes()), "32 mm · 0.4 mm nozzle")
     }

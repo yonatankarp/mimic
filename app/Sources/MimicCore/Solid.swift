@@ -11,7 +11,8 @@ import simd
 /// the surfaces it enters and leaves, so overlapping pieces union instead of cancelling out,
 /// and a mesh turned inside out still reads as solid.
 struct Solid {
-    struct Base { var radius: Float, height: Float, bevel: Float }
+    /// `radius` is half the base's width: to a round base's rim, a square's or a hex's flat sides.
+    struct Base { var radius: Float, height: Float, bevel: Float, shape = BaseShape.round }
 
     /// Grid points are origin + (i, j, k) × h.
     let origin: SIMD3<Float>
@@ -28,8 +29,11 @@ struct Solid {
     init(mesh: Mesh, voxel: Float, inflate: Float, base: Base?, cut: Float?) {
         var (lo, hi) = mesh.bounds
         if let base {
-            lo = simd_min(lo, SIMD3(-base.radius, -base.radius, 0))
-            hi = simd_max(hi, SIMD3(base.radius, base.radius, base.height))
+            // Out to the corners: a square's are √2 times as far as its sides, a hex's 2/√3.
+            let corner: Float = switch base.shape { case .round: 1; case .square: 1.414_214; case .hex: 1.154_701 }
+            let reach = base.radius * corner
+            lo = simd_min(lo, SIMD3(-reach, -reach, 0))
+            hi = simd_max(hi, SIMD3(reach, reach, base.height))
         }
         let pad = inflate + 2 * voxel
         lo -= pad; hi += pad
@@ -124,14 +128,43 @@ struct Solid {
 
     // MARK: The field
 
-    /// The base: a cylinder standing on z = 0 with its top edge rounded like a commercial base.
+    /// The base: a cylinder (or a square or hex prism) standing on z = 0 with its top edge
+    /// rounded like a commercial base. `a` is the distance across the bed to the outline brought
+    /// in by the bevel, which the rounded edge is drawn around: a square's or hex's upright
+    /// corners come out rounded as much as its top edge.
     func baseDistance(_ p: SIMD3<Float>, _ b: Base) -> Float {
-        let rho = (p.x * p.x + p.y * p.y).squareRoot()
-        let a = rho - (b.radius - b.bevel), c = p.z - (b.height - b.bevel)
+        let a: Float, side: Float
+        switch b.shape {
+        case .round:
+            let rho = (p.x * p.x + p.y * p.y).squareRoot()
+            a = rho - (b.radius - b.bevel); side = rho - b.radius
+        case .square:
+            a = Self.square(SIMD2(p.x, p.y), b.radius - b.bevel); side = a - b.bevel
+        case .hex:
+            a = Self.hexagon(SIMD2(p.x, p.y), b.radius - b.bevel); side = a - b.bevel
+        }
+        let c = p.z - (b.height - b.bevel)
         if a > 0 && c > 0 { return (a * a + c * c).squareRoot() - b.bevel }
-        let side = rho - b.radius, vertical = max(p.z - b.height, -p.z)
+        let vertical = max(p.z - b.height, -p.z)
         if side > 0 && vertical > 0 { return (side * side + vertical * vertical).squareRoot() }
         return max(side, vertical)
+    }
+
+    /// Signed distance from p to a square centred on the origin, `half` from centre to side.
+    static func square(_ p: SIMD2<Float>, _ half: Float) -> Float {
+        let d = abs(p) - half
+        return simd_length(simd_max(d, .zero)) + min(max(d.x, d.y), 0)
+    }
+
+    /// Signed distance from p to a regular hexagon centred on the origin, `half` from centre to
+    /// each flat side, with flat sides facing ±y: the way figures face (Render.cameras). Folds p
+    /// into the one sixth of the plane nearest the top side (Quílez, 2D distance functions).
+    static func hexagon(_ p: SIMD2<Float>, _ half: Float) -> Float {
+        let k = SIMD2<Float>(-0.866_025_4, 0.5), tan30: Float = 0.577_350_3
+        var q = abs(p)
+        q -= 2 * min(simd_dot(k, q), 0) * k
+        q -= SIMD2(min(max(q.x, -tan30 * half), tan30 * half), half)
+        return q.y < 0 ? -simd_length(q) : simd_length(q)
     }
 
     /// Squared distance from p to triangle abc (Ericson, Real-Time Collision Detection 5.1.5).

@@ -60,7 +60,7 @@ struct MakeView: View {
                         Text("Anything else").tag(MiniKind.object)
                     } label: { Label("What are you making?", systemImage: object ? "cube" : "person.fill") }
                     .pickerStyle(.segmented)
-                    .help("A character is made as a tabletop mini: standing, on a round base, sized to match your other minis. Anything else (a teapot, a car, a chess piece) is sized by its longest side, with no base unless you add one.")
+                    .help("A character is made as a tabletop mini: standing, on a base, sized to match your other minis. Anything else (a teapot, a car, a chess piece) is sized by its longest side, with no base unless you add one.")
                 }
                 Section {
                     Picker(selection: $start) {
@@ -498,12 +498,14 @@ struct CantStart: View {
 }
 
 extension SizeCard {
-    /// The kind, purpose and nozzle last chosen: most people keep one printer.
+    /// The kind, purpose, nozzle and base shape last chosen: most people keep one printer.
     static func remembered() -> SizeCard {
         let d = UserDefaults.standard
-        return SizeCard(purpose: Purpose(rawValue: d.string(forKey: "purpose") ?? "") ?? .game,
-                        nozzle: d.string(forKey: "nozzle") ?? "0.4",
-                        kind: MiniKind(rawValue: d.string(forKey: "kind") ?? "") ?? .character)
+        var card = SizeCard(purpose: Purpose(rawValue: d.string(forKey: "purpose") ?? "") ?? .game,
+                            nozzle: d.string(forKey: "nozzle") ?? "0.4",
+                            kind: MiniKind(rawValue: d.string(forKey: "kind") ?? "") ?? .character)
+        card.shape = BaseShape(rawValue: d.string(forKey: "baseShape") ?? "") ?? .round  // a hex-map player wants hex every time
+        return card
     }
 }
 
@@ -574,23 +576,33 @@ struct SizeSection: View {
             if object {
                 slider("Longest side", \.height, { $0.setHeight($1) }, SizeCard.heightRange, unit: "mm",
                        hint: "Its biggest size, whichever way that is: height, width or depth. Set for your nozzle; type a value or drag to change it.")
-                Toggle("Add a round base", isOn: Binding(get: { !card.noBase }, set: { card.noBase = !$0 }))
-                    .help("Off: it prints standing on its own flat bottom. On: it's fused to a round base, like a display piece.")
+                Toggle("Add a base", isOn: Binding(get: { !card.noBase }, set: { card.noBase = !$0 }))
+                    .help("Off: it prints standing on its own flat bottom. On: it's fused to a base, like a display piece.")
             } else {
                 slider("Character height", \.height, { $0.setHeight($1) }, SizeCard.heightRange, unit: "mm",
                        hint: "Set for you by the choices above; type a value or drag to change it. The base adds about 2 mm.")
             }
             if !object || !card.noBase {
-                slider("Base size", \.base, { $0.setBase($1) }, SizeCard.baseRange, unit: "mm", hint: nil)
-                    .help(object ? "How wide the round base is." : "How wide the round base is. 25 mm fits one square on a battle map.")
+                Picker(selection: $card.shape) {
+                    Label("Round", systemImage: "circle").tag(BaseShape.round)
+                    Label("Square", systemImage: "square").tag(BaseShape.square)
+                    Label("Hex", systemImage: "hexagon").tag(BaseShape.hex)
+                } label: {
+                    Text("Base")
+                }
+                .pickerStyle(.segmented)
+                .help("Square and hex bases fit grid and hex maps; the figure faces one of the flat sides.")
+                slider("Base size", \.base, { $0.setBase($1) }, SizeCard.baseRange, unit: "mm",
+                       hint: card.shape == .hex ? "Across the flat sides." : nil)
+                    .help(baseHelp)
             }
             // A plain button as the label, so a click or VoiceOver's press on the words opens it too.
             DisclosureGroup(isExpanded: $advanced) {
                 slider("Extra thickness for thin parts", \.inflate, { $0.setInflate($1) }, SizeCard.inflateRange, unit: "mm",
                        hint: "Set by your nozzle. More keeps swords and capes in one piece, but softens faces.", decimals: 2)
                 if !object {
-                    Toggle("Use the character's own base instead of a round one", isOn: $card.noBase)
-                        .help("For characters already standing on a base or a rock: Mimic flattens that instead of adding a round one.")
+                    Toggle("Use the character's own base instead of adding one", isOn: $card.noBase)
+                        .help("For characters already standing on a base or a rock: Mimic flattens that instead of adding one.")
                 }
                 if let seed {
                     VStack(alignment: .leading, spacing: 4) {
@@ -609,9 +621,17 @@ struct SizeSection: View {
         }
         .onChange(of: card.purpose) { _, p in if let p { UserDefaults.standard.set(p.rawValue, forKey: "purpose") } }
         .onChange(of: card.nozzle) { _, n in UserDefaults.standard.set(n, forKey: "nozzle") }
+        .onChange(of: card.shape) { _, s in UserDefaults.standard.set(s.rawValue, forKey: "baseShape") }
     }
 
     private var object: Bool { card.kind == .object }
+    private var baseHelp: String {
+        switch card.shape {
+        case .round: object ? "How wide the round base is." : "How wide the round base is. 25 mm fits one square on a battle map."
+        case .square: object ? "How long each side of the square base is." : "How long each side of the square base is. 25 mm fits one square on a battle map."
+        case .hex: "How wide the hex base is, from one flat side to the one opposite. 25 mm fits one hex on a 1-inch hex map."
+        }
+    }
     private var gameScale: Bool { !object && card.purpose == .game }
 
     private func bind<T>(_ get: KeyPath<SizeCard, T>, _ set: @escaping (inout SizeCard, T) -> Void) -> Binding<T> {
