@@ -105,6 +105,11 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   folded wing at 7. A picture mini from before `upload.img` was kept has only source.png, which
   is what its 3D step saw, so that is used without the sculpt; a mini with no settings can't be
   made again and the menu item is off.
+- **New 3D Shape** (#86) is Make Another Version that keeps the picture: `make` copies the old
+  mini's source.png into the new folder before it joins the queue, so the plan skips step 1 as
+  it does for Try Again, and a new `shapeSeed` in settings.json goes to `_engine --seed` alone
+  (absent, `seed` drives both). `seed` stays, so the base stones and a redrawn picture come out
+  the same. Offered only when source.png is there.
 - **A picture is tidied once, when it's added** (`Engine.tidied`, called by `make` before
   anything is written): turned upright, no longer than 2048 on its longest side, and written as
   PNG to `upload.img` (the name is from when it was a plain copy; kept so older minis read the

@@ -128,6 +128,9 @@ public struct MiniSettings: Codable, Equatable, Sendable {
     public var descOriginal: String?
     public var restyle: Bool?
     public var seed: Int?
+    /// The 3D engine's own seed, when New 3D Shape gave it one: the picture keeps `seed`, the
+    /// shape starts from this. Absent means `seed` drives both.
+    public var shapeSeed: Int?
     /// The 3D model set it's made with (`EngineModel.id`), so Try Again uses the same one.
     /// Absent means the standard set.
     public var model: String?

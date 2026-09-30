@@ -127,13 +127,17 @@ public final class JobRunner: @unchecked Sendable {
     /// checked before anything is written; then its folder, settings and picture are written and
     /// it joins the queue. Returns nil when it started at once, else how many jobs are ahead of it
     /// (the running one included). `versionOf` is the first of its versions, for Make Another Version.
+    /// New 3D Shape passes the picture step 1 made (`drawn`), so it isn't made again, and the 3D
+    /// engine's own seed (`shapeSeed`).
     @discardableResult
     public func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes,
-                     kind: MiniKind = .character, model: EngineModel, project: String? = nil, versionOf: String? = nil) throws -> Int? {
+                     kind: MiniKind = .character, model: EngineModel, project: String? = nil, versionOf: String? = nil,
+                     shapeSeed: Int? = nil, drawn: URL? = nil) throws -> Int? {
         guard Rules.isValidName(name) else { throw RequestError.badName }
         if let project, !Gallery.projects(install.runs).contains(project) { throw RequestError.projectNotFound }
         _ = try sizes.flags()
         guard model.complete(in: install) else { throw RequestError.modelNotDownloaded(model.name) }
+        if let drawn, !FileManager.default.isReadableFile(atPath: drawn.path) { throw RequestError.noPicture }
         var settings = MiniSettings()
         var tidied: Data?
         switch picture {
@@ -170,11 +174,14 @@ public final class JobRunner: @unchecked Sendable {
                     s.kind = settings.kind  // always set: a failed attempt's folder may say otherwise
                     s.model = model.id
                     s.versionOf = versionOf
+                    s.shapeSeed = shapeSeed  // always set, as `kind` is
                     s.created = Date()  // a failed attempt's folder made again is a new mini
                 }
                 // A failed attempt's picture is from what it was asked for then: made again from
                 // this one's, since the plan starts at the 3D step whenever it's there (#79).
                 for f in ["source.png", "source__matted.png"] { try? fm.removeItem(at: folder.appendingPathComponent(f)) }
+                // Before it joins the queue, which may start it at once: then step 1 is skipped.
+                if let drawn { try fm.copyItem(at: drawn, to: folder.appendingPathComponent("source.png")) }
                 // Upright, a sensible size and PNG, tidied above (upload.img is its name from
                 // before, when it was a copy of whatever was chosen).
                 try tidied?.write(to: folder.appendingPathComponent("upload.img"), options: .atomic)

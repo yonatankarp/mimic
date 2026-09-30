@@ -181,6 +181,7 @@ struct Sidebar: View {
             .disabled(!mini.hasModel || model.cantStart != nil || model.waiting(mini.name) != nil)
         Divider()
         AnotherVersionButton(mini: mini)
+        NewShapeButton(mini: mini)
         MoveToProjectMenu(minis: [mini])
         Divider()
         if model.canRetry(mini) {
@@ -314,6 +315,21 @@ struct AnotherVersionButton: View {
             .help("Makes it again from the same picture or description, with a different variation number: "
                   + "a detail that came out as a blob may come out right. It goes next to this one, and waits its turn if Mimic is busy.")
             .disabled(model.cantStart != nil || !JobRunner.canMakeAnotherVersion(mini))
+    }
+}
+
+/// New 3D Shape, next to Make Another Version: the same picture, only the 3D shape made again.
+struct NewShapeButton: View {
+    let mini: Mini
+    var showsIcon = true
+    @Environment(AppModel.self) private var model
+    var body: some View {
+        Button { model.makeNewShape(mini) } label: {
+            if showsIcon { Label("New 3D Shape", systemImage: "cube") } else { Text("New 3D Shape") }
+        }
+            .help("Keeps this picture and makes only the 3D shape again, with a different variation number: "
+                  + "quicker than Make Another Version, and a picture you like stays. It goes next to this one, and waits its turn if Mimic is busy.")
+            .disabled(model.cantStart != nil || !JobRunner.canMakeNewShape(mini))
     }
 }
 
