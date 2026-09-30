@@ -199,12 +199,19 @@ public struct PrintTips: Sendable {
     }
     public var copyText: String { "\(layer) · Supports: Tree (auto) · Walls: \(walls) · \(placing.short)" }
 
-    /// "Now: 32 mm character · 25 mm base · made for a 0.2 mm nozzle"; an object's is
-    /// "Now: 80 mm longest side · no base · …".
-    public static func nowLine(_ made: Sizes, kind: MiniKind = .character) -> String {
-        func mm(_ s: String?, _ fallback: Double) -> Int { Int((s.flatMap(Double.init).flatMap { $0 == 0 ? nil : $0 } ?? fallback).rounded()) }
-        let size = kind == .object ? "\(mm(made.height, 32)) mm longest side · \(made.noBase ? "no base" : "\(mm(made.base, 25)) mm base")"
-                                   : "\(mm(made.height, 32)) mm character · \(mm(made.base, 25)) mm base"
-        return "Now: \(size) · made for a \(made.nozzle ?? "0.4") mm nozzle"
+    /// What a mini was made at, as its page lists it: Character 32 mm, Base 25 mm, Nozzle 0.4 mm.
+    /// An object's first row is its longest side, and its base may be None.
+    public static func made(_ made: Sizes, kind: MiniKind = .character) -> [(label: String, value: String)] {
+        [(kind == .object ? "Longest side" : "Character", "\(mm(made.height, 32)) mm"),
+         ("Base", kind == .object && made.noBase ? "None" : "\(mm(made.base, 25)) mm"),
+         ("Nozzle", "\(made.nozzle ?? "0.4") mm")]
+    }
+
+    /// "32 mm · 0.4 mm nozzle": under a finished mini's name in the gallery.
+    public static func shortLine(_ made: Sizes) -> String { "\(mm(made.height, 32)) mm · \(made.nozzle ?? "0.4") mm nozzle" }
+
+    /// A size in whole millimetres; missing or 0 is the default.
+    private static func mm(_ s: String?, _ fallback: Double) -> Int {
+        Int((s.flatMap(Double.init).flatMap { $0 == 0 ? nil : $0 } ?? fallback).rounded())
     }
 }

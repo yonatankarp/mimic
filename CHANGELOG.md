@@ -6,6 +6,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 
 ### Changed
 - **Mimic now needs macOS 26 (Tahoe).** Every Mac that runs Mimic can update to it for free, in System Settings → General → Software Update.
+- A mini's page puts the 3D view first, with its size, previews, versions and print tips in a panel on the right you can hide; Open in your slicer is in the toolbar, with Resize and Show in Finder under More. The gallery shows each mini's size and nozzle instead of when it was made.
 
 ## 0.6.0
 

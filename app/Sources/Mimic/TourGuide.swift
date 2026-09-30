@@ -220,7 +220,7 @@ struct TourCallout: View {
                 ? "Press Make My Mini to make your dwarf 🎉 How long it takes on this Mac is shown next to the button. Press Run in Background to keep using your Mac, and the tour carries on from there."
                 : "How long Make My Mini takes on this Mac is shown next to the button. Press Run in Background to keep using your Mac: the toolbar and the Dock icon show how far along it is. Start another any time and it waits its turn."
         case .mini:
-            "Drag it to turn it around. Open in \(model.slicerName) sends it to your slicer to print, or drag a preview to Finder or any slicer. The print tips below are for your nozzle."
+            "Drag it to turn it around. Open in \(model.slicerName) sends it to your slicer to print, or drag a preview to Finder or any slicer. The panel on the right has its size, previews and print tips for your nozzle."
         case .gallery:
             "Everything you make lands here. Right-click a mini for more, press space to preview it, or group minis into projects (⇧⌘N)."
         case .settings:
