@@ -132,6 +132,14 @@ final class EngineTests: XCTestCase {
         XCTAssertFalse(out.contains("cutting"), "an already cut-out picture was cut out again")
     }
 
+    /// A cartoon is made with Pixal3D whatever model is in use: TRELLIS.2, the standard, builds
+    /// cartoons out of flat panels (#3). Anything else keeps the one in use.
+    func testACartoonIsMadeWithPixal3D() {
+        XCTAssertEqual(EngineDownload.standard.family, .trellis2, "the test needs TRELLIS.2 in use")
+        XCTAssertEqual(EngineDownload.forMaking(cartoon: true, chosen: EngineDownload.standard).family, .pixal3dSingleView)
+        XCTAssertEqual(EngineDownload.forMaking(cartoon: false, chosen: EngineDownload.standard), EngineDownload.standard)
+    }
+
     /// `--model` picks the command line and the model folder, and the fast-setting guard holds
     /// for it too.
     func testTheEngineRunsTheChosenModel() throws {

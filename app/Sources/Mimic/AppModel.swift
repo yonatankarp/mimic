@@ -255,9 +255,9 @@ final class AppModel {
 
     func estimate(_ s: JobStatus) -> Estimate { estimate(s.name, s.kind) }
 
-    /// A new mini with the model in use.
-    func estimateNew(drawn: Bool, sizes: Sizes) -> Estimate {
-        Estimator.estimate(JobShape(job: .generate, model: setup.chosen.id, drawn: drawn, nozzle: sizes.nozzle ?? "0.4",
+    /// A new mini with the model it would be made with.
+    func estimateNew(drawn: Bool, sizes: Sizes, cartoon: Bool = false) -> Estimate {
+        Estimator.estimate(JobShape(job: .generate, model: EngineDownload.forMaking(cartoon: cartoon, chosen: setup.chosen).id, drawn: drawn, nozzle: sizes.nozzle ?? "0.4",
                                     height: sizes.height.flatMap(Double.init)), history: history)
     }
 
@@ -294,21 +294,22 @@ final class AppModel {
     /// no reason: the new one waits its turn.
     var cantStart: String? { requiredProblem }
 
-    func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes, kind: MiniKind = .character, project: String? = nil) throws {
-        let chosen = setup.chosen
+    func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes, kind: MiniKind = .character,
+              project: String? = nil, cartoon: Bool = false) throws {
+        let chosen = EngineDownload.forMaking(cartoon: cartoon, chosen: setup.chosen)
         try start(name) { try $0.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, kind: kind, model: chosen, project: project) }
     }
 
     /// Several pictures dropped on New Mini: a mini each, named after its file, all made the same
     /// way, with one note in the job's popover. A picture that can't be used is skipped and named
     /// there. Returns why, in words, when none could be used.
-    func make(pictures: [URL], restyle: Bool, seed: Int, sizes: Sizes, kind: MiniKind, project: String?) -> String? {
+    func make(pictures: [URL], restyle: Bool, seed: Int, sizes: Sizes, kind: MiniKind, project: String?, cartoon: Bool = false) -> String? {
         var added: [String] = [], skipped: [String] = [], why = "Mimic can't read these pictures."
         for url in pictures {
             let name = Gallery.name(forPicture: url, in: install.runs)
             do {
                 guard Picture(url) != nil else { throw RequestError.noPicture }
-                try make(name: name, picture: .image(url), restyle: restyle, seed: seed, sizes: sizes, kind: kind, project: project)
+                try make(name: name, picture: .image(url), restyle: restyle, seed: seed, sizes: sizes, kind: kind, project: project, cartoon: cartoon)
                 added.append(name)
             } catch {
                 skipped.append(url.lastPathComponent)

@@ -103,6 +103,15 @@ public enum EngineDownload {
         catalogue.first { $0.id == (id ?? pixal3d.id) }
     }
 
+    /// What a flat 2D cartoon is made with (#3): from the grey sculpt, TRELLIS.2 builds a
+    /// cartoon out of flat panels while Pixal3D keeps it smooth (Piposh, 2026-09-30).
+    public static let cartoon = pixal3d
+
+    /// The model a new mini is made with: `chosen`, the one in use, unless it's a cartoon.
+    public static func forMaking(cartoon isCartoon: Bool, chosen: EngineModel) -> EngineModel {
+        isCartoon ? cartoon : chosen
+    }
+
     /// The model this Mac makes minis with: the `model` default, or the standard one when it's
     /// unset or names a model this Mimic doesn't know.
     public static func selected(defaults: UserDefaults) -> EngineModel {

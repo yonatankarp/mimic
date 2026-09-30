@@ -261,7 +261,7 @@ private struct ModelsSection: View {
         Section {
             ForEach(EngineDownload.catalogue) { row($0, setup) }
         } footer: {
-            Text("New minis are made with the model in use. Try Again uses the model a mini was first made with.")
+            Text("New minis are made with the model in use, and cartoons with Pixal3D. Try Again uses the model a mini was first made with.")
                 .foregroundStyle(.secondary)
         }
         .confirmationDialog(removing.map { "Remove \($0.name)?" } ?? "", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
