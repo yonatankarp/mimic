@@ -120,6 +120,15 @@ public struct MiniSettings: Codable, Equatable, Sendable {
     /// When it was asked for, which the list is sorted by. Older minis have none: their folder's
     /// creation date stands in (see `Gallery.created`).
     public var created: Date?
+    /// What the last finished run wants you to know (a part left out, how it stands) and
+    /// whether thin parts may be fragile: shown on the mini's page until a run replaces them,
+    /// after a relaunch too (#80).
+    public var notes: [String]?
+    public var fragile: Bool?
+    /// Why the last run failed, and at which step, until one finishes: what the page says of a
+    /// mini that didn't finish (#78).
+    public var failed: String?
+    public var failedStep: Int?
 
     public init() {}
 

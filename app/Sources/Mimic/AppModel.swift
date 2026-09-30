@@ -395,6 +395,17 @@ final class AppModel {
         ended.removeAll { $0.name == name }
     }
 
+    /// A mini that didn't finish and can be tried again: no print file, not waiting or being
+    /// made, and it kept what it was asked for.
+    func canRetry(_ mini: Mini) -> Bool {
+        mini.stl == nil && waiting(mini.name) == nil && current?.name != mini.name && MiniSettings.load(mini.folder).requested != nil
+    }
+
+    /// Try Again from a failed mini's page or menus; a refusal is said as an alert.
+    func tryAgain(_ mini: Mini) {
+        do { try retry(mini.name) } catch { problem = plainWords(error) }
+    }
+
     func stop() { jobs.cancel() }
 
     /// A mini that can't be renamed or trashed right now: being made here or in another Mimic.

@@ -74,27 +74,51 @@ struct MiniDetail: View {
         } else if let n = model.waiting(mini.name) {
             ContentUnavailableView("Waiting to be made (\(AppModel.ordinal(n)) in the queue).", systemImage: "hourglass",
                                    description: Text("Ready in \(JobProgress.about(model.queueTimes()[n - 1].ready))."))
+        } else if let s = model.current, s.name == mini.name {
+            // Being made (#77): which step, and how long it has left, with the progress a click away.
+            TimelineView(.periodic(from: .now, by: 5)) { t in
+                ContentUnavailableView {
+                    Label("Being made", systemImage: "cube")
+                } description: {
+                    Text("Step \(s.step) of 3: \(JobRunner.label(s.step).lowercased()). \(JobProgress.about(model.estimate(s).left(s, now: t.date)).capitalizedFirst) left.")
+                } actions: {
+                    Button("Show Progress") { model.showWindow(); model.jobPopover = true }
+                }
+            }
+        } else if model.canRetry(mini) {
+            // Didn't finish (#78): why, as saved when it failed, and Try Again.
+            let settings = MiniSettings.load(mini.folder)
+            ContentUnavailableView {
+                Label("This mini didn't finish", systemImage: "exclamationmark.triangle")
+            } description: {
+                Text(settings.failed ?? "It stopped before it was done.")
+            } actions: {
+                Button("Try Again") { model.tryAgain(mini) }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(model.cantStart != nil)
+                    .help(model.cantStart ?? "Makes it again from the step that failed")
+            }
         } else {
             ContentUnavailableView("This mini isn't finished yet.", systemImage: "hourglass")
         }
     }
 
-    /// What the job that just made it wants you to know, over the view where it can't be missed.
+    /// What the run that made it wants you to know, over the view where it can't be missed: kept
+    /// with the mini (#80), so it's still said after a relaunch, until a resize replaces it.
     @ViewBuilder private var notes: some View {
-        if let job = model.job, job.name == mini.name, job.succeeded {
-            let lines = job.notes + (job.fragile ? ["Some thin parts may be fragile. Check it in your slicer before printing."] : [])
-            if !lines.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(lines, id: \.self) { line in
-                        Label { Text(line) } icon: { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange) }
-                    }
+        let saved = MiniSettings.load(mini.folder)
+        let lines = (saved.notes ?? []) + (saved.fragile == true ? ["Some thin parts may be fragile. Check it in your slicer before printing."] : [])
+        if !lines.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(lines, id: \.self) { line in
+                    Label { Text(line) } icon: { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange) }
                 }
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: 360, alignment: .leading)
-                .padding(12)
-                .background(.regularMaterial, in: .rect(cornerRadius: 16))  // content, not a control: no glass
-                .padding(12)
             }
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: 360, alignment: .leading)
+            .padding(12)
+            .background(.regularMaterial, in: .rect(cornerRadius: 16))  // content, not a control: no glass
+            .padding(12)
         }
     }
 

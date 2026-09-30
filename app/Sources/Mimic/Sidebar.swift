@@ -183,6 +183,10 @@ struct Sidebar: View {
         AnotherVersionButton(mini: mini)
         MoveToProjectMenu(minis: [mini])
         Divider()
+        if model.canRetry(mini) {
+            Button("Try Again", systemImage: "arrow.clockwise") { model.tryAgain(mini) }
+                .disabled(model.cantStart != nil)
+        }
         Button("Rename…", systemImage: "pencil") { model.sheet = .rename(mini) }
             .disabled(model.waiting(mini.name) != nil)
         Button("Move to Trash", systemImage: "trash", role: .destructive) { model.askToTrash([mini]) }

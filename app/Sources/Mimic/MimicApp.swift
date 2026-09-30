@@ -98,6 +98,10 @@ struct MiniCommands: Commands {
                     .keyboardShortcut("r")
                     .disabled(mini?.hasModel != true || model.cantStart != nil || !free || mini.flatMap { model.waiting($0.name) } != nil)
             }
+            if let mini, model.canRetry(mini) {
+                Button("Try Again") { model.tryAgain(mini) }
+                    .disabled(model.cantStart != nil || !free)
+            }
             Button("Rename…") { if let mini { model.sheet = .rename(mini) } }
                 .disabled(mini == nil || !free || mini.flatMap { model.waiting($0.name) } != nil)
             Divider()

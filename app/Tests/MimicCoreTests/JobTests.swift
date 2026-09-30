@@ -248,6 +248,26 @@ final class JobTests: XCTestCase {
         XCTAssertEqual(both.status?.fragile, true)
     }
 
+    /// The warnings are kept with the mini (#80), for its page after a relaunch, until a run
+    /// replaces them; why a run failed too (#78), until one finishes.
+    func testWarningsAndFailuresAreKeptWithTheMini() throws {
+        let fx = try Fixture(); let d = try fx.mini("elf")
+        let part = "A part came out separate from the figure (about 30 mm long) and was left out."
+        let warns = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("prep", "echo 'mini_prep: WARNING footprint'; echo '\(Prep.partWarning)\(part)'")))
+        try warns.resize(name: "elf", sizes: sizes); warns.waitUntilDone()
+        XCTAssertEqual(MiniSettings.load(d).notes, [part])
+        XCTAssertEqual(MiniSettings.load(d).fragile, true)
+        let fails = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("prep2", "echo 'mini_prep: FAILED the model is flat'; exit 1")))
+        try fails.resize(name: "elf", sizes: sizes); fails.waitUntilDone()
+        XCTAssertNotNil(MiniSettings.load(d).failed, "why it failed is kept")
+        XCTAssertEqual(MiniSettings.load(d).failedStep, 3)
+        XCTAssertEqual(MiniSettings.load(d).notes, [part], "a failed run leaves the print file, and its warnings, as they were")
+        let quiet = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/true"))
+        try quiet.resize(name: "elf", sizes: sizes); quiet.waitUntilDone()
+        let s = MiniSettings.load(d)
+        XCTAssertNil(s.notes); XCTAssertNil(s.fragile); XCTAssertNil(s.failed, "a finished run clears them")
+    }
+
     /// Stop during the 3D step: the job and its child end, it reads as stopped, and the
     /// half-made mini goes to the Trash.
     func testStopEndsTheJobAndTrashesAHalfMadeMini() throws {

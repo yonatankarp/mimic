@@ -392,6 +392,18 @@ public final class JobRunner: @unchecked Sendable {
         if code != 0, problem == nil, let r = thisRun.range(of: Prep.failure, options: .backwards) {
             problem = String(thisRun[r.upperBound...].prefix { $0 != "\n" })
         }
+        // Kept with the mini, so its page says it after a relaunch too.
+        if !canceled {
+            let step = status?.step
+            try? MiniSettings.update(folder) { s in
+                if code == 0 {
+                    s.notes = notes.isEmpty ? nil : notes; s.fragile = fragile ? true : nil
+                    s.failed = nil; s.failedStep = nil
+                } else {
+                    s.failed = problem ?? "It stopped while \(Self.label(step ?? 2).lowercased())."; s.failedStep = step
+                }
+            }
+        }
         let finished: JobStatus? = lock.withLock {
             current?.running = false
             current?.exit = code
