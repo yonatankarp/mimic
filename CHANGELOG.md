@@ -6,7 +6,9 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 
 ### New
 - **Previews show both sides of a mini,** left and right, not just one. A mini made before this gets them the next time it's resized.
-- **An enlarged preview closes with a click anywhere around it,** and ← → go through the previews, in the enlarged picture and on the mini's page once you've clicked one. On the page, ↑ ↓ move up and down the grid.
+- **Previews open in Quick Look.** Click one, or press Space: ← → go through them, Space closes it, and you can share it or go full screen. On the mini's page, once you've clicked a preview, ← → go through them there too, and ↑ ↓ move up and down the grid.
+- **Turn the 3D view with the arrow keys** (↑ ↓ tilt it) **and zoom with ⌘= and ⌘−**, once you've clicked it. VoiceOver can turn it too.
+- **Drag a mini from the list** to Finder or your slicer to get its print file. Dragging it onto a project still moves it there.
 
 ### Changed
 - **Settings is in the Mimic menu (⌘,).** The toolbar no longer has a Settings button: it shows Needs Setup only when something needs you, and clicking it goes straight to what's missing.
@@ -19,12 +21,14 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 - **Making a mini no longer covers the window.** Its progress, the queue and Stop are in the toolbar: click it to see them. When it's done, the toolbar says so; click it for Open in your slicer, or Try Again.
 - **Settings is organised into tabs:** General, 3D Model, Draw Things & AI, and Advanced. Each is only as tall as what's in it, and Open Settings from New Mini or a mini that needs Draw Things goes straight to the right one.
 - **New Mini shows the picture and the size choices side by side**, so everything fits without scrolling. Its choices are marked with symbols instead of emoji, and Resize explains itself under its title instead of in a box.
+- **Move to Trash no longer asks first:** Edit → Undo (⌘Z) puts the mini back. Undo works for Keep This One too. A mini waiting in the queue still asks, as Undo can't put it back in the queue.
 
 ### Fixed
 - Questions that ask before doing something now say Cancel for the way out, so Esc always backs out, including the question when you quit while a mini is being made.
 - ⌘V in New Mini pastes text into the field you're typing in; a copied picture still becomes the mini's picture.
 - Settings says TRELLIS.2 takes about 14 minutes a mini, as measured, not 12. Once you've made a few minis, it shows the time for your Mac instead, as before.
 - Resize showed Best print and "about 100 mm tall" for a mini made at game scale; it now shows what the mini was made at. A mini made at a size neither choice gives shows neither as chosen. An object made at another size than the suggested one no longer says "about 80 mm on its longest side".
+- VoiceOver names every size field and slider in New Mini and Resize.
 
 ## 0.6.1
 

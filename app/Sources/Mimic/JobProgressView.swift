@@ -324,10 +324,9 @@ private struct JobPicture: View {
         Thumbnail(url: version == nil ? nil : file, version: version ?? .distantPast)
             .frame(width: 84, height: 84)
             .clipShape(shape)
-            .glassEffect(.regular, in: .rect(cornerRadius: 12))  // as the mini's own previews: renders have no background
-            // A soft glow while the long step runs, and the scan. Both sit outside the glass and
-            // the glow is a still blur: glass or a shadow around the moving scan redrew with it
-            // every frame.
+            .background(Color.primary.opacity(0.05), in: shape)  // as the mini's own previews: renders have no background
+            // A soft glow while the long step runs, and the scan. The glow is a still blur: a
+            // shadow around the moving scan redrew with it every frame.
             .background { shape.fill(Color.accentColor.opacity(building ? 0.45 : 0)).blur(radius: 8) }
             .overlay { if building && !reduceMotion { LightSweep(vertical: true, crossing: 2.6, rest: 1.6, strength: 0.35).clipShape(shape) } }
             .overlay(alignment: .bottomTrailing) {
@@ -477,6 +476,7 @@ struct MainWindowChrome: ViewModifier {
         Binding(get: { model.problem != nil }, set: { if !$0 { model.problem = nil } })
     }
     @Environment(AppModel.self) private var model
+    @Environment(\.undoManager) private var undoManager
     /// The window's size under its toolbar: New Mini and Resize grow up to it.
     @State private var room = CGSize(width: 960, height: 640)
 
@@ -517,8 +517,10 @@ struct MainWindowChrome: ViewModifier {
                 Button("Move to Trash", role: .destructive) { model.trash(mini) }
                 Button("Cancel", role: .cancel) {}
             } message: { _ in
-                Text("You can put it back from the Trash if you change your mind.")
+                Text("It leaves the queue. You can put it back from the Trash, but not in the queue.")
             }
+            // Move to Trash registers its Undo with the window's undo manager (Edit → Undo).
+            .onChange(of: undoManager, initial: true) { model.undo = undoManager }
             // Deleting a project never trashes its minis silently: keeping them is the default.
             .confirmationDialog("Delete the project “\(model.deletingProject ?? "")”?",
                                 isPresented: Binding(get: { model.deletingProject != nil }, set: { if !$0 { model.deletingProject = nil } }),

@@ -26,7 +26,7 @@ struct MiniViewer: View {
     /// How to handle it, shown over the view until the first turn or zoom (and always as its tooltip).
     @AppStorage("viewerHintSeen") private var hintSeen = false
     static let hint = "Drag to turn · scroll to zoom"
-    static let help = "Drag to turn · pinch or scroll to zoom · double-click to face front"
+    static let help = "Drag or press the arrow keys to turn · pinch, scroll, ⌘= or ⌘− to zoom · double-click to face front"
     /// The stage's size, running up under the toolbar, and the height below the toolbar.
     @State private var stageSize = CGSize.zero
     @State private var seenHeight: CGFloat = 0
@@ -46,6 +46,8 @@ struct MiniViewer: View {
     /// The mini fades in once loaded, and out while the next one (or a resized one) loads, so
     /// a new print file crossfades rather than popping.
     @State private var shown = false
+    /// The view has the keyboard: ← → turn it, ↑ ↓ tilt it, ⌘= ⌘− zoom.
+    @FocusState private var focused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(AppModel.self) private var model
 
@@ -143,8 +145,18 @@ struct MiniViewer: View {
         .opacity(shown ? 1 : 0)
         .accessibilityElement()
         .accessibilityLabel(measured.map { "3D view of \(name), \($0.tall) mm tall with base, \($0.footprint) footprint" } ?? "3D view of \(name)")
+        .accessibilityHint("Arrow keys turn and tilt it; Command-Equals and Command-Minus zoom.")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment: step(turn: 1)
+            case .decrement: step(turn: -1)
+            @unknown default: break
+            }
+        }
+        .accessibilityAction(named: "Face Front") { front() }
         .contentShape(Rectangle())
         .gesture(DragGesture(minimumDistance: 3).onChanged { g in
+            focused = true
             let start = turnStart ?? turn
             turnStart = start
             turn = SIMD2(start.x + Float(g.translation.width) * 0.01,
@@ -154,7 +166,34 @@ struct MiniViewer: View {
             if !hintSeen { hintSeen = true }
         })
         .onTapGesture(count: 2) { front() }
+        .onTapGesture { focused = true }
+        .focusable(interactions: .edit)  // takes the keyboard without Keyboard Navigation turned on
+        .focused($focused)
+        .onKeyPress(keys: [.leftArrow, .rightArrow, .upArrow, .downArrow]) { press in
+            switch press.key {
+            case .leftArrow: step(turn: -1)
+            case .rightArrow: step(turn: 1)
+            case .upArrow: step(tilt: -1)
+            default: step(tilt: 1)
+            }
+            return .handled
+        }
+        .onKeyPress(characters: ["=", "+", "-"]) { press in
+            guard press.modifiers.contains(.command) else { return .ignored }
+            step(zoom: press.characters == "-" ? -1 : 1)
+            return .handled
+        }
         .help(Self.help)
+    }
+
+    /// One key press: a 15° turn or tilt, or a zoom step toward the middle. At once, not a
+    /// glide: the stage draws once per press and stays idle between them.
+    private func step(turn by: Float = 0, tilt: Float = 0, zoom z: Float = 0) {
+        guard mini != nil, !gliding else { return }
+        let angle = Float.pi / 12
+        turn = SIMD2(turn.x + by * angle, min(1.1, max(-1.1, turn.y + tilt * angle)))
+        if z != 0 { (zoom, offset) = ViewerZoom.zoomed(scale: zoom, offset: offset, by: exp(0.25 * z), toward: .zero) }
+        if !hintSeen { hintSeen = true }
     }
 
     /// A soft contact shadow under the base, drawn behind the scene (the base hides its middle).

@@ -2,6 +2,7 @@ import AppKit
 import MimicCore
 import QuickLook
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// The gallery on the left: a collapsible section per project, then Unsorted; search, the
 /// right-click menus, drag and drop between projects, and Quick Look. Rename, trash and the
@@ -85,8 +86,8 @@ struct Sidebar: View {
         }
         // A new mini slides into the list (and a trashed one out) rather than popping.
         .animation(reduceMotion ? nil : .default, value: shown.map(\.id))
-        // Delete (or ⌘⌫ from the Mini menu) asks before trashing, as the context menu does.
-        .onDeleteCommand { if let mini = model.selected, model.sheet == nil { model.trashing = mini } }
+        // Delete (or ⌘⌫ from the Mini menu) moves it to the Trash, as the context menu does.
+        .onDeleteCommand { if let mini = model.selected, model.sheet == nil { model.askToTrash(mini) } }
         .overlay {
             if shown.isEmpty && !model.minis.isEmpty {
                 ContentUnavailableView.search(text: query)
@@ -97,8 +98,8 @@ struct Sidebar: View {
     private func rows(_ minis: [Mini], project: String?) -> some View {
         ForEach(minis) { mini in
             GalleryRow(mini: mini, status: rowStatus(mini)).contextMenu { menu(for: mini) }
-                .help("Press space to preview it. Drag it onto a project to move it. Right-click for more.")
-                .draggable(mini.name)
+                .help("Press space to preview it. Drag it onto a project to move it, or to Finder or your slicer to copy its print file. Right-click for more.")
+                .draggable(MiniDrag(name: mini.name, stl: mini.stl))
                 // Dropped on a mini: into that mini's project.
                 .dropDestination(for: String.self) { names, _ in model.move(names, to: project); return true }
         }
@@ -155,7 +156,21 @@ struct Sidebar: View {
         Divider()
         Button("Rename…", systemImage: "pencil") { model.sheet = .rename(mini) }
             .disabled(model.waiting(mini.name) != nil)
-        Button("Move to Trash…", systemImage: "trash", role: .destructive) { model.trashing = mini }
+        Button("Move to Trash", systemImage: "trash", role: .destructive) { model.askToTrash(mini) }
+    }
+}
+
+/// A mini dragged from the list. Inside Mimic it's its name, which the projects take to move it
+/// (never a copy of its files); to Finder or a slicer it's its print file, as a dragged preview is.
+/// No bare file URL goes out: Finder could take that as a move out of the minis folder.
+struct MiniDrag: Transferable {
+    let name: String
+    let stl: URL?
+
+    static var transferRepresentation: some TransferRepresentation {
+        ProxyRepresentation(exporting: \.name).visibility(.ownProcess)
+        FileRepresentation(exportedContentType: UTType(filenameExtension: "stl") ?? .data) { SentTransferredFile($0.stl!) }
+            .exportingCondition { $0.stl != nil }
     }
 }
 

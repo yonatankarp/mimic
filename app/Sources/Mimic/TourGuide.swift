@@ -254,7 +254,7 @@ struct TourHost: ViewModifier {
             // Esc leaves the tour when the main window, not a popover, has the keyboard (a card
             // has its own Esc).
             .background {
-                if guide.step?.centred == false && model.sheet == nil && model.enlarged == nil {
+                if guide.step?.centred == false && model.sheet == nil {
                     Button("") { guide.leave() }.keyboardShortcut(.cancelAction).hidden()
                 }
             }
