@@ -168,6 +168,7 @@ final class AppModel {
     var running: Bool { job?.running == true }
 
     func reload() {
+        jobs.adoptOddFolders()  // renamed or copied in Finder
         minis = Gallery.list(install.runs)
         projects = Gallery.projects(install.runs)
         selection = selection.filter { id in minis.contains { $0.id == id } }
@@ -422,7 +423,7 @@ final class AppModel {
                 refreshQueue()
                 if entry.job == .generate { return reload() }
             }
-            let (folder, trashed) = try Gallery.moveToTrash(install.runs, name: mini.name, busyWith: busyWith)
+            let (folder, trashed) = try Gallery.moveToTrash(install.runs, name: mini.name, folder: mini.folder, busyWith: busyWith)
             if let trashed { undoable(folder, trashed) }
         } catch {
             problem = plainWords(error, else: "Couldn't move it to the Trash. Try Show in Finder and delete it there.")

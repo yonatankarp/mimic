@@ -41,6 +41,65 @@ final class GalleryTests: XCTestCase {
         try Gallery.moveToTrash(fx.install.runs, name: "dwarf", trash: { spy($0) })
         XCTAssertEqual(spy.trashed.map(\.lastPathComponent), ["dwarf"])
         XCTAssertThrowsError(try Gallery.moveToTrash(fx.install.runs, name: "dwarf", busyWith: "dwarf", trash: { spy($0) }))
+
+        // One Mimic couldn't take over (#74) still goes, by the folder the gallery found.
+        let odd = fx.install.runs.appendingPathComponent("Dwarf Cleric")
+        try FileManager.default.moveItem(at: try fx.mini("dwarf-cleric"), to: odd)
+        try Gallery.moveToTrash(fx.install.runs, name: "Dwarf Cleric", folder: odd, trash: { spy($0) })
+        XCTAssertEqual(spy.trashed.last, odd)
+    }
+
+    /// Minis renamed or copied in Finder (#74) get a name Mimic can use, and their files follow.
+    func testAFolderRenamedOrCopiedInFinderIsTakenOver() throws {
+        let fx = try Fixture(), fm = FileManager.default, runs = fx.install.runs
+        try fm.moveItem(at: try fx.mini("dwarf-cleric"), to: runs.appendingPathComponent("Dwarf Cleric"))
+        try fm.copyItem(at: try fx.mini("raven"), to: runs.appendingPathComponent("raven copy"))
+        try fm.moveItem(at: try fx.mini("elf"), to: runs.appendingPathComponent("Elf"))  // only the capitals
+        try fm.moveItem(at: try fx.mini("bard"), to: runs.appendingPathComponent("bard-king"))  // a good name, files not
+        XCTAssertEqual(Set(Gallery.adopt(runs, busy: [])), ["dwarf-cleric", "raven-copy", "elf", "bard-king"])
+        for name in ["dwarf-cleric", "raven-copy", "elf", "bard-king", "raven"] {
+            for suffix in [".stl", "_front.png", "_left.png", "_right.png", "_back.png"] {
+                XCTAssertTrue(fm.fileExists(atPath: runs.appendingPathComponent("\(name)/\(name)\(suffix)").path), name + suffix)
+            }
+        }
+        XCTAssertEqual(Set(try fm.contentsOfDirectory(atPath: runs.path)), ["dwarf-cleric", "raven-copy", "elf", "bard-king", "raven"])
+        XCTAssertTrue(Gallery.list(runs).allSatisfy { $0.stl != nil && Gallery.folder(runs, $0.name) == $0.folder })
+        XCTAssertEqual(Gallery.adopt(runs, busy: []), [], "took over a mini that was fine")
+    }
+
+    /// Taking over never moves anything over a mini or folder already there: the name taken
+    /// anywhere (here in another project), or by a folder that isn't a mini, gets the next one.
+    func testTakingOverNeverOverwrites() throws {
+        let fx = try Fixture(), fm = FileManager.default, runs = fx.install.runs
+        _ = try Gallery.createProject(runs, "Party")
+        let kept = try fx.mini("dwarf-cleric")
+        try "keep me".write(to: kept.appendingPathComponent("dwarf-cleric.stl"), atomically: true, encoding: .utf8)
+        try fm.moveItem(at: kept, to: runs.appendingPathComponent("Party/dwarf-cleric"))
+        try fm.moveItem(at: try fx.mini("dwarf-cleric"), to: runs.appendingPathComponent("Dwarf Cleric"))
+        let plain = runs.appendingPathComponent("Party/raven-copy")
+        try fm.createDirectory(at: plain, withIntermediateDirectories: true)
+        try "mine".write(to: plain.appendingPathComponent("notes.txt"), atomically: true, encoding: .utf8)
+        try fm.copyItem(at: try fx.mini("raven"), to: runs.appendingPathComponent("Party/raven copy"))
+
+        XCTAssertEqual(Set(Gallery.adopt(runs, busy: [])), ["dwarf-cleric-2", "raven-copy-2"])
+        XCTAssertEqual(try String(contentsOf: runs.appendingPathComponent("Party/dwarf-cleric/dwarf-cleric.stl"), encoding: .utf8), "keep me")
+        XCTAssertTrue(fm.fileExists(atPath: runs.appendingPathComponent("dwarf-cleric-2/dwarf-cleric-2.stl").path))
+        XCTAssertFalse(fm.fileExists(atPath: runs.appendingPathComponent("dwarf-cleric").path))
+        XCTAssertEqual(try fm.contentsOfDirectory(atPath: plain.path), ["notes.txt"])
+        XCTAssertTrue(fm.fileExists(atPath: runs.appendingPathComponent("Party/raven-copy-2/raven-copy-2.stl").path))
+    }
+
+    /// A mini being made or waiting is left as it is: its job finds it by name.
+    func testTakingOverLeavesAMiniBeingMadeOrWaitingAlone() throws {
+        let fx = try Fixture(), fm = FileManager.default, runs = fx.install.runs
+        try fm.moveItem(at: try fx.mini("dwarf"), to: runs.appendingPathComponent("dwarf-king"))
+        let jobs = JobRunner(install: fx.install, tools: fx.tools())
+        try jobs.queue.locked { $0.append(QueueEntry(name: "dwarf-king", job: .prep)) }
+        XCTAssertEqual(jobs.adoptOddFolders(), [])
+        XCTAssertTrue(fm.fileExists(atPath: runs.appendingPathComponent("dwarf-king/dwarf.stl").path), "renamed a waiting mini's files")
+        try jobs.queue.locked { $0.removeAll() }
+        XCTAssertEqual(jobs.adoptOddFolders(), ["dwarf-king"])
+        XCTAssertTrue(fm.fileExists(atPath: runs.appendingPathComponent("dwarf-king/dwarf-king.stl").path))
     }
 
     /// Undo for Move to Trash, with a folder standing in for the Trash.
