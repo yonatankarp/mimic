@@ -115,7 +115,7 @@ public enum Gallery {
             let settings = MiniSettings.load(mini.folder)
             var own = sizes
             own.noBase = (settings.made ?? settings.requested)?.noBase ?? (settings.kind == .object)
-            if own.noBase { own.shape = .round; own.style = .plain }  // as it reads back: no base has no shape
+            if own.noBase { own.shape = .round; own.style = .plain; own.magnet = nil }  // as it reads back: no base has no shape
             if !mini.hasModel || busy.contains(mini.name) { skipped += 1 }
             else if settings.made == own { same += 1 }
             else { resize.append((mini, own)) }

@@ -2,6 +2,11 @@
 
 What's new in each version of Mimic. The release workflow publishes a version's section here as its release notes, so write it for people who use Mimic, not for developers.
 
+## 0.8.0
+
+### New
+- **A magnet hole under the base.** In New Mini or Resize, open Size & printer → Advanced and choose a 5 × 2, 6 × 2 or 8 × 3 mm magnet: a hole with a little room to spare goes up into the base, which gets a little taller to fit it. Resize, Try Again and Make Another Version keep it. In Terminal: `--magnet 5x2`.
+
 ## 0.7.0
 
 ### New

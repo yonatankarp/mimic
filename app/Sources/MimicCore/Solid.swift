@@ -12,7 +12,13 @@ import simd
 /// and a mesh turned inside out still reads as solid.
 struct Solid {
     /// `radius` is half the base's width: to a round base's rim, a square's or a hex's flat sides.
-    struct Base { var radius: Float, height: Float, bevel: Float, shape = BaseShape.round, floor = Floor(.plain) }
+    struct Base { var radius: Float, height: Float, bevel: Float, shape = BaseShape.round, floor = Floor(.plain), hole: Hole? = nil }
+
+    /// A round hole up into the base from underneath, for a magnet: `radius` across and up to
+    /// `top`, from below the bottom so it opens cleanly. Cut from the whole solid, not only the
+    /// base, so a wisp sunk into the base can't fill it back in. Centred, like the base, so it
+    /// fits a round, square or hex one alike.
+    struct Hole { var radius: Float, top: Float }
 
     /// A floor pressed into the top of the base: stones, cobbles or planks, their seams cut
     /// `depth` deep. Shallower than the 0.6 mm the feet are sunk, so wherever a foot stands,
@@ -177,6 +183,13 @@ struct Solid {
         let vertical = max(p.z - top, -p.z)
         if side > 0 && vertical > 0 { return (side * side + vertical * vertical).squareRoot() }
         return max(side, vertical)
+    }
+
+    /// Signed distance from p to the hole: a cylinder about the z axis, open downward.
+    static func holeDistance(_ p: SIMD3<Float>, _ hole: Hole) -> Float {
+        let side = (p.x * p.x + p.y * p.y).squareRoot() - hole.radius, up = p.z - hole.top
+        if side > 0 && up > 0 { return (side * side + up * up).squareRoot() }
+        return max(side, up)
     }
 
     /// How far below the base's top the floor is at (x, y): 0 on a stone or plank, `depth` in
@@ -375,7 +388,11 @@ struct Solid {
                     let inside = at < end && columns.z[at] <= z
                     let d = field[k * layer + col].squareRoot()
                     var v = inside ? -max(d + inflate, tiny) : d - inflate
-                    if let base { v = min(v, baseDistance(SIMD3(origin.x + Float(i) * h, origin.y + Float(j) * h, z), base)) }
+                    if let base {
+                        let p = SIMD3(origin.x + Float(i) * h, origin.y + Float(j) * h, z)
+                        v = min(v, baseDistance(p, base))
+                        if let hole = base.hole { v = max(v, -Self.holeDistance(p, hole)) }
+                    }
                     if let cut { v = max(v, cut - z) }
                     if abs(v) < tiny { v = tiny }
                     field[k * layer + col] = v

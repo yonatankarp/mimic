@@ -37,6 +37,7 @@ public struct SizeCard: Equatable, Sendable {
     public var noBase = false
     public var shape = BaseShape.round
     public var style = BaseStyle.plain
+    public var magnet: Magnet?
     public private(set) var heightTouched = false, baseTouched = false, inflateTouched = false
     /// The line under the size choices, and whether it's a warning.
     public private(set) var note = ""
@@ -77,7 +78,7 @@ public struct SizeCard: Equatable, Sendable {
         inflateTouched = madeInflate != nil
         inflate = madeInflate.map { Self.clamp($0, Self.inflateRange, step: 0.01) } ?? Self.inflateFor(nozzle)
         noBase = made.noBase
-        if !made.noBase { shape = made.shape; style = made.style }  // no base keeps the last ones chosen, for if one is added
+        if !made.noBase { shape = made.shape; style = made.style; magnet = made.magnet }  // no base keeps the last ones chosen, for if one is added
         // The choice shown is the one these sizes match, not the last New Mini's.
         // An object's one choice is its suggested size.
         if kind == .object { purpose = height == Self.objectSize[nozzle] ? .display : nil }
@@ -91,7 +92,7 @@ public struct SizeCard: Equatable, Sendable {
     /// otherwise print prep picks it from the nozzle itself.
     public var sizes: Sizes {
         Sizes(height: Self.text(height), base: Self.text(base), nozzle: nozzle,
-              inflate: inflateTouched ? Self.text(inflate) : nil, noBase: noBase, shape: shape, style: style)
+              inflate: inflateTouched ? Self.text(inflate) : nil, noBase: noBase, shape: shape, style: style, magnet: magnet)
     }
 
     private mutating func resuggest() { heightTouched = false; baseTouched = false; suggest() }
@@ -243,7 +244,7 @@ public struct PrintTips: Sendable {
     public static func made(_ made: Sizes, kind: MiniKind = .character) -> [(label: String, value: String)] {
         [(kind == .object ? "Longest side" : "Character", "\(mm(made.height, 32)) mm"),
          ("Base", kind == .object && made.noBase ? "None" : "\(mm(made.base, 25)) mm" + (made.shape == .round ? "" : " \(made.shape.rawValue)")
-            + (made.style == .plain ? "" : ", \(made.style.words)")),
+            + (made.style == .plain ? "" : ", \(made.style.words)") + (made.magnet.map { ", \($0.words) magnet hole" } ?? "")),
          ("Nozzle", "\(made.nozzle ?? "0.4") mm")]
     }
 
