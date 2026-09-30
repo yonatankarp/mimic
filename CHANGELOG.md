@@ -4,6 +4,10 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 
 ## 0.8.0
 
+### New
+
+### Changed
+
 ### Fixed
 - **Quitting while a mini is being made no longer throws it away.** It goes back to the front of the queue and carries on from the last step it finished the next time you open Mimic. Logging out or restarting your Mac doesn't wait for an answer either.
 
