@@ -127,7 +127,7 @@ struct MakeView: View {
                 } else if let message {
                     Text(message).foregroundStyle(.secondary)
                 } else {
-                    Text(timing).foregroundStyle(.secondary)
+                    Label(timing, systemImage: "timer").foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button("Cancel") { TourGuide.shared.newMiniCancelled(); model.sheet = nil }.keyboardShortcut(.cancelAction)
@@ -297,14 +297,14 @@ struct MakeView: View {
         model.estimateNew(drawn: start == .description || (restyle && health.drawThingsReady), sizes: card.sizes)
     }
 
-    /// "⏱ About 8 minutes on this Mac", or when it would wait: how long until it's ready.
+    /// "About 8 minutes on this Mac", or when it would wait: how long until it's ready.
     private var timing: String {
         let e = estimate
         let own = "\(JobProgress.about(e.total).capitalizedFirst)\(e.learned ? " on this Mac" : "")"
-        guard model.current != nil else { return "⏱ \(own)" }
+        guard model.current != nil else { return own }
         let ahead = model.queue.count + 1
         let ready = model.queueTimes().last?.ready ?? model.runningLeft()
-        return "⏱ Joins the queue, \(ahead) ahead · ready in \(JobProgress.about(ready + e.total))"
+        return "Joins the queue, \(ahead) ahead · ready in \(JobProgress.about(ready + e.total))"
     }
 
     private var trimmedDescription: String { description.trimmingCharacters(in: .whitespacesAndNewlines) }
