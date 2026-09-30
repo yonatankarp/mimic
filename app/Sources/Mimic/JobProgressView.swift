@@ -453,10 +453,13 @@ struct MainWindowChrome: ViewModifier {
         Binding(get: { model.problem != nil }, set: { if !$0 { model.problem = nil } })
     }
     @Environment(AppModel.self) private var model
+    /// The window's size under its toolbar: New Mini and Resize grow up to it.
+    @State private var room = CGSize(width: 960, height: 640)
 
     func body(content: Content) -> some View {
         @Bindable var model = model
         content
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { room = $0 }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) { UpdateToolbarItem() }
                 ToolbarItem(placement: .primaryAction) { JobToolbarItem() }
@@ -475,12 +478,14 @@ struct MainWindowChrome: ViewModifier {
                         .tourCallout(.newMini)
                 }
             }
-            .sheet(item: $model.sheet) { sheet in
+            // [room]: read here, so a new window size reaches the sheets (read only inside the
+            // closure, the sheet kept getting the starting 640).
+            .sheet(item: $model.sheet) { [room] sheet in
                 switch sheet {
-                case .make: MakeView()
-                case .resize(let mini): ResizeView(mini: mini)
+                case .make: MakeView(room: room)
+                case .resize(let mini): ResizeView(mini: mini, room: room)
                 case .resizeAll(let p):
-                    if let first = model.minis.first(where: { $0.project == p && $0.hasModel }) { ResizeView(mini: first, project: p) }
+                    if let first = model.minis.first(where: { $0.project == p && $0.hasModel }) { ResizeView(mini: first, project: p, room: room) }
                 case .rename(let mini): RenameSheet(mini: mini)
                 case .newProject(let mini): ProjectNameSheet(renaming: nil, moving: mini)
                 case .renameProject(let p): ProjectNameSheet(renaming: p)

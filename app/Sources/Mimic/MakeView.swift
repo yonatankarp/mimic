@@ -21,8 +21,16 @@ struct MakeView: View {
     @State private var name = ""
     @State private var seed = 42
     @State private var card = SizeCard.remembered()
-    /// Worked out once, as the sheet opens: the main window can stop being main while it's up.
-    @State private var height = sheetHeight(needs: 720)
+    /// The main window's size under its toolbar: as big as the sheet can grow.
+    let room: CGSize
+    @State private var height: CGFloat
+    /// What the two columns need, for `fitsForms`.
+    @State private var forms = FormHeights(columns: 2)
+
+    init(room: CGSize) {
+        self.room = room
+        _height = State(initialValue: min(720, room.height - 8))
+    }
     @State private var message: String?
     @State private var messageIsError = false
     /// The raw error behind a message, for the tooltip only.
@@ -95,9 +103,11 @@ struct MakeView: View {
                 }
             }
             .formStyle(.grouped)
+            .reportsHeight(0, into: $forms)
             Form { SizeSection(card: $card, seed: $seed) }
                 .formStyle(.grouped)
-                .frame(width: 540)  // wide enough that most hints take one line
+                .reportsHeight(1, into: $forms)
+                .frame(width: 540)  // most hints on one line; the picture's column gets the rest
             }
             // The tour's stops in here can be scrolled out of sight (a popover on a control out of
             // sight doesn't show), so the forms bring each one into view as the tour gets to it.
@@ -138,7 +148,9 @@ struct MakeView: View {
             project = model.makeInProject ?? model.selected?.project ?? ""
             model.makeInProject = nil
         }
-        .frame(width: 920, height: height)
+        // 1000 from the default window up (460 for the picture's column); the smallest takes 940.
+        .frame(width: min(1000, room.width - 20), height: height)
+        .fitsForms($height, $forms, room: room.height)
         .onChange(of: card.kind) { _, k in
             UserDefaults.standard.set(k.rawValue, forKey: "kind")
             improved = nil  // written for the other kind
@@ -376,13 +388,18 @@ struct ResizeView: View {
     var project: String?
     @Environment(AppModel.self) private var model
     @State private var card: SizeCard
-    @State private var height = sheetHeight(needs: 760)
+    /// The main window's size under its toolbar: as big as the sheet can grow.
+    let room: CGSize
+    @State private var height: CGFloat
+    @State private var forms = FormHeights(columns: 1)
     /// A refused resize: in words for people, and the raw error for the tooltip.
     @State private var problem: (words: String, detail: String)?
 
-    init(mini: Mini, project: String? = nil) {
+    init(mini: Mini, project: String? = nil, room: CGSize) {
         self.mini = mini
         self.project = project
+        self.room = room
+        _height = State(initialValue: min(720, room.height - 8))
         var c = SizeCard.remembered()
         let saved = MiniSettings.load(mini.folder)
         c.setKind(saved.kind ?? .character)  // before the sizes: choosing a kind suggests sizes afresh
@@ -404,6 +421,7 @@ struct ResizeView: View {
             .padding([.horizontal, .top], 20)
             Form { SizeSection(card: $card, seed: nil) }
                 .formStyle(.grouped)
+                .reportsHeight(0, into: $forms)
             Divider()
             HStack(alignment: .firstTextBaseline) {
                 if let reason = model.cantStart {
@@ -428,16 +446,44 @@ struct ResizeView: View {
             .fixedSize(horizontal: false, vertical: true)
         }
         .frame(width: 580, height: height)
+        .fitsForms($height, $forms, room: room.height)
     }
 
     private var takes: String { JobProgress.about(model.estimate(mini.name, .prep, sizes: card.sizes).total) }
 }
 
-/// A sheet's height: `needs` (the whole size card in Game scale, its tallest) where the main
-/// window has room under its toolbar, as at its default size; never under 640, which fits the
-/// smallest window and scrolls the rest. The window stays main while its sheet is key.
-@MainActor func sheetHeight(needs: CGFloat) -> CGFloat {
-    max(640, min(needs, (NSApp.mainWindow?.contentLayoutRect.height ?? 0) - 8))
+/// What a sheet's side-by-side forms need, for `fitsForms`: each one's content height, and the
+/// height they're shown at (the same for all of them).
+struct FormHeights: Equatable {
+    var content: [CGFloat]
+    var shown: CGFloat = 0
+    /// The sheet's height around the forms (title and buttons), taken from the first report.
+    var chrome: CGFloat?
+    init(columns: Int) { content = Array(repeating: 0, count: columns) }
+}
+
+extension View {
+    /// Keeps `forms` up to date with this form, column `column` of them.
+    func reportsHeight(_ column: Int, into forms: Binding<FormHeights>) -> some View {
+        onScrollGeometryChange(for: CGSize.self) { CGSize(width: $0.contentSize.height, height: $0.containerSize.height) } action: { _, g in
+            forms.wrappedValue.content[column] = g.width
+            forms.wrappedValue.shown = g.height
+        }
+    }
+
+    /// Makes `height` fit the sheet's tallest form without scrolling, as far as `room` (the main
+    /// window's height under its toolbar) allows; a smaller window scrolls the rest. Worked out
+    /// from the content, which doesn't change with the sheet's height: the forms' own height
+    /// lags a resize, and following it overshot.
+    func fitsForms(_ height: Binding<CGFloat>, _ forms: Binding<FormHeights>, room: CGFloat) -> some View {
+        onChange(of: forms.wrappedValue, initial: true) { _, f in
+            guard f.shown > 0, !f.content.contains(0), let tallest = f.content.max() else { return }  // all reported
+            let chrome = f.chrome ?? height.wrappedValue - f.shown
+            if f.chrome == nil { forms.wrappedValue.chrome = chrome }
+            let fitted = min((chrome + tallest).rounded(.up), room - 8)
+            if abs(fitted - height.wrappedValue) >= 1 { height.wrappedValue = fitted }
+        }
+    }
 }
 
 /// Why Make or Resize can't start, with a way to Settings when the reason is the setup
