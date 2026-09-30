@@ -25,7 +25,7 @@ struct MiniDetail: View {
 
     var body: some View {
         @Bindable var model = model
-        let settings = MiniSettings.load(mini.folder)
+        let settings = mini.settings
         let versions = Gallery.versions(of: mini, in: model.minis)
         // One being made stays where it is.
         let trashable = versions.filter { $0.name != mini.name && $0.name != model.busyWith }.count
@@ -38,7 +38,7 @@ struct MiniDetail: View {
             }
             .confirmationDialog("Move \(trashable) other \(trashable == 1 ? "version" : "versions") to the Trash?", isPresented: $confirmKeep) {
                 Button("Move to Trash", role: .destructive) {
-                    let root = MiniSettings.load(mini.folder).versionOf ?? mini.name
+                    let root = mini.settings.versionOf ?? mini.name
                     guard model.keep(mini), root != mini.name, !Gallery.nameInUse(model.install.runs, root),
                           model.waiting(mini.name) == nil, model.busyWith != mini.name else { return }
                     Task { offerName = root }  // once this dialog has gone
@@ -87,7 +87,7 @@ struct MiniDetail: View {
             }
         } else if model.canRetry(mini) {
             // Didn't finish (#78): why, as saved when it failed, and Try Again.
-            let settings = MiniSettings.load(mini.folder)
+            let settings = mini.settings
             ContentUnavailableView {
                 Label("This mini didn't finish", systemImage: "exclamationmark.triangle")
             } description: {
@@ -106,7 +106,7 @@ struct MiniDetail: View {
     /// What the run that made it wants you to know, over the view where it can't be missed: kept
     /// with the mini (#80), so it's still said after a relaunch, until a resize replaces it.
     @ViewBuilder private var notes: some View {
-        let saved = MiniSettings.load(mini.folder)
+        let saved = mini.settings
         let lines = (saved.notes ?? []) + (saved.fragile == true ? ["Some thin parts may be fragile. Check it in your slicer before printing."] : [])
         if !lines.isEmpty {
             VStack(alignment: .leading, spacing: 6) {

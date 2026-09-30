@@ -3,6 +3,36 @@ import XCTest
 
 /// Ported from tests/test_rename.py.
 final class GalleryTests: XCTestCase {
+    /// A mini's settings are read once, with the list (#95): what the list and its page ask of a
+    /// mini afterwards comes from the value, however often a redraw asks. Planted by changing
+    /// every file after the list was read: an answer read from disk would see the change.
+    func testSettingsAreReadWithTheListNotOnEveryCall() throws {
+        let fx = try Fixture(), runs = fx.install.runs
+        let made = Sizes(height: "32", base: "25", nozzle: "0.4")
+        try MiniSettings.update(try fx.mini("dwarf")) { $0.source = .desc; $0.desc = "a dwarf"; $0.requested = made; $0.made = made }
+        for v in ["dwarf-2", "dwarf-3"] { try MiniSettings.update(try fx.mini(v)) { $0.versionOf = "dwarf"; $0.made = made } }
+        let minis = Gallery.list(runs), dwarf = minis.first { $0.name == "dwarf" }!
+        for m in minis { try Data("{}".utf8).write(to: m.folder.appendingPathComponent("settings.json")) }
+        XCTAssertEqual(dwarf.settings.made, made)
+        XCTAssertEqual(Gallery.versions(of: dwarf, in: minis).map(\.name), ["dwarf", "dwarf-2", "dwarf-3"])
+        XCTAssertTrue(JobRunner.canMakeAnotherVersion(dwarf))
+        XCTAssertEqual(Gallery.toResize(minis, to: made, busy: []).same, 3)
+        XCTAssertNil(Gallery.list(runs).first { $0.name == "dwarf" }!.settings.made, "a reload reads them again")
+    }
+
+    /// A reload notices settings that changed while the files it's named by didn't: a run that
+    /// failed, or a rename that moved its versions to a new first one. Otherwise the list, which
+    /// only takes a new list that differs, would go on showing the old ones.
+    func testAReloadNoticesChangedSettings() throws {
+        let fx = try Fixture(), runs = fx.install.runs
+        let folder = try fx.mini("dwarf")
+        let before = Gallery.list(runs)
+        try MiniSettings.update(folder) { $0.failed = "It stopped while drawing it." }
+        let after = Gallery.list(runs)
+        XCTAssertNotEqual(after, before)
+        XCTAssertEqual(after.first?.settings.failed, "It stopped while drawing it.")
+    }
+
     func testRenameMovesTheFolderAndEveryFileNamedAfterIt() throws {
         let fx = try Fixture(); _ = try fx.mini("dwarf")
         try Gallery.rename(fx.install.runs, from: "dwarf", to: "dwarf-cleric")
