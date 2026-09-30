@@ -2,91 +2,152 @@ import AppKit
 import MimicCore
 import SwiftUI
 
-/// The Settings window (⌘,): is everything set up, which app opens minis, and where they are.
+/// Settings' tabs. Whoever opens Settings for a reason picks the tab first (`select`), and the
+/// window, open or not, follows: the key is the tab picker's own.
+enum SettingsTab: String {
+    case general, model, drawThings, advanced
+    static let key = "settingsTab"
+    func select() { UserDefaults.standard.set(rawValue, forKey: Self.key) }
+}
+
+/// Opens Settings, on `tab` when given, else where it was left: "Open Settings" wherever Mimic
+/// needs something set up.
+struct OpenSettingsButton<Content: View>: View {
+    var tab: SettingsTab?
+    @ViewBuilder let label: Content
+    @Environment(\.openSettings) private var openSettings
+
+    var body: some View {
+        Button { tab?.select(); openSettings() } label: { label }
+    }
+}
+
+/// The Settings window (⌘,): is everything set up, which 3D model, Draw Things and the AI
+/// helper, and the rest.
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
     private var health: Health { .shared }
+    @AppStorage(SettingsTab.key) private var tab = SettingsTab.general
     @AppStorage("slicer") private var slicer = ""
     @AppStorage(DrawThingsApp.enabledKey) private var openDrawThings = true
     @State private var slicers: [Slicer] = []
+    /// The same for every tab, so switching changes only the height.
+    private static let width: CGFloat = 540
 
     var body: some View {
-        Form {
-            Section {
-                ForEach(health.checks.filter(\.required)) { row($0) }
-            } header: {
-                Text("Needed to make minis")
+        TabView(selection: $tab) {
+            Tab("General", systemImage: "gearshape", value: .general) { pane { general } }
+            if EngineDownload.catalogue.count > 1 {
+                Tab("3D Model", systemImage: "cube", value: .model) { pane { ModelsSection() } }
             }
-            Section {
-                ForEach(health.checks.filter { !$0.required }) { row($0) }
-                Toggle("Open Draw Things when needed", isOn: $openDrawThings)
-                    .help("When a mini needs a picture drawn, Mimic opens Draw Things in the background, and quits it afterwards if Mimic was the one that opened it.")
-                    .onChange(of: openDrawThings) { if !model.running { health.check(model.install) } }
-            } header: {
-                Text("Optional")
-            } footer: {
-                HStack {
-                    Text(summary).foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Check Again") { health.check(model.install) }.disabled(health.running || model.running)
-                }
-            }
-            if Checks.drawThingsIDs.contains(where: { health.results[$0]?.ok == false }) {
-                Section {
-                    DrawThingsSteps()
-                } header: {
-                    Text("Set up Draw Things")
-                } footer: {
-                    Text("Pictures work right away. To describe a character or turn a picture into a grey sculpt, Mimic needs the free Draw Things app. This list updates on its own.")
-                        .foregroundStyle(.secondary)
-                }
-            }
-            if EngineDownload.catalogue.count > 1 { ModelsSection() }
-            HelperSection()
-            Section {
-                Picker("Open minis in", selection: slicerChoice) {
-                    ForEach(slicers) { Text($0.name).tag($0.id) }
-                    Text("Mac's default app for 3D files").tag(Slicer.macDefault)
-                }
-                .help("Where Open in … sends a finished mini. The Mac's default app is whatever opens .stl files when you double-click one.")
-            } footer: {
-                Text("Mimic lists the slicers it finds on this Mac. The Mac's default app works with any other slicer.")
-                    .foregroundStyle(.secondary)
-            }
-            Section {
-                LabeledContent {
-                    Button("Open Minis Folder") {
-                        // A new Mac has none until the first mini.
-                        try? FileManager.default.createDirectory(at: model.install.runs, withIntermediateDirectories: true)
-                        NSWorkspace.shared.open(model.install.runs)
-                    }
-                } label: {
-                    Text("Your minis are saved in")
-                    Text((model.install.runs.path as NSString).abbreviatingWithTildeInPath)
-                }
-            }
-            TimingsSection()
-            TerminalSection()
-            UpdatesSection()
-            ResetSection()
-            Section {
-                // Selectable, so it can be copied into a bug report.
-                Text(BuildInfo.line).font(.callout.monospacedDigit()).foregroundStyle(.secondary).textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .help("Which Mimic this is. Include it when you report a problem.")
-            }
+            Tab("Draw Things & AI", systemImage: "wand.and.sparkles", value: .drawThings) { pane { drawThings } }
+            Tab("Advanced", systemImage: "gearshape.2", value: .advanced) { pane { advanced } }
         }
-        .formStyle(.grouped)
-        .frame(width: 520, height: 640)
+        // Here, not in a tab: a tab's views go when another is shown, and these must keep going.
         .onChange(of: model.running) { _, running in if !running { health.check(model.install) } }
         .task {
             slicers = Slicer.installed()
             // The checks start the 3D engine, which a running job is already using
-            // heavily; they run when it ends instead (below).
+            // heavily; they run when it ends instead (above).
             if !model.running { health.check(model.install) }
             // Cancelled when the window closes, which ends the watching.
             await health.watchDrawThings(model.install)
         }
+    }
+
+    /// A tab: a grouped form as tall as what's in it.
+    private func pane(@ViewBuilder _ content: () -> some View) -> some View {
+        Form(content: content).formStyle(.grouped).frame(width: Self.width)
+    }
+
+    @ViewBuilder private var general: some View {
+        Section {
+            ForEach(health.checks.filter(\.required)) { row($0) }
+        } header: {
+            Text("Needed to make minis")
+        }
+        Section {
+            ForEach(health.checks.filter { !$0.required }) { row($0) }
+            Toggle("Open Draw Things when needed", isOn: $openDrawThings)
+                .help("When a mini needs a picture drawn, Mimic opens Draw Things in the background, and quits it afterwards if Mimic was the one that opened it.")
+                .onChange(of: openDrawThings) { if !model.running { health.check(model.install) } }
+            if drawThingsProblem {
+                // The steps are on their own tab now; this is the way there.
+                LabeledContent("Draw Things isn't set up yet") {
+                    Button("Set Up Draw Things…") { tab = .drawThings }
+                }
+            }
+        } header: {
+            Text("Optional")
+        } footer: {
+            HStack {
+                Text(summary).foregroundStyle(.secondary)
+                Spacer()
+                Button("Check Again") { health.check(model.install) }.disabled(health.running || model.running)
+            }
+        }
+        Section {
+            Picker("Open minis in", selection: slicerChoice) {
+                ForEach(slicers) { Text($0.name).tag($0.id) }
+                Text("Mac's default app for 3D files").tag(Slicer.macDefault)
+            }
+            .help("Where Open in … sends a finished mini. The Mac's default app is whatever opens .stl files when you double-click one.")
+        } footer: {
+            Text("Mimic lists the slicers it finds on this Mac. The Mac's default app works with any other slicer.")
+                .foregroundStyle(.secondary)
+        }
+        Section {
+            LabeledContent {
+                Button("Open Minis Folder") {
+                    // A new Mac has none until the first mini.
+                    try? FileManager.default.createDirectory(at: model.install.runs, withIntermediateDirectories: true)
+                    NSWorkspace.shared.open(model.install.runs)
+                }
+            } label: {
+                Text("Your minis are saved in")
+                Text((model.install.runs.path as NSString).abbreviatingWithTildeInPath)
+            }
+        }
+        UpdatesSection()
+    }
+
+    @ViewBuilder private var drawThings: some View {
+        if drawThingsProblem {
+            Section {
+                DrawThingsSteps()
+            } header: {
+                Text("Set up Draw Things")
+            } footer: {
+                Text("Pictures work right away. To describe a character or turn a picture into a grey sculpt, Mimic needs the free Draw Things app. This list updates on its own.")
+                    .foregroundStyle(.secondary)
+            }
+        } else if health.drawThingsReady {
+            Section {
+                SetupStep(done: true, title: "Draw Things is set up.",
+                          detail: health.drawThingsOpensWhenNeeded ? "Mimic opens it when it needs it." : nil)
+            } header: {
+                Text("Draw Things")
+            }
+        }
+        HelperSection()
+    }
+
+    @ViewBuilder private var advanced: some View {
+        TimingsSection()
+        TerminalSection()
+        ResetSection()
+        Section {
+            // Selectable, so it can be copied into a bug report.
+            Text(BuildInfo.line).font(.callout.monospacedDigit()).foregroundStyle(.secondary).textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .help("Which Mimic this is. Include it when you report a problem.")
+        }
+    }
+
+    /// A Draw Things check came back failed: its setup steps show. Not while it's being
+    /// checked, or they'd flash up every time.
+    private var drawThingsProblem: Bool {
+        Checks.drawThingsIDs.contains { health.results[$0]?.ok == false }
     }
 
     /// A check's row. Its place in the list staggers its result a little, so answers that come

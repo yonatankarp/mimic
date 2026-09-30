@@ -6,6 +6,10 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 
 ### Changed
 - **Mimic now needs macOS 26 (Tahoe).** Every Mac that runs Mimic can update to it for free, in System Settings → General → Software Update.
+- **Settings is organised into tabs:** General, 3D Model, Draw Things & AI, and Advanced. Each is only as tall as what's in it, and Open Settings from New Mini or a mini that needs Draw Things goes straight to the right one.
+
+### Fixed
+- Settings says TRELLIS.2 takes about 14 minutes a mini, as measured, not 12. Once you've made a few minis, it shows the time for your Mac instead, as before.
 
 ## 0.6.0
 

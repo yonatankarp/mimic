@@ -222,7 +222,7 @@ struct MakeView: View {
         HStack(alignment: .firstTextBaseline) {
             Text(text).foregroundStyle(.secondary)
             Spacer()
-            SettingsLink { Text("Open Settings") }
+            OpenSettingsButton(tab: .drawThings) { Text("Open Settings") }
         }
         .font(.callout)
     }
@@ -429,7 +429,7 @@ struct CantStart: View {
     let reason: String
     var body: some View {
         Label(reason, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-        if model.requiredProblem != nil { SettingsLink { Text("Open Settings") } }
+        if model.requiredProblem != nil { OpenSettingsButton(tab: .general) { Text("Open Settings") } }
     }
 }
 

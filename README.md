@@ -117,7 +117,7 @@ flowchart TD
 ### From a terminal
 
 The app is also a `mimic` command, with the same engine. To add it to your Terminal, open
-**Settings → Use Mimic from Terminal** and paste the command it shows (it asks for your Mac
+**Settings → Advanced → Use Mimic from Terminal** and paste the command it shows (it asks for your Mac
 password once). Finish the app's first-launch download first: `make` and `retry` need it.
 
 ```bash
