@@ -202,23 +202,6 @@ final class GalleryTests: XCTestCase {
         let withPicture = [MiniPreview(caption: "Picture", url: d)] + mini.previews
         XCTAssertEqual(vertical(withPicture, wide: 1), ["-", "Front", "Picture", "Back", "Picture", "-", "Front", "-"])
     }
-}
-
-final class SlicerTests: XCTestCase {
-    func testFindsInstalledSlicersAndHonoursThePick() throws {
-        let apps = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        for b in ["OrcaSlicer.app", "BambuStudio.app"] {
-            try FileManager.default.createDirectory(at: apps.appendingPathComponent(b), withIntermediateDirectories: true)
-        }
-        XCTAssertEqual(Slicer.installed(in: [apps]).map(\.id), ["bambu", "orca"])
-        let d = UserDefaults(suiteName: UUID().uuidString)!
-        XCTAssertEqual(Slicer.preferred(defaults: d, in: [apps])?.id, "bambu", "the first installed when none is picked")
-        d.set("orca", forKey: "slicer")
-        XCTAssertEqual(Slicer.preferred(defaults: d, in: [apps])?.id, "orca")
-        d.set("cura", forKey: "slicer")
-        XCTAssertEqual(Slicer.preferred(defaults: d, in: [apps])?.id, "bambu", "a picked slicer that's gone falls back")
-        XCTAssertNil(Slicer.preferred(defaults: d, in: [apps.appendingPathComponent("none")]))
-    }
 
     /// `mimic list` printed "2026-09-30 16:23:01 +0000". Time zones are given, so this passes
     /// wherever it runs.
@@ -236,5 +219,22 @@ final class SlicerTests: XCTestCase {
         let newYear = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-01-01T10:00:00Z"))
         XCTAssertEqual(Mini.listDate(eve, now: newYear, timeZone: berlin), "1 Jan, 00:30")
         XCTAssertEqual(Mini.listDate(eve, now: newYear, timeZone: utc), "31 Dec 2025, 23:30")
+    }
+}
+
+final class SlicerTests: XCTestCase {
+    func testFindsInstalledSlicersAndHonoursThePick() throws {
+        let apps = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        for b in ["OrcaSlicer.app", "BambuStudio.app"] {
+            try FileManager.default.createDirectory(at: apps.appendingPathComponent(b), withIntermediateDirectories: true)
+        }
+        XCTAssertEqual(Slicer.installed(in: [apps]).map(\.id), ["bambu", "orca"])
+        let d = UserDefaults(suiteName: UUID().uuidString)!
+        XCTAssertEqual(Slicer.preferred(defaults: d, in: [apps])?.id, "bambu", "the first installed when none is picked")
+        d.set("orca", forKey: "slicer")
+        XCTAssertEqual(Slicer.preferred(defaults: d, in: [apps])?.id, "orca")
+        d.set("cura", forKey: "slicer")
+        XCTAssertEqual(Slicer.preferred(defaults: d, in: [apps])?.id, "bambu", "a picked slicer that's gone falls back")
+        XCTAssertNil(Slicer.preferred(defaults: d, in: [apps.appendingPathComponent("none")]))
     }
 }
