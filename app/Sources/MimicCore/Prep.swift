@@ -224,8 +224,11 @@ public enum Prep {
 
         // A fine voxel keeps detail but makes millions of faces; collapsing a dense, even mesh
         // back down loses nothing a 0.2 mm nozzle can print and keeps the STL openable.
-        if out.triangles.count > o.faces {
-            out = Decimate.run(consume out, target: o.faces)
+        // A floor on the base keeps its seams, where a plain top collapses to a few faces: it
+        // took ~5% of them from the figure (100 mm tiefling, 50 mm base), so it gets that more.
+        let faces = o.noBase || o.baseStyle == .plain ? o.faces : o.faces + o.faces / 16
+        if out.triangles.count > faces {
+            out = Decimate.run(consume out, target: faces)
             lap("trimmed to \(out.triangles.count) triangles")
         }
 

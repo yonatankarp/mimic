@@ -584,19 +584,24 @@ struct SizeSection: View {
                        hint: "Set for you by the choices above; type a value or drag to change it. The base adds about 2 mm.")
             }
             if !object || !card.noBase {
-                Picker(selection: $card.shape) {
-                    Label("Round", systemImage: "circle").tag(BaseShape.round)
-                    Label("Square", systemImage: "square").tag(BaseShape.square)
-                    Label("Hex", systemImage: "hexagon").tag(BaseShape.hex)
-                } label: {
-                    Text("Base")
+                // Shape and top on one row, so the column still fits unscrolled.
+                LabeledContent("Base") {
+                    HStack {
+                        Picker("Shape", selection: $card.shape) {
+                            Text("Round").tag(BaseShape.round)
+                            Text("Square").tag(BaseShape.square)
+                            Text("Hex").tag(BaseShape.hex)
+                        }
+                        .pickerStyle(.segmented).fixedSize()
+                        .help("Square and hex bases fit grid and hex maps; the figure faces one of the flat sides.")
+                        Picker("Top", selection: $card.style) {
+                            ForEach(BaseStyle.allCases, id: \.self) { Text($0.words.capitalizedFirst).tag($0) }
+                        }
+                        .fixedSize()
+                        .help("The top of the base: plain, or a floor pressed into it, deep enough to print (flagstones, planks or cobblestones). The figure's feet still sit firmly on it.")
+                    }
+                    .labelsHidden()
                 }
-                .pickerStyle(.segmented)
-                .help("Square and hex bases fit grid and hex maps; the figure faces one of the flat sides.")
-                Picker("Top of the base", selection: $card.style) {
-                    ForEach(BaseStyle.allCases, id: \.self) { Text($0.words.capitalizedFirst).tag($0) }
-                }
-                .help("A floor pressed into the top of the base, deep enough to print: flagstones, planks or cobblestones. The figure's feet still sit firmly on it.")
                 slider("Base size", \.base, { $0.setBase($1) }, SizeCard.baseRange, unit: "mm",
                        hint: card.shape == .hex ? "Across the flat sides." : nil)
                     .help(baseHelp)
