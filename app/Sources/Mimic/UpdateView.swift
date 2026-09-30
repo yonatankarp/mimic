@@ -50,6 +50,7 @@ final class Updater: NSObject, SPUUpdaterDelegate {
         model?.sheet = nil; model?.problem = nil; model?.trashing = nil; model?.deletingProject = nil
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(0.5))
+            if busy { self.relaunch = relaunch; return }  // a mini started meanwhile, maybe in another Mimic
             relaunch()
         }
     }
