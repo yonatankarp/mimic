@@ -1,8 +1,8 @@
 import MimicCore
 import SwiftUI
 
-/// Describe it's ✨ box: asks the AI helper for a fuller description and shows it for editing.
-/// Shows nothing while no helper is chosen, so Describe it stays as it always was.
+/// Description's Improve box: asks the AI helper for a fuller description and shows it for editing.
+/// Shows nothing while no helper is chosen, so Description stays as it always was.
 struct ImproveBox: View {
     /// What the person typed.
     let description: String
@@ -21,22 +21,22 @@ struct ImproveBox: View {
                     HStack {
                         Label("Improved description", systemImage: "sparkles").font(.headline)
                         Spacer()
-                        Button("Use Mine Instead") { improved = nil }
-                            .help("Go back to the description you wrote. The improved one is dropped.")
+                        Button("Use Original") { improved = nil }
+                            .help("Go back to the description you wrote")
                     }
                     TextEditor(text: Binding(get: { improved ?? "" }, set: { improved = $0 }))
                         .frame(minHeight: 90)
                         .padding(4)
                         .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.secondary.opacity(0.4)))
                         .accessibilityLabel("Improved description")
-                    Text("Make My Mini draws from this one. Change anything you like.")
+                    Text("Make Mini draws from this one. Change anything you like.")
                         .font(.callout).foregroundStyle(.secondary)
                 }
             } else {
                 HStack(alignment: .firstTextBaseline) {
                     Button("Improve Description", systemImage: "sparkles") { improve() }.labelStyle(.titleAndIcon)
                         .disabled(working || description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        .help("The AI helper chosen in Settings writes a fuller description of your character. You can edit it or go back to yours.")
+                        .help("The AI helper writes a fuller description you can edit")
                     if working { ProgressView().controlSize(.small) }
                     if let problem { Text(problem).font(.callout).foregroundStyle(.secondary) }
                 }
@@ -84,16 +84,16 @@ struct HelperSection: View {
                 Text("OpenAI-compatible service").tag(HelperProvider.openai.rawValue)
                 Text("Ollama, on this Mac").tag(HelperProvider.ollama.rawValue)
             }
-            .help("Writes a fuller description of your character from a few words, in ✍️ Describe it.")
+            .help("Writes a fuller description from a few words, in New Mini")
             if current.isCloud { keyRow }
             if current == .openai {
                 TextField("Service address", text: $address, prompt: Text(HelperProvider.openai.defaultURL))
-                    .help("The service's API address. Leave blank for OpenAI; other services list theirs in their documentation.")
+                    .help("The service's API address; leave blank for OpenAI")
             }
             if current == .ollama { ollamaRow }
             if current != .off && current != .ollama {
                 TextField("Model", text: $model, prompt: Text(current.defaultModel.isEmpty ? "e.g. the model's name from the service" : current.defaultModel))
-                    .help(current == .anthropic ? "Blank uses Claude Haiku 4.5: quick and inexpensive for this." : "The model's name, as the service writes it.")
+                    .help(current == .anthropic ? "Blank uses Claude Haiku 4.5: quick and inexpensive" : "The model's name, as the service writes it")
             }
             if current != .off {
                 HStack(alignment: .firstTextBaseline) {
@@ -148,7 +148,7 @@ struct HelperSection: View {
             // Small models add glow and props the prompt rules out; a bigger one installed here does better.
             if let better = DescriptionHelper.recommendedOllama(ollamaModels), better != model {
                 HStack {
-                    Text("💡 \(better) is installed and follows the instructions better. It takes a few seconds longer.")
+                    Label("\(better) is installed and follows the instructions better. It takes a few seconds longer.", systemImage: "lightbulb")
                         .font(.callout).foregroundStyle(.secondary)
                     Spacer()
                     Button("Use It") { model = better }

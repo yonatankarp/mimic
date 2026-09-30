@@ -25,8 +25,14 @@ struct MimicApp: App {
                     Button("Check for Updates…") { model.updates.check() }
                 }
             }
+            // An action, not a setting: after Settings in the Mimic menu. The Settings scene adds its
+            // own Settings… (⌘,) after the `.appSettings` group, so `after: .appSettings` put the
+            // tool above it and `replacing:` gave two Settings items; before Services is below it.
+            CommandGroup(before: .systemServices) {
+                Button("Install Command-Line Tool…") { CommandLineTool.show() }
+            }
             CommandGroup(replacing: .newItem) {
-                Button("New Mini…") { model.sheet = .make }
+                Button("New Mini…") { model.showWindow(); model.sheet = .make }
                     .keyboardShortcut("n")
                     .disabled(!model.setup.installed)
             }
@@ -51,10 +57,22 @@ struct MimicApp: App {
 
 /// The Mini menu: what the buttons and the right-click menu do to the selected mini, with
 /// keyboard shortcuts. Disabled whenever a sheet is up, so a shortcut can't swap it out.
+/// The mini page's own toolbar and 3D view controls are in the View menu.
 struct MiniCommands: Commands {
     let model: AppModel
 
     var body: some Commands {
+        CommandGroup(after: .sidebar) {
+            Divider()
+            // ⌃⌘I as the system's inspector toggle, next to Show Sidebar's ⌃⌘S. The title follows
+            // the panel through the model, which the menus observe (as they do the selection).
+            Button(model.showDetails ? "Hide Details" : "Show Details") { model.showDetails.toggle() }
+                .keyboardShortcut("i", modifiers: [.command, .control])
+                .disabled(model.selected == nil)
+            Button("Face Front") { model.faceFrontRequests += 1 }
+                .keyboardShortcut("0")
+                .disabled(model.selected?.stl == nil || model.sheet != nil)
+        }
         CommandMenu("Mini") {
             let mini = model.selected, chosen = model.chosen, several = chosen.count > 1
             let free = model.sheet == nil
@@ -68,7 +86,7 @@ struct MiniCommands: Commands {
                     .disabled(mini?.stl == nil)
             }
             Button("Show in Finder") { model.showInFinder(chosen) }
-                .keyboardShortcut("r", modifiers: [.command, .shift])
+                .keyboardShortcut("r", modifiers: [.command, .option])
                 .disabled(chosen.isEmpty)
             Divider()
             if several {
@@ -83,13 +101,14 @@ struct MiniCommands: Commands {
             Button("Rename…") { if let mini { model.sheet = .rename(mini) } }
                 .disabled(mini == nil || !free || mini.flatMap { model.waiting($0.name) } != nil)
             Divider()
+            // No icons in the menu bar: the other items have none.
             if let mini, free {
-                AnotherVersionButton(mini: mini).environment(model)
+                AnotherVersionButton(mini: mini, showsIcon: false).environment(model)
             } else {
                 Button("Make Another Version") {}.disabled(true)
             }
             if free && !chosen.isEmpty {
-                MoveToProjectMenu(minis: chosen).environment(model)
+                MoveToProjectMenu(minis: chosen, showsIcon: false).environment(model)
             } else {
                 Button("Move to Project") {}.disabled(true)
             }
@@ -98,7 +117,13 @@ struct MiniCommands: Commands {
                 .keyboardShortcut("n", modifiers: [.command, .shift])
                 .disabled(!free || !model.setup.installed)
             Divider()
-            Button("Move to Trash…") { model.trashing = chosen }
+            // The job's toolbar item, from the keyboard.
+            Button("Show Progress") { model.showWindow(); model.jobPopover = true }
+                .disabled(model.toolbarJob == nil || !free)
+            Button(model.stopCommand ?? "Stop Making…") { model.showWindow(); model.confirmingStop = true }
+                .disabled(model.stopCommand == nil || !free)
+            Divider()
+            Button("Move to Trash") { model.askToTrash(chosen) }
                 .keyboardShortcut(.delete)
                 .disabled(chosen.isEmpty || !free)
         }
@@ -137,11 +162,6 @@ struct ContentView: View {
                                            description: Text("Pick a mini on the left."))
                 }
             }
-            .overlay { EnlargedPreview() }
-            .animation(.easeOut(duration: 0.15), value: model.enlarged)
-            // Another mini, or a sheet from the toolbar or a menu, takes over from it.
-            .onChange(of: model.selection) { model.enlarged = nil }
-            .onChange(of: model.sheet) { if model.sheet != nil { model.enlarged = nil } }
         } else {
             SetupView()
         }

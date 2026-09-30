@@ -1,8 +1,9 @@
 import simd
 
 extension Mesh {
-    /// Sets an object that can't stand as it is on its most stable side, and returns by how many
-    /// degrees it turned it (0: left as it is, positions untouched). Run after `level()`.
+    /// Sets an object that can't stand as it is on a steadier side near its bottom, and returns by
+    /// how many degrees it turned it (0: left as it is, positions untouched; nil: no side near its
+    /// bottom holds it up, positions untouched). Run after `level()`.
     ///
     /// The sides it could rest on are the faces of its convex hull, a side being the hull faces
     /// lying flat together (within 3°), not every point near the floor: on a round body that is a
@@ -12,16 +13,18 @@ extension Mesh {
     /// lift that takes. A side it stands on is one it survives a `minTip` tilt on. Measured on
     /// real models: their bases 13–26° (teapot2, vase, teapot, and figures on their feet down to
     /// the elf's 8.4°); lying on their sides or upside down, nothing within 30° of down above
-    /// 6.1°. A box 4 or 6 times as tall as wide stands (14°, 9.5°); 8 times (7.1°) is laid down.
+    /// 6.1°. A box 4 or 6 times as tall as wide stands (14°, 9.5°); 8 times (7.1°) can't stand.
     /// One exception it gets wrong on purpose: the vase upside down stands on its mouth's rim
     /// (9.2°), and stays there, because it can.
     ///
     /// Standing on a side within `standing` of straight down, it is left as it is, however much
     /// steadier lying down would be: a vase, a tall box or a statue that stands is never laid
     /// down. Otherwise it goes onto the steadiest side within `limit` (it was levelled onto the
-    /// edge of its foot: the real teapot sat 20° off its foot, levelled by only 2.8°), else onto
-    /// the steadiest side of all (it lies on its side or upside down).
-    mutating func rest(limit: Float = 30, standing: Double = 10, minTip: Double = 8) -> Float {
+    /// edge of its foot: the real teapot sat 20° off its foot, levelled by only 2.8°). Never
+    /// further: the engine keeps the picture's up, and the real models laid on their sides or
+    /// backs were upright figures that can't stand without a base (a hoodie guy on small feet, a
+    /// raven on a perch), not objects that came out lying down.
+    mutating func rest(limit: Float = 30, standing: Double = 10, minTip: Double = 8) -> Float? {
         let keep = mainTriangles()  // floating specks sit on the hull too, and aren't what it rests on
         var used = [Bool](repeating: false, count: positions.count)
         for (t, k) in zip(triangles, keep) where k { used[Int(t.x)] = true; used[Int(t.y)] = true; used[Int(t.z)] = true }
@@ -64,7 +67,6 @@ extension Mesh {
             let h = support - simd_dot(com, down)
             return r > 0 ? (atan2(r, h) * 180 / .pi, (r * r + h * h).squareRoot() - h, simd_normalize(normal)) : (0, 0, down)
         }
-        var best: (down: SIMD3<Double>, lift: Double)?
         var near: (down: SIMD3<Double>, lift: Double)?
         // Nearest to down first, and a side has to be 1% steadier to win, so of two as steady (a
         // box's opposite faces) it takes the smaller turn, the same one every run: a dictionary's
@@ -75,9 +77,8 @@ extension Mesh {
             let off = acos(min(1, -t.normal.z)) * 180 / .pi
             if off <= standing { return 0 }  // it stands as it is
             if off <= Double(limit) && t.lift > 1.01 * (near?.lift ?? 0) { near = (t.normal, t.lift) }
-            if t.lift > 1.01 * (best?.lift ?? 0) { best = (t.normal, t.lift) }
         }
-        guard let down = (near ?? best)?.down else { return 0 }
+        guard let down = near?.down else { return nil }
 
         let from = SIMD3<Float>(simd_normalize(down))
         let turn = from.z > 0.9999 ? simd_quatf(angle: .pi, axis: [1, 0, 0]) : simd_quatf(from: from, to: [0, 0, -1])

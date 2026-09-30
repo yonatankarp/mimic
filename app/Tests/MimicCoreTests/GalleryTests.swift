@@ -43,6 +43,38 @@ final class GalleryTests: XCTestCase {
         XCTAssertThrowsError(try Gallery.moveToTrash(fx.install.runs, name: "dwarf", busyWith: "dwarf", trash: { spy($0) }))
     }
 
+    /// Undo for Move to Trash, with a folder standing in for the Trash.
+    func testPutBackFromTheTrash() throws {
+        let fx = try Fixture(), fm = FileManager.default, runs = fx.install.runs
+        let bin = fx.root.appendingPathComponent("Trash")
+        try fm.createDirectory(at: bin, withIntermediateDirectories: true)
+        func toBin(_ u: URL) throws -> URL? {
+            let to = bin.appendingPathComponent(u.lastPathComponent)
+            try fm.moveItem(at: u, to: to)
+            return to
+        }
+        _ = try Gallery.createProject(runs, "Party")
+        try fm.moveItem(at: try fx.mini("dwarf"), to: runs.appendingPathComponent("Party/dwarf"))
+        let (folder, trashed) = try Gallery.moveToTrash(runs, name: "dwarf", trash: toBin)
+        XCTAssertNil(Gallery.folder(runs, "dwarf"))
+        try Gallery.putBack(runs, from: XCTUnwrap(trashed), to: folder)
+        XCTAssertTrue(fm.fileExists(atPath: runs.appendingPathComponent("Party/dwarf/dwarf.stl").path), "not back in its project")
+
+        // Its project deleted meanwhile: made again.
+        let again = try Gallery.moveToTrash(runs, name: "dwarf", trash: toBin)
+        try fm.removeItem(at: runs.appendingPathComponent("Party"))
+        try Gallery.putBack(runs, from: XCTUnwrap(again.trashed), to: again.folder)
+        XCTAssertEqual(Gallery.list(runs).map(\.project), ["Party"])
+
+        // Its name taken meanwhile: left in the Trash.
+        let third = try Gallery.moveToTrash(runs, name: "dwarf", trash: toBin)
+        _ = try fx.mini("dwarf")
+        XCTAssertThrowsError(try Gallery.putBack(runs, from: XCTUnwrap(third.trashed), to: third.folder)) {
+            XCTAssertEqual($0 as? RequestError, .nameTaken("dwarf"))
+        }
+        XCTAssertTrue(fm.fileExists(atPath: bin.appendingPathComponent("dwarf").path))
+    }
+
     func testHiddenAndOrder() throws {
         let fx = try Fixture(); _ = try fx.mini("a"); _ = try fx.mini("_scratch")
         XCTAssertEqual(Gallery.list(fx.install.runs).map(\.name), ["a"])
@@ -55,23 +87,23 @@ final class GalleryTests: XCTestCase {
         let fx = try Fixture(), d = try fx.mini("dwarf")
         var mini = Gallery.list(fx.install.runs)[0]
         let previews = mini.previews
-        XCTAssertEqual(previews.map(\.caption), ["Your picture", "Front", "Left", "Right", "Back"])
+        XCTAssertEqual(previews.map(\.caption), ["Picture", "Front", "Left", "Right", "Back"])
         XCTAssertEqual(previews.step(from: previews[0], by: 1)?.caption, "Front")
         XCTAssertEqual(previews.step(from: previews[3], by: -1)?.caption, "Left")
         XCTAssertNil(previews.step(from: previews[0], by: -1), "wrapped round from the first")
         XCTAssertNil(previews.step(from: previews[4], by: 1), "wrapped round from the last")
         // ← → cross the rows: Left is the end of the first row of views, Front the start.
         XCTAssertEqual(previews.step(from: previews[2], by: 1)?.caption, "Right")
-        XCTAssertEqual(previews.step(from: previews[1], by: -1)?.caption, "Your picture")
+        XCTAssertEqual(previews.step(from: previews[1], by: -1)?.caption, "Picture")
 
         // ↑ ↓: the picture full width, Front Left over Right Back.
         func vertical(_ p: [MiniPreview], wide: Int) -> [String] {
             p.flatMap { from in [-1, 1].map { p.step(from: from, down: $0, wide: wide)?.caption ?? "-" } }
         }
         XCTAssertEqual(vertical(previews, wide: 1), [
-            "-", "Front",             // Your picture
-            "Your picture", "Right",  // Front
-            "Your picture", "Back",   // Left
+            "-", "Front",             // Picture
+            "Picture", "Right",  // Front
+            "Picture", "Back",   // Left
             "Front", "-",             // Right
             "Left", "-",              // Back
         ])
@@ -85,8 +117,8 @@ final class GalleryTests: XCTestCase {
         XCTAssertEqual(mini.previews.map(\.caption), ["Front", "Side", "Back"])
         XCTAssertEqual(vertical(mini.previews, wide: 0), ["-", "Back", "-", "-", "Front", "-"])
         XCTAssertEqual(mini.previews.step(from: mini.previews[1], by: 1)?.caption, "Back")
-        let withPicture = [MiniPreview(caption: "Your picture", url: d)] + mini.previews
-        XCTAssertEqual(vertical(withPicture, wide: 1), ["-", "Front", "Your picture", "Back", "Your picture", "-", "Front", "-"])
+        let withPicture = [MiniPreview(caption: "Picture", url: d)] + mini.previews
+        XCTAssertEqual(vertical(withPicture, wide: 1), ["-", "Front", "Picture", "Back", "Picture", "-", "Front", "-"])
     }
 }
 

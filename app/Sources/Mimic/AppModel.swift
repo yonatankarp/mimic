@@ -51,9 +51,21 @@ final class AppModel {
         didSet { UserDefaults.standard.set(collapsed.sorted(), forKey: "collapsedProjects") }
     }
     /// The minis selected in the sidebar: one, or several (⌘-click, ⇧-click, ⌘A).
-    var selection = Set<Mini.ID>()
-    /// The selected mini's preview shown big over the window, or nil.
-    var enlarged: MiniPreview?
+    var selection = Set<Mini.ID>() {
+        // Picked with Mimic in front: a ready mini has been seen.
+        didSet { if NSApp.isActive, !unseen.isDisjoint(with: selection) { unseen.subtract(selection); updateBadge() } }
+    }
+    /// Minis that finished while nobody was looking, counted on the Dock icon until seen: picked
+    /// in the list with Mimic in front, or the job's popover seen after they ended.
+    private var unseen: Set<String> = []
+    /// The details panel beside a mini's page, kept between launches. Here rather than in
+    /// @AppStorage, so View → Show/Hide Details follows it as the menus follow the selection.
+    var showDetails = UserDefaults.standard.object(forKey: "showDetails") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(showDetails, forKey: "showDetails") }
+    }
+    /// Opens the main window again after it's been closed (a job carries on without it); set by
+    /// the window.
+    @ObservationIgnored var openMainWindow: () -> Void = {}
     /// The job's latest status, updated on the main thread; nil before the first job.
     var job: JobStatus?
     /// Why a job can't start (a required check failed), or nil: the latest health checks.
@@ -73,12 +85,24 @@ final class AppModel {
     /// Mimic is the app in front. Set before the popover closes on switching away (it closes
     /// when the app resigns), which NSApp.isActive may not yet say.
     private var active = true
-    /// "Stop making …?", asked from the job's popover.
+    /// "Stop making …?", asked from the job's popover, the Mini menu or the Dock menu.
     var confirmingStop = false
+    /// The job in the toolbar, which the job's popover hangs from; nil hides both.
+    var toolbarJob: JobStatus? { JobProgress.inToolbar(job, keptShown: jobShown, elsewhere: elsewhere) }
+    /// This Mimic's job can be stopped: "Stop Making…" or "Stop Resizing…" in the menus, else nil.
+    var stopCommand: String? {
+        guard let job, job.running else { return nil }
+        return job.kind == .prep ? "Stop Resizing…" : "Stop Making…"
+    }
+    /// View → Face Front: bumped for the mini's 3D view to turn back to face you.
+    var faceFrontRequests = 0
     /// The waiting job on "Take it out of the queue?", asked from the job's popover.
     var unqueueing: QueueEntry?
-    /// The minis waiting on "Move to Trash?", asked from the sidebar or the Mini menu.
+    /// Minis on "Move to Trash?", when one of them waits in the queue: Undo can't put it back
+    /// in the queue, so it's asked first (see `askToTrash`).
     var trashing: [Mini] = []
+    /// The main window's, for Undo Move to Trash; set by the window.
+    @ObservationIgnored weak var undo: UndoManager?
     /// A rename or trash that was refused, shown as an alert.
     var problem: String?
 
@@ -172,11 +196,22 @@ final class AppModel {
         updateBadge()
     }
 
-    /// The number waiting, on the Dock icon; a finished job's ✓ or ! when nothing is.
+    /// How many minis are ready and not yet seen, on the Dock icon; nothing when none are. The
+    /// only place the badge is set.
     func updateBadge() {
-        let tile = NSApp.dockTile
-        if !queue.isEmpty { tile.badgeLabel = "\(queue.count)" }
-        else if let label = tile.badgeLabel, Int(label) != nil { tile.badgeLabel = nil }
+        let label = JobProgress.badge(unseen: unseen, minis: minis.map(\.name))
+        if NSApp.dockTile.badgeLabel != label { NSApp.dockTile.badgeLabel = label }
+    }
+
+    /// Mimic came to the front: the mini on screen has been seen.
+    func becameActive() {
+        if !unseen.isDisjoint(with: selection) { unseen.subtract(selection); updateBadge() }
+    }
+
+    /// Brings Mimic and its window to the front, opening the window again if it was closed.
+    func showWindow() {
+        NSApp.activate()
+        openMainWindow()
     }
 
     /// The running job, here or in another Mimic.
@@ -364,25 +399,52 @@ final class AppModel {
     /// A mini that can't be renamed or trashed right now: being made here or in another Mimic.
     var busyWith: String? { current?.name }
 
-    /// Moves minis to the Trash, and returns the one being made, which stays.
-    @discardableResult
-    func trash(_ group: [Mini]) -> Mini? {
+    /// Move to Trash from the sidebar or the Mini menu, for one mini or several: at once, as
+    /// Edit → Undo puts them back; asked first only when one waits in the queue, which Undo
+    /// can't put back in it.
+    func askToTrash(_ group: [Mini]) {
+        if group.contains(where: { waiting($0.name) != nil }) { trashing = group } else { trash(group) }
+    }
+
+    /// Moves minis to the Trash; one Undo puts them all back (grouped by event). The one being
+    /// made stays, and says so.
+    func trash(_ group: [Mini]) {
         let picked = Gallery.toTrash(group, busyWith: busyWith)
-        for mini in picked.trash {
-            do {
-                // Waiting to be made: out of the queue first (a new mini's folder goes to the Trash then).
-                if let entry = queue.first(where: { $0.name == mini.name }) {
-                    try jobs.remove(mini.name)
-                    refreshQueue()
-                    if entry.job == .generate { continue }
-                }
-                try Gallery.moveToTrash(install.runs, name: mini.name, busyWith: busyWith)
-            } catch {
-                problem = plainWords(error, else: "Couldn't move it to the Trash. Try Show in Finder and delete it there.")
+        for mini in picked.trash { trash(mini) }
+        if let s = picked.staying { problem = "“\(s.displayName)” is being made, so it stayed. Move it to the Trash once it's done." }
+    }
+
+    func trash(_ mini: Mini) {
+        do {
+            // Waiting to be made: out of the queue first (a new mini's folder goes to the Trash then).
+            if let entry = queue.first(where: { $0.name == mini.name }) {
+                try jobs.remove(mini.name)
+                refreshQueue()
+                if entry.job == .generate { return reload() }
             }
+            let (folder, trashed) = try Gallery.moveToTrash(install.runs, name: mini.name, busyWith: busyWith)
+            if let trashed { undoable(folder, trashed) }
+        } catch {
+            problem = plainWords(error, else: "Couldn't move it to the Trash. Try Show in Finder and delete it there.")
         }
-        reload()  // picks the newest mini if these were selected
-        return picked.staying
+        reload()  // picks the newest mini if this one was selected
+    }
+
+    /// Undo puts it back from the Trash and shows it; Redo moves it there again. Several moved at
+    /// once (Keep This One) come back with one Undo: the undo manager groups them by event.
+    private func undoable(_ folder: URL, _ trashed: URL) {
+        let name = folder.lastPathComponent
+        undo?.registerUndo(withTarget: self) { model in
+            do { try Gallery.putBack(model.install.runs, from: trashed, to: folder) }
+            catch { model.problem = model.plainWords(error, else: "Couldn't put it back. Is it still in the Trash?"); return }
+            model.reload()
+            model.selection = [name]
+            model.undo?.registerUndo(withTarget: model) { model in
+                if let mini = model.minis.first(where: { $0.name == name }) { model.trash(mini) }
+            }
+            model.undo?.setActionName("Move to Trash")
+        }
+        undo?.setActionName("Move to Trash")
     }
 
     /// Keep This One: moves `mini`'s other versions to the Trash (waiting ones leave the queue).
@@ -390,7 +452,8 @@ final class AppModel {
     @discardableResult
     func keep(_ mini: Mini) -> Bool {
         let others = Gallery.versions(of: mini, in: minis).filter { $0.name != mini.name }
-        if let v = trash(others) {
+        for v in others where v.name != busyWith { trash(v) }
+        if let v = others.first(where: { $0.name == busyWith }) {
             problem = (problem.map { $0 + " " } ?? "") + "“\(v.displayName)” is being made, so it wasn't moved to the Trash. Move it there once it's done."
             return false
         }
@@ -424,6 +487,8 @@ final class AppModel {
         queuedNote = nil
         ended = []
         jobShown = false
+        unseen = []
+        updateBadge()
     }
 
     /// Opens the job's popover a moment after New Mini or Resize has gone: both in one update
@@ -476,8 +541,11 @@ final class AppModel {
         guard !s.running else { return }
         confirmingStop = false
         reload()
-        if s.succeeded { selection = [s.name] }
+        // Not selected: that would pull you away from what you're looking at. The notification
+        // and the job's popover go to it. It counts as ready and unseen unless it's on screen.
         if finished {
+            if s.succeeded, !(NSApp.isActive && selection == [s.name]) { unseen.insert(s.name) }
+            updateBadge()
             history = timings.load()
             announce(s)
         }
@@ -519,7 +587,6 @@ final class AppModel {
             if fail { s.step = 2; s.problem = "The 3D engine stopped early (pretend)." }
             job = s
             reload()
-            if s.succeeded { selection = [s.name] }
         }
     }
     #endif
@@ -533,19 +600,48 @@ final class AppModel {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 
+    /// A notification when a mini ends and Mimic isn't in front (or its window was closed), with
+    /// Open in the slicer on a ready one and Try Again on a failed one. Clicking it goes to the mini.
     private func announce(_ s: JobStatus) {
-        guard !s.canceled, !NSApp.isActive else { return }
-        if queue.isEmpty { NSApp.dockTile.badgeLabel = s.succeeded ? "✓" : "!" }
-        guard Bundle.main.bundleIdentifier != nil else { return }
+        guard !s.canceled, !(NSApp.isActive && NSApp.mainWindow != nil), Bundle.main.bundleIdentifier != nil else { return }
         let who = Mini.displayName(s.name)
         let content = UNMutableNotificationContent()
         content.title = s.succeeded ? "\(who) is ready" : "\(who) didn't finish"
-        content.body = s.succeeded ? "Your mini is ready to print." : "Open Mimic to try again."
+        content.body = s.succeeded ? "Ready to print." : "Something went wrong while \(JobRunner.label(s.step).lowercased())."
+        content.categoryIdentifier = s.succeeded ? MiniNotification.ready : MiniNotification.failed
+        content.userInfo = [MiniNotification.mini: s.name]
+        // Again each time: the ready one names the slicer, which can change in Settings.
+        MiniNotification.register(slicer: slicerName)
         content.sound = .default
         // One identifier per mini: a shared one made each notification replace the last, so of
         // three minis finishing from the queue only the last "ready" was left.
         let id = "job-\(s.name)-\(Int(Date().timeIntervalSince1970))"
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: id, content: content, trigger: nil))
+    }
+
+    /// A notification about `name` was clicked (`action` is the default action) or one of its
+    /// buttons pressed.
+    func notificationAnswered(_ action: String, mini name: String) {
+        switch action {
+        case MiniNotification.retry:
+            // In the background, as the job's popover's Try Again; only a refusal brings Mimic forward.
+            do { try retry(name) } catch {
+                problem = plainWords(error, else: "Couldn't try again. Open the mini and try again from there.")
+                go(to: name)
+            }
+        case MiniNotification.open:
+            reload()
+            if let stl = minis.first(where: { $0.name == name })?.stl { openInSlicer(stl) } else { go(to: name) }
+        default:
+            go(to: name)
+        }
+    }
+
+    /// Mimic in front with `name` selected, the window opened again if it was closed.
+    func go(to name: String) {
+        showWindow()
+        reload()
+        if minis.contains(where: { $0.name == name }) { selection = [name] }
     }
 
     // MARK: Slicer
@@ -597,3 +693,20 @@ final class AppModel {
 
 /// A job refused before it started, in words for people.
 struct Refusal: Error, CustomStringConvertible { let description: String }
+
+/// What a finished mini's notification carries, and its buttons.
+enum MiniNotification {
+    static let ready = "mini-ready", failed = "mini-failed"
+    static let retry = "try-again", open = "open-in-slicer"
+    /// The userInfo key holding the mini's name.
+    static let mini = "mini"
+
+    static func register(slicer: String) {
+        UNUserNotificationCenter.current().setNotificationCategories([
+            UNNotificationCategory(identifier: ready, actions: [UNNotificationAction(identifier: open, title: "Open in \(slicer)")],
+                                   intentIdentifiers: []),
+            UNNotificationCategory(identifier: failed, actions: [UNNotificationAction(identifier: retry, title: "Try Again")],
+                                   intentIdentifiers: []),
+        ])
+    }
+}

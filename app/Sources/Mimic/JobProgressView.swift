@@ -1,6 +1,8 @@
 import AppKit
 import MimicCore
 import SwiftUI
+import TipKit
+import UserNotifications
 
 /// The job's popover under its toolbar item: three steps, a bar, the time so far, the queue,
 /// and what to do when it ends. It never covers the window; a click outside closes it.
@@ -74,6 +76,10 @@ struct JobProgressView: View {
                     Button("Stop…") { model.jobPopover = false; model.confirmingStop = true }
                 } else {
                     if s.succeeded, let stl = model.minis.first(where: { $0.name == s.name })?.stl {
+                        // A finished mini isn't selected by itself; this goes to it.
+                        if model.selection != [s.name] {
+                            Button("Show Mini") { model.jobPopover = false; model.go(to: s.name) }
+                        }
                         Button("Open in \(model.slicerName)") { model.jobPopover = false; model.openInSlicer(stl) }
                             .buttonStyle(.glassProminent)
                             .keyboardShortcut(.defaultAction)
@@ -243,7 +249,7 @@ private struct JobQuestions: ViewModifier {
         @Bindable var model = model
         content
             .alert(model.job.map(stopTitle) ?? "", isPresented: $model.confirmingStop) {
-                Button("Keep Going", role: .cancel) {}
+                Button("Cancel", role: .cancel) {}
                 Button("Stop", role: .destructive) { model.stop() }
             } message: {
                 Text((model.job?.kind == .prep ? "It keeps its previous size." : "What's been made so far will be thrown away.")
@@ -251,8 +257,8 @@ private struct JobQuestions: ViewModifier {
             }
             .confirmationDialog(model.unqueueing.map { "Take “\(Mini.displayName($0.name))” out of the queue?" } ?? "",
                                 isPresented: unqueueing, presenting: model.unqueueing) { e in
-                Button(e.job == .prep ? "Don't Resize" : "Take Out and Move to Trash", role: .destructive) { model.removeFromQueue(e.name) }
-                Button("Keep It Waiting", role: .cancel) {}
+                Button(e.job == .prep ? "Don't Resize" : "Take Out", role: .destructive) { model.removeFromQueue(e.name) }
+                Button("Cancel", role: .cancel) {}
             } message: { e in
                 Text(e.job == .prep ? "It keeps its current size." : "It hasn't been made yet, so its picture and settings go to the Trash, where you can get them back.")
             }
@@ -324,10 +330,9 @@ private struct JobPicture: View {
         Thumbnail(url: version == nil ? nil : file, version: version ?? .distantPast)
             .frame(width: 84, height: 84)
             .clipShape(shape)
-            .glassEffect(.regular, in: .rect(cornerRadius: 12))  // as the mini's own previews: renders have no background
-            // A soft glow while the long step runs, and the scan. Both sit outside the glass and
-            // the glow is a still blur: glass or a shadow around the moving scan redrew with it
-            // every frame.
+            .background(Color.primary.opacity(0.05), in: shape)  // as the mini's own previews: renders have no background
+            // A soft glow while the long step runs, and the scan. The glow is a still blur: a
+            // shadow around the moving scan redrew with it every frame.
             .background { shape.fill(Color.accentColor.opacity(building ? 0.45 : 0)).blur(radius: 8) }
             .overlay { if building && !reduceMotion { LightSweep(vertical: true, crossing: 2.6, rest: 1.6, strength: 0.35).clipShape(shape) } }
             .overlay(alignment: .bottomTrailing) {
@@ -373,7 +378,7 @@ struct JobToolbarItem: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         @Bindable var model = model
-        if let s = model.job.flatMap({ model.jobShown || $0.running ? $0 : nil }) ?? model.elsewhere {
+        if let s = model.toolbarJob {
             Button { model.jobPopover.toggle() } label: {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     HStack(spacing: 6) {
@@ -393,7 +398,7 @@ struct JobToolbarItem: View {
                 }
             }
             .help(s.running ? "Show progress, the queue and Stop" : "Show how it went")
-            .popover(isPresented: $model.jobPopover, arrowEdge: .bottom) { JobProgressView().environment(model) }
+            .background { DetachablePopover(isPresented: $model.jobPopover) { JobProgressView().environment(model) } }
         }
     }
 
@@ -403,6 +408,77 @@ struct JobToolbarItem: View {
         if s.running { return "\(s.kind == .prep ? "Resizing" : "Making") \(who) · \(JobProgress.clock(now.timeIntervalSince(s.started)))\(waiting)" }
         if s.canceled { return "Stopped \(who)\(waiting)" }
         return (s.succeeded ? "\(who) is ready" : "\(who) didn't finish") + waiting
+    }
+}
+
+/// `.popover(isPresented:)` that can be dragged off into a small window of its own, to keep an eye
+/// on a job: SwiftUI's popover can't detach, AppKit's can. Opens under the view it's behind,
+/// closes on a click outside, Esc, or switching apps (unless detached), and sets `isPresented`
+/// back to false when it closes, as SwiftUI's does. A new hosting controller each time, so its
+/// content appears afresh.
+private struct DetachablePopover<Content: View>: NSViewRepresentable {
+    @Binding var isPresented: Bool
+    @ViewBuilder let content: () -> Content
+
+    func makeNSView(context: Context) -> Anchor {
+        let anchor = Anchor()
+        anchor.coordinator = context.coordinator
+        return anchor
+    }
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func updateNSView(_ anchor: Anchor, context: Context) {
+        let c = context.coordinator
+        c.closed = { isPresented = false }
+        guard isPresented != (c.popover != nil) else { return }
+        guard isPresented else {
+            if c.popover?.isShown == true { c.popover?.close() } else { c.popover = nil }
+            return
+        }
+        // The click outside that closed it also presses the toolbar button, which asks to open it
+        // again: SwiftUI's popover ignores that, and so does this.
+        if Date().timeIntervalSince(c.lastClosed) < 0.3 {
+            DispatchQueue.main.async { isPresented = false }
+            return
+        }
+        let popover = NSPopover()
+        popover.behavior = .transient
+        popover.delegate = c
+        let host = NSHostingController(rootView: content())
+        host.sizingOptions = .preferredContentSize
+        popover.contentViewController = host
+        c.popover = popover
+        // After this update; or, when the window is still opening (Show Progress from the Dock
+        // with the window closed), once the anchor is in it.
+        DispatchQueue.main.async { c.show(from: anchor) }
+    }
+
+    static func dismantleNSView(_ anchor: Anchor, coordinator: Coordinator) { coordinator.popover?.close() }
+
+    final class Anchor: NSView {
+        weak var coordinator: Coordinator?
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            coordinator?.show(from: self)
+        }
+    }
+
+    @MainActor final class Coordinator: NSObject, NSPopoverDelegate {
+        var popover: NSPopover?
+        var closed: () -> Void = {}
+        var lastClosed = Date.distantPast
+
+        func show(from anchor: NSView) {
+            guard let popover, !popover.isShown, anchor.window != nil else { return }
+            popover.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .minY)
+        }
+
+        func popoverShouldDetach(_ popover: NSPopover) -> Bool { true }
+        func popoverDidClose(_ notification: Notification) {
+            popover = nil
+            lastClosed = Date()
+            closed()
+        }
     }
 }
 
@@ -436,8 +512,6 @@ enum DockProgress {
         task?.cancel()
         task = Task { @MainActor in
             let tile = NSApp.dockTile, view = DockTileView()
-            tile.badgeLabel = nil
-            model.updateBadge()  // the number waiting stays
             tile.contentView = view
             while !Task.isCancelled, let s = model.job, s.running {
                 view.fraction = JobProgress.fraction(s, estimate: model.estimate(s))
@@ -473,18 +547,12 @@ private final class DockTileView: NSView {
 struct MainWindowChrome: ViewModifier {
     // Named, not written inline: inside the long modifier chain below it made one expression
     // too slow for CI's Swift to type-check.
-    /// "Move “Dwarf Cleric” to the Trash?", or "Move 4 minis to the Trash?" (not counting one
-    /// being made, which stays).
-    private var trashQuestion: String {
-        let group = model.trashing
-        guard group.count > 1 else { return "Move “\(group.first?.displayName ?? "")” to the Trash?" }
-        return "Move \(Gallery.toTrash(group, busyWith: model.busyWith).trash.count) minis to the Trash?"
-    }
-
     private var showsProblem: Binding<Bool> {
         Binding(get: { model.problem != nil }, set: { if !$0 { model.problem = nil } })
     }
     @Environment(AppModel.self) private var model
+    @Environment(\.undoManager) private var undoManager
+    @Environment(\.openWindow) private var openWindow
     /// The window's size under its toolbar: New Mini and Resize grow up to it.
     @State private var room = CGSize(width: 960, height: 640)
 
@@ -493,16 +561,11 @@ struct MainWindowChrome: ViewModifier {
         content
             .onGeometryChange(for: CGSize.self) { $0.size } action: { room = $0 }
             .toolbar {
+                // What's going on, then New Mini apart from it; the mini's page adds its own group.
                 ToolbarItem(placement: .primaryAction) { UpdateToolbarItem() }
                 ToolbarItem(placement: .primaryAction) { JobToolbarItem() }
-                ToolbarItem(placement: .primaryAction) {
-                    OpenSettingsButton(tab: Health.shared.needsAttention ? .general : nil) {
-                        Label("Settings", systemImage: Health.shared.needsAttention ? "exclamationmark.triangle.fill" : "gearshape")
-                    }
-                    .foregroundStyle(Health.shared.needsAttention ? .orange : .primary)
-                    .help(Health.shared.blocking ?? "Settings (⌘,)")
-                    .tourStop(.settings)
-                }
+                ToolbarItem(placement: .primaryAction) { NeedsSetupItem() }
+                ToolbarSpacer(.fixed, placement: .primaryAction)
                 ToolbarItem(placement: .primaryAction) {
                     Button { model.sheet = .make } label: { Label("New Mini", systemImage: "plus") }
                         .help("Make a new mini (⌘N)")
@@ -527,20 +590,20 @@ struct MainWindowChrome: ViewModifier {
                 }
             }
             .modifier(JobQuestions())
-            .confirmationDialog(trashQuestion,
+            .confirmationDialog(model.trashing.count == 1 ? "Move “\(model.trashing[0].displayName)” to the Trash?" : "Move \(model.trashing.count) minis to the Trash?",
                                 isPresented: Binding(get: { !model.trashing.isEmpty }, set: { if !$0 { model.trashing = [] } }),
                                 presenting: model.trashing) { group in
                 Button("Move to Trash", role: .destructive) { model.trash(group) }
-                Button(group.count == 1 ? "Keep It" : "Keep Them", role: .cancel) {}
+                Button("Cancel", role: .cancel) {}
             } message: { group in
-                if group.count == 1 {
-                    Text("You can put it back from the Trash if you change your mind.")
-                } else {
-                    // The one being made stays: said now, not after.
-                    let staying = Gallery.toTrash(group, busyWith: model.busyWith).staying
-                    Text("You can get them back from the Trash." + (staying.map { " “\($0.displayName)” is being made, so it stays." } ?? ""))
-                }
+                Text(group.count == 1 ? "It leaves the queue. You can put it back from the Trash, but not in the queue."
+                     : "Those waiting leave the queue. You can put them back from the Trash, but not in the queue.")
             }
+            // Move to Trash registers its Undo with the window's undo manager (Edit → Undo).
+            .onChange(of: undoManager, initial: true) { model.undo = undoManager }
+            // Kept by the model, so a notification or the Dock menu can bring the window back
+            // after it's been closed while a mini is made.
+            .onAppear { model.openMainWindow = { [openWindow] in openWindow(id: "main") } }
             // Deleting a project never trashes its minis silently: keeping them is the default.
             .confirmationDialog("Delete the project “\(model.deletingProject ?? "")”?",
                                 isPresented: Binding(get: { model.deletingProject != nil }, set: { if !$0 { model.deletingProject = nil } }),
@@ -549,14 +612,15 @@ struct MainWindowChrome: ViewModifier {
                 if count == 0 {
                     Button("Delete Project") { model.deleteProject(project, keepMinis: true) }.keyboardShortcut(.defaultAction)
                 } else {
-                    Button("Delete Project, Keep Its Minis") { model.deleteProject(project, keepMinis: true) }.keyboardShortcut(.defaultAction)
-                    Button("Move Its Minis to the Trash Too", role: .destructive) { model.deleteProject(project, keepMinis: false) }
+                    Button("Keep Minis") { model.deleteProject(project, keepMinis: true) }.keyboardShortcut(.defaultAction)
+                    Button("Delete All", role: .destructive) { model.deleteProject(project, keepMinis: false) }
                 }
                 Button("Cancel", role: .cancel) {}
             } message: { project in
                 let count = model.minis.filter { $0.project == project }.count
+                let minis = count == 1 ? "its mini" : "its \(count) minis"
                 Text(count == 0 ? "The empty project goes to the Trash."
-                     : "Its \(count == 1 ? "mini moves" : "\(count) minis move") to Unsorted, unless you choose to move \(count == 1 ? "it" : "them") to the Trash too. You can put anything back from the Trash.")
+                     : "Keep Minis moves \(minis) to Unsorted. Delete All moves \(minis) to the Trash with the project. You can put anything back from the Trash.")
             }
             .alert(model.problem ?? "", isPresented: showsProblem) {
                 Button("OK") {}
@@ -565,6 +629,26 @@ struct MainWindowChrome: ViewModifier {
             .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
                 model.reload()
             }
+    }
+}
+
+/// Settings lives in the Mimic menu (⌘,); the toolbar only says so when something needs you,
+/// and goes straight to what's missing.
+private struct NeedsSetupItem: View {
+    private var health: Health { .shared }
+
+    var body: some View {
+        if let why = health.blocking {
+            OpenSettingsButton(tab: .general) {
+                Label {
+                    Text("Needs Setup")
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                }
+                .labelStyle(.titleAndIcon)
+            }
+            .help(why)
+        }
     }
 }
 
@@ -583,8 +667,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.informativeText = (s.kind == .prep ? "Quitting stops it, and it keeps its previous size."
                                                  : "Quitting stops it, and what's been made so far will be thrown away.")
             + (waiting == 0 ? "" : " The \(waiting == 1 ? "mini" : "\(waiting) minis") waiting in the queue will start the next time you open Mimic.")
-        alert.addButton(withTitle: "Keep Going")
-        alert.addButton(withTitle: "Stop and Quit").hasDestructiveAction = true
+        // First, so Esc presses it; the destructive button gets no Return.
+        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: "Quit").hasDestructiveAction = true
         guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }
         jobs.keepGoing = { _ in false }  // the queue waits for the next launch
         jobs.cancel()
@@ -597,12 +682,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return .terminateLater
     }
 
-    /// Closing the window quits Mimic, except while setup is downloading: that carries on, and
-    /// the Dock icon brings the window back.
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { !model.setup.running }
-
-    func applicationDidBecomeActive(_ notification: Notification) {
-        NSApp.dockTile.badgeLabel = nil  // seen it
-        model.updateBadge()  // the number waiting stays
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        Tips.startUp()
+        // Before launching ends, so a click on a notification that opened Mimic reaches it.
+        if Bundle.main.bundleIdentifier != nil {
+            UNUserNotificationCenter.current().delegate = self
+            MiniNotification.register(slicer: model.slicerName)
+        }
     }
+
+    /// Closing the window quits Mimic, except while a mini is being made or waiting, or setup is
+    /// downloading: that carries on, with its progress on the Dock icon, and the Dock icon (or
+    /// the Window menu) brings the window back. ⌘Q still asks first.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        !model.setup.running && !model.running && model.queue.isEmpty
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) { model.becameActive() }
+
+    /// New Mini, and the job's progress and Stop while one runs, from the Dock icon.
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        let menu = NSMenu()
+        let free = model.sheet == nil
+        func add(_ title: String, _ action: Selector) {
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+            item.target = self
+            menu.addItem(item)
+        }
+        if model.setup.installed && free { add("New Mini…", #selector(newMini)) }
+        if model.toolbarJob != nil && free { add("Show Progress", #selector(showProgress)) }
+        if let title = model.stopCommand, free { add(title, #selector(stopJob)) }
+        return menu
+    }
+
+    // Mimic and its window come to the front first (the window may have been closed while a
+    // mini is made), then act: the job's popover keeps track of whether it is.
+    @objc private func newMini() { model.showWindow(); Task { model.sheet = .make } }
+    @objc private func showProgress() { model.showWindow(); Task { model.jobPopover = true } }
+    @objc private func stopJob() { model.showWindow(); Task { model.confirmingStop = true } }
+}
+
+extension AppDelegate: UNUserNotificationCenterDelegate {
+    /// A finished mini's notification: clicked, Open in the slicer, or Try Again. The center may
+    /// call from any thread, so only plain strings cross to the main actor.
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        let action = response.actionIdentifier
+        guard let name = response.notification.request.content.userInfo[MiniNotification.mini] as? String else { return }
+        await MainActor.run { model.notificationAnswered(action, mini: name) }
+    }
+
+    /// Shown even with Mimic in front: it only posts one then when its window is closed.
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async
+        -> UNNotificationPresentationOptions { [.banner, .list, .sound] }
 }
