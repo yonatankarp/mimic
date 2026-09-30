@@ -35,6 +35,7 @@ final class QueueTests: XCTestCase {
         let b = JobRunner(install: fx.install, tools: fx.tools(mimic: prep))
         let failures = TrashSpy()
         for r in [a, b] { r.onChange = { s in if !s.running && !s.succeeded { failures(URL(fileURLWithPath: s.name)) } } }
+        let sizes = sizes  // not self: the closure runs on other threads
         DispatchQueue.concurrentPerform(iterations: 2) { i in
             for n in names.enumerated().filter({ $0.offset % 2 == i }).map(\.element) {
                 do { _ = try (i == 0 ? a : b).resize(name: n, sizes: sizes) } catch { XCTFail("\(n): \(error)") }

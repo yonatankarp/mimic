@@ -19,7 +19,7 @@ public struct Machine: Codable, Equatable, Sendable {
             sysctlbyname(name, nil, &size, nil, 0)
             var buf = [CChar](repeating: 0, count: max(1, size))
             sysctlbyname(name, &buf, &size, nil, 0)
-            return String(cString: buf)
+            return String(decoding: buf.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }, as: UTF8.self)
         }
         var mem: UInt64 = 0, size = MemoryLayout<UInt64>.size
         sysctlbyname("hw.memsize", &mem, &size, nil, 0)
