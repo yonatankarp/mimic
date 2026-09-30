@@ -420,39 +420,63 @@ private struct DetachablePopover<Content: View>: NSViewRepresentable {
     @Binding var isPresented: Bool
     @ViewBuilder let content: () -> Content
 
-    func makeNSView(context: Context) -> NSView { NSView() }
+    func makeNSView(context: Context) -> Anchor {
+        let anchor = Anchor()
+        anchor.coordinator = context.coordinator
+        return anchor
+    }
     func makeCoordinator() -> Coordinator { Coordinator() }
 
-    func updateNSView(_ view: NSView, context: Context) {
+    func updateNSView(_ anchor: Anchor, context: Context) {
         let c = context.coordinator
         c.closed = { isPresented = false }
-        if isPresented, c.popover == nil {
-            let popover = NSPopover()
-            popover.behavior = .transient
-            popover.animates = true
-            popover.delegate = c
-            let host = NSHostingController(rootView: content())
-            host.sizingOptions = .preferredContentSize
-            popover.contentViewController = host
-            c.popover = popover
-            // After this update, once the view is in its window.
-            DispatchQueue.main.async {
-                guard c.popover === popover, view.window != nil else { c.popover = nil; c.closed(); return }
-                popover.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
-            }
-        } else if !isPresented, let popover = c.popover {
-            popover.close()
+        guard isPresented != (c.popover != nil) else { return }
+        guard isPresented else {
+            if c.popover?.isShown == true { c.popover?.close() } else { c.popover = nil }
+            return
+        }
+        // The click outside that closed it also presses the toolbar button, which asks to open it
+        // again: SwiftUI's popover ignores that, and so does this.
+        if Date().timeIntervalSince(c.lastClosed) < 0.3 {
+            DispatchQueue.main.async { isPresented = false }
+            return
+        }
+        let popover = NSPopover()
+        popover.behavior = .transient
+        popover.delegate = c
+        let host = NSHostingController(rootView: content())
+        host.sizingOptions = .preferredContentSize
+        popover.contentViewController = host
+        c.popover = popover
+        // After this update; or, when the window is still opening (Show Progress from the Dock
+        // with the window closed), once the anchor is in it.
+        DispatchQueue.main.async { c.show(from: anchor) }
+    }
+
+    static func dismantleNSView(_ anchor: Anchor, coordinator: Coordinator) { coordinator.popover?.close() }
+
+    final class Anchor: NSView {
+        weak var coordinator: Coordinator?
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            coordinator?.show(from: self)
         }
     }
 
-    static func dismantleNSView(_ view: NSView, coordinator: Coordinator) { coordinator.popover?.close() }
-
-    final class Coordinator: NSObject, NSPopoverDelegate {
+    @MainActor final class Coordinator: NSObject, NSPopoverDelegate {
         var popover: NSPopover?
         var closed: () -> Void = {}
+        var lastClosed = Date.distantPast
+
+        func show(from anchor: NSView) {
+            guard let popover, !popover.isShown, anchor.window != nil else { return }
+            popover.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .minY)
+        }
+
         func popoverShouldDetach(_ popover: NSPopover) -> Bool { true }
         func popoverDidClose(_ notification: Notification) {
             popover = nil
+            lastClosed = Date()
             closed()
         }
     }
@@ -657,7 +681,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillFinishLaunching(_ notification: Notification) {
         Tips.startUp()
         // Before launching ends, so a click on a notification that opened Mimic reaches it.
-        if Bundle.main.bundleIdentifier != nil { UNUserNotificationCenter.current().delegate = self }
+        if Bundle.main.bundleIdentifier != nil {
+            UNUserNotificationCenter.current().delegate = self
+            MiniNotification.register(slicer: model.slicerName)
+        }
     }
 
     /// Closing the window quits Mimic, except while a mini is being made or waiting, or setup is
@@ -699,4 +726,8 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         guard let name = response.notification.request.content.userInfo[MiniNotification.mini] as? String else { return }
         await MainActor.run { model.notificationAnswered(action, mini: name) }
     }
+
+    /// Shown even with Mimic in front: it only posts one then when its window is closed.
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async
+        -> UNNotificationPresentationOptions { [.banner, .list, .sound] }
 }

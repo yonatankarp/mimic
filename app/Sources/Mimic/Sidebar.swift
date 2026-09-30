@@ -31,7 +31,7 @@ struct Sidebar: View {
         .navigationSplitViewColumnWidth(min: 200, ideal: 240)
         .navigationTitle("Minis")
         // The list's shortcuts, the first time a finished mini is picked in it.
-        .popoverTip(picked && model.selected?.stl != nil ? Tips.unlessTouring(GalleryTip()) : nil, arrowEdge: .trailing)
+        .popoverTip(galleryTip, arrowEdge: .trailing)
         .onChange(of: model.selection) { picked = true }
         // Space previews the print file, as in Finder; a second space closes it.
         .onKeyPress(.space) {
@@ -41,6 +41,12 @@ struct Sidebar: View {
             return .handled
         }
         .quickLookPreview($preview)
+    }
+
+    /// Named, not inline: an optional tip chosen in the modifier chain is slow to type-check.
+    private var galleryTip: (any Tip)? {
+        guard picked, model.selected?.stl != nil else { return nil }
+        return Tips.unlessTouring(GalleryTip())
     }
 
     private var list: some View {

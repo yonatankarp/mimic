@@ -24,6 +24,7 @@ struct MiniDetail: View {
     private var showDetails: Bool { model.showDetails }
 
     var body: some View {
+        @Bindable var model = model
         let settings = MiniSettings.load(mini.folder)
         let versions = Gallery.versions(of: mini, in: model.minis)
         // One being made stays where it is.
@@ -31,7 +32,7 @@ struct MiniDetail: View {
         page
             .navigationTitle(mini.displayName)
             .toolbar { toolbar(kind: settings.kind ?? .character) }
-            .inspector(isPresented: Binding(get: { model.showDetails }, set: { model.showDetails = $0 })) {
+            .inspector(isPresented: $model.showDetails) {
                 details(settings, versions: versions, canKeep: trashable > 0)
                     .inspectorColumnWidth(min: 240, ideal: 290, max: 420)
             }
