@@ -150,8 +150,22 @@ public struct MiniSettings: Codable, Equatable, Sendable {
     /// mini that didn't finish (#78).
     public var failed: String?
     public var failedStep: Int?
+    /// The name as it was typed ("Élodie", "D&D Bard"), and the folder it was given for: it's
+    /// shown only while the folder still has that name, so a mini renamed or copied in Finder
+    /// shows the folder's name instead (see `Mini.displayName`). Older minis have neither.
+    public var name: String?
+    public var nameFolder: String?
 
     public init() {}
+
+    /// The name to show for the mini in `folder` (its folder's name), or nil when it has none of its own.
+    public func shownName(folder: String) -> String? { nameFolder == folder ? name : nil }
+
+    /// Keeps `typed` as the name of the mini in the folder named `folder`, or forgets the one
+    /// kept when `typed` is nil.
+    public mutating func name(_ typed: String?, folder: String) {
+        name = typed.flatMap { Rules.shownName($0) }; nameFolder = name == nil ? nil : folder
+    }
 
     public var isObject: Bool { kind == .object }
 

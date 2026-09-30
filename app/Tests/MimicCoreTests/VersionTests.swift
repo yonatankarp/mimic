@@ -26,7 +26,9 @@ final class VersionTests: XCTestCase {
         let pic = { (file: String) in URL(fileURLWithPath: "/tmp/\(file)") }
         XCTAssertEqual(Gallery.name(forPicture: pic("Dwarf Cleric.png"), in: runs), "dwarf-cleric")
         XCTAssertEqual(Gallery.name(forPicture: pic("Tiefling.jpg"), in: runs), "tiefling-2", "tiefling is taken")
-        XCTAssertEqual(Gallery.name(forPicture: pic("日本.png"), in: runs), "mini")
+        XCTAssertEqual(Gallery.name(forPicture: pic("Élodie.png"), in: runs), "elodie")
+        XCTAssertEqual(Gallery.name(forPicture: pic("日本.png"), in: runs), "ri-ben")
+        XCTAssertEqual(Gallery.name(forPicture: pic("🐉.png"), in: runs), "mini")
     }
 
     /// A sibling from the same source and settings, in the same project, with a new seed that
@@ -76,6 +78,11 @@ final class VersionTests: XCTestCase {
         }
         XCTAssertEqual(try jobs.makeAnotherVersion(of: "wizard-2").name, "wizard-3")
         XCTAssertEqual(MiniSettings.load(try XCTUnwrap(Gallery.folder(runs, "wizard-3"))).versionOf, "wizard", "a version of a version names the first")
+        // A version keeps the name it was given, numbered (#87), where its folder's is "Elodie 2".
+        try jobs.make(name: "elodie", picture: .description("an elf"), restyle: false, seed: 1, sizes: sizes,
+                      model: EngineDownload.standard, shown: "Élodie")
+        let elodie2 = try jobs.makeAnotherVersion(of: "elodie").name
+        XCTAssertEqual(Gallery.list(runs).first { $0.name == elodie2 }?.displayName, "Élodie 2")
         for n in jobs.queue.entries().map(\.name) { try jobs.remove(n) }
         jobs.waitUntilDone()
     }

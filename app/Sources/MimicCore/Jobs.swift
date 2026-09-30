@@ -127,9 +127,11 @@ public final class JobRunner: @unchecked Sendable {
     /// checked before anything is written; then its folder, settings and picture are written and
     /// it joins the queue. Returns nil when it started at once, else how many jobs are ahead of it
     /// (the running one included). `versionOf` is the first of its versions, for Make Another Version.
+    /// `shown` is the name as typed ("Élodie"), shown for it; `name` is its folder's.
     @discardableResult
     public func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes,
-                     kind: MiniKind = .character, model: EngineModel, project: String? = nil, versionOf: String? = nil) throws -> Int? {
+                     kind: MiniKind = .character, model: EngineModel, project: String? = nil, versionOf: String? = nil,
+                     shown: String? = nil) throws -> Int? {
         guard Rules.isValidName(name) else { throw RequestError.badName }
         if let project, !Gallery.projects(install.runs).contains(project) { throw RequestError.projectNotFound }
         _ = try sizes.flags()
@@ -170,6 +172,7 @@ public final class JobRunner: @unchecked Sendable {
                     s.kind = settings.kind  // always set: a failed attempt's folder may say otherwise
                     s.model = model.id
                     s.versionOf = versionOf
+                    s.name(shown, folder: name)  // always set, as kind is
                     s.created = Date()  // a failed attempt's folder made again is a new mini
                 }
                 // A failed attempt's picture is from what it was asked for then: made again from
