@@ -1,35 +1,28 @@
-# Release notes are written from pull requests (tools/release_notes.py), so each one says what
-# kind of change it is in its title and, when people will notice it, what to tell them: the first
-# paragraph under '## Release note'.
+# Release notes are written from pull requests (tools/release_notes.py), so each title starts with
+# the kind of change it is.
 name: Pull request title
 
 on:
-  pull_request:
+  pull_request_target:  # reads the title only, never checks out the pull request's code
     types: [opened, edited, synchronize, reopened]
 
 permissions:
-  contents: read
+  pull-requests: read
 
 jobs:
-  release-note:
+  title:
     runs-on: ubuntu-latest
     steps:
-      - name: Check the title and the release note
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
         env:
-          TITLE: ${{ github.event.pull_request.title }}
-          BODY: ${{ github.event.pull_request.body }}
-        run: |
-          kinds="feat|fix|change|docs|chore|ci|test|refactor"
-          if ! [[ "$TITLE" =~ ^($kinds)(\([^\)]*\))?!?:\ .+ ]]; then
-            echo "The title needs a kind first, like 'feat: Copies of a mini on one plate'. Kinds: ${kinds//|/, }."
-            exit 1
-          fi
-          kind="${BASH_REMATCH[1]}"
-          case "$kind" in feat|fix|change) ;; *) echo "$kind: left out of the release notes."; exit 0 ;; esac
-          note="$(printf '%s\n' "$BODY" | tr -d '\r' | sed 's/<!--.*-->//' \
-            | awk 'tolower($0) ~ /^## *release notes? *$/ {on=1; next} /^#/ {on=0} on && /^[[:space:]]*$/ {if (got) on=0; next} on {print; got=1}')"
-          if [ -z "$note" ]; then
-            echo "A $kind needs a '## Release note' section in the description: the line people who use Mimic read, or 'none'."
-            exit 1
-          fi
-          echo "Release note:"; echo "$note"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            change
+            docs
+            chore
+            ci
+            test
+            refactor

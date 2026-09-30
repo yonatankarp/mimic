@@ -7,5 +7,5 @@
 - [ ] `cd app && swift test` passes, and anything new has a test
 
 ## Release note
-<!-- What people who use Mimic read in the release notes: one line, plain English, like the bullets in CHANGELOG.md. Write none if they won't notice. -->
+<!-- Optional, for feat/fix/change: what people who use Mimic read in the release notes instead of the title. One line, plain English, like the bullets in CHANGELOG.md, or none to leave it out. -->
 

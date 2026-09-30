@@ -30,9 +30,10 @@ the problem matters more than a specific solution.
 5. Open a pull request that says what changed and why, and how you checked it. Its title starts
    with the kind of change: `feat:` (new), `fix:` or `change:` for what people will notice,
    `docs:`, `chore:`, `ci:`, `test:` or `refactor:` otherwise.
-6. For a `feat`, `fix` or `change`, add a `## Release note` section to the description: one line
-   for people who use Mimic, like the bullets in `CHANGELOG.md`, or `none`. The release notes are
-   made from these, so there's no need to edit `CHANGELOG.md`.
+6. The release notes are made from pull requests, so there's no need to edit `CHANGELOG.md`. A
+   `feat`, `fix` or `change` shows its title there, or the first paragraph under a `## Release note`
+   section in the description when it has one: one line for people who use Mimic, like the bullets
+   in `CHANGELOG.md`, or `none` to leave it out.
 
 By contributing, you agree that your contribution is licensed under Mimic's
 [MIT licence](LICENSE).
