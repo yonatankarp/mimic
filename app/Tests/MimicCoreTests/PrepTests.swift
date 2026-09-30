@@ -317,6 +317,56 @@ final class PrepTests: XCTestCase {
         }
     }
 
+    /// A magnet hole goes up into the base from underneath, a little wider and deeper than the
+    /// magnet, on any shape of base, and the mini stays one watertight piece. Its depth counts
+    /// from the bottom as printed, after 0.4 mm is sliced off: counted from the base's own
+    /// underside, the hole would come out 0.4 mm too shallow for the magnet.
+    func testAMagnetHoleUnderTheBase() throws {
+        let hole = Float.pi * 2.6 * 2.6  // a 5 mm magnet, with 0.2 mm to spare
+        let shapes: [(String, area: Float)] = [("round", .pi * 156.25), ("square", 625), ("hex", 2 * Float(3).squareRoot() * 156.25)]
+        for (shape, area) in shapes {
+            let (result, out, _) = try prep(["--base-shape", shape, "--magnet", "5x2", "--faces", "40000"])
+            XCTAssertTrue(out.watertight, shape)
+            XCTAssertEqual(out.pieces, 1, shape)
+            XCTAssertEqual(result.mesh.section(0.1).area, area - hole, accuracy: 3, "\(shape): the hole opens at the bottom")
+            XCTAssertEqual(result.mesh.section(2.05).area, area - hole, accuracy: 3, "\(shape): 2 mm deep and a little more")
+            XCTAssertEqual(result.mesh.section(2.35).area, area, accuracy: 3, "\(shape): and no deeper")
+            XCTAssertGreaterThan(out.flatBottom, 0.95 * (area - hole), "\(shape): still flat around it")
+            let rim = out.positions.filter { $0.z < 1.5 && simd_length(SIMD2($0.x, $0.y)) < 5 }.map { simd_length(SIMD2($0.x, $0.y)) }
+            XCTAssertEqual(rim.min()!, 2.6, accuracy: 0.1, "\(shape): 5.2 mm across")
+        }
+    }
+
+    /// The default base is 2.6 mm once its bottom is sliced flat: too thin for a 3 mm magnet and
+    /// barely deeper than a 2 mm one. With a magnet it's made taller, so 0.8 mm stays over the
+    /// hole, and more on a floor, whose seams are cut 0.45 mm down into it. A base already tall
+    /// enough is left as it is, and with no base there's nowhere for a hole, which is said.
+    func testABaseIsMadeTallEnoughForItsMagnet() throws {
+        let (result, out, _) = try prep(["--magnet", "8x3", "--faces", "40000"])
+        let (lo, hi) = out.bounds
+        XCTAssertTrue(out.watertight)
+        XCTAssertEqual(out.pieces, 1)
+        XCTAssertEqual(hi.z - lo.z, 32 + 4.4 - 0.6 - 0.4, accuracy: 0.3, "the base grew from 3 to 4.4 mm")
+        let round = Float.pi * 156.25, hole = Float.pi * 4.1 * 4.1
+        XCTAssertEqual(result.mesh.section(3.1).area, round - hole, accuracy: 4, "3 mm deep and a little more")
+        XCTAssertEqual(result.mesh.section(3.3).area, round, accuracy: 4, "with a roof over it")
+        XCTAssertTrue(result.lines.contains { $0.contains("magnet hole 8.2 mm wide, 3.2 mm deep") && $0.contains("base 4.40 mm tall") }, "\(result.lines)")
+        XCTAssertFalse(result.lines.contains { $0.contains("WARNING") }, "a taller base is nothing to warn of")
+
+        func height(_ flags: [String]) throws -> Double { try PrepOptions.parse(["a.glb", "b.stl"] + flags).effectiveBaseHeight }
+        XCTAssertEqual(try height([]), 3, "no magnet, no change")
+        XCTAssertEqual(try height(["--magnet", "5x2"]), 3.4, accuracy: 1e-9)
+        XCTAssertEqual(try height(["--magnet", "5x2", "--base-style", "stone"]), 3.85, accuracy: 1e-6)
+        XCTAssertEqual(try height(["--magnet", "5x2", "--base-height", "5"]), 5, "already tall enough")
+        XCTAssertNil(try PrepOptions.parse(["a.glb", "b.stl", "--magnet", "5x2", "--no-base"]).hole)
+        XCTAssertNil(try PrepOptions.parse(["a.glb", "b.stl", "--magnet", "none"]).magnet)
+        XCTAssertEqual(try PrepOptions.parse(["a.glb", "b.stl", "--magnet", "6x2", "--nozzle", "0.6"]).hole?.width ?? 0, 6.3, accuracy: 1e-9,
+                       "more room on a wide nozzle")
+        XCTAssertThrowsError(try PrepOptions.parse(["a.glb", "b.stl", "--magnet", "10x5"]))
+        let bare = try prep(["--magnet", "5x2", "--no-base", "--faces", "20000"]).0
+        XCTAssertTrue(bare.lines.contains("mini_prep: no base, so no magnet hole"))
+    }
+
     /// A floor is pressed into the top of the base: stones stand up to the plain top, seams go no
     /// deeper than 0.45 mm, so the feet (sunk 0.6 mm) are still one piece with the base; the
     /// bottom stays flat. The same seed lays the same floor, another seed another one.
