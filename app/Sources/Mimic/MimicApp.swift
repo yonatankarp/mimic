@@ -106,7 +106,7 @@ struct ContentView: View {
                     } description: {
                         Text("Make your first mini from a picture or a description. It takes about 10 minutes.")
                     } actions: {
-                        Button("➕ New Mini") { model.sheet = .make }
+                        Button("New Mini", systemImage: "plus") { model.sheet = .make }
                             .buttonStyle(.borderedProminent)
                     }
                 } else {

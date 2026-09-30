@@ -183,7 +183,7 @@ struct SetupView: View {
                 VStack(spacing: 12) {
                     Image(nsImage: NSApp.applicationIconImage)
                         .resizable().frame(width: 96, height: 96)
-                    Text("Welcome to Mimic 👋").font(.largeTitle.bold())
+                    Text("Welcome to Mimic").font(.largeTitle.bold())
                     Text("One thing before your first mini: Mimic needs its 3D engine, the part that turns a picture into a model. It runs on your Mac, so nothing you make is uploaded.")
                         .multilineTextAlignment(.center)
                         .foregroundStyle(.secondary)
@@ -223,7 +223,7 @@ struct SetupView: View {
                 Spacer()
                 if !setup.running && !setup.justFinished {
                     Button(setup.problem == nil ? "Download" : "Try Again") { setup.start(picked) }
-                        .glassButton(prominent: true)
+                        .buttonStyle(.glassProminent)
                         .controlSize(.large)
                 }
             }
@@ -250,7 +250,7 @@ struct SetupView: View {
             }
         }
         .padding(20)
-        .glassCard(cornerRadius: 16)
+        .glassEffect(.regular, in: .rect(cornerRadius: 16))
     }
 
     private var drawThingsCard: some View {
@@ -266,7 +266,7 @@ struct SetupView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassCard(cornerRadius: 16)
+        .glassEffect(.regular, in: .rect(cornerRadius: 16))
     }
 }
 
