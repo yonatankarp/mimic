@@ -10,6 +10,22 @@ final class SizeAdviceTests: XCTestCase {
         for blank in ["", "0", "tall"] { XCTAssertEqual(SizeCard.gameHeight(real: blank, scale: 32), 32, blank) }
     }
 
+    /// A comma decimal and feet used to count as 1.8 m without a word; heights here differ from
+    /// 1.8 m so that shows. What still can't be read says so under the field.
+    func testRealHeightInCommasAndFeet() {
+        for (typed, mm) in [("1,50", 27.0), (" 2,0 ", 36), ("6'2\"", 33), ("6'2", 33), ("6’2”", 33), ("6 ft 2", 33),
+                            ("6ft 2in", 33), ("5 feet 9 inches", 31), ("5'", 27), ("5 ft", 27), ("-1", 32)] {
+            XCTAssertEqual(SizeCard.gameHeight(real: typed, scale: 32), mm, typed)
+        }
+        var c = SizeCard(purpose: .game)
+        for fine in ["", "  ", "1,5", "6'2\""] { c.setRealHeight(fine); XCTAssertNil(c.realHeightProblem, fine) }
+        for bad in ["tall", "0", "6'2\"x", "1.8.2"] {
+            c.setRealHeight(bad)
+            XCTAssertEqual(c.realHeightProblem, "Couldn't read that, so it's using 1.8 m. Try 1.75 or 5'9\".", bad)
+            XCTAssertEqual(c.height, 32, bad)
+        }
+    }
+
     func testBestPrintFollowsTheNozzle() {
         var c = SizeCard(purpose: .display, nozzle: "0.2")
         XCTAssertEqual(c.height, 64)

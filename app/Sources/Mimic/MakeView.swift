@@ -562,13 +562,17 @@ struct SizeSection: View {
                         TextField("", text: bind(\.realHeight, { $0.setRealHeight($1) }), prompt: Text("1.80"))
                             .labelsHidden().accessibilityLabel("How tall is the character?")
                             .frame(width: 64).multilineTextAlignment(.trailing)
-                            .help("How tall the character would be in real life, in metres.")
+                            .help("How tall the character would be in real life, in metres or feet.")
                         Text("m")
                     }
                 } label: {
                     Text("How tall is the character?")
-                    // SizeCard.gameHeight: blank (or not a number) counts as 1.8 m.
-                    Text("In metres. 6 ft ≈ 1.83 m, a halfling ≈ 1 m. Leave blank for an average human (1.8 m).")
+                    // SizeCard.gameHeight: blank, or what can't be read, counts as 1.8 m; the problem says so.
+                    if let problem = card.realHeightProblem {
+                        Text(problem).foregroundStyle(.orange)
+                    } else {
+                        Text("In metres or feet: 1.75, or 5'9\". A halfling ≈ 1 m. Leave blank for an average human (1.8 m).")
+                    }
                 }
                 Picker(selection: bind(\.scale, { $0.setScale($1) })) {
                     Text("28 mm").tag(28)
