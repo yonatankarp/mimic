@@ -16,6 +16,7 @@ struct MakeView: View {
     @State private var choosing = false
     @State private var dropTargeted = false
     @State private var restyle = true
+    @State private var cartoon = false
     @State private var description = ""
     /// The AI helper's version of `description`, used instead of it while shown.
     @State private var improved: String?
@@ -166,6 +167,11 @@ struct MakeView: View {
 
     @State private var autoName = false
     private var object: Bool { card.kind == .object }
+    private var pixal3dHere: Bool { EngineDownload.cartoon.complete(in: model.install) }
+    /// A cartoon character from a picture, and everything it needs is here.
+    private var cartoonOn: Bool { cartoon && !object && start == .picture && health.drawThingsReady && pixal3dHere }
+    /// The grey sculpt, which a cartoon always gets.
+    private var sculpt: Bool { (restyle || cartoonOn) && health.drawThingsReady }
     private var thing: String { object ? "object" : "character" }
 
     // MARK: Picture
@@ -200,11 +206,28 @@ struct MakeView: View {
             ForEach(picture.map { MakeAdvice.pictureWarnings(width: $0.width, height: $0.height, kind: card.kind) } ?? [], id: \.self) {
                 Label($0, systemImage: "exclamationmark.triangle.fill").font(.callout).foregroundStyle(.orange)
             }
-            Toggle(isOn: $restyle) {
-                Text("Turn it into a grey sculpt first (recommended)")
-                Text("Draw Things redraws it as a grey statue, which the 3D engine understands far better. Turn it off only if your picture is already a grey 3D model.")
+            if !object {
+                Toggle(isOn: $cartoon) {
+                    Text("It's a cartoon")
+                    Text("For flat drawings with outlines and flat colours. Made from the grey sculpt with Pixal3D, which keeps cartoon shapes smooth.")
+                }
+                .disabled(!health.drawThingsReady || !pixal3dHere)
+                .help("Flat 2D cartoon art comes out smoother this way")
+                if health.drawThingsReady && !pixal3dHere {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Cartoons need the Pixal3D model.").foregroundStyle(.secondary)
+                        Spacer()
+                        OpenSettingsButton(tab: .model) { Text("Open Settings") }
+                    }
+                    .font(.callout)
+                }
             }
-            .disabled(!health.drawThingsReady)
+            Toggle(isOn: Binding(get: { restyle || cartoonOn }, set: { restyle = $0 })) {
+                Text("Turn it into a grey sculpt first (recommended)")
+                Text(cartoonOn ? "A cartoon always gets the grey sculpt: without it, it comes out flat."
+                               : "Draw Things redraws it as a grey statue, which the 3D engine understands far better. Turn it off only if your picture is already a grey 3D model.")
+            }
+            .disabled(!health.drawThingsReady || cartoonOn)
             .help("Redraws your picture as a grey statue with the same pose")
             if !health.drawThingsReady { needsDrawThings("The grey sculpt needs Draw Things.") } else { opensWhenNeeded }
         }
@@ -299,7 +322,7 @@ struct MakeView: View {
     }
 
     private var estimate: Estimate {
-        model.estimateNew(drawn: start == .description || (restyle && health.drawThingsReady), sizes: card.sizes)
+        model.estimateNew(drawn: start == .description || sculpt, sizes: card.sizes, cartoon: cartoonOn)
     }
 
     /// "About 8 minutes on this Mac", or when it would wait: how long until it's ready.
@@ -340,8 +363,8 @@ struct MakeView: View {
         }
         do {
             if project == Self.newProject { project = try model.createProject(newProjectName) }
-            try model.make(name: slug, picture: source, restyle: start == .picture && restyle && health.drawThingsReady,
-                           seed: seed, sizes: card.sizes, kind: card.kind, project: project.isEmpty ? nil : project)
+            try model.make(name: slug, picture: source, restyle: start == .picture && sculpt,
+                           seed: seed, sizes: card.sizes, kind: card.kind, project: project.isEmpty ? nil : project, cartoon: cartoonOn)
         } catch {
             say(model.plainWords(error), error: true)
             messageDetail = "\(error)"
@@ -355,8 +378,8 @@ struct MakeView: View {
         if project == Self.newProject && Rules.projectName(newProjectName) == nil { return say("Name the new project, then drop the pictures again.", error: true) }
         do {
             if project == Self.newProject { project = try model.createProject(newProjectName) }
-            if let why = model.make(pictures: pictures, restyle: restyle && health.drawThingsReady, seed: seed,
-                                    sizes: card.sizes, kind: card.kind, project: project.isEmpty ? nil : project) { say(why, error: true) }
+            if let why = model.make(pictures: pictures, restyle: sculpt, seed: seed, sizes: card.sizes, kind: card.kind,
+                                    project: project.isEmpty ? nil : project, cartoon: cartoonOn) { say(why, error: true) }
         } catch {
             say(model.plainWords(error), error: true)
             messageDetail = "\(error)"
