@@ -14,6 +14,8 @@ enum AppSheet: Identifiable, Equatable {
     /// A new project, and the minis to move into it when asked from Move to Project.
     case newProject(moving: [Mini])
     case renameProject(String)
+    /// Copies of one mini, or of each of several, in one print file.
+    case copies([Mini])
     var id: String {
         switch self {
         case .make: "make"
@@ -23,6 +25,7 @@ enum AppSheet: Identifiable, Equatable {
         case .rename(let m): "rename-\(m.name)"
         case .newProject(let m): "new-project-\(Gallery.dragged(m.map(\.name)))"
         case .renameProject(let p): "rename-project-\(p)"
+        case .copies(let m): "copies-\(Gallery.dragged(m.map(\.name)))"
         }
     }
 }
@@ -326,7 +329,7 @@ final class AppModel {
     func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes, kind: MiniKind = .character,
               project: String? = nil, cartoon: Bool = false) throws {
         let chosen = EngineDownload.forMaking(cartoon: cartoon, chosen: setup.chosen)
-        try start(name) { try $0.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, kind: kind, model: chosen, project: project) }
+        try start(name) { try $0.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, kind: kind, model: chosen, project: project, cartoon: cartoon) }
     }
 
     /// Several pictures dropped on New Mini: a mini each, named after its file, all made the same
@@ -716,18 +719,22 @@ final class AppModel {
 
     var slicerName: String { Slicer.preferred()?.name ?? "your slicer" }
 
-    /// Minis being put in one print file for Open Together; its menu items wait meanwhile.
+    /// Minis being put in one print file for Open Together or Copies; their menu items wait meanwhile.
     var packing = false
 
     /// Open Together: one 3MF with every made mini of `group` laid out on the bed, each its own
-    /// object named after it, opened in the slicer. Named after their project when they share
-    /// one. Written off the main thread (a party's file is tens of MB), kept in the temporary
-    /// folder: the slicer's own project is where it's saved.
-    func openTogether(_ group: [Mini]) {
+    /// object named after it, opened in the slicer; with `copies`, that many of each. Named after
+    /// the mini, or their project when they share one. Written off the main thread (a party's file
+    /// is tens of MB), kept in the temporary folder: the slicer's own project is where it's saved.
+    func openTogether(_ group: [Mini], copies: Int = 1) {
         let made = group.filter { $0.stl != nil }
-        guard made.count > 1, !packing else { return }
+        guard !made.isEmpty, !packing else { return }
+        // One of one mini is its own print file.
+        if made.count == 1 && copies == 1 { openInSlicer(made[0].stl!); return }
         let projects = Set(made.map(\.project))
-        let name = projects.count == 1 ? (projects.first! ?? "Unsorted") : "\(made.count) Minis"
+        var name = made.count == 1 ? made[0].displayName
+            : projects.count == 1 ? (projects.first! ?? "Unsorted") : "\(made.count) Minis"
+        if copies > 1 { name += " ×\(copies)" }
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("Open Together")
         let url = dir.appendingPathComponent(Rules.slug(name).isEmpty ? "minis.3mf" : "\(name).3mf")
         let parts = made.map { ($0.displayName, $0.stl!) }
@@ -736,7 +743,7 @@ final class AppModel {
             let failed: Error? = await Task.detached {
                 do {
                     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-                    try ThreeMF.write(try parts.map { ($0.0, try STL.read($0.1)) }, to: url)
+                    try ThreeMF.write(try parts.map { ($0.0, try STL.read($0.1)) }, copies: copies, to: url)
                     return nil
                 } catch { return error }
             }.value

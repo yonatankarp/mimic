@@ -134,6 +134,8 @@ public struct MiniSettings: Codable, Equatable, Sendable {
     /// The 3D model set it's made with (`EngineModel.id`), so Try Again uses the same one.
     /// Absent means the standard set.
     public var model: String?
+    /// Made as a cartoon (#3): shown on its page, and kept by Make Another Version. Absent is no.
+    public var cartoon: Bool?
     public var requested: Sizes?
     public var made: Sizes?
     /// nil is a character.
