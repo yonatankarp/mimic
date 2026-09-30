@@ -126,6 +126,24 @@ struct MiniCommands: Commands {
                 .disabled(model.toolbarJob == nil || !free)
             Button(model.stopCommand ?? "Stop Making…") { model.showWindow(); model.confirmingStop = true }
                 .disabled(model.stopCommand == nil || !free)
+            // The selected mini's place in the queue, while it waits (#72).
+            let place = mini.flatMap { model.waiting($0.name) }
+            Menu("Move in Queue") {
+                Button("Move to Front") { if let mini { model.moveInQueue(mini.name, to: .front) } }
+                    .disabled(place == nil || place == 1)
+                Button("Move Up") { if let mini { model.moveInQueue(mini.name, by: -1) } }
+                    .keyboardShortcut(.upArrow, modifiers: [.command, .option])
+                    .disabled(place == nil || place == 1)
+                Button("Move Down") { if let mini { model.moveInQueue(mini.name, by: 1) } }
+                    .keyboardShortcut(.downArrow, modifiers: [.command, .option])
+                    .disabled(place == nil || place == model.queue.count)
+                Button("Move to End") { if let mini { model.moveInQueue(mini.name, to: .end) } }
+                    .disabled(place == nil || place == model.queue.count)
+            }
+            .disabled(place == nil || !free)
+            // Shared with every Mimic on this Mac: resuming here resumes a pause made anywhere.
+            Button(model.pauseCommand) { model.togglePause() }
+                .disabled(!model.paused && model.current == nil && model.queue.isEmpty)
             Divider()
             Button("Move to Trash") { model.askToTrash(chosen) }
                 .keyboardShortcut(.delete)

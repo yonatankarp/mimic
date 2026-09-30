@@ -114,6 +114,10 @@ final class AppModel {
     private(set) var queue: [QueueEntry] = []
     /// The job another Mimic is running (the dev app, `mimic` in Terminal), when this one isn't.
     private(set) var elsewhere: JobStatus?
+    /// Why the queue's next job waits (paused, or on battery), read with the queue.
+    private(set) var hold: QueueHold?
+    /// Paused, here or in another Mimic (#89). Read with the queue.
+    private(set) var paused = false
     /// Jobs that ended since the job's popover was last seen, the latest last: the queue can
     /// start the next straight away, so the popover lists these under the one it shows.
     var ended: [JobStatus] = []
@@ -128,6 +132,7 @@ final class AppModel {
         setup = SetupModel(install: install)
         updates.model = self
         jobs.onChange = { [weak self] s in Task { @MainActor in self?.jobChanged(s) } }
+        jobs.heldForPower = Power.holds(suite: nil)
         reload()
         // Run the checks at launch, so Make is blocked (and Settings flagged) before anyone opens Settings.
         Health.shared.check(install)
@@ -202,6 +207,9 @@ final class AppModel {
         let other = running ? nil : SharedJob.read(install.runs)?.status
         if other?.name != elsewhere?.name { reload() }  // another Mimic started, or finished, a mini
         if other != elsewhere { elsewhere = other }
+        let h = jobs.hold(), p = jobs.queue.paused
+        if h != hold { hold = h }
+        if p != paused { paused = p }
         updateBadge()
     }
 
@@ -242,8 +250,29 @@ final class AppModel {
         reload()
     }
 
+    /// Pause After This One, Pause Queue or Resume Queue, in the job's popover and the Mini menu.
+    var pauseCommand: String { paused ? "Resume Queue" : current != nil ? "Pause After This One" : "Pause Queue" }
+
+    /// Pausing lets the mini being made finish; resuming starts the next one if none is.
+    func togglePause() {
+        do { try jobs.setPaused(!paused) } catch { problem = paused ? "Couldn't resume the queue. Try again." : "Couldn't pause the queue. Try again." }
+        refreshQueue()
+    }
+
+    /// The queue's next job waits although nothing is running: the toolbar says so.
+    var queueHeld: QueueHold? { current == nil && !queue.isEmpty ? hold : nil }
+
+    /// When a mini just added should be ready, or why it waits.
+    private func whenReady(_ ready: TimeInterval) -> String { hold.map { $0.sentence } ?? "Ready in \(JobProgress.about(ready))." }
+
     func moveInQueue(_ name: String, by offset: Int) {
-        try? jobs.move(name, by: offset)
+        _ = try? jobs.move(name, by: offset)
+        refreshQueue()
+    }
+
+    /// Move to Front, Move to End, or a mini dragged onto another's place (#72).
+    func moveInQueue(_ name: String, to place: QueuePlace) {
+        _ = try? jobs.move(name, to: place)
         refreshQueue()
     }
 
@@ -318,7 +347,7 @@ final class AppModel {
         }
         guard let last = added.last else { return why }
         let ready = queueTimes().first(where: { $0.entry.name == last })?.ready ?? runningLeft()
-        var text = "\(added.count) \(added.count == 1 ? "mini" : "minis") added to the queue — ready in \(JobProgress.about(ready))."
+        var text = "\(added.count) \(added.count == 1 ? "mini" : "minis") added to the queue. \(whenReady(ready))"
         if !skipped.isEmpty { text += " Skipped \(skipped.joined(separator: ", ")): Mimic can't use \(skipped.count == 1 ? "it" : "them")." }
         queuedNote = (last, text)
         return nil
@@ -395,7 +424,7 @@ final class AppModel {
         let left = skipped == 0 ? "" : " Skipped \(skipped): not made yet, or already waiting or being made."
         guard let last = added.last else { return picked.same > 0 && skipped == 0 ? "They're all already that size." : why + same + left }
         let ready = queueTimes().first(where: { $0.entry.name == last })?.ready ?? runningLeft()
-        queuedNote = (last, "\(added.count) \(added.count == 1 ? "mini" : "minis") added to the queue — ready in \(JobProgress.about(ready)).\(same)\(left)")
+        queuedNote = (last, "\(added.count) \(added.count == 1 ? "mini" : "minis") added to the queue. \(whenReady(ready))\(same)\(left)")
         return nil
     }
 
@@ -535,7 +564,8 @@ final class AppModel {
         askForNotifications()
         refreshQueue()
         if let ahead, let ready = queueTimes().first(where: { $0.entry.name == name })?.ready {
-            queuedNote = (name, "Added to the queue — \(ahead) ahead of it, ready in \(JobProgress.about(ready)).")
+            let before = ahead == 0 ? "" : " \(ahead) ahead of it."
+            queuedNote = (name, "Added to the queue.\(before) \(whenReady(ready))")
         } else {
             queuedNote = nil
             job = jobs.status  // at once, so the popover never opens on the previous job

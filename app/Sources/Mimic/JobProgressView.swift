@@ -193,10 +193,12 @@ struct JobProgressView: View {
 }
 
 /// The jobs waiting their turn: each with how long it takes and when it should be ready, and
-/// ways to move it up or take it out.
+/// ways to move it or take it out.
 private struct QueueList: View {
     @Environment(AppModel.self) private var model
     let now: Date
+    /// The row a dragged mini is over.
+    @State private var target: String?
 
     var body: some View {
         let rows = model.queueTimes(now: now)
@@ -205,39 +207,90 @@ private struct QueueList: View {
             HStack(alignment: .firstTextBaseline) {
                 Text("Waiting (\(rows.count))").font(.headline)
                 Spacer()
-                if let last = rows.last {
+                if model.hold == nil, let last = rows.last {
                     Text("All done in \(JobProgress.about(last.ready))").foregroundStyle(.secondary).monospacedDigit()
                 }
+                Button(model.pauseCommand) { model.togglePause() }
+                    .help(model.paused ? "Carry on with the queue" : "Let the mini being made finish, and start no more until you resume")
+            }
+            if let hold = model.hold {
+                Label(hold.sentence, systemImage: hold == .paused ? "pause.circle" : "battery.50percent")
+                    .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(Array(rows.enumerated()), id: \.element.entry.name) { i, row in
-                        HStack(spacing: 8) {
-                            Image(systemName: JobProgressView.symbol(row.entry.job)).foregroundStyle(.secondary)
-                                .frame(width: 18).accessibilityHidden(true)
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(Mini.displayName(row.entry.name))
-                                Text("\(row.entry.job == .prep ? "Resize" : "Make") · takes \(JobProgress.about(row.estimate.total)) · ready in \(JobProgress.about(row.ready))")
-                                    .font(.callout).foregroundStyle(.secondary).monospacedDigit()
-                            }
-                            Spacer()
-                            Button { model.moveInQueue(row.entry.name, by: -1) } label: { Image(systemName: "arrow.up") }
-                                .buttonStyle(.borderless)
-                                .disabled(i == 0)
-                                .help("Make this one sooner")
-                                .accessibilityLabel("Move \(Mini.displayName(row.entry.name)) up")
-                            Button { model.jobPopover = false; model.unqueueing = row.entry } label: { Image(systemName: "xmark.circle.fill") }
-                                .buttonStyle(.borderless)
-                                .foregroundStyle(.secondary)
-                                .help("Take it out of the queue")
-                                .accessibilityLabel("Take \(Mini.displayName(row.entry.name)) out of the queue")
-                        }
+                        QueueRow(entry: row.entry, estimate: row.estimate, ready: row.ready, index: i, count: rows.count, target: $target)
                     }
                 }
             }
             .frame(maxHeight: 180)
             .fixedSize(horizontal: false, vertical: rows.count <= 3)
         }
+    }
+}
+
+/// One waiting mini (#72). Drag it onto another to take that one's place; right-click to move
+/// it to the front, up, down or to the end, or to take it out. One mini at a time, and never
+/// the one being made: the front is the next to start.
+private struct QueueRow: View {
+    @Environment(AppModel.self) private var model
+    let entry: QueueEntry
+    let estimate: Estimate
+    let ready: TimeInterval
+    let index: Int
+    let count: Int
+    @Binding var target: String?
+
+    var body: some View {
+        let who = Mini.displayName(entry.name)
+        HStack(spacing: 8) {
+            Image(systemName: JobProgressView.symbol(entry.job)).foregroundStyle(.secondary)
+                .frame(width: 18).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(who)
+                Text(times)
+                    .font(.callout).foregroundStyle(.secondary).monospacedDigit()
+            }
+            Spacer()
+            Button { model.moveInQueue(entry.name, by: -1) } label: { Image(systemName: "arrow.up") }
+                .buttonStyle(.borderless)
+                .disabled(index == 0)
+                .help("Make this one sooner. Drag it, or right-click, to move it further")
+                .accessibilityLabel("Move \(who) up")
+            Button { unqueue() } label: { Image(systemName: "xmark.circle.fill") }
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
+                .help("Take it out of the queue")
+                .accessibilityLabel("Take \(who) out of the queue")
+        }
+        .contentShape(Rectangle())
+        .background(target == entry.name ? Color.accentColor.opacity(0.15) : .clear, in: RoundedRectangle(cornerRadius: 6))
+        .draggable(entry.name)
+        .dropDestination(for: String.self) { names, _ in
+            guard let name = names.first, name != entry.name, model.waiting(name) != nil else { return false }
+            model.moveInQueue(name, to: .position(index + 1))
+            return true
+        } isTargeted: { over in
+            if over { target = entry.name } else if target == entry.name { target = nil }
+        }
+        .contextMenu {
+            Button("Move to Front") { model.moveInQueue(entry.name, to: .front) }.disabled(index == 0)
+            Button("Move Up") { model.moveInQueue(entry.name, by: -1) }.disabled(index == 0)
+            Button("Move Down") { model.moveInQueue(entry.name, by: 1) }.disabled(index == count - 1)
+            Button("Move to End") { model.moveInQueue(entry.name, to: .end) }.disabled(index == count - 1)
+            Divider()
+            Button("Take Out of Queue…") { unqueue() }
+        }
+    }
+
+    private func unqueue() { model.jobPopover = false; model.unqueueing = entry }
+
+    /// "Make · takes about 9 minutes · ready in about 20 minutes", without when it's ready while
+    /// the queue is held.
+    private var times: String {
+        let takes = "\(entry.job == .prep ? "Resize" : "Make") · takes \(JobProgress.about(estimate.total))"
+        return model.hold == nil ? "\(takes) · ready in \(JobProgress.about(ready))" : takes
     }
 }
 
@@ -378,33 +431,46 @@ struct JobToolbarItem: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         @Bindable var model = model
-        if let s = model.toolbarJob {
+        // One button either way, so its popover stays open when Resume starts the next mini.
+        if model.toolbarJob != nil || model.queueHeld != nil {
             Button { model.jobPopover.toggle() } label: {
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    HStack(spacing: 6) {
-                        if s.running {
-                            ProgressRing(fraction: JobProgress.fraction(s, estimate: model.estimate(s), now: context.date))
-                                .transition(.opacity)
-                        } else {
-                            Image(systemName: s.succeeded ? "checkmark.circle.fill" : s.canceled ? "stop.circle" : "exclamationmark.triangle.fill")
-                                .foregroundStyle(s.succeeded ? .green : s.canceled ? .secondary : .orange)
-                                .transition(reduceMotion || !s.succeeded ? .opacity : .scale(scale: 0.3).combined(with: .opacity))
+                if let s = model.toolbarJob {
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        HStack(spacing: 6) {
+                            if s.running {
+                                ProgressRing(fraction: JobProgress.fraction(s, estimate: model.estimate(s), now: context.date))
+                                    .transition(.opacity)
+                            } else {
+                                Image(systemName: s.succeeded ? "checkmark.circle.fill" : s.canceled ? "stop.circle" : "exclamationmark.triangle.fill")
+                                    .foregroundStyle(s.succeeded ? .green : s.canceled ? .secondary : .orange)
+                                    .transition(reduceMotion || !s.succeeded ? .opacity : .scale(scale: 0.3).combined(with: .opacity))
+                            }
+                            Text(label(s, now: context.date)).monospacedDigit()
+                                .contentTransition(.numericText())
                         }
-                        Text(label(s, now: context.date)).monospacedDigit()
-                            .contentTransition(.numericText())
+                        .animation(reduceMotion ? nil : .bouncy, value: s.running)
+                        .animation(reduceMotion ? nil : .default, value: Int(context.date.timeIntervalSince(s.started)))
                     }
-                    .animation(reduceMotion ? nil : .bouncy, value: s.running)
-                    .animation(reduceMotion ? nil : .default, value: Int(context.date.timeIntervalSince(s.started)))
+                } else if let hold = model.queueHeld {
+                    // Nothing running and the queue held: what it waits for, and Resume in the popover.
+                    Label("\(hold == .paused ? "Paused" : "On battery") · \(model.queue.count) waiting",
+                          systemImage: hold == .paused ? "pause.circle" : "battery.50percent")
+                        .labelStyle(.titleAndIcon)
                 }
             }
-            .help(s.running ? "Show progress, the queue and Stop" : "Show how it went")
+            .help(tip)
             .background { DetachablePopover(isPresented: $model.jobPopover) { JobProgressView().environment(model) } }
         }
     }
 
+    private var tip: String {
+        if let s = model.toolbarJob { return s.running ? "Show progress, the queue and Stop" : "Show how it went" }
+        return model.queueHeld?.sentence ?? ""
+    }
+
     private func label(_ s: JobStatus, now: Date) -> String {
         let who = Mini.displayName(s.name)
-        let waiting = model.queue.isEmpty ? "" : " · \(model.queue.count) waiting"
+        let waiting = model.queue.isEmpty ? "" : " · \(model.queue.count) waiting" + (model.paused ? ", paused" : "")
         if s.running { return "\(s.kind == .prep ? "Resizing" : "Making") \(who) · \(JobProgress.clock(now.timeIntervalSince(s.started)))\(waiting)" }
         if s.canceled { return "Stopped \(who)\(waiting)" }
         return (s.succeeded ? "\(who) is ready" : "\(who) didn't finish") + waiting
