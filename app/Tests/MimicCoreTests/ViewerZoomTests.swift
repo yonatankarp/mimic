@@ -91,6 +91,7 @@ final class ViewerZoomTests: XCTestCase {
         let narrow = ViewerCamera.fitting(mini, in: CGSize(width: 360, height: 730), top: 96, bottom: 56)
         let wide = ViewerCamera.fitting(mini, in: CGSize(width: 900, height: 730), top: 96, bottom: 56)
         XCTAssertGreaterThan(narrow.distance, wide.distance, "a narrow view stands further back, to fit its width")
+        XCTAssertEqual(ViewerCamera().project(SIMD3(1, 1, 0), in: .zero), .zero, "not laid out yet: no NaN frames")
     }
 
     func testThePointerMapsOntoTheMinisPlaneWithTheCameraLifted() {

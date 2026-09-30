@@ -82,6 +82,7 @@ public struct ViewerCamera: Equatable, Sendable {
 
     /// Where a point in the scene lands in the view, in points from the top left.
     public func project(_ p: SIMD3<Float>, in view: CGSize) -> CGPoint {
+        guard view.width > 0, view.height > 0 else { return .zero }  // not laid out yet
         let t = tan(Self.fieldOfView * .pi / 360)
         let depth = max(distance - p.z, 0.01)
         let aspect = Float(view.width / max(view.height, 1))

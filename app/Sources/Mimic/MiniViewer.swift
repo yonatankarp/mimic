@@ -30,6 +30,10 @@ struct MiniViewer: View {
     /// The stage's size, running up under the toolbar, and the height below the toolbar.
     @State private var stageSize = CGSize.zero
     @State private var seenHeight: CGFloat = 0
+    /// The camera in use: the fit, followed as the window, the sidebar or the details change,
+    /// except while zoomed in or out, so a zoom isn't undone. Face Front fits it again.
+    @State private var camera = ViewerCamera()
+    private var unzoomed: Bool { zoom == 1 && offset == .zero }
     @State private var turn = SIMD2<Float>.zero  // yaw, pitch
     @State private var turnStart: SIMD2<Float>?
     @State private var zoom: Float = 1
@@ -54,6 +58,8 @@ struct MiniViewer: View {
                 .onGeometryChange(for: CGSize.self) { $0.size } action: { stageSize = $0 }
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { seenHeight = $0 }
+        .onChange(of: fit, initial: true) { if unzoomed { camera = fit } }
+        .onChange(of: unzoomed) { if unzoomed { camera = fit } }
         .overlay(alignment: .topTrailing) { controls.padding(12) }
         .overlay(alignment: .bottom) {
             if mini != nil && !hintSeen {
@@ -113,9 +119,8 @@ struct MiniViewer: View {
     }
 
     /// Fits the mini to what's seen: below the toolbar and the controls, above the hint (whose
-    /// room is kept after it's gone, so the mini doesn't move). Follows the window, the sidebar
-    /// and the details panel; zooming is on top of it.
-    private var camera: ViewerCamera {
+    /// room is kept after it's gone, so the mini doesn't move).
+    private var fit: ViewerCamera {
         ViewerCamera.fitting(sizeInScene, in: stageSize, top: max(0, stageSize.height - seenHeight) + 48, bottom: 56)
     }
 
