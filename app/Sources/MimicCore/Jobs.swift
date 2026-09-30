@@ -138,6 +138,9 @@ public final class JobRunner: @unchecked Sendable {
                     s.versionOf = versionOf
                     s.created = Date()  // a failed attempt's folder made again is a new mini
                 }
+                // A failed attempt's picture is from what it was asked for then: made again from
+                // this one's, since the plan starts at the 3D step whenever it's there (#79).
+                for f in ["source.png", "source__matted.png"] { try? fm.removeItem(at: folder.appendingPathComponent(f)) }
                 if case .image(let url) = picture {
                     let upload = folder.appendingPathComponent("upload.img")
                     try? fm.removeItem(at: upload)
