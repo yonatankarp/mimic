@@ -94,7 +94,7 @@ struct MiniDetail: View {
                 Button("Resize This Mini…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resize(mini) }
                     .help("Remakes the print file with new sizes. About a minute. The \(kind == .object ? "object" : "character") itself doesn't change.")
                     .disabled(!mini.hasModel || model.cantStart != nil || model.waiting(mini.name) != nil)
-                Button("Show in Finder", systemImage: "folder") { model.showInFinder(mini) }
+                Button("Show in Finder", systemImage: "folder") { model.showInFinder([mini]) }
                     .help("Shows the print file and the previews in Finder.")
             } label: {
                 Label("More", systemImage: "ellipsis.circle")
@@ -233,7 +233,7 @@ struct MiniDetail: View {
     }
 
     private func versionTile(_ v: Mini) -> some View {
-        Button { model.selection = v.id } label: {
+        Button { model.selection = [v.id] } label: {
             VStack(spacing: 4) {
                 Thumbnail(url: v.renders.first?.url ?? v.source ?? v.upload, version: v.madeAt)
                     .frame(width: 64, height: 64)
@@ -269,7 +269,7 @@ struct MiniDetail: View {
         do { try Gallery.rename(model.install.runs, from: mini.name, to: name, busyWith: model.busyWith) }
         catch { model.problem = model.plainWords(error, else: "Couldn't rename it. Is its folder open in another app?"); return }
         model.reload()
-        model.selection = name
+        model.selection = [name]
     }
 }
 

@@ -120,6 +120,17 @@ public enum Gallery {
         return (resize, same, skipped)
     }
 
+    /// Move to Trash on several minis: all of them but the one being made, which stays (and is
+    /// said, before anything goes).
+    public static func toTrash(_ minis: [Mini], busyWith: String?) -> (trash: [Mini], staying: Mini?) {
+        (minis.filter { $0.name != busyWith }, minis.first { $0.name == busyWith })
+    }
+
+    /// Several minis dragged together travel as one text, a name a line (a name has no line
+    /// breaks); `dropped` reads it back, and a single name, as the names dropped.
+    public static func dragged(_ names: [String]) -> String { names.joined(separator: "\n") }
+    public static func dropped(_ items: [String]) -> [String] { items.flatMap { $0.split(separator: "\n").map(String.init) } }
+
     /// A folder is a mini when it holds a file only Mimic writes there: settings.json (every
     /// mini since the web version, written the moment it's asked for), model.glb (older ones
     /// had no settings) or a print file named after the folder. Not any .stl: one dragged into

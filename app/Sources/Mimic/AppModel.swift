@@ -9,16 +9,19 @@ enum AppSheet: Identifiable, Equatable {
     case make, resize(Mini), rename(Mini)
     /// Resize All on a project.
     case resizeAll(String)
-    /// A new project, and the mini to move into it when asked from Move to Project.
-    case newProject(moving: Mini?)
+    /// Resize on several minis selected together.
+    case resizeSeveral([Mini])
+    /// A new project, and the minis to move into it when asked from Move to Project.
+    case newProject(moving: [Mini])
     case renameProject(String)
     var id: String {
         switch self {
         case .make: "make"
         case .resize(let m): "resize-\(m.name)"
         case .resizeAll(let p): "resize-all-\(p)"
+        case .resizeSeveral(let m): "resize-several-\(Gallery.dragged(m.map(\.name)))"
         case .rename(let m): "rename-\(m.name)"
-        case .newProject(let m): "new-project-\(m?.name ?? "")"
+        case .newProject(let m): "new-project-\(Gallery.dragged(m.map(\.name)))"
         case .renameProject(let p): "rename-project-\(p)"
         }
     }
@@ -47,7 +50,8 @@ final class AppModel {
     var collapsed = Set(UserDefaults.standard.stringArray(forKey: "collapsedProjects") ?? []) {
         didSet { UserDefaults.standard.set(collapsed.sorted(), forKey: "collapsedProjects") }
     }
-    var selection: Mini.ID?
+    /// The minis selected in the sidebar: one, or several (⌘-click, ⇧-click, ⌘A).
+    var selection = Set<Mini.ID>()
     /// The selected mini's preview shown big over the window, or nil.
     var enlarged: MiniPreview?
     /// The job's latest status, updated on the main thread; nil before the first job.
@@ -73,8 +77,8 @@ final class AppModel {
     var confirmingStop = false
     /// The waiting job on "Take it out of the queue?", asked from the job's popover.
     var unqueueing: QueueEntry?
-    /// The mini waiting on "Move to Trash?", asked from the sidebar or the Mini menu.
-    var trashing: Mini?
+    /// The minis waiting on "Move to Trash?", asked from the sidebar or the Mini menu.
+    var trashing: [Mini] = []
     /// A rename or trash that was refused, shown as an alert.
     var problem: String?
 
@@ -133,13 +137,17 @@ final class AppModel {
         #endif
     }
 
-    var selected: Mini? { minis.first { $0.id == selection } }
+    /// The one selected mini, whose page shows; nil when none or several are.
+    var selected: Mini? { selection.count == 1 ? minis.first { selection.contains($0.id) } : nil }
+    /// Every selected mini, in the gallery's order.
+    var chosen: [Mini] { minis.filter { selection.contains($0.id) } }
     var running: Bool { job?.running == true }
 
     func reload() {
         minis = Gallery.list(install.runs)
         projects = Gallery.projects(install.runs)
-        if selection == nil || selected == nil { selection = minis.first?.id }
+        selection = selection.filter { id in minis.contains { $0.id == id } }
+        if selection.isEmpty, let first = minis.first { selection = [first.id] }
     }
 
     // MARK: The queue
@@ -292,9 +300,10 @@ final class AppModel {
         return name
     }
 
-    /// Moves minis (one, or several dragged together) into `project`, nil being Unsorted.
+    /// Moves minis (one, or several dragged together) into `project`, nil being Unsorted. One
+    /// waiting or being made stays, and says so.
     func move(_ names: [String], to project: String?) {
-        for name in names where minis.first(where: { $0.name == name })?.project != project {
+        for name in Gallery.dropped(names) where minis.first(where: { $0.name == name })?.project != project {
             do { try jobs.move(mini: name, toProject: project) }
             catch { problem = plainWords(error, else: "Couldn't move it. Is its folder open in another app?") }
         }
@@ -322,12 +331,15 @@ final class AppModel {
         try start(mini.name) { try $0.resize(name: mini.name, sizes: sizes) }
     }
 
-    /// Resize All: every mini in `project` waits its turn to be resized to `sizes`, with one
-    /// note in the job's popover like several dropped pictures. Returns why, in words, when
-    /// none could be added.
-    func resizeAll(_ project: String, sizes: Sizes) -> String? {
+    /// Resize All on a project.
+    func resizeAll(_ project: String, sizes: Sizes) -> String? { resizeAll(minis.filter { $0.project == project }, sizes: sizes) }
+
+    /// Resize All, or Resize on several selected: each mini waits its turn to be resized to
+    /// `sizes`, with one note in the job's popover like several dropped pictures. Returns why, in
+    /// words, when none could be added.
+    func resizeAll(_ group: [Mini], sizes: Sizes) -> String? {
         let busy = Set(queue.map(\.name) + [current?.name].compactMap { $0 })
-        let picked = Gallery.toResize(minis.filter { $0.project == project }, to: sizes, busy: busy)
+        let picked = Gallery.toResize(group, to: sizes, busy: busy)
         var added: [String] = [], skipped = picked.skipped, why = "None of these minis can be resized right now."
         for (mini, sizes) in picked.resize {
             do { try resize(mini, sizes: sizes); added.append(mini.name) }
@@ -352,19 +364,25 @@ final class AppModel {
     /// A mini that can't be renamed or trashed right now: being made here or in another Mimic.
     var busyWith: String? { current?.name }
 
-    func trash(_ mini: Mini) {
-        do {
-            // Waiting to be made: out of the queue first (a new mini's folder goes to the Trash then).
-            if let entry = queue.first(where: { $0.name == mini.name }) {
-                try jobs.remove(mini.name)
-                refreshQueue()
-                if entry.job == .generate { return reload() }
+    /// Moves minis to the Trash, and returns the one being made, which stays.
+    @discardableResult
+    func trash(_ group: [Mini]) -> Mini? {
+        let picked = Gallery.toTrash(group, busyWith: busyWith)
+        for mini in picked.trash {
+            do {
+                // Waiting to be made: out of the queue first (a new mini's folder goes to the Trash then).
+                if let entry = queue.first(where: { $0.name == mini.name }) {
+                    try jobs.remove(mini.name)
+                    refreshQueue()
+                    if entry.job == .generate { continue }
+                }
+                try Gallery.moveToTrash(install.runs, name: mini.name, busyWith: busyWith)
+            } catch {
+                problem = plainWords(error, else: "Couldn't move it to the Trash. Try Show in Finder and delete it there.")
             }
-            try Gallery.moveToTrash(install.runs, name: mini.name, busyWith: busyWith)
-        } catch {
-            problem = plainWords(error, else: "Couldn't move it to the Trash. Try Show in Finder and delete it there.")
         }
-        reload()  // picks the newest mini if this one was selected
+        reload()  // picks the newest mini if these were selected
+        return picked.staying
     }
 
     /// Keep This One: moves `mini`'s other versions to the Trash (waiting ones leave the queue).
@@ -372,8 +390,7 @@ final class AppModel {
     @discardableResult
     func keep(_ mini: Mini) -> Bool {
         let others = Gallery.versions(of: mini, in: minis).filter { $0.name != mini.name }
-        for v in others where v.name != busyWith { trash(v) }
-        if let v = others.first(where: { $0.name == busyWith }) {
+        if let v = trash(others) {
             problem = (problem.map { $0 + " " } ?? "") + "“\(v.displayName)” is being made, so it wasn't moved to the Trash. Move it there once it's done."
             return false
         }
@@ -459,7 +476,7 @@ final class AppModel {
         guard !s.running else { return }
         confirmingStop = false
         reload()
-        if s.succeeded { selection = s.name }
+        if s.succeeded { selection = [s.name] }
         if finished {
             history = timings.load()
             announce(s)
@@ -502,7 +519,7 @@ final class AppModel {
             if fail { s.step = 2; s.problem = "The 3D engine stopped early (pretend)." }
             job = s
             reload()
-            if s.succeeded { selection = s.name }
+            if s.succeeded { selection = [s.name] }
         }
     }
     #endif
@@ -545,7 +562,7 @@ final class AppModel {
     var slicerName: String { Slicer.preferred()?.name ?? "your slicer" }
 
     /// The print file selected in Finder, or the folder when there's no print file yet.
-    func showInFinder(_ mini: Mini) { NSWorkspace.shared.activateFileViewerSelecting([mini.stl ?? mini.folder]) }
+    func showInFinder(_ minis: [Mini]) { NSWorkspace.shared.activateFileViewerSelecting(minis.map { $0.stl ?? $0.folder }) }
 }
 
 /// A job refused before it started, in words for people.

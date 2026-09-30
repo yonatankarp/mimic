@@ -473,6 +473,14 @@ private final class DockTileView: NSView {
 struct MainWindowChrome: ViewModifier {
     // Named, not written inline: inside the long modifier chain below it made one expression
     // too slow for CI's Swift to type-check.
+    /// "Move “Dwarf Cleric” to the Trash?", or "Move 4 minis to the Trash?" (not counting one
+    /// being made, which stays).
+    private var trashQuestion: String {
+        let group = model.trashing
+        guard group.count > 1 else { return "Move “\(group.first?.displayName ?? "")” to the Trash?" }
+        return "Move \(Gallery.toTrash(group, busyWith: model.busyWith).trash.count) minis to the Trash?"
+    }
+
     private var showsProblem: Binding<Bool> {
         Binding(get: { model.problem != nil }, set: { if !$0 { model.problem = nil } })
     }
@@ -509,20 +517,29 @@ struct MainWindowChrome: ViewModifier {
                 case .make: MakeView(room: room)
                 case .resize(let mini): ResizeView(mini: mini, room: room)
                 case .resizeAll(let p):
-                    if let first = model.minis.first(where: { $0.project == p && $0.hasModel }) { ResizeView(mini: first, project: p, room: room) }
+                    let group = model.minis.filter { $0.project == p }
+                    if let first = group.first(where: \.hasModel) { ResizeView(mini: first, group: group, project: p, room: room) }
+                case .resizeSeveral(let group):
+                    if let first = group.first(where: \.hasModel) { ResizeView(mini: first, group: group, room: room) }
                 case .rename(let mini): RenameSheet(mini: mini)
-                case .newProject(let mini): ProjectNameSheet(renaming: nil, moving: mini)
+                case .newProject(let group): ProjectNameSheet(renaming: nil, moving: group)
                 case .renameProject(let p): ProjectNameSheet(renaming: p)
                 }
             }
             .modifier(JobQuestions())
-            .confirmationDialog("Move “\(model.trashing?.displayName ?? "")” to the Trash?",
-                                isPresented: Binding(get: { model.trashing != nil }, set: { if !$0 { model.trashing = nil } }),
-                                presenting: model.trashing) { mini in
-                Button("Move to Trash", role: .destructive) { model.trash(mini) }
-                Button("Keep It", role: .cancel) {}
-            } message: { _ in
-                Text("You can put it back from the Trash if you change your mind.")
+            .confirmationDialog(trashQuestion,
+                                isPresented: Binding(get: { !model.trashing.isEmpty }, set: { if !$0 { model.trashing = [] } }),
+                                presenting: model.trashing) { group in
+                Button("Move to Trash", role: .destructive) { model.trash(group) }
+                Button(group.count == 1 ? "Keep It" : "Keep Them", role: .cancel) {}
+            } message: { group in
+                if group.count == 1 {
+                    Text("You can put it back from the Trash if you change your mind.")
+                } else {
+                    // The one being made stays: said now, not after.
+                    let staying = Gallery.toTrash(group, busyWith: model.busyWith).staying
+                    Text("You can get them back from the Trash." + (staying.map { " “\($0.displayName)” is being made, so it stays." } ?? ""))
+                }
             }
             // Deleting a project never trashes its minis silently: keeping them is the default.
             .confirmationDialog("Delete the project “\(model.deletingProject ?? "")”?",

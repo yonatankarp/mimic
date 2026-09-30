@@ -221,6 +221,26 @@ final class ProjectTests: XCTestCase {
         XCTAssertEqual(picked.same, 1, "the teapot has no base to make hex")
     }
 
+    /// Several minis in the Trash: every one but the one being made, which is named.
+    func testTrashingSeveralLeavesTheOneBeingMade() throws {
+        let fx = try Fixture(), runs = fx.install.runs
+        for name in ["wizard", "raven", "rogue"] { _ = try fx.mini(name) }
+        let minis = Gallery.list(runs)
+        let picked = Gallery.toTrash(minis, busyWith: "raven")
+        XCTAssertEqual(Set(picked.trash.map(\.name)), ["wizard", "rogue"])
+        XCTAssertEqual(picked.staying?.name, "raven")
+        XCTAssertEqual(Gallery.toTrash(minis, busyWith: nil).trash.count, 3)
+        XCTAssertNil(Gallery.toTrash(minis, busyWith: "bard").staying, "being made, but not among them")
+    }
+
+    /// Minis dragged together arrive as their names, however many came in one item.
+    func testSeveralMinisDragAsOne() {
+        let one = Gallery.dragged(["wizard", "raven"])
+        XCTAssertEqual(Gallery.dropped([one]), ["wizard", "raven"])
+        XCTAssertEqual(Gallery.dropped(["rogue", one]), ["rogue", "wizard", "raven"])
+        XCTAssertEqual(Gallery.dropped([Gallery.dragged(["bard"])]), ["bard"])
+    }
+
     // MARK: Moving, renaming and deleting
 
     func testMovingAMiniTakesAllItsFilesAndIsRefusedWhileItsBusy() throws {
