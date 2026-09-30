@@ -2,6 +2,14 @@
 
 What's new in each version of Mimic. The release workflow publishes a version's section here as its release notes, so write it for people who use Mimic, not for developers.
 
+## 0.8.0
+
+### New
+
+### Changed
+
+### Fixed
+
 ## 0.7.0
 
 ### New
