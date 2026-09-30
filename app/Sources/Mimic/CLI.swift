@@ -17,6 +17,7 @@ enum CLI {
       mimic models
       mimic queue
       mimic queue remove <name>
+      mimic queue move <name> --to front|end|<place> | --up | --down
       mimic queue pause | resume     no new mini starts until it's resumed, in any Mimic
       mimic --version                which Mimic this is (also -v)
       mimic --help                   this list (also -h)
@@ -103,6 +104,24 @@ enum CLI {
                 print(rest == ["pause"] ? "Paused the queue: a mini being made finishes, and no new one starts until you resume it (mimic queue resume, or in Mimic)."
                                         : "Resumed the queue. Mimic carries on with it, or the next time you open it.")
                 return 0
+            }
+            if rest.first == "move" {
+                let how = "usage: mimic queue move <name> --to front|end|<place> | --up | --down"
+                guard rest.count >= 3 else { return fail(how) }
+                let name = rest[1]
+                let moved: Bool
+                do {
+                    switch Array(rest.dropFirst(2)) {
+                    case ["--up"]: moved = try jobs.move(name, by: -1)
+                    case ["--down"]: moved = try jobs.move(name, by: 1)
+                    case let a where a.count == 2 && a[0] == "--to":
+                        guard let place = QueuePlace(a[1]) else { return fail(how) }
+                        moved = try jobs.move(name, to: place)
+                    default: return fail(how)
+                    }
+                } catch { return fail("\(error)") }
+                guard moved else { return fail("\(name) isn't waiting in the queue.") }
+                return listQueue(jobs, history: timings.load())
             }
             if rest.first == "remove" {
                 guard rest.count == 2 else { return fail("usage: mimic queue remove <name>") }

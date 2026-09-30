@@ -269,7 +269,13 @@ final class AppModel {
     private func whenReady(_ ready: TimeInterval) -> String { hold.map { $0.sentence } ?? "Ready in \(JobProgress.about(ready))." }
 
     func moveInQueue(_ name: String, by offset: Int) {
-        try? jobs.move(name, by: offset)
+        _ = try? jobs.move(name, by: offset)
+        refreshQueue()
+    }
+
+    /// Move to Front, Move to End, or a mini dragged onto another's place (#72).
+    func moveInQueue(_ name: String, to place: QueuePlace) {
+        _ = try? jobs.move(name, to: place)
         refreshQueue()
     }
 

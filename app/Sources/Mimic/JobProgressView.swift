@@ -193,10 +193,12 @@ struct JobProgressView: View {
 }
 
 /// The jobs waiting their turn: each with how long it takes and when it should be ready, and
-/// ways to move it up or take it out.
+/// ways to move it or take it out.
 private struct QueueList: View {
     @Environment(AppModel.self) private var model
     let now: Date
+    /// The row a dragged mini is over.
+    @State private var target: String?
 
     var body: some View {
         let rows = model.queueTimes(now: now)
@@ -218,26 +220,7 @@ private struct QueueList: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(Array(rows.enumerated()), id: \.element.entry.name) { i, row in
-                        HStack(spacing: 8) {
-                            Image(systemName: JobProgressView.symbol(row.entry.job)).foregroundStyle(.secondary)
-                                .frame(width: 18).accessibilityHidden(true)
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(Mini.displayName(row.entry.name))
-                                Text(times(row.entry, estimate: row.estimate, ready: row.ready))
-                                    .font(.callout).foregroundStyle(.secondary).monospacedDigit()
-                            }
-                            Spacer()
-                            Button { model.moveInQueue(row.entry.name, by: -1) } label: { Image(systemName: "arrow.up") }
-                                .buttonStyle(.borderless)
-                                .disabled(i == 0)
-                                .help("Make this one sooner")
-                                .accessibilityLabel("Move \(Mini.displayName(row.entry.name)) up")
-                            Button { model.jobPopover = false; model.unqueueing = row.entry } label: { Image(systemName: "xmark.circle.fill") }
-                                .buttonStyle(.borderless)
-                                .foregroundStyle(.secondary)
-                                .help("Take it out of the queue")
-                                .accessibilityLabel("Take \(Mini.displayName(row.entry.name)) out of the queue")
-                        }
+                        QueueRow(entry: row.entry, estimate: row.estimate, ready: row.ready, index: i, count: rows.count, target: $target)
                     }
                 }
             }
@@ -245,10 +228,67 @@ private struct QueueList: View {
             .fixedSize(horizontal: false, vertical: rows.count <= 3)
         }
     }
+}
+
+/// One waiting mini (#72). Drag it onto another to take that one's place; right-click to move
+/// it to the front, up, down or to the end, or to take it out. One mini at a time, and never
+/// the one being made: the front is the next to start.
+private struct QueueRow: View {
+    @Environment(AppModel.self) private var model
+    let entry: QueueEntry
+    let estimate: Estimate
+    let ready: TimeInterval
+    let index: Int
+    let count: Int
+    @Binding var target: String?
+
+    var body: some View {
+        let who = Mini.displayName(entry.name)
+        HStack(spacing: 8) {
+            Image(systemName: JobProgressView.symbol(entry.job)).foregroundStyle(.secondary)
+                .frame(width: 18).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(who)
+                Text(times)
+                    .font(.callout).foregroundStyle(.secondary).monospacedDigit()
+            }
+            Spacer()
+            Button { model.moveInQueue(entry.name, by: -1) } label: { Image(systemName: "arrow.up") }
+                .buttonStyle(.borderless)
+                .disabled(index == 0)
+                .help("Make this one sooner. Drag it, or right-click, to move it further")
+                .accessibilityLabel("Move \(who) up")
+            Button { unqueue() } label: { Image(systemName: "xmark.circle.fill") }
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
+                .help("Take it out of the queue")
+                .accessibilityLabel("Take \(who) out of the queue")
+        }
+        .contentShape(Rectangle())
+        .background(target == entry.name ? Color.accentColor.opacity(0.15) : .clear, in: RoundedRectangle(cornerRadius: 6))
+        .draggable(entry.name)
+        .dropDestination(for: String.self) { names, _ in
+            guard let name = names.first, name != entry.name, model.waiting(name) != nil else { return false }
+            model.moveInQueue(name, to: .position(index + 1))
+            return true
+        } isTargeted: { over in
+            if over { target = entry.name } else if target == entry.name { target = nil }
+        }
+        .contextMenu {
+            Button("Move to Front") { model.moveInQueue(entry.name, to: .front) }.disabled(index == 0)
+            Button("Move Up") { model.moveInQueue(entry.name, by: -1) }.disabled(index == 0)
+            Button("Move Down") { model.moveInQueue(entry.name, by: 1) }.disabled(index == count - 1)
+            Button("Move to End") { model.moveInQueue(entry.name, to: .end) }.disabled(index == count - 1)
+            Divider()
+            Button("Take Out of Queue…") { unqueue() }
+        }
+    }
+
+    private func unqueue() { model.jobPopover = false; model.unqueueing = entry }
 
     /// "Make · takes about 9 minutes · ready in about 20 minutes", without when it's ready while
     /// the queue is held.
-    private func times(_ entry: QueueEntry, estimate: Estimate, ready: TimeInterval) -> String {
+    private var times: String {
         let takes = "\(entry.job == .prep ? "Resize" : "Make") · takes \(JobProgress.about(estimate.total))"
         return model.hold == nil ? "\(takes) · ready in \(JobProgress.about(ready))" : takes
     }
