@@ -16,6 +16,22 @@ public struct QueueEntry: Codable, Equatable, Sendable, Identifiable {
     }
 }
 
+/// Why the queue's next job waits although nothing is running.
+public enum QueueHold: Sendable, Equatable {
+    /// Paused, in this Mimic or another, or with `mimic queue pause`.
+    case paused
+    /// On battery, with Don't start minis on battery on.
+    case battery
+
+    /// What the queue is doing, in words: the popover, the menus and `mimic queue`.
+    public var sentence: String {
+        switch self {
+        case .paused: "The queue is paused. Resume it to carry on."
+        case .battery: "Your Mac is on battery, so the queue carries on when it's plugged in."
+        }
+    }
+}
+
 /// The jobs waiting, oldest first, in runs/.queue.json: shared by every Mimic on this Mac (the
 /// app, a dev build, `mimic` in Terminal), and kept across quits and crashes.
 ///
@@ -30,6 +46,12 @@ public struct JobQueue: Sendable {
 
     var file: URL { runs.appendingPathComponent(".queue.json") }
     var lockFile: URL { runs.appendingPathComponent(".queue.lock") }
+    var pausedFile: URL { runs.appendingPathComponent(".queue.paused") }
+
+    /// Paused (#89): no job starts, in any Mimic, until it's resumed; one already running
+    /// finishes. A file of its own rather than a field in .queue.json, which Mimic 0.7.0 reads as
+    /// a bare list: it would see an empty queue, and drop the pause the next time it wrote one.
+    public var paused: Bool { FileManager.default.fileExists(atPath: pausedFile.path) }
 
     /// A snapshot, without the lock: the file is only ever replaced whole, so it reads complete.
     public func entries() -> [QueueEntry] {

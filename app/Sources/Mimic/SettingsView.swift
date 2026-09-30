@@ -31,6 +31,9 @@ struct SettingsView: View {
     @AppStorage(SettingsTab.key) private var tab = SettingsTab.general
     @AppStorage("slicer") private var slicer = ""
     @AppStorage(DrawThingsApp.enabledKey) private var openDrawThings = true
+    @AppStorage(Power.key) private var holdOnBattery = false
+    /// A MacBook: the battery setting means nothing on a Mac mini.
+    @State private var hasBattery = Power.hasBattery()
     @State private var slicers: [Slicer] = []
     /// The same for every tab, so switching changes only the height.
     private static let width: CGFloat = 540
@@ -103,6 +106,15 @@ struct SettingsView: View {
         } footer: {
             Text("Mimic lists the slicers it finds on this Mac. The Mac's default app works with any other slicer.")
                 .foregroundStyle(.secondary)
+        }
+        if hasBattery {
+            Section {
+                Toggle(isOn: $holdOnBattery) {
+                    Text("Don't start minis on battery")
+                    Text("The next mini waits until your Mac is plugged in. One already being made carries on.")
+                }
+                .help("Keeps the queue waiting while your Mac runs on its battery")
+            }
         }
         Section {
             LabeledContent {

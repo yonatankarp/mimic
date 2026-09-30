@@ -342,6 +342,21 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   now stopped only by a Mimic that got the job lock (before, opening a second Mimic stopped a
   live job it took for a crash's leftover), and the lock files are opened close-on-exec (a job's
   programs inherited them, so after a crash a program still running would have held the lock).
+- **Pausing the queue, and battery** (#89). Paused is `runs/.queue.paused`, a file of its own
+  so every Mimic and `mimic queue pause|resume` share it; a field in `.queue.json` would have
+  broken 0.7.0, which reads that file as a bare list (it would see an empty queue and drop the
+  pause on its next write). 0.7.0 ignores the pause. It is checked, under the queue's lock,
+  wherever a job could start (taking the job lock, and the next job after one ends), so
+  pausing lets the running one finish: Pause After This One. Settings → Don't start minis on
+  battery (`Power`, IOKit's providing power source; shown only on a Mac with a battery) holds
+  the queue the same way, in the app and in Terminal, since both read the app's settings; the
+  app's 3-second watch starts it again once the Mac is plugged in. `mimic queue resume` only
+  lifts the pause and leaves starting to the app: the command ends at once, and a job needs
+  its runner to stay. An update still waits for a held queue to empty, as for any waiting job.
+  Job programs run under `/usr/bin/nice -n 10`, which execs them in place (same pid, same
+  group, so Stop and the leftover record are unchanged) and is inherited by what they start.
+  Measured on an idle M2 Pro, CPU work on every core took as long at nice 10 as at 0 (2.1 s
+  and 2.2 s). Not measured: a whole mini, whose long step is the 3D engine on the GPU.
 - **Learned time estimates** (`MimicCore/Timings.swift`). Every job a Mimic finishes on this Mac
   is a line of `~/Library/Application Support/Mimic/timings.jsonl`: date, Mimic version, the Mac
   (chip, memory, GPU cores), make or resize, character or object, model, where the picture came
