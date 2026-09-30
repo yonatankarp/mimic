@@ -63,4 +63,43 @@ final class ThreeMFTests: XCTestCase {
         // The dwarf spans x -10…10 moved by moves[0][0]; the elf -5…5 by moves[1][0].
         XCTAssertEqual((moves[1][0] - 5) - (moves[0][0] + 10), ThreeMF.gap, accuracy: 0.001, "side by side, a gap apart")
     }
+
+    /// Copies: each mini is one object, placed once per copy, and no two copies overlap.
+    func testCopiesAreTheSameObjectPlacedApart() throws {
+        let m = PrepTests.box(half: [10, 10, 10])
+        let goblin = m.triangles.flatMap { t in [t.x, t.y, t.z].map { m.positions[Int($0)] } }
+        let orc = goblin.map { $0 * [2, 1.5, 1] + [0, 0, 7] }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("copies-\(UUID().uuidString).3mf")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try ThreeMF.write([("Goblin", goblin), ("Orc", orc)], copies: 3, to: url)
+
+        let read = Process(), out = Pipe()
+        read.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
+        read.arguments = ["-p", url.path, "3D/3dmodel.model"]
+        read.standardOutput = out
+        try read.run()
+        let data = out.fileHandleForReading.readDataToEndOfFile()
+        read.waitUntilExit()
+        let doc = try XMLDocument(data: data)
+        let objects = try doc.nodes(forXPath: "//*[local-name()='object']") as! [XMLElement]
+        XCTAssertEqual(objects.compactMap { $0.attribute(forName: "name")?.stringValue }, ["Goblin", "Orc"], "each mini's shape once")
+        let items = try doc.nodes(forXPath: "//*[local-name()='item']") as! [XMLElement]
+        XCTAssertEqual(items.compactMap { $0.attribute(forName: "objectid")?.stringValue }, ["1", "1", "1", "2", "2", "2"])
+
+        // Each copy's footprint: its mini's (goblin -10…10 square, orc -20…20 by -15…15) moved.
+        let half: [String: SIMD2<Float>] = ["1": [10, 10], "2": [20, 15]]
+        let placed = items.map { item -> (lo: SIMD2<Float>, hi: SIMD2<Float>, z: Float) in
+            let move = item.attribute(forName: "transform")!.stringValue!.split(separator: " ").suffix(3).map { Float($0)! }
+            let h = half[item.attribute(forName: "objectid")!.stringValue!]!
+            return (SIMD2(move[0], move[1]) - h, SIMD2(move[0], move[1]) + h, move[2])
+        }
+        for i in placed.indices {
+            XCTAssertEqual(placed[i].z, i < 3 ? 10 : 3, "copy \(i) stands on the bed")
+            for j in placed.indices where j > i {
+                let apart = placed[i].hi.x + ThreeMF.gap <= placed[j].lo.x + 0.001 || placed[j].hi.x + ThreeMF.gap <= placed[i].lo.x + 0.001
+                    || placed[i].hi.y + ThreeMF.gap <= placed[j].lo.y + 0.001 || placed[j].hi.y + ThreeMF.gap <= placed[i].lo.y + 0.001
+                XCTAssertTrue(apart, "copies \(i) and \(j) overlap: \(placed)")
+            }
+        }
+    }
 }
