@@ -26,6 +26,29 @@ final class GalleryTests: XCTestCase {
         XCTAssertEqual(list[1].madeAt.timeIntervalSince1970, old.timeIntervalSince1970, accuracy: 2)
     }
 
+    /// A resize makes a new print file; the list goes by when each mini was asked for, so it
+    /// stays where it was (#75). A mini from before that date was saved goes by its folder's.
+    func testAResizeKeepsTheMinisPlace() throws {
+        let fx = try Fixture(), fm = FileManager.default, runs = fx.install.runs
+        let day: TimeInterval = 86400
+        let old = try fx.mini("old")
+        try fm.setAttributes([.creationDate: Date(timeIntervalSinceNow: -3 * day)], ofItemAtPath: old.path)
+        for (name, days) in [("dwarf", 2.0), ("elf", 1.0)] {
+            try MiniSettings.update(try fx.mini(name)) { $0.created = Date(timeIntervalSinceNow: -days * day) }
+        }
+        let sizes = Sizes(height: "100", base: "40", nozzle: "0.4")
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("prep", #"touch "$3""#)))
+        for name in ["dwarf", "old"] {
+            try jobs.resize(name: name, sizes: sizes)
+            jobs.waitUntilDone()
+            XCTAssertEqual(jobs.status?.succeeded, true, name)
+        }
+        XCTAssertEqual(Gallery.list(runs).map(\.name), ["elf", "dwarf", "old"], "a resize moved a mini")
+        let dwarf = MiniSettings.load(runs.appendingPathComponent("dwarf"))
+        XCTAssertEqual(dwarf.made, sizes)
+        XCTAssertEqual(try XCTUnwrap(dwarf.created).timeIntervalSinceNow, -2 * day, accuracy: 60, "a resize changed when it was asked for")
+    }
+
     func testRenameRefusals() throws {
         let fx = try Fixture(); _ = try fx.mini("dwarf"); _ = try fx.mini("taken")
         XCTAssertThrowsError(try Gallery.rename(fx.install.runs, from: "dwarf", to: "taken")) { XCTAssertEqual($0 as? RequestError, .nameTaken("taken")) }

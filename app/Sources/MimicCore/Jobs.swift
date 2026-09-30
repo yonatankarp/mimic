@@ -136,6 +136,7 @@ public final class JobRunner: @unchecked Sendable {
                     s.kind = settings.kind  // always set: a failed attempt's folder may say otherwise
                     s.model = model.id
                     s.versionOf = versionOf
+                    s.created = Date()  // a failed attempt's folder made again is a new mini
                 }
                 if case .image(let url) = picture {
                     let upload = folder.appendingPathComponent("upload.img")

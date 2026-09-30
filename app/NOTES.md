@@ -133,7 +133,10 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   was given up above. 0.3–0.5 s for a million triangles in a release build. Characters never go through this.
 - **Same data on disk.** `runs/<name>/` with `<name>.stl`, `<name>_{front,side,back}.png`,
   `source.png` and `settings.json` (`requested` / `made` / how it was made), so minis made by
-  the web version appear in the app unchanged.
+  the web version appear in the app unchanged. The list is in the order minis were asked for,
+  `created` in settings.json (#75; older minis go by their folder's creation date), not by the
+  print file's time, which every resize changes; the 3D view, the thumbnails and `mimic --wait`
+  still watch that time to notice a new print file.
 - **3D viewer: RealityKit.** Measured on the dwarf's 40 MB, 2.4M-vertex print file:
   Model I/O reads the STL in 0.08 s; SceneKit builds a scene in 0.03 s (265 MB); a RealityKit
   mesh takes 0.37 s (573 MB). Both are fine; SceneKit is no longer developed, so RealityKit.

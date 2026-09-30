@@ -5,13 +5,16 @@ import Foundation
 public struct Mini: Identifiable, Hashable, Sendable {
     public let name: String
     public let folder: URL
+    /// Its print file's time, new on every resize: what the 3D view and thumbnails watch.
     public let madeAt: Date
+    /// When it was asked for, which a resize leaves alone: the list's order.
+    public let created: Date
     /// The project it's in (its parent folder's name), or nil when it's unsorted.
     public var project: String?
     public var id: String { name }
 
-    public init(name: String, folder: URL, madeAt: Date, project: String? = nil) {
-        self.name = name; self.folder = folder; self.madeAt = madeAt; self.project = project
+    public init(name: String, folder: URL, madeAt: Date, created: Date? = nil, project: String? = nil) {
+        self.name = name; self.folder = folder; self.madeAt = madeAt; self.created = created ?? madeAt; self.project = project
     }
     public var stl: URL? { existing("\(name).stl") }
     public var source: URL? { existing("source.png") }
@@ -81,19 +84,19 @@ extension [MiniPreview] {
 /// that names a mini (the queue, `mimic resize <name>`, rename, trash, timings) finds it with
 /// `folder(_:_:)` wherever it is.
 public enum Gallery {
-    /// Every mini, in every project, newest first.
+    /// Every mini, in every project, the most recently asked for first.
     public static func list(_ runs: URL) -> [Mini] {
         var out: [Mini] = []
         for dir in subfolders(runs) {
             if isMini(dir) {
-                out.append(Mini(name: dir.lastPathComponent, folder: dir, madeAt: madeAt(dir)))
+                out.append(Mini(name: dir.lastPathComponent, folder: dir, madeAt: madeAt(dir), created: created(dir)))
             } else {
                 out += subfolders(dir).filter(isMini).map {
-                    Mini(name: $0.lastPathComponent, folder: $0, madeAt: madeAt($0), project: dir.lastPathComponent)
+                    Mini(name: $0.lastPathComponent, folder: $0, madeAt: madeAt($0), created: created($0), project: dir.lastPathComponent)
                 }
             }
         }
-        return out.sorted { $0.madeAt > $1.madeAt }
+        return out.sorted { $0.created > $1.created }
     }
 
     /// The projects, alphabetical (as Finder sorts), empty ones included.
@@ -181,7 +184,7 @@ public enum Gallery {
             .map { dir.appendingPathComponent($0.lastPathComponent) }
     }
 
-    /// When a mini was made: its print file's time (a rename leaves that alone, where the
+    /// When a mini's print file was last made: its time (a rename leaves that alone, where the
     /// folder's own time changes), else its picture's, else the folder's.
     public static func madeAt(_ folder: URL) -> Date {
         let name = folder.lastPathComponent
@@ -191,12 +194,19 @@ public enum Gallery {
         }
         return (try? FileManager.default.attributesOfItem(atPath: folder.path)[.modificationDate] as? Date) ?? .distantPast
     }
+
+    /// When a mini was asked for: saved in its settings, else (older minis) its folder's creation
+    /// date, which a rename, a move or a resize leaves alone.
+    public static func created(_ folder: URL) -> Date {
+        MiniSettings.load(folder).created
+            ?? (try? FileManager.default.attributesOfItem(atPath: folder.path)[.creationDate] as? Date) ?? .distantPast
+    }
 }
 
 extension Gallery {
     /// Renames a mini: its folder and every file named after it (the print file and the
-    /// previews), which is how the app finds them. Its date is the print file's, so it keeps its
-    /// place in the gallery.
+    /// previews), which is how the app finds them. It keeps its place in the gallery, which is
+    /// by when it was asked for.
     public static func rename(_ runs: URL, from old: String, to new: String, busyWith: String? = nil) throws {
         guard Rules.isValidName(old), Rules.isValidName(new) else { throw RequestError.badName }
         guard old != new else { return }
