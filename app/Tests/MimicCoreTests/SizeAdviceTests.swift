@@ -137,6 +137,20 @@ final class SizeAdviceTests: XCTestCase {
         XCTAssertEqual(c.sizes.shape, .hex)
     }
 
+    /// Resize keeps a mini's magnet hole too, and one without a base has none to keep.
+    func testLoadingAMagnetHole() throws {
+        var c = SizeCard()
+        XCTAssertNil(c.sizes.magnet)
+        c.load(Sizes(height: "32", base: "25", nozzle: "0.4", magnet: .mm8x3))
+        XCTAssertEqual(c.sizes.magnet, .mm8x3)
+        XCTAssertEqual(Array(try c.sizes.flags().suffix(2)), ["--magnet", "8x3"])
+        c.load(Sizes(height: "32", nozzle: "0.4", noBase: true))
+        XCTAssertNil(c.sizes.magnet, "no base, no hole")
+        c.noBase = false
+        XCTAssertEqual(c.sizes.magnet, .mm8x3)
+        XCTAssertEqual(made(Sizes(height: "32", base: "25", shape: .hex, magnet: .mm5x2))[1], "Base: 25 mm hex, 5 × 2 mm magnet hole")
+    }
+
     /// Resize starts from the last New Mini's choice; a loaded mini's sizes say what it was made for.
     func testLoadedSizesChooseWhatTheyMatch() {
         var c = SizeCard(purpose: .display, nozzle: "0.4")

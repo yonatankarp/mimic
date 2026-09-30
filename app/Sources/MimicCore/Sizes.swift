@@ -15,12 +15,15 @@ public struct Sizes: Equatable, Sendable {
     public var shape = BaseShape.round
     /// Plain unless chosen, and always plain with no base, like the shape.
     public var style = BaseStyle.plain
+    /// None unless chosen, and always none with no base, like the shape.
+    public var magnet: Magnet?
 
     public init(height: String? = nil, base: String? = nil, nozzle: String? = nil, inflate: String? = nil, noBase: Bool = false,
-                shape: BaseShape = .round, style: BaseStyle = .plain) {
+                shape: BaseShape = .round, style: BaseStyle = .plain, magnet: Magnet? = nil) {
         self.height = height; self.base = base; self.nozzle = nozzle; self.inflate = inflate; self.noBase = noBase
         self.shape = noBase ? .round : shape
         self.style = noBase ? .plain : style
+        self.magnet = noBase ? nil : magnet
     }
 
     /// Checks every value, then returns print prep's flags. Throws before anything is saved.
@@ -39,12 +42,13 @@ public struct Sizes: Equatable, Sendable {
         if noBase { out.append("--no-base"); return out }
         if shape != .round { out += ["--base-shape", shape.rawValue] }
         if style != .plain { out += ["--base-style", style.rawValue] }
+        if let magnet { out += ["--magnet", magnet.rawValue] }
         return out
     }
 }
 
 extension Sizes: Codable {
-    private enum K: String, CodingKey { case height, base, nozzle, inflate, nobase, shape, style }
+    private enum K: String, CodingKey { case height, base, nozzle, inflate, nobase, shape, style, magnet }
     public init(from d: Decoder) throws {
         let c = try d.container(keyedBy: K.self)
         func text(_ k: K) -> String? {
@@ -56,6 +60,7 @@ extension Sizes: Codable {
         noBase = text(.nobase) == "1" || (try? c.decode(Bool.self, forKey: .nobase)) == true
         shape = noBase ? .round : text(.shape).flatMap(BaseShape.init) ?? .round
         style = noBase ? .plain : text(.style).flatMap(BaseStyle.init) ?? .plain
+        magnet = noBase ? nil : text(.magnet).flatMap(Magnet.init)
     }
     public func encode(to e: Encoder) throws {
         var c = e.container(keyedBy: K.self)
@@ -66,6 +71,7 @@ extension Sizes: Codable {
         if noBase { try c.encode("1", forKey: .nobase) }
         if !noBase && shape != .round { try c.encode(shape.rawValue, forKey: .shape) }
         if !noBase && style != .plain { try c.encode(style.rawValue, forKey: .style) }
+        if !noBase, let magnet { try c.encode(magnet.rawValue, forKey: .magnet) }
     }
 }
 
@@ -89,6 +95,21 @@ public enum BaseStyle: String, CaseIterable, Sendable {
         case .cobble: "cobblestones"
         }
     }
+}
+
+/// A round magnet the base has a hole for, underneath, to glue it into: tabletop players
+/// magnetise bases to hold minis on a steel sheet or in a tin. Named as magnets are sold,
+/// diameter by height in millimetres.
+public enum Magnet: String, CaseIterable, Sendable {
+    case mm5x2 = "5x2", mm6x2 = "6x2", mm8x3 = "8x3"
+
+    public var diameter: Double {
+        switch self { case .mm5x2: 5; case .mm6x2: 6; case .mm8x3: 8 }
+    }
+    public var height: Double { self == .mm8x3 ? 3 : 2 }
+
+    /// "5 × 2 mm": how the size card and the mini's page name it.
+    public var words: String { "\(Int(diameter)) × \(Int(height)) mm" }
 }
 
 /// What a mini is of. Stored as settings.json's "kind" only for an object: absent means a
