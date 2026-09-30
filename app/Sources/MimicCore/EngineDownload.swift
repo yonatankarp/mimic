@@ -147,7 +147,7 @@ public enum EngineDownload {
     /// downloaded. birefnet.gguf is left out: Mimic always hands the engine a cutout.
     static let trellis2Q8 = EngineModel(
         id: "trellis2-q8", name: "TRELLIS.2",
-        summary: "The most reliable with what a figure holds or carries: a weapon, a bow, a pet on a shoulder. A slightly softer surface, and slower on bulky figures.", minutes: 12,
+        summary: "The most reliable with what a figure holds or carries: a weapon, a bow, a pet on a shoulder. A slightly softer surface, and slower on bulky figures.", minutes: 14,
         family: .trellis2,
         files: files(trellis2URL, [
             ("q8/dinov3.gguf", 323_657_920, "0dd4ffd4b46a248f5b7d49c35275d68461fbf73f57ddb4c1fa8afb4f7bb45a0d"),

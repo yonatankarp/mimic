@@ -90,7 +90,7 @@ struct JobProgressView: View {
                         Button("Open in \(model.slicerName)") { model.openInSlicer(stl) }.keyboardShortcut(.defaultAction)
                     } else if !s.succeeded && !s.canceled {
                         if JobProgress.drawThingsCaused(s) {
-                            Button("Open Setup") { model.closeJob(); openSettings() }
+                            Button("Open Setup") { model.closeJob(); SettingsTab.drawThings.select(); openSettings() }
                         }
                         Button("Try Again") { tryAgain(s.name) }
                             .keyboardShortcut(.defaultAction)
@@ -461,7 +461,7 @@ struct MainWindowChrome: ViewModifier {
                 ToolbarItem(placement: .primaryAction) { UpdateToolbarItem() }
                 ToolbarItem(placement: .primaryAction) { JobToolbarItem() }
                 ToolbarItem(placement: .primaryAction) {
-                    SettingsLink {
+                    OpenSettingsButton(tab: Health.shared.needsAttention ? .general : nil) {
                         Label("Settings", systemImage: Health.shared.needsAttention ? "exclamationmark.triangle.fill" : "gearshape")
                     }
                     .foregroundStyle(Health.shared.needsAttention ? .orange : .primary)

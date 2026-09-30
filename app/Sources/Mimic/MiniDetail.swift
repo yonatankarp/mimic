@@ -29,7 +29,7 @@ struct MiniDetail: View {
                     .help("Shows the print file and the previews in Finder.")
                     .glassButton()
                 Button("Open in \(model.slicerName)") { if let stl = mini.stl { model.openInSlicer(stl) } }
-                    .help("Opens the print file in \(model.slicerName) to slice and print. Choose another slicer in Settings.")
+                    .help("Opens the print file in \(model.slicerName) to slice and print. Choose another slicer in Settings → General.")
                     .glassButton(prominent: true)
                     .disabled(mini.stl == nil)
                     .tourCallout(.mini)

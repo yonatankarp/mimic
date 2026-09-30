@@ -89,7 +89,7 @@ enum CLI {
                 let state = m.complete(in: install) ? "downloaded" : "not downloaded"
                 print("\(m.id == selected.id ? "*" : " ") \(m.id)\t\(m.name)\t\(Checks.gigabytes(m.bytes)) GB\t\(state)\t\(m.described())")
             }
-            print("* = the one Mimic uses. Choose or download one in the Mimic app: Settings → 3D model.")
+            print("* = the one Mimic uses. Choose or download one in the Mimic app: Settings → 3D Model.")
             return 0
         case "queue":
             let jobs = JobRunner(install: install)

@@ -8,7 +8,7 @@ difference.
 [Open an issue](https://github.com/yonatankarp/mimic/issues/new/choose) and pick **Something
 went wrong**. The form asks for what helps most:
 
-- Your Mimic version (at the bottom of Settings, or Mimic → About Mimic), your Mac (Apple menu → About This Mac) and macOS version.
+- Your Mimic version (at the bottom of Settings → Advanced, or Mimic → About Mimic), your Mac (Apple menu → About This Mac) and macOS version.
 - What you did, what you expected, and what happened instead.
 - For a mini that failed or came out wrong: its picture, and its log files. Right-click the mini
   → **Show in Finder**; the logs are `generate.job.log`, `pixal3d.log` and `prep.log` in its folder.
@@ -119,4 +119,4 @@ The app downloads a pre-built Pixal3D so that nobody needs Xcode.
 3. Upload the tarball to a GitHub release.
 4. Update `EngineDownload.version` and `EngineDownload.engine` (URL, size, sha256) in
    `app/Sources/MimicCore/EngineDownload.swift`. Installed copies replace an engine whose
-   `VERSION` doesn't match the next time setup runs (Settings → Repair).
+   `VERSION` doesn't match the next time setup runs (Settings → General → Repair).
