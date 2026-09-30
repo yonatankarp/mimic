@@ -25,10 +25,10 @@ struct MimicApp: App {
                     Button("Check for Updates…") { model.updates.check() }
                 }
             }
-            // An action, not a setting: after Settings in the Mimic menu. Settings is written here
-            // too, as `after: .appSettings` put the tool above it.
-            CommandGroup(replacing: .appSettings) {
-                SettingsLink { Text("Settings…") }.keyboardShortcut(",")
+            // An action, not a setting: after Settings in the Mimic menu. The Settings scene adds its
+            // own Settings… (⌘,) after the `.appSettings` group, so `after: .appSettings` put the
+            // tool above it and `replacing:` gave two Settings items; before Services is below it.
+            CommandGroup(before: .systemServices) {
                 Button("Install Command-Line Tool…") { CommandLineTool.show() }
             }
             CommandGroup(replacing: .newItem) {
