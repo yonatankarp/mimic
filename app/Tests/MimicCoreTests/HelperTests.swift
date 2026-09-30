@@ -2,7 +2,7 @@ import Foundation
 import XCTest
 @testable import MimicCore
 
-/// The AI helper for Describe it. No network: requests are checked as built, replies parsed from
+/// The AI helper for descriptions. No network: requests are checked as built, replies parsed from
 /// the shapes each provider documents, and end-to-end calls go to a local fake server.
 final class HelperTests: XCTestCase {
     static let key = "sk-test-DO-NOT-LEAK-1234567890"

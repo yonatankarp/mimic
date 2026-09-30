@@ -101,10 +101,10 @@ public struct SizeCard: Equatable, Sendable {
         case (.object, nil):  // loaded at another size than the suggestion: the note is about the size it is
             h = height
             let best = Self.objectSize[nozzle] ?? 80
-            note = h < best ? "💡 At \(Int(h)) mm, a \(nozzle) mm nozzle softens fine details a little. For the clearest details, make it about \(Int(best)) mm on its longest side." : ""
+            note = h < best ? "At \(Int(h)) mm, a \(nozzle) mm nozzle softens fine details a little. For the clearest details, make it about \(Int(best)) mm on its longest side." : ""
         case (.object, _):
             h = Self.objectSize[nozzle] ?? 80
-            note = "✨ Sized so details come out clearly on a \(nozzle) mm nozzle: about \(Int(h)) mm on its longest side. Change it to the size you want."
+            note = "Sized so details come out clearly on a \(nozzle) mm nozzle: about \(Int(h)) mm on its longest side. Change it to the size you want."
         case (_, .game), (_, nil):  // nil: loaded sizes that match neither, so the note is about their height
             h = purpose == .game ? Self.gameHeight(real: realHeight, scale: scale) : height
             note = ""
@@ -112,14 +112,14 @@ public struct SizeCard: Equatable, Sendable {
             // faces just come out a little soft. Only really small sizes, or a 0.6 nozzle under
             // its 54 mm sweet spot (see PrintTips), turn faces into bumps.
             if (nozzle == "0.4" && h < 28) || (nozzle == "0.6" && h < 50) {
-                note = "⚠️ At \(Int(h)) mm, a \(nozzle) mm nozzle turns faces into bumps. Use a 0.2 mm nozzle, or choose ✨ Best print."
+                note = "At \(Int(h)) mm, a \(nozzle) mm nozzle turns faces into bumps. Use a 0.2 mm nozzle, or choose Best print."
                 warns = true
             } else if nozzle == "0.4" && h < 50 {
-                note = "💡 At \(Int(h)) mm, a 0.4 mm nozzle softens faces a little. For sharper faces, use a 0.2 mm nozzle or choose ✨ Best print."
+                note = "At \(Int(h)) mm, a 0.4 mm nozzle softens faces a little. For sharper faces, use a 0.2 mm nozzle or choose Best print."
             }
         case (_, .display):
             h = Self.bestPrint[nozzle] ?? 100
-            note = "✨ Sized so faces come out clearly on a \(nozzle) mm nozzle: about \(Int(h)) mm tall. Chunky characters also look good a bit smaller."
+            note = "Sized so faces come out clearly on a \(nozzle) mm nozzle: about \(Int(h)) mm tall. Chunky characters also look good a bit smaller."
         }
         // The note names the height as worked out; the slider can only hold its own range.
         if !heightTouched { height = Self.clamp(h, Self.heightRange, step: 1) }
@@ -157,11 +157,17 @@ public struct SizeCard: Equatable, Sendable {
 
 /// Advice about the picture and the name, given before a 10-minute wait rather than after it.
 public enum MakeAdvice {
+    /// ⌘V in New Mini: a picture on the clipboard becomes the mini's picture, unless a text field
+    /// is being typed in and there's text to paste too (a copied web page carries both).
+    public static func pastesPicture(typing: Bool, hasText: Bool, hasPicture: Bool) -> Bool {
+        hasPicture && !(typing && hasText)
+    }
+
     /// Pixel sizes, not points: a 144 dpi picture is twice as big as it looks.
     public static func pictureWarnings(width: Int, height: Int, kind: MiniKind = .character) -> [String] {
         var notes: [String] = []
-        if max(width, height) < 512 { notes.append("⚠️ This picture is small, so the mini may come out blobby. A bigger picture works better.") }
-        if kind == .character, Double(width) > Double(height) * 1.15 { notes.append("⚠️ This picture is wider than it is tall, so it may not show the whole body. A full-body picture works best.") }
+        if max(width, height) < 512 { notes.append("This picture is small, so the mini may come out blobby. A bigger picture works better.") }
+        if kind == .character, Double(width) > Double(height) * 1.15 { notes.append("This picture is wider than it is tall, so it may not show the whole body. A full-body picture works best.") }
         return notes
     }
 

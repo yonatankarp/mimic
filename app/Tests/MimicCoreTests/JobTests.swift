@@ -210,14 +210,15 @@ final class JobTests: XCTestCase {
         XCTAssertEqual(warns.status?.fragile, true)
     }
 
-    /// A part print prep left out is said in its own words, beside the generic fragile line
-    /// that the footprint warning still gets.
+    /// A part print prep left out, or an object that needs a base, is said in its own words,
+    /// beside the generic fragile line that the footprint warning still gets.
     func testAPartLeftOutIsSaidInItsOwnWords() throws {
         let fx = try Fixture(); _ = try fx.mini("elf")
         let part = "A part came out separate from the figure (about 30 mm long) and was left out."
-        let one = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("prep", "echo '\(Prep.partWarning)\(part)'")))
+        let stand = "It needs a base to stand."
+        let one = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("prep", "echo '\(Prep.partWarning)\(part)'; echo '\(Prep.standWarning)\(stand)'")))
         try one.resize(name: "elf", sizes: sizes); one.waitUntilDone()
-        XCTAssertEqual(one.status?.notes, [part])
+        XCTAssertEqual(one.status?.notes, [part, stand])
         XCTAssertEqual(one.status?.fragile, false)
         let both = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("prep2", "echo 'mini_prep: WARNING footprint'; echo '\(Prep.partWarning)\(part)'")))
         try both.resize(name: "elf", sizes: sizes); both.waitUntilDone()
