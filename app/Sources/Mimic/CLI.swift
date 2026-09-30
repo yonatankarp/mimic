@@ -9,6 +9,7 @@ enum CLI {
       mimic make <name> "<description>" [--improve] [options]
       mimic make <name> --image <picture> [--restyle] [options]
       mimic make-another <name> [--seed N]
+      mimic duplicate <name> --as "<new name>"
       mimic resize <name> [options]
       mimic retry <name>
       mimic list
@@ -25,6 +26,7 @@ enum CLI {
     anything that isn't a character: make … --object  [--size MM (longest side)]  [--add-base]
     make … --project "<project>": into that project (made if it's new); a project is a folder in the minis folder
     make-another: the same picture or description and settings with a new seed, next to it ("<name>-2")
+    duplicate: a copy with the same shape, next to it, to resize without changing the first
     --improve: the AI helper chosen in Settings writes a fuller description first
     --wait: while another mini is being made, make, resize and retry join the queue and return;
             --wait stays until this one is made
@@ -84,6 +86,14 @@ enum CLI {
             }
             do { try JobRunner(install: install).move(mini: name, toProject: target) } catch { return fail("\(error)") }
             print("Moved \(Mini.displayName(name, runs: install.runs)) to \(target ?? "Unsorted").")
+            return 0
+        case "duplicate":
+            guard rest.count == 3, !rest[0].hasPrefix("-"), rest[1] == "--as" else { return fail(usage) }
+            // As typed, like a name in the app: "Raven Display" is the folder raven-display.
+            let typed = Rules.shownName(rest[2]), new = Rules.folderName(rest[2])
+            do { try JobRunner(install: install).duplicate(rest[0], as: new, shown: Rules.isValidName(rest[2]) ? nil : typed) }
+            catch { return fail("\(error)") }
+            print("Duplicated \(Mini.displayName(rest[0], runs: install.runs)) as \(new). Choose its size: mimic resize \(new) --height MM")
             return 0
         case "models":
             // The app's choice, marked; downloading one is the app's job, where it shows progress.

@@ -84,6 +84,9 @@ A small detail came out as a blob? Right-click the mini → **Make Another Versi
 picture and settings with a different variation number, next to it. Line up two or three:
 the mini's page shows them side by side, and **Keep This One** moves the others to the Trash.
 
+Want the same mini at two sizes, say one for the table and one for the shelf? Right-click it →
+**Duplicate…**, name the copy, and choose its size. Only the size is made again: about a minute.
+
 ---
 
 ## 🛠️ For developers
@@ -128,6 +131,7 @@ mimic resize tiefling --height 32 --base 25
 mimic make teapot "a round teapot with a curved spout" --object --size 80
 mimic retry tiefling
 mimic make-another tiefling                        # the same, with a new seed: "tiefling-2"
+mimic duplicate tiefling --as "Tiefling Display"   # the same shape, to resize without losing the first
 mimic make raven --image raven.png --project "Tiefling Party"
 mimic move tiefling --project "Tiefling Party"     # or --unsorted
 mimic projects

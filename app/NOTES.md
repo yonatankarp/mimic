@@ -105,6 +105,15 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   folded wing at 7. A picture mini from before `upload.img` was kept has only source.png, which
   is what its 3D step saw, so that is used without the sculpt; a mini with no settings can't be
   made again and the menu item is off.
+- **Duplicate** (#85, `MimicCore/Duplicate.swift`) keeps a second mini of the same shape to
+  resize, since Resize replaces the only print file and Make Another Version changes the shape.
+  The copy is made in a `_duplicate-…` folder next to it (never listed, so never taken over as a
+  Finder copy half made), its files renamed after it and its settings given the new name, then
+  moved into place, all under the queue's lock; a mini being made, resized or waiting can't be
+  duplicated. Everything comes along but the logs (they tell how the original was made, and
+  would count it twice in the estimates) and a half-written print file. It isn't one of the
+  original's versions (Keep This One would trash it) and is asked for now. The name offered is
+  the next number, as for versions ("Raven 2"), not a size: the size is chosen after, in Resize.
 - **A mini has two names** (#87; all in `Rules.swift`, "Names people type"): the one typed,
   kept in settings.json as `name` ("Élodie", "D&D Bard", "McGregor") and shown everywhere
   (list, page, notifications, Open Together's objects, `mimic list`'s last column), and its

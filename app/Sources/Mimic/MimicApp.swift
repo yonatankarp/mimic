@@ -113,6 +113,7 @@ struct MiniCommands: Commands {
             } else {
                 Button("Make Another Version") {}.disabled(true)
             }
+            if let mini, free { DuplicateButton(mini: mini, showsIcon: false).environment(model) } else { Button("Duplicate…") {}.disabled(true) }
             if free && !chosen.isEmpty {
                 MoveToProjectMenu(minis: chosen, showsIcon: false).environment(model)
             } else {

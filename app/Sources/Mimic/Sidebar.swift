@@ -182,6 +182,7 @@ struct Sidebar: View {
             .disabled(!mini.hasModel || model.cantStart != nil || model.waiting(mini.name) != nil)
         Divider()
         AnotherVersionButton(mini: mini)
+        DuplicateButton(mini: mini)
         MoveToProjectMenu(minis: [mini])
         Divider()
         if model.canRetry(mini) {

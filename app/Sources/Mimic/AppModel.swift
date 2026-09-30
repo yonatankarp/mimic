@@ -16,6 +16,8 @@ enum AppSheet: Identifiable, Equatable {
     case renameProject(String)
     /// Copies of one mini, or of each of several, in one print file.
     case copies([Mini])
+    /// Duplicate: the copy's name, then Resize for it.
+    case duplicate(Mini)
     var id: String {
         switch self {
         case .make: "make"
@@ -26,6 +28,7 @@ enum AppSheet: Identifiable, Equatable {
         case .newProject(let m): "new-project-\(Gallery.dragged(m.map(\.name)))"
         case .renameProject(let p): "rename-project-\(p)"
         case .copies(let m): "copies-\(Gallery.dragged(m.map(\.name)))"
+        case .duplicate(let m): "duplicate-\(m.name)"
         }
     }
 }
