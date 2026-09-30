@@ -51,21 +51,22 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
 
 1. Press **New Mini** (⌘N), and choose what you're making: 🧙 **A character** (a tabletop mini) or
    🏺 **Anything else** (a teapot, a car, a chess piece).
-2. Drop in a picture of it, or switch to **Describe it** and write a sentence.
+2. Drop in a picture of it, or switch to **Description** and write a sentence.
 3. Pick your printer's nozzle and how big to make it.
-4. Press **Make My Mini**. A mini takes about 8–15 minutes, depending on the 3D model, and New
+4. Press **Make Mini**. A mini takes about 8–15 minutes, depending on the 3D model, and New
    Mini shows how long on your Mac. Keep using Mimic meanwhile: its progress is in the toolbar
-   (click it for the steps, the queue and Stop), and Mimic tells you when it's ready.
+   (click it for the steps, the queue and Stop), and Mimic tells you when it's ready. Closing the
+   window doesn't stop it: it carries on in the Dock, which counts the minis ready to see.
 5. Press **Open in …** to open it in your slicer, or drag one of its previews to Finder or any
    slicer, and print. Each mini's page shows the slicer settings to use.
 
-**Several at once?** Press Make My Mini while one is being made and the new one waits its turn.
+**Several at once?** Press Make Mini while one is being made and the new one waits its turn.
 Drop several pictures on New Mini to line up a mini for each. Your Mac stays awake until the
 last one is done.
 
 Want a fuller description from a few words? Choose an **AI helper for descriptions** in
 **Settings → Draw Things & AI** (Claude or another service with your own API key, or Ollama on
-your Mac), then press **✨ Improve Description**. You can edit what it writes or go back to yours.
+your Mac), then press **Improve Description**. You can edit what it writes, or press **Use Original**.
 It's off unless you turn it on, and a cloud service only ever sees the description you typed.
 
 > [!TIP]

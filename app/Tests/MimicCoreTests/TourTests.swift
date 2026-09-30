@@ -9,6 +9,12 @@ final class TourTests: XCTestCase {
         XCTAssertFalse(JobProgress.seenEnd(active: true, busy: false, shownEnd: false), "closed while it ran, or never shown in front")
     }
 
+    func testTheDockCountsReadyMinisNotYetSeen() {
+        XCTAssertNil(JobProgress.badge(unseen: [], minis: ["dwarf"]), "nothing, not 0")
+        XCTAssertEqual(JobProgress.badge(unseen: ["dwarf", "elf"], minis: ["dwarf", "elf", "orc"]), "2")
+        XCTAssertEqual(JobProgress.badge(unseen: ["dwarf", "elf"], minis: ["dwarf"]), "1", "one trashed since")
+    }
+
     func testStartsOnceAndOnlyWhenMimicCanMakeMinis() {
         XCTAssertTrue(Tour.shouldStart(seen: false, installed: true))
         XCTAssertFalse(Tour.shouldStart(seen: false, installed: false), "not over the setup screen")
@@ -24,19 +30,22 @@ final class TourTests: XCTestCase {
     }
 
     func testSkipsMainWindowStopsThatArentThere() {
-        // An empty gallery: no mini page, sidebar still there.
-        let empty: Set<TourStep> = [.newMini, .gallery]
-        XCTAssertEqual(Tour.next(after: .make, onScreen: empty), .gallery)
-        XCTAssertEqual(Tour.steps(onScreen: empty).count, 7)
-        // New Mini's stops are never skipped: the tour opens it itself.
-        XCTAssertEqual(Tour.next(after: .newMini, onScreen: []), .start)
-        XCTAssertEqual(Tour.next(after: .make, onScreen: []), .settings)
+        // An empty gallery: no mini page.
+        let empty: Set<TourStep> = [.newMini]
+        XCTAssertEqual(Tour.next(after: .make, onScreen: empty), .settings)
+        XCTAssertEqual(Tour.steps(onScreen: empty), [.welcome, .newMini, .make, .settings])
+        // New Mini's stop is never skipped: the tour opens it itself.
+        XCTAssertEqual(Tour.next(after: .newMini, onScreen: []), .make)
+    }
+
+    func testFiveShortStops() {
+        XCTAssertEqual(TourStep.allCases, [.welcome, .newMini, .make, .mini, .settings])
     }
 
     func testSettingsIsAlwaysTheLastStop() {
         // It points at nothing (Settings is in the Mimic menu), so nothing on screen can skip it.
-        XCTAssertEqual(Tour.steps(onScreen: []), [.welcome, .start, .size, .make, .settings])
-        XCTAssertEqual(Tour.next(after: .gallery, onScreen: [.gallery]), .settings)
+        XCTAssertEqual(Tour.steps(onScreen: []), [.welcome, .make, .settings])
+        XCTAssertEqual(Tour.next(after: .mini, onScreen: [.mini]), .settings)
         XCTAssertNil(Tour.next(after: .settings, onScreen: []))
     }
 

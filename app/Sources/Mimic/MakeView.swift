@@ -2,6 +2,7 @@ import AppKit
 import ImageIO
 import MimicCore
 import SwiftUI
+import TipKit
 import UniformTypeIdentifiers
 
 /// The Make a Mini sheet (⌘N): a picture or a description, a name, and the size card.
@@ -47,9 +48,8 @@ struct MakeView: View {
             Text("New Mini").font(.title2.bold())
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding([.horizontal, .top], 20)
-            // Two columns, so the size choices are in sight before Make My Mini without scrolling.
+            // Two columns, so the size choices are in sight before Make Mini without scrolling.
             // Each column scrolls on its own if it outgrows the sheet (Advanced open, say).
-            ScrollViewReader { scroller in
             HStack(spacing: 0) {
             Form {
                 Section {
@@ -60,19 +60,19 @@ struct MakeView: View {
                         Text("Anything else").tag(MiniKind.object)
                     } label: { Label("What are you making?", systemImage: object ? "cube" : "person.fill") }
                     .pickerStyle(.segmented)
-                    .help("A character is made as a tabletop mini: standing, on a round base, sized to match your other minis. Anything else (a teapot, a car, a chess piece) is sized by its longest side, with no base unless you add one.")
+                    // One help for the whole control: a segment of a Mac segmented picker takes no help of its own.
+                    .help("A character stands on a base; anything else is sized by its longest side")
                 }
                 Section {
                     Picker(selection: $start) {
                         Text("From a picture").tag(Start.picture)
-                        Text("Describe it").tag(Start.description)
+                        Text("Description").tag(Start.description)
                     } label: { Label("Start from", systemImage: start == .picture ? "photo" : "text.cursor") }
                     .pickerStyle(.segmented)
-                    .tourStop(.start, arrow: .trailing)
-                    .help("From a picture: art or a photo of your \(thing). Describe it: Draw Things draws the \(thing) from your words first.")
+                    .help("Start from a picture of your \(thing), or from a description")
                     if start == .picture { picturePane } else { descriptionPane }
-                    TextField("Name your mini", text: $name, prompt: Text(object ? "e.g. Teapot" : "e.g. Dwarf Cleric"))
-                        .help("How it's listed in your minis. The print file is named after it too.")
+                    TextField("Name", text: $name, prompt: Text(object ? "e.g. Teapot" : "e.g. Dwarf Cleric"))
+                        .help("How it's listed, and what its print file is called")
                         .focused($nameFocused)
                         .onChange(of: name) { _, new in
                             if new != Mini.displayName(MakeAdvice.name(fromDescription: description)) { autoName = false }
@@ -94,10 +94,11 @@ struct MakeView: View {
                             .font(.callout).foregroundStyle(.red)
                     }
                 } header: {
-                    Label(object ? "Your object" : "Your character", systemImage: object ? "cube" : "person.fill")
+                    Label(object ? "Object" : "Character", systemImage: object ? "cube" : "person.fill")
                 } footer: {
-                    Text(object ? "💡 Solid objects with bold shapes work best. Thin handles, wires and fine texture may come out soft."
-                                : "💡 Chunky characters with bold shapes work best. Small details, like a pet on a shoulder, may come out soft.")
+                    Label(object ? "Solid objects with bold shapes work best. Thin handles, wires and fine texture may come out soft."
+                                 : "Chunky characters with bold shapes work best. Small details, like a pet on a shoulder, may come out soft.",
+                          systemImage: "lightbulb")
                         .font(.callout).foregroundStyle(.secondary)
                         .multilineTextAlignment(.leading).frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -107,13 +108,6 @@ struct MakeView: View {
             Form { SizeSection(card: $card, seed: $seed) }
                 .formStyle(.grouped)
                 .reportsHeight(1, into: $forms)
-            }
-            // The tour's stops in here can be scrolled out of sight (a popover on a control out of
-            // sight doesn't show), so the forms bring each one into view as the tour gets to it.
-            .onChange(of: TourGuide.shared.step) { _, stop in
-                guard let stop, stop.inNewMini else { return }
-                withAnimation { scroller.scrollTo(stop, anchor: .center) }
-            }
             }
 
             Divider()
@@ -131,8 +125,8 @@ struct MakeView: View {
                 }
                 Spacer()
                 Button("Cancel") { TourGuide.shared.newMiniCancelled(); model.sheet = nil }.keyboardShortcut(.cancelAction)
-                Button("Make My Mini") { make() }
-                    .help("Takes \(JobProgress.about(estimate.total))\(estimate.learned ? " on this Mac" : ""). You can keep using your Mac meanwhile.")
+                Button("Make Mini") { make() }
+                    .help("Takes \(JobProgress.about(estimate.total))\(estimate.learned ? " on this Mac" : ""); keep using your Mac meanwhile")
                     .keyboardShortcut(.defaultAction)
                     .disabled(model.cantStart != nil || takenName != nil || missing != nil)
                     .tourCallout(.make, arrow: .top)
@@ -156,7 +150,7 @@ struct MakeView: View {
             improved = nil  // written for the other kind
         }
         .task {
-            // Describe it and the grey sculpt need Draw Things, and Make needs every required
+            // A description and the grey sculpt need Draw Things, and Make needs every required
             // part: check them once if nothing has yet, then keep watching Draw Things.
             // Not during a job: the checks start the 3D engine themselves.
             if health.lastChecked == nil && !health.running && !model.running { health.check(model.install) }
@@ -203,13 +197,15 @@ struct MakeView: View {
                 if urls.count > 1 { make(urls) } else { take(url) }
                 return true
             } isTargeted: { dropTargeted = $0 }
-            ForEach(picture.map { MakeAdvice.pictureWarnings(width: $0.width, height: $0.height, kind: card.kind) } ?? [], id: \.self) { Text($0).font(.callout).foregroundStyle(.orange) }
+            ForEach(picture.map { MakeAdvice.pictureWarnings(width: $0.width, height: $0.height, kind: card.kind) } ?? [], id: \.self) {
+                Label($0, systemImage: "exclamationmark.triangle.fill").font(.callout).foregroundStyle(.orange)
+            }
             Toggle(isOn: $restyle) {
                 Text("Turn it into a grey sculpt first (recommended)")
-                Text("Best for drawings and photos. Turn it off only if your picture is already a grey 3D model.")
+                Text("Draw Things redraws it as a grey statue, which the 3D engine understands far better. Turn it off only if your picture is already a grey 3D model.")
             }
             .disabled(!health.drawThingsReady)
-            .help("Draw Things redraws your picture as a grey statue with the same pose and details. The 3D engine understands that far better than colourful art or photos.")
+            .help("Redraws your picture as a grey statue with the same pose")
             if !health.drawThingsReady { needsDrawThings("The grey sculpt needs Draw Things.") } else { opensWhenNeeded }
         }
     }
@@ -233,7 +229,7 @@ struct MakeView: View {
                     autoName = true
                 }
             ImproveBox(description: description, kind: card.kind.rawValue, improved: $improved)
-            if !health.drawThingsReady { needsDrawThings("✍️ Describe it needs Draw Things.") } else { opensWhenNeeded }
+            if !health.drawThingsReady { needsDrawThings("A description needs Draw Things.") } else { opensWhenNeeded }
         }
     }
 
@@ -256,7 +252,7 @@ struct MakeView: View {
         start = .picture
         message = nil
         if name.isEmpty {
-            if pasted { say("📋 Picture pasted. Give your mini a name."); nameFocused = true }
+            if pasted { say("Picture pasted. Give your mini a name."); nameFocused = true }
             else { name = Mini.displayName(Rules.slug(url.deletingPathExtension().lastPathComponent)) }
         }
     }
@@ -289,7 +285,7 @@ struct MakeView: View {
     private var takenName: String? {
         let runs = model.install.runs
         // Any mini or project with the name, in any project, except a failed attempt's folder,
-        // which Make My Mini makes again.
+        // which Make Mini makes again.
         let failedAttempt = Gallery.folder(runs, slug).map {
             !FileManager.default.fileExists(atPath: $0.appendingPathComponent("model.glb").path)
                 && $0.deletingLastPathComponent().standardizedFileURL
@@ -318,7 +314,7 @@ struct MakeView: View {
 
     private var trimmedDescription: String { description.trimmingCharacters(in: .whitespacesAndNewlines) }
 
-    /// What Make My Mini is waiting for, said in the footer while the button is off.
+    /// What Make Mini is waiting for, said in the footer while the button is off.
     private var missing: String? {
         switch start {
         case .picture where picture == nil: return "Add a picture to start"
@@ -327,7 +323,7 @@ struct MakeView: View {
         }
         if slug.isEmpty { return "Give your mini a name" }
         if project == Self.newProject && Rules.projectName(newProjectName) == nil { return "Name the new project" }
-        if start == .description && !health.drawThingsReady { return "Describe it needs Draw Things first" }
+        if start == .description && !health.drawThingsReady { return "A description needs Draw Things first" }
         return nil
     }
 
@@ -538,7 +534,7 @@ struct SizeSection: View {
                     } icon: { Image(systemName: card.purpose == .display ? "sparkles" : "dice") }
                 }
                 .pickerStyle(.segmented)
-                .help("Game scale: the same size as the other minis on your table. Best print: as big as your nozzle needs for faces to come out clearly.")
+                .help("Match your other minis, or go big enough for clear faces")
             }
             Picker(selection: bind(\.nozzle, { $0.setNozzle($1) })) {
                 Text("0.2 mm · fine").tag("0.2")
@@ -546,13 +542,13 @@ struct SizeSection: View {
                 Text("0.6 mm · fast").tag("0.6")
             } label: {
                 Label {
-                    Text("Your printer's nozzle")
+                    Text("Nozzle")
                     Text("Not sure? Most printers come with 0.4 mm. Choose the same nozzle in your slicer.")
                 } icon: { Image(systemName: "printer") }
             }
             .pickerStyle(.segmented)
-            .tourStop(.size, arrow: .top)  // on the nozzle, which characters and objects both show
-            .help("The tip your printer prints through. Its size is usually marked on it, or listed in your printer's settings. Mimic thickens thin parts to suit it: finer nozzles keep more detail.")
+            .help("The tip your printer prints through; finer keeps more detail")
+            .popoverTip(Tips.unlessTouring(SizeTip()), arrowEdge: .top)
             if gameScale {
                 LabeledContent {
                     HStack(spacing: 4) {
@@ -576,23 +572,24 @@ struct SizeSection: View {
                     Text("Pick the scale your other minis use. At 32 mm, an average 1.8 m human stands 32 mm tall.")
                 }
                 .pickerStyle(.segmented)
-                .help("The scale your other minis are made at: how tall an average human is on the table. 32 mm is the most common today.")
+                .help("How tall an average human is on the table")
             }
             if !card.note.isEmpty {
-                Text(card.note).font(.callout).foregroundStyle(card.warns ? .orange : .secondary)
+                Label(card.note, systemImage: card.warns ? "exclamationmark.triangle.fill" : "lightbulb")
+                    .font(.callout).foregroundStyle(card.warns ? .orange : .secondary)
             }
             if object {
                 slider("Longest side", \.height, { $0.setHeight($1) }, SizeCard.heightRange, unit: "mm",
                        hint: "Its biggest size, whichever way that is: height, width or depth. Set for your nozzle; type a value or drag to change it.")
                 Toggle("Add a round base", isOn: Binding(get: { !card.noBase }, set: { card.noBase = !$0 }))
-                    .help("Off: it prints standing on its own flat bottom. On: it's fused to a round base, like a display piece.")
+                    .help("Off: it stands on its own flat bottom")
             } else {
                 slider("Character height", \.height, { $0.setHeight($1) }, SizeCard.heightRange, unit: "mm",
                        hint: "Set for you by the choices above; type a value or drag to change it. The base adds about 2 mm.")
             }
             if !object || !card.noBase {
-                slider("Base size", \.base, { $0.setBase($1) }, SizeCard.baseRange, unit: "mm", hint: nil)
-                    .help(object ? "How wide the round base is." : "How wide the round base is. 25 mm fits one square on a battle map.")
+                slider("Base size", \.base, { $0.setBase($1) }, SizeCard.baseRange, unit: "mm", hint: nil, ticks: [25, 32, 40, 50])
+                    .help(object ? "How wide the round base is" : "How wide the round base is; 25 mm fits one map square")
             }
             // A plain button as the label, so a click or VoiceOver's press on the words opens it too.
             DisclosureGroup(isExpanded: $advanced) {
@@ -600,7 +597,7 @@ struct SizeSection: View {
                        hint: "Set by your nozzle. More keeps swords and capes in one piece, but softens faces.", decimals: 2)
                 if !object {
                     Toggle("Use the character's own base instead of a round one", isOn: $card.noBase)
-                        .help("For characters already standing on a base or a rock: Mimic flattens that instead of adding a round one.")
+                        .help("For a character already on a base or a rock: Mimic flattens that")
                 }
                 if let seed {
                     VStack(alignment: .leading, spacing: 4) {
@@ -630,7 +627,7 @@ struct SizeSection: View {
     }
 
     private func slider(_ label: String, _ get: KeyPath<SizeCard, Double>, _ set: @escaping (inout SizeCard, Double) -> Void,
-                        _ range: ClosedRange<Double>, unit: String, hint: String?, decimals: Int = 0) -> some View {
+                        _ range: ClosedRange<Double>, unit: String, hint: String?, decimals: Int = 0, ticks: [Double] = []) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             LabeledContent {
                 HStack(spacing: 4) {
@@ -642,7 +639,26 @@ struct SizeSection: View {
                 Text(label)
                 if let hint { Text(hint) }
             }
-            Slider(value: bind(get, set), in: range).labelsHidden().accessibilityLabel(label)
+            Group {
+                if ticks.isEmpty { Slider(value: bind(get, set), in: range) } else { TickedSlider(value: bind(get, set), range: range, ticks: ticks) }
+            }
+            .labelsHidden().accessibilityLabel(label)
+        }
+    }
+}
+
+/// A slider with tick marks at common sizes (the base's 25, 32, 40 and 50 mm). The value still
+/// goes through the card's setter, so typing any size in the field beside it keeps working.
+private struct TickedSlider: View {
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+    let ticks: [Double]
+
+    var body: some View {
+        Slider(value: $value, in: range) {
+            EmptyView()
+        } ticks: {
+            SliderTickContentForEach(ticks, id: \.self) { SliderTick($0) }
         }
     }
 }

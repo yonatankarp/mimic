@@ -16,7 +16,7 @@ final class SizeAdviceTests: XCTestCase {
         c.setNozzle("0.4"); XCTAssertEqual(c.height, 100)
         c.setNozzle("0.6"); XCTAssertEqual(c.height, 150)
         XCTAssertFalse(c.warns)
-        XCTAssertEqual(c.note, "✨ Sized so faces come out clearly on a 0.6 mm nozzle: about 150 mm tall. Chunky characters also look good a bit smaller.")
+        XCTAssertEqual(c.note, "Sized so faces come out clearly on a 0.6 mm nozzle: about 150 mm tall. Chunky characters also look good a bit smaller.")
     }
 
     func testBase() {
@@ -30,7 +30,7 @@ final class SizeAdviceTests: XCTestCase {
         XCTAssertEqual(c.note, "")
         c.setRealHeight("1.62")  // 48.6 → 49: a tip on 0.4, a warning on 0.6
         XCTAssertFalse(c.warns)
-        XCTAssertTrue(c.note.hasPrefix("💡 At 49 mm, a 0.4 mm nozzle softens faces"), c.note)
+        XCTAssertTrue(c.note.hasPrefix("At 49 mm, a 0.4 mm nozzle softens faces"), c.note)
         c.setNozzle("0.6")
         XCTAssertTrue(c.warns)
         XCTAssertTrue(c.note.contains("At 49 mm, a 0.6 mm nozzle turns faces into bumps"), c.note)
@@ -44,12 +44,12 @@ final class SizeAdviceTests: XCTestCase {
     func testDefaultGameScaleIsATipNotAWarning() {
         var c = SizeCard(purpose: .game, nozzle: "0.4")
         XCTAssertFalse(c.warns)
-        XCTAssertEqual(c.note, "💡 At 32 mm, a 0.4 mm nozzle softens faces a little. For sharper faces, use a 0.2 mm nozzle or choose ✨ Best print.")
+        XCTAssertEqual(c.note, "At 32 mm, a 0.4 mm nozzle softens faces a little. For sharper faces, use a 0.2 mm nozzle or choose Best print.")
         c.setScale(28)
         XCTAssertFalse(c.warns, "28 mm is the edge: still a tip")
         c.setRealHeight("1.7")  // 26 mm
         XCTAssertTrue(c.warns)
-        XCTAssertTrue(c.note.hasPrefix("⚠️ At 26 mm"), c.note)
+        XCTAssertTrue(c.note.hasPrefix("At 26 mm"), c.note)
     }
 
     /// The note names the height worked out; the slider holds only its own range.
@@ -114,14 +114,14 @@ final class SizeAdviceTests: XCTestCase {
         c.load(Sizes(height: "32", base: "25", nozzle: "0.4"))
         XCTAssertEqual(c.purpose, .game)
         XCTAssertEqual(c.scale, 32)
-        XCTAssertEqual(c.note, "💡 At 32 mm, a 0.4 mm nozzle softens faces a little. For sharper faces, use a 0.2 mm nozzle or choose ✨ Best print.")
+        XCTAssertEqual(c.note, "At 32 mm, a 0.4 mm nozzle softens faces a little. For sharper faces, use a 0.2 mm nozzle or choose Best print.")
         c.load(Sizes(height: "54", base: "25", nozzle: "0.6"))
         XCTAssertEqual(c.purpose, .game); XCTAssertEqual(c.scale, 54)
         c.load(Sizes(height: "100", base: "40", nozzle: "0.4"))
         XCTAssertEqual(c.purpose, .display)
         c.load(Sizes(height: "45", base: "20", nozzle: "0.4"))
         XCTAssertNil(c.purpose, "matches neither: neither is chosen")
-        XCTAssertTrue(c.note.hasPrefix("💡 At 45 mm"), c.note)
+        XCTAssertTrue(c.note.hasPrefix("At 45 mm"), c.note)
         c.setPurpose(.display)
         XCTAssertEqual(c.height, 100, "choosing one still sizes it again")
 
@@ -129,7 +129,7 @@ final class SizeAdviceTests: XCTestCase {
         var o = SizeCard(purpose: .game, nozzle: "0.4", kind: .object)
         o.load(Sizes(height: "70", nozzle: "0.4", noBase: true))
         XCTAssertNil(o.purpose)
-        XCTAssertEqual(o.note, "💡 At 70 mm, a 0.4 mm nozzle softens fine details a little. For the clearest details, make it about 80 mm on its longest side.")
+        XCTAssertEqual(o.note, "At 70 mm, a 0.4 mm nozzle softens fine details a little. For the clearest details, make it about 80 mm on its longest side.")
         o.load(Sizes(height: "120", nozzle: "0.4", noBase: true))
         XCTAssertNil(o.purpose); XCTAssertEqual(o.note, "")
         o.load(Sizes(height: "80", nozzle: "0.4", noBase: true))
@@ -142,7 +142,7 @@ final class SizeAdviceTests: XCTestCase {
         var c = SizeCard(purpose: .game, nozzle: "0.2", kind: .object)
         XCTAssertEqual([c.height, c.base], [50, 40])
         XCTAssertTrue(c.noBase)
-        XCTAssertEqual(c.note, "✨ Sized so details come out clearly on a 0.2 mm nozzle: about 50 mm on its longest side. Change it to the size you want.")
+        XCTAssertEqual(c.note, "Sized so details come out clearly on a 0.2 mm nozzle: about 50 mm on its longest side. Change it to the size you want.")
         c.setScale(54); c.setRealHeight("3")
         XCTAssertEqual(c.height, 50, "Game scale doesn't size an object")
         c.setNozzle("0.4"); XCTAssertEqual(c.height, 80)

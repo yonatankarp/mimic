@@ -2,6 +2,7 @@ import AppKit
 import MimicCore
 import Observation
 import SwiftUI
+import TipKit
 
 // The first-run tour: a welcome, then popovers on the real controls, one at a time. A popover
 // sits beside the view it's attached to, so it never covers the control it points at, and it
@@ -68,11 +69,11 @@ final class TourGuide {
     func takeSample() -> URL? { defer { sample = nil }; return sample }
 
     /// New Mini opened or closed by hand: from New Mini's stop, pressing + goes inside. Inside,
-    /// Make My Mini closes it and carries on in the main window once the job's popover is closed
+    /// Make Mini closes it and carries on in the main window once the job's popover is closed
     /// (it opens a moment later, so the wait is longer than that). Cancel leaves the tour first.
     func sheetChanged(_ model: AppModel) {
         guard let step else { return }
-        if step == .newMini, model.sheet == .make { go(to: .start, wait: 0.5) }
+        if step == .newMini, model.sheet == .make { go(to: .make, wait: 0.5) }
         if step.inNewMini, model.sheet != .make {
             usingSample = false
             Tour.next(after: .make, onScreen: onScreen).map { go(to: $0, wait: 1) } ?? leave()
@@ -81,7 +82,7 @@ final class TourGuide {
 
     /// The popover was closed by something other than the tour (clicks outside don't close it;
     /// Esc inside it may). That leaves the tour, unless what closed it moved the tour on
-    /// (pressing + or Make My Mini), which is checked a moment later so the sheet change is seen first.
+    /// (pressing + or Make Mini), which is checked a moment later so the sheet change is seen first.
     func dismissed(_ stop: TourStep) {
         guard step == stop, visible else { return }
         Task {
@@ -119,7 +120,7 @@ extension View {
 
     /// The same, for a control that can be disabled: a disabled control disables everything
     /// attached to it, the callout's Next and Skip included (step 5 got stuck on a greyed-out
-    /// Make My Mini). The callout hangs on a clear layer behind it instead, outside `.disabled`.
+    /// Make Mini). The callout hangs on a clear layer behind it instead, outside `.disabled`.
     func tourCallout(_ stop: TourStep, arrow: Edge = .bottom) -> some View {
         background { Color.clear.tourStop(stop, arrow: arrow) }
     }
@@ -170,7 +171,7 @@ struct TourCallout: View {
                     .accessibilityLabel("Step \(guide.position)")
                 Spacer()
                 Button("Skip Tour") { guide.leave() }
-                // Learning by doing waits here for Make My Mini: the tour carries on once it's pressed.
+                // Learning by doing waits here for Make Mini: the tour carries on once it's pressed.
                 if !(guide.step == .make && guide.usingSample) {
                     Button(last ? "Done" : "Next") { guide.next(model) }.keyboardShortcut(.defaultAction)
                 }
@@ -198,35 +199,27 @@ struct TourCallout: View {
         switch stop {
         case .welcome: "Welcome to Mimic"
         case .newMini: "Start a new mini"
-        case .start: "Two ways to start"
-        case .size: "Size and nozzle"
         case .make: "Make it"
-        case .mini: "Your finished mini"
-        case .gallery: "All your minis"
+        case .mini: "A finished mini"
         case .settings: "Settings"
         }
     }
 
+    // One or two sentences each. The rest is in tips shown the first time it's used.
     private var text: String {
         switch stop {
         case .welcome:
-            "Mimic turns a picture or a few words into a miniature you can 3D print, right here on your Mac. Here's a quick look around."
+            "Mimic turns a picture or a few words into a mini you can 3D print, right here on your Mac. Here's a quick look around."
         case .newMini:
-            "Press + (or ⌘N) whenever you want to make one. Want to learn by doing? Use the sample and you'll have a dwarf of your own in a few minutes."
-        case .start:
-            "🖼️ From a picture: your own art or a photo, head to feet.\n✍️ Describe it: Draw Things draws the character from your words.\nWith Draw Things set up, Mimic first redraws either one as a grey sculpt, which the 3D engine understands best."
-        case .size:
-            "Game scale matches the other minis on your table; Best print goes for detail. Pick the nozzle your printer uses. Not sure? It's most likely 0.4 mm."
+            "Press + (or ⌘N) to start one from a picture or a description. To learn by doing, use the sample dwarf."
         case .make:
             guide.usingSample
-                ? "Press Make My Mini to make your dwarf. How long it takes on this Mac is shown next to the button. Its progress opens from the toolbar; click anywhere else to close it, and the tour carries on from there."
-                : "How long Make My Mini takes on this Mac is shown next to the button. Keep using Mimic while it's made: the toolbar and the Dock icon show how far along it is, and clicking it in the toolbar shows the steps, the queue and Stop. Start another any time and it waits its turn."
+                ? "Press Make Mini to make your dwarf; the time it takes is beside the button. Its progress opens in the toolbar, and the tour carries on when you close it."
+                : "Make Mini starts it; the time it takes on this Mac is beside the button. Its progress is in the toolbar, and you can keep using Mimic meanwhile."
         case .mini:
-            "Drag it to turn it around. Open in \(model.slicerName) sends it to your slicer to print, or drag a preview to Finder or any slicer. The panel on the right has its size, previews and print tips for your nozzle."
-        case .gallery:
-            "Everything you make lands here. Right-click a mini for more, press space to preview it, or group minis into projects (⇧⌘N)."
+            "Drag it to turn it around, and Open in \(model.slicerName) sends it to your slicer. The panel on the right has its size, previews and print tips."
         case .settings:
-            "Settings is in the Mimic menu (⌘,): it checks that everything works, and it's where you choose your slicer and set up Draw Things. If something needs you, Needs Setup appears in the toolbar. Happy printing! 🎲"
+            "Settings (⌘,) is where you choose your slicer and set up Draw Things. If something needs you, Needs Setup appears in the toolbar."
         }
     }
 
@@ -272,4 +265,42 @@ struct TourHost: ViewModifier {
         guard let step = guide.step, step.centred, guide.visible, model.sheet == nil, !model.jobPopover else { return nil }
         return step
     }
+}
+
+// MARK: Tips
+
+// What the tour leaves out, shown in place the first time it's used. TipKit keeps each one
+// dismissed once closed; Reset Mimic brings them back (`Tips.startUp`).
+
+/// On the list, once there's a finished mini and one has been picked.
+struct GalleryTip: Tip {
+    var title: Text { Text("More in the list") }
+    var message: Text? { Text("Right-click a mini for more, press Space to preview it, or drag it into a project (⇧⌘N makes one).") }
+    var image: Image? { Image(systemName: "sidebar.left") }
+}
+
+/// On the nozzle, the first time New Mini or Resize opens outside the tour.
+struct SizeTip: Tip {
+    var title: Text { Text("Size and nozzle") }
+    var message: Text? { Text("Game scale matches the other minis on your table; Best print goes for detail. Not sure of your nozzle? It's most likely 0.4 mm.") }
+    var image: Image? { Image(systemName: "ruler") }
+}
+
+extension Tips {
+    /// The UserDefaults key Reset Mimic sets: the tips' store can only be cleared before
+    /// `configure`, so it's cleared at the next launch.
+    static let resetKey = "resetTips"
+
+    /// At launch. Only an app bundle has somewhere to keep them, as with notifications.
+    @MainActor static func startUp() {
+        guard Bundle.main.bundleIdentifier != nil else { return }
+        if UserDefaults.standard.bool(forKey: resetKey) {
+            try? resetDatastore()
+            UserDefaults.standard.removeObject(forKey: resetKey)
+        }
+        try? configure()
+    }
+
+    /// `tip`, or none while the tour is showing: a tip's popover and the tour's would clash.
+    @MainActor static func unlessTouring(_ tip: any Tip) -> (any Tip)? { TourGuide.shared.step == nil ? tip : nil }
 }

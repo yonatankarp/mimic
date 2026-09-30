@@ -87,23 +87,23 @@ final class GalleryTests: XCTestCase {
         let fx = try Fixture(), d = try fx.mini("dwarf")
         var mini = Gallery.list(fx.install.runs)[0]
         let previews = mini.previews
-        XCTAssertEqual(previews.map(\.caption), ["Your picture", "Front", "Left", "Right", "Back"])
+        XCTAssertEqual(previews.map(\.caption), ["Picture", "Front", "Left", "Right", "Back"])
         XCTAssertEqual(previews.step(from: previews[0], by: 1)?.caption, "Front")
         XCTAssertEqual(previews.step(from: previews[3], by: -1)?.caption, "Left")
         XCTAssertNil(previews.step(from: previews[0], by: -1), "wrapped round from the first")
         XCTAssertNil(previews.step(from: previews[4], by: 1), "wrapped round from the last")
         // ← → cross the rows: Left is the end of the first row of views, Front the start.
         XCTAssertEqual(previews.step(from: previews[2], by: 1)?.caption, "Right")
-        XCTAssertEqual(previews.step(from: previews[1], by: -1)?.caption, "Your picture")
+        XCTAssertEqual(previews.step(from: previews[1], by: -1)?.caption, "Picture")
 
         // ↑ ↓: the picture full width, Front Left over Right Back.
         func vertical(_ p: [MiniPreview], wide: Int) -> [String] {
             p.flatMap { from in [-1, 1].map { p.step(from: from, down: $0, wide: wide)?.caption ?? "-" } }
         }
         XCTAssertEqual(vertical(previews, wide: 1), [
-            "-", "Front",             // Your picture
-            "Your picture", "Right",  // Front
-            "Your picture", "Back",   // Left
+            "-", "Front",             // Picture
+            "Picture", "Right",  // Front
+            "Picture", "Back",   // Left
             "Front", "-",             // Right
             "Left", "-",              // Back
         ])
@@ -117,8 +117,8 @@ final class GalleryTests: XCTestCase {
         XCTAssertEqual(mini.previews.map(\.caption), ["Front", "Side", "Back"])
         XCTAssertEqual(vertical(mini.previews, wide: 0), ["-", "Back", "-", "-", "Front", "-"])
         XCTAssertEqual(mini.previews.step(from: mini.previews[1], by: 1)?.caption, "Back")
-        let withPicture = [MiniPreview(caption: "Your picture", url: d)] + mini.previews
-        XCTAssertEqual(vertical(withPicture, wide: 1), ["-", "Front", "Your picture", "Back", "Your picture", "-", "Front", "-"])
+        let withPicture = [MiniPreview(caption: "Picture", url: d)] + mini.previews
+        XCTAssertEqual(vertical(withPicture, wide: 1), ["-", "Front", "Picture", "Back", "Picture", "-", "Front", "-"])
     }
 }
 

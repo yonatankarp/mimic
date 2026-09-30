@@ -2,6 +2,7 @@ import AppKit
 import MimicCore
 import QuickLook
 import SwiftUI
+import TipKit
 import UniformTypeIdentifiers
 
 /// The gallery on the left: a collapsible section per project, then Unsorted; search, the
@@ -12,6 +13,8 @@ struct Sidebar: View {
     @Environment(AppModel.self) private var model
     @State private var query = ""
     @State private var preview: URL?
+    /// A mini has been picked in the list since it appeared: the gallery tip can show.
+    @State private var picked = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -26,8 +29,10 @@ struct Sidebar: View {
             }
         }
         .navigationSplitViewColumnWidth(min: 200, ideal: 240)
-        .navigationTitle("Your Minis")
-        .tourStop(.gallery, arrow: .trailing)
+        .navigationTitle("Minis")
+        // The list's shortcuts, the first time a finished mini is picked in it.
+        .popoverTip(galleryTip, arrowEdge: .trailing)
+        .onChange(of: model.selection) { picked = true }
         // Space previews the print file, as in Finder; a second space closes it.
         .onKeyPress(.space) {
             if preview != nil { preview = nil; return .handled }
@@ -38,13 +43,19 @@ struct Sidebar: View {
         .quickLookPreview($preview)
     }
 
+    /// Named, not inline: an optional tip chosen in the modifier chain is slow to type-check.
+    private var galleryTip: (any Tip)? {
+        guard picked, model.selected?.stl != nil else { return nil }
+        return Tips.unlessTouring(GalleryTip())
+    }
+
     private var list: some View {
         @Bindable var model = model
         let shown = Gallery.search(model.minis, query)
         let searching = model.minis.count > Gallery.searchAfter && !query.trimmingCharacters(in: .whitespaces).isEmpty
         return List(selection: $model.selection) {
             if model.projects.isEmpty {
-                Section { rows(shown, project: nil) } header: { header("Your Minis") }
+                Section { rows(shown, project: nil) } header: { header("Minis") }
             } else {
                 ForEach(model.projects, id: \.self) { project in
                     let inside = shown.filter { $0.project == project }
@@ -98,7 +109,7 @@ struct Sidebar: View {
     private func rows(_ minis: [Mini], project: String?) -> some View {
         ForEach(minis) { mini in
             GalleryRow(mini: mini, status: rowStatus(mini)).contextMenu { menu(for: mini) }
-                .help("Press space to preview it. Drag it onto a project to move it, or to Finder or your slicer to copy its print file. Right-click for more.")
+                .help("Space to preview; drag onto a project, or out for its print file")
                 .draggable(MiniDrag(name: mini.name, stl: mini.stl))
                 // Dropped on a mini: into that mini's project.
                 .dropDestination(for: String.self) { names, _ in model.move(names, to: project); return true }

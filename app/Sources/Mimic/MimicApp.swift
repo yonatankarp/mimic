@@ -25,12 +25,14 @@ struct MimicApp: App {
                     Button("Check for Updates…") { model.updates.check() }
                 }
             }
-            // An action, not a setting: after Settings in the Mimic menu.
-            CommandGroup(after: .appSettings) {
+            // An action, not a setting: after Settings in the Mimic menu. The Settings scene adds its
+            // own Settings… (⌘,) after the `.appSettings` group, so `after: .appSettings` put the
+            // tool above it and `replacing:` gave two Settings items; before Services is below it.
+            CommandGroup(before: .systemServices) {
                 Button("Install Command-Line Tool…") { CommandLineTool.show() }
             }
             CommandGroup(replacing: .newItem) {
-                Button("New Mini…") { model.sheet = .make }
+                Button("New Mini…") { model.showWindow(); model.sheet = .make }
                     .keyboardShortcut("n")
                     .disabled(!model.setup.installed)
             }
@@ -58,13 +60,13 @@ struct MimicApp: App {
 /// The mini page's own toolbar and 3D view controls are in the View menu.
 struct MiniCommands: Commands {
     let model: AppModel
-    @AppStorage("showDetails") private var showDetails = true
 
     var body: some Commands {
         CommandGroup(after: .sidebar) {
             Divider()
-            // ⌃⌘I as the system's inspector toggle, next to Show Sidebar's ⌃⌘S.
-            Button(showDetails ? "Hide Details" : "Show Details") { showDetails.toggle() }
+            // ⌃⌘I as the system's inspector toggle, next to Show Sidebar's ⌃⌘S. The title follows
+            // the panel through the model, which the menus observe (as they do the selection).
+            Button(model.showDetails ? "Hide Details" : "Show Details") { model.showDetails.toggle() }
                 .keyboardShortcut("i", modifiers: [.command, .control])
                 .disabled(model.selected == nil)
             Button("Face Front") { model.faceFrontRequests += 1 }
@@ -101,9 +103,9 @@ struct MiniCommands: Commands {
                 .disabled(!free || !model.setup.installed)
             Divider()
             // The job's toolbar item, from the keyboard.
-            Button("Show Progress") { model.jobPopover = true }
+            Button("Show Progress") { model.showWindow(); model.jobPopover = true }
                 .disabled(model.toolbarJob == nil || !free)
-            Button(model.stopCommand ?? "Stop Making…") { model.confirmingStop = true }
+            Button(model.stopCommand ?? "Stop Making…") { model.showWindow(); model.confirmingStop = true }
                 .disabled(model.stopCommand == nil || !free)
             Divider()
             Button("Move to Trash") { if let mini { model.askToTrash(mini) } }
