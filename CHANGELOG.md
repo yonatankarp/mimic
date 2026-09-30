@@ -9,6 +9,13 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 - **An enlarged preview closes with a click anywhere around it,** and ← → go through the previews, in the enlarged picture and on the mini's page once you've clicked one. On the page, ↑ ↓ move up and down the grid.
 
 ### Changed
+- **Settings is in the Mimic menu (⌘,).** The toolbar no longer has a Settings button: it shows Needs Setup only when something needs you, and clicking it goes straight to what's missing.
+- **More from the menus and the keyboard.** View → Show Details (⌃⌘I) shows or hides the details panel, and View → Face Front (⌘0) turns the mini back to you. The Mini menu has Show Progress and Stop Making… while a mini is being made, and so does the Dock icon's menu, with New Mini….
+- **Install the `mimic` command from Mimic → Install Command-Line Tool…**, instead of Settings → Advanced.
+- **Show in Finder is now ⌥⌘R** (it was ⇧⌘R).
+- Questions that ask before doing something now say Cancel for the way out, so Esc always backs out, including the question when you quit while a mini is being made.
+- The sidebar's New Project button is a folder, as at the bottom of the sidebar, so it isn't mistaken for New Mini.
+- ⌘V in New Mini pastes text into the field you're typing in; a copied picture still becomes the mini's picture.
 - **Mimic now needs macOS 26 (Tahoe).** Every Mac that runs Mimic can update to it for free, in System Settings → General → Software Update.
 - A mini's page puts the 3D view first, with its size, previews, versions and print tips in a panel on the right you can hide; Open in your slicer is in the toolbar, with Resize and Show in Finder under More. The gallery shows each mini's size and nozzle instead of when it was made.
 - **Making a mini no longer covers the window.** Its progress, the queue and Stop are in the toolbar: click it to see them. When it's done, the toolbar says so; click it for Open in your slicer, or Try Again.

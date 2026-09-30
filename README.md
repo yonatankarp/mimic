@@ -69,8 +69,8 @@ your Mac), then press **✨ Improve Description**. You can edit what it writes o
 It's off unless you turn it on, and a cloud service only ever sees the description you typed.
 
 > [!TIP]
-> Mimic explains each choice as you make it. If something isn't set up, **Settings** (⌘,)
-> tells you what's missing and how to fix it.
+> Mimic explains each choice as you make it. If something isn't set up, **Needs Setup** appears
+> in the toolbar: it opens **Settings** (Mimic → Settings, ⌘,), which tells you what's missing and how to fix it.
 
 Your minis are saved in **Documents → Mimic**.
 
@@ -116,9 +116,9 @@ flowchart TD
 
 ### From a terminal
 
-The app is also a `mimic` command, with the same engine. To add it to your Terminal, open
-**Settings → Advanced → Use Mimic from Terminal** and paste the command it shows (it asks for your Mac
-password once). Finish the app's first-launch download first: `make` and `retry` need it.
+The app is also a `mimic` command, with the same engine. To add it to your Terminal, choose
+**Mimic → Install Command-Line Tool…**, copy the command it shows and paste it into Terminal (it asks
+for your Mac password once). Finish the app's first-launch download first: `make` and `retry` need it.
 
 ```bash
 mimic make dwarf-cleric "dwarf cleric, warhammer held against chest"
