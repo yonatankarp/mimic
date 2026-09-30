@@ -108,11 +108,17 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
 - **Edit & Make Again** (#84) opens New Mini filled in from a mini (`MakeForm.again`, next to
   Make Another Version and from the same saved source): picture or description (the one typed,
   with the helper's version shown), the grey sculpt, cartoon, sizes and base, project, variation
-  number (kept, so an unchanged description draws the same) and the next version's name. Not
+  number (kept, so an unchanged description draws the same, with New 3D Shape's `shapeSeed`
+  until the number is changed) and the next version's name. Not
   `versionOf`: once edited it's a mini of its own. New Mini has no model control, so the model it
   was made with is carried only while it's downloaded, and the sheet says so with a way back to
   the Mac's choice. The tour's sample fills New Mini the same way. A test makes a mini again
   from the form unchanged and compares every setting, so one the form drops fails it.
+- **New 3D Shape** (#86) is Make Another Version that keeps the picture: `make` copies the old
+  mini's source.png into the new folder before it joins the queue, so the plan skips step 1 as
+  it does for Try Again, and a new `shapeSeed` in settings.json goes to `_engine --seed` alone
+  (absent, `seed` drives both). `seed` stays, so the base stones and a redrawn picture come out
+  the same. Offered only when source.png is there.
 - **A mini has two names** (#87; all in `Rules.swift`, "Names people type"): the one typed,
   kept in settings.json as `name` ("Élodie", "D&D Bard", "McGregor") and shown everywhere
   (list, page, notifications, Open Together's objects, `mimic list`'s last column), and its

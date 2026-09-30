@@ -332,9 +332,9 @@ final class AppModel {
     var cantStart: String? { requiredProblem }
 
     func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes, kind: MiniKind = .character,
-              project: String? = nil, cartoon: Bool = false, shown: String? = nil, model: EngineModel? = nil) throws {
+              project: String? = nil, cartoon: Bool = false, shown: String? = nil, model: EngineModel? = nil, shapeSeed: Int? = nil) throws {
         let chosen = EngineDownload.forMaking(cartoon: cartoon, chosen: model ?? setup.chosen)
-        try start(name) { try $0.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, kind: kind, model: chosen, project: project, cartoon: cartoon, shown: shown) }
+        try start(name) { try $0.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, kind: kind, model: chosen, project: project, cartoon: cartoon, shown: shown, shapeSeed: shapeSeed) }
     }
 
     /// Several pictures dropped on New Mini: a mini each, named after its file, all made the same
@@ -368,6 +368,13 @@ final class AppModel {
         let new = Gallery.nextVersionName(install.runs, mini.name)
         do { try start(new) { try $0.makeAnotherVersion(of: mini.name, as: new).ahead } }
         catch { problem = plainWords(error, else: "Couldn't make another version. Try again.") }
+    }
+
+    /// A sibling of `mini` from the picture it already has, with only a new 3D shape.
+    func makeNewShape(_ mini: Mini) {
+        let new = Gallery.nextVersionName(install.runs, mini.name)
+        do { try start(new) { try $0.makeNewShape(of: mini.name, as: new).ahead } }
+        catch { problem = plainWords(error, else: "Couldn't make a new 3D shape. Try again.") }
     }
 
     // MARK: Projects

@@ -34,6 +34,8 @@ struct MakeView: View {
     private let again: Mini?
     /// The 3D model `again` was made with, while it's used instead of this Mac's choice.
     @State private var madeWith: String?
+    /// `again`'s own number for its 3D shape (New 3D Shape), while its variation number is kept.
+    @State private var shapeSeed: Int?
 
     init(room: CGSize, form: MakeForm? = nil, again: Mini? = nil) {
         self.room = room
@@ -55,6 +57,7 @@ struct MakeView: View {
         _card = State(initialValue: form.card)
         _project = State(initialValue: form.project ?? "")
         _madeWith = State(initialValue: form.model)
+        _shapeSeed = State(initialValue: form.shapeSeed)
     }
     @State private var message: String?
     @State private var messageIsError = false
@@ -181,6 +184,7 @@ struct MakeView: View {
             UserDefaults.standard.set(k.rawValue, forKey: "kind")
             improved = nil  // written for the other kind
         }
+        .onChange(of: seed) { shapeSeed = nil }  // a new variation number is a new shape too
         .task {
             // A description and the grey sculpt need Draw Things, and Make needs every required
             // part: check them once if nothing has yet, then keep watching Draw Things.
@@ -406,7 +410,7 @@ struct MakeView: View {
             if project == Self.newProject { project = try model.createProject(newProjectName) }
             try model.make(name: slug, picture: source, restyle: start == .picture && sculpt,
                            seed: seed, sizes: card.sizes, kind: card.kind, project: project.isEmpty ? nil : project, cartoon: cartoonOn, shown: name,
-                           model: madeWith.flatMap { EngineDownload.model($0) })
+                           model: madeWith.flatMap { EngineDownload.model($0) }, shapeSeed: shapeSeed)
         } catch {
             say(model.plainWords(error), error: true)
             messageDetail = "\(error)"
