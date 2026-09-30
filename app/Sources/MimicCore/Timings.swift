@@ -282,18 +282,21 @@ extension TimingRecord {
 
 extension JobRunner {
     /// How long the job `kind` on the mini `name` should take here; `sizes` for a resize still
-    /// waiting to write them.
-    public func estimate(_ name: String, _ kind: JobKind, sizes: Sizes? = nil, history: [TimingRecord]) -> Estimate {
-        Estimator.estimate(JobShape(kind, settings: Gallery.folder(install.runs, name).map(MiniSettings.load) ?? MiniSettings(), sizes: sizes), history: history)
+    /// waiting to write them. Its settings come from `minis` (the gallery as last read) when it's
+    /// there, so a progress tick doesn't read its file; else from its folder.
+    public func estimate(_ name: String, _ kind: JobKind, sizes: Sizes? = nil, history: [TimingRecord], minis: [Mini] = []) -> Estimate {
+        let settings = minis.first { $0.name == name }?.settings
+            ?? Gallery.folder(install.runs, name).map(MiniSettings.load) ?? MiniSettings()
+        return Estimator.estimate(JobShape(kind, settings: settings, sizes: sizes), history: history)
     }
 
     /// Each waiting job with its estimate and the seconds until it should be ready: the running
     /// job's time left, then each in turn.
-    public func queueTimes(_ queue: [QueueEntry], running: JobStatus?, history: [TimingRecord], now: Date = Date())
+    public func queueTimes(_ queue: [QueueEntry], running: JobStatus?, history: [TimingRecord], now: Date = Date(), minis: [Mini] = [])
         -> [(entry: QueueEntry, estimate: Estimate, ready: TimeInterval)] {
-        var t = running.map { estimate($0.name, $0.kind, history: history).left($0, now: now) } ?? 0
+        var t = running.map { estimate($0.name, $0.kind, history: history, minis: minis).left($0, now: now) } ?? 0
         return queue.map { e in
-            let est = estimate(e.name, e.job, sizes: e.sizes, history: history)
+            let est = estimate(e.name, e.job, sizes: e.sizes, history: history, minis: minis)
             t += est.total
             return (e, est, t)
         }
