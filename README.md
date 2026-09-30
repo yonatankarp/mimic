@@ -140,6 +140,7 @@ mimic list
 | `--restyle` | Redraw that picture as a grey sculpt first |
 | `--improve` | Let the AI helper chosen in Settings write a fuller description first |
 | `--height MM` | How tall the character is, feet to top; the base adds about 2 mm |
+| `--scale 28` / `32` / `35` / `54` / `75` | Match the scale your other minis use: sets the height and base for an average human (`--height` and `--base` still win) |
 | `--base MM` | Size of the base: across it, or across the flat sides for a hex |
 | `--base-shape round` / `square` / `hex` | The base's shape (round unless you give it; a resize keeps the mini's) |
 | `--base-style plain` / `stone` / `wood` / `cobble` | A floor pressed into the top of the base: flagstones, planks or cobblestones (plain unless you give it; a resize keeps the mini's) |
