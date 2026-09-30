@@ -16,6 +16,23 @@ public struct QueueEntry: Codable, Equatable, Sendable, Identifiable {
     }
 }
 
+/// Where Move puts a waiting job: first (the next to start), last, or a place counted from 1.
+public enum QueuePlace: Equatable, Sendable {
+    case front, end
+    case position(Int)
+
+    /// `front`, `end` or a number, as `mimic queue move --to` takes it.
+    public init?(_ text: String) {
+        switch text.lowercased() {
+        case "front", "first": self = .front
+        case "end", "last": self = .end
+        default:
+            guard let n = Int(text), n >= 1 else { return nil }
+            self = .position(n)
+        }
+    }
+}
+
 /// Why the queue's next job waits although nothing is running.
 public enum QueueHold: Sendable, Equatable {
     /// Paused, in this Mimic or another, or with `mimic queue pause`.
