@@ -111,7 +111,7 @@ flowchart TD
    [TRELLIS.2](https://github.com/microsoft/TRELLIS.2) (or Pixal3D, if you choose it in Settings),
    run by [pixal3d.cpp](https://github.com/raven38/pixal3d.cpp), builds a 3D model from it on
    your Mac's graphics chip.
-3. **Print prep.** Mimic's own Swift code sizes the model, centres it on a round base, makes it
+3. **Print prep.** Mimic's own Swift code sizes the model, centres it on a base (round, square or hex), makes it
    one solid piece, thickens thin parts to suit your nozzle, and flattens the bottom so it
    sits on the print bed.
 
@@ -140,15 +140,16 @@ mimic list
 | `--restyle` | Redraw that picture as a grey sculpt first |
 | `--improve` | Let the AI helper chosen in Settings write a fuller description first |
 | `--height MM` | How tall the character is, feet to top; the base adds about 2 mm |
-| `--base MM` | Size of the round base |
+| `--base MM` | Size of the base: across it, or across the flat sides for a hex |
+| `--base-shape round` / `square` / `hex` | The base's shape (round unless you give it; a resize keeps the mini's) |
 | `--nozzle 0.2` / `0.4` / `0.6` | Your printer's nozzle |
 | `--inflate MM` | Extra thickness for thin parts (set from the nozzle unless you give it) |
-| `--no-base` | Keep the character's own base instead of adding a round one |
+| `--no-base` | Keep the character's own base instead of adding one |
 | `--seed N` | Try a different version of the same character |
 | `--project NAME` | Put it in that project (a new one is made if needed) |
-| `--object` | Make anything that isn't a character: no round base, sized by its longest side, set on its flat bottom |
+| `--object` | Make anything that isn't a character: no base, sized by its longest side, set on its flat bottom |
 | `--size MM` | How big it is: for an object, its longest side (set from the nozzle unless you give it); for a character, the same as `--height` |
-| `--add-base` | Give an object a round base too (sized to its shadow unless you give `--base`) |
+| `--add-base` | Give an object a base too (sized to its shadow unless you give `--base`) |
 
 Ctrl-C stops a mini and everything it started.
 
