@@ -145,6 +145,8 @@ struct Sidebar: View {
         }
         .disabled(mini.stl == nil)  // not made yet: nothing to print
         Button("Show in Finder", systemImage: "folder") { model.showInFinder(mini) }
+        Button("Resize This Mini…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resize(mini) }
+            .disabled(!mini.hasModel || model.cantStart != nil || model.waiting(mini.name) != nil)
         Divider()
         AnotherVersionButton(mini: mini)
         MoveToProjectMenu(mini: mini)
@@ -201,9 +203,19 @@ struct RenameSheet: View {
 
 struct GalleryRow: View {
     let mini: Mini
-    /// Shown instead of when it was made: "Waiting (2nd)".
+    /// Shown instead of what it was made at: "Waiting (2nd)".
     var status: String?
+
+    /// Under its name: its status, else "Not finished", else "32 mm · 0.4 mm nozzle"; when it was
+    /// made only for a mini from before its sizes were kept.
+    private var line: String {
+        if let status { return status }
+        if mini.stl == nil { return "Not finished" }
+        return MiniSettings.load(mini.folder).made.map(PrintTips.shortLine) ?? mini.madeAt.formatted(.relative(presentation: .named))
+    }
+
     var body: some View {
+        let line = line
         HStack(spacing: 10) {
             // A mini waiting in the queue has only the picture it was given.
             AsyncImage(url: mini.renders.first?.url ?? mini.source ?? mini.upload) { img in
@@ -213,17 +225,12 @@ struct GalleryRow: View {
             .clipShape(RoundedRectangle(cornerRadius: 6))
             VStack(alignment: .leading, spacing: 2) {
                 Text(mini.displayName).lineLimit(1)
-                if let status {
-                    Text(status).font(.caption).foregroundStyle(.secondary)
-                } else {
-                    Text(mini.madeAt, format: .relative(presentation: .named))
-                        .font(.caption).foregroundStyle(.secondary)
-                }
+                Text(line).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(mini.displayName), \(status ?? "made \(mini.madeAt.formatted(.relative(presentation: .named)))")")
+        .accessibilityLabel("\(mini.displayName), \(line)")
     }
 }
 

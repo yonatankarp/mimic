@@ -14,9 +14,11 @@ struct MimicApp: App {
             ContentView()
                 .modifier(MainWindowChrome())
                 .modifier(TourHost())
-                .frame(minWidth: 900, minHeight: 680)
+                // Wide enough that the 3D view keeps about 420 points beside the sidebar and the details.
+                .frame(minWidth: 960, minHeight: 680)
                 .environment(model)
         }
+        .defaultSize(width: 1180, height: 780)
         .commands {
             CommandGroup(after: .appInfo) {
                 if model.updates.enabled {
