@@ -4,30 +4,38 @@ import ImageIO
 import simd
 import UniformTypeIdentifiers
 
-/// The preview pictures: grey clay, front, side and back, 900 × 900, orthographic, on a
+/// The preview pictures: grey clay, front, left, right and back, 900 × 900, orthographic, on a
 /// transparent background, like the Blender workbench renders they replace. Drawn in software:
 /// it needs no window or GPU (the 3D engine may be using it), and takes about a second.
 public enum Render {
     static let size = 900
     static let supersample = 2
 
-    /// Writes `<name>_front.png`, `_side.png` and `_back.png` beside the print file.
+    /// Figures face +y after import (z up), so the figure's own left is -x. Each camera sits on
+    /// the `toward` side looking back at the figure, with `right` to its right: right × up =
+    /// toward. "left" and "right" are the figure's sides: "left" looks at its left side, so its
+    /// face is on the left of the picture.
+    static let cameras: [(String, right: SIMD3<Float>, toward: SIMD3<Float>)] = [
+        ("front", [-1, 0, 0], [0, 1, 0]), ("left", [0, -1, 0], [-1, 0, 0]),
+        ("right", [0, 1, 0], [1, 0, 0]), ("back", [1, 0, 0], [0, -1, 0]),
+    ]
+    static let up: SIMD3<Float> = [0, 0, 1]
+
+    /// Writes `<name>_front.png`, `_left.png`, `_right.png` and `_back.png` beside the print
+    /// file, then removes the one `_side.png` an older mini has (the view "right" now is).
     public static func views(_ mesh: Mesh, besides stl: URL) throws {
         let stem = stl.deletingPathExtension().path
         let normals = mesh.vertexNormals()
         let (lo, hi) = mesh.bounds
         let mid = (lo + hi) / 2, span = 1.15 * max(hi.x - lo.x, hi.y - lo.y, hi.z - lo.z)
-        // Figures face +y after import, so the front camera looks back along -y.
-        let cameras: [(String, right: SIMD3<Float>, toward: SIMD3<Float>)] = [
-            ("front", [-1, 0, 0], [0, 1, 0]), ("side", [0, 1, 0], [1, 0, 0]), ("back", [1, 0, 0], [0, -1, 0]),
-        ]
         let failures = Failures()
         DispatchQueue.concurrentPerform(iterations: cameras.count) { n in
             let c = cameras[n]
-            let pixels = picture(mesh, normals, mid: mid, span: span, right: c.right, up: [0, 0, 1], toward: c.toward)
+            let pixels = picture(mesh, normals, mid: mid, span: span, right: c.right, up: up, toward: c.toward)
             do { try png(pixels, to: URL(fileURLWithPath: "\(stem)_\(c.0).png")) } catch { failures.add(error) }
         }
         if let e = failures.first { throw e }
+        try? FileManager.default.removeItem(atPath: "\(stem)_side.png")
     }
 
     final class Failures: @unchecked Sendable {

@@ -10,7 +10,7 @@ import simd
 /// Units are millimetres. Steps: scale to --height, centre on what the figure stands on,
 /// inflate the surface by --inflate (thickens blades and staffs by twice that), stand it on a
 /// round base, make everything one watertight solid, keep the largest piece, slice the bottom
-/// flat, trim the face count, write the STL, render front/side/back PNGs next to it.
+/// flat, trim the face count, write the STL, render front/left/right/back PNGs next to it.
 ///
 /// Ported from pipeline/mini_prep.py, which ran inside Blender; every step exists because of a
 /// real failure, and the comments keep why. It runs as its own program (a hidden subcommand of

@@ -48,6 +48,8 @@ final class AppModel {
         didSet { UserDefaults.standard.set(collapsed.sorted(), forKey: "collapsedProjects") }
     }
     var selection: Mini.ID?
+    /// The selected mini's preview shown big over the window, or nil.
+    var enlarged: MiniPreview?
     /// The job's latest status, updated on the main thread; nil before the first job.
     var job: JobStatus?
     /// Why a job can't start (a required check failed), or nil: the latest health checks.
