@@ -89,11 +89,6 @@ struct Sidebar: View {
             }
         }
         .listStyle(.sidebar)
-        // The right-clicked mini, or every selected one when it's among them.
-        .contextMenu(forSelectionType: Mini.ID.self) { ids in
-            let group = model.minis.filter { ids.contains($0.id) }
-            if group.count == 1, let mini = group.first { menu(for: mini) } else if group.count > 1 { SeveralMenu(minis: group) }
-        }
         // Like Notes' New Folder: always there, the first project included.
         .safeAreaInset(edge: .bottom) {
             HStack {
@@ -117,7 +112,12 @@ struct Sidebar: View {
 
     private func rows(_ minis: [Mini], project: String?) -> some View {
         ForEach(minis) { mini in
+            // Per row, not the List's contextMenu(forSelectionType:), which took the project
+            // headers' own menus: every selected mini when it's among several, else this one.
             GalleryRow(mini: mini, status: rowStatus(mini))
+                .contextMenu {
+                    if model.selection.count > 1 && model.selection.contains(mini.id) { SeveralMenu(minis: model.chosen) } else { menu(for: mini) }
+                }
                 .help("Space to preview; drag onto a project, or out for its print file; ⌘-click to select several")
                 .draggable(drag(mini))
                 // Dropped on a mini: into that mini's project.
