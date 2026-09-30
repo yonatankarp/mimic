@@ -230,9 +230,18 @@ public enum Engine {
 
     // MARK: Pictures
 
+    /// The picture upright, at full size: a photo taken sideways is stored on its side with an
+    /// orientation that says so, and New Mini shows it turned upright, so every step reads it
+    /// that way too.
     static func load(_ url: URL) throws -> CGImage {
         guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
-              let image = CGImageSourceCreateImageAtIndex(src, 0, nil) else {
+              let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
+              let w = props[kCGImagePropertyPixelWidth] as? Int, let h = props[kCGImagePropertyPixelHeight] as? Int,
+              let image = CGImageSourceCreateThumbnailAtIndex(src, 0, [
+                  kCGImageSourceCreateThumbnailFromImageAlways: true,
+                  kCGImageSourceCreateThumbnailWithTransform: true,
+                  kCGImageSourceThumbnailMaxPixelSize: max(w, h),
+              ] as CFDictionary) else {
             throw Failure("Couldn't read the picture \(url.lastPathComponent).")
         }
         return image

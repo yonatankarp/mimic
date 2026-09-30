@@ -42,6 +42,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 - ⌘V in New Mini pastes text into the field you're typing in; a copied picture still becomes the mini's picture.
 - Settings says TRELLIS.2 takes about 14 minutes a mini, as measured, not 12. Once you've made a few minis, it shows the time for your Mac instead, as before.
 - Resize showed Best print and "about 100 mm tall" for a mini made at game scale; it now shows what the mini was made at. A mini made at a size neither choice gives shows neither as chosen. An object made at another size than the suggested one no longer says "about 80 mm on its longest side".
+- A phone photo taken upright is now made into a mini upright, as New Mini shows it. Before, the grey sculpt and the cut-out could get it on its side.
 - VoiceOver names every size field and slider in New Mini and Resize.
 - Tips, notes and the tour no longer use emoji, which VoiceOver read out; a symbol sits beside a tip or warning instead.
 - Resizing a mini no longer moves it to the top of the list, and Resize All keeps a project's minis in the order you made them.

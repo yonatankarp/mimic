@@ -251,8 +251,7 @@ public final class DrawThings: @unchecked Sendable {
     }
 
     static func fitForEdit(_ url: URL) throws -> (Data, Int, Int) {
-        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
-              let image = CGImageSourceCreateImageAtIndex(src, 0, nil) else { throw DrawThingsError.badPicture }
+        guard let image = try? Engine.load(url) else { throw DrawThingsError.badPicture }
         let (w, h) = editSize(width: image.width, height: image.height)
         guard let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
                                   space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else {
