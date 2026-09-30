@@ -88,6 +88,61 @@ final class VersionTests: XCTestCase {
         jobs.waitUntilDone()
     }
 
+    /// New 3D Shape: a sibling from the picture already made, not made again, with a new seed
+    /// for the 3D engine alone, saved so Try Again makes the same shape.
+    func testANewShapeKeepsThePictureAndChangesOnlyTheShapesSeed() throws {
+        let fx = try Fixture(), runs = fx.install.runs
+        try fx.modelFiles()
+        let tools = fx.tools()
+        _ = try fx.mini("busy")
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.recorder(sleep: 2)))
+        try jobs.resize(name: "busy", sizes: sizes)
+        try Gallery.createProject(runs, "Tiefling Party")
+        try jobs.make(name: "elf", picture: .description("an elf ranger"), restyle: false, seed: 7, sizes: sizes,
+                      model: EngineDownload.standard, project: "Tiefling Party")
+        let elf = try XCTUnwrap(Gallery.folder(runs, "elf"))
+        let mini = { (name: String) in Gallery.list(runs).first { $0.name == name }! }
+        XCTAssertFalse(JobRunner.canMakeNewShape(mini("elf")), "no picture yet: nothing to keep")
+        XCTAssertThrowsError(try jobs.makeNewShape(of: "elf")) { XCTAssertEqual($0 as? RequestError, .noDrawing("elf")) }
+        XCTAssertNil(Gallery.folder(runs, "elf-2"))
+
+        // The picture step 1 drew, as it would be once the elf is made.
+        let drawing = Data("the elf as drawn".utf8)
+        try drawing.write(to: elf.appendingPathComponent("source.png"))
+        XCTAssertTrue(JobRunner.canMakeNewShape(mini("elf")))
+        let (new, ahead) = try jobs.makeNewShape(of: "elf")
+        XCTAssertEqual(new, "elf-2", "named like another version")
+        XCTAssertNotNil(ahead, "queued behind the busy one")
+        let folder = try XCTUnwrap(Gallery.folder(runs, new))
+        XCTAssertEqual(mini(new).project, "Tiefling Party")
+        XCTAssertEqual(try Data(contentsOf: folder.appendingPathComponent("source.png")), drawing, "the same picture, copied")
+        let s = MiniSettings.load(folder)
+        XCTAssertEqual(s.seed, 7, "the picture's own seed stays")
+        let shape = try XCTUnwrap(s.shapeSeed)
+        XCTAssertNotEqual(shape, 7)
+        XCTAssertEqual(s.versionOf, "elf")
+        // What the job (and Try Again) runs, from the new mini's settings: no drawing, the new seed.
+        let plan = try Pipeline.plan(.generate, folder: folder, settings: s, tools: tools)
+        XCTAssertEqual(plan.map(\.number), [2, 3], "the picture isn't drawn again")
+        guard case .run(_, let args, _, _) = plan[0].step else { return XCTFail("step 2 isn't the engine") }
+        XCTAssertEqual(args[args.firstIndex(of: "--seed")! + 1], String(shape))
+        // Gone, the picture is drawn again from the same seed; the shape keeps its own.
+        try fm.removeItem(at: folder.appendingPathComponent("source.png"))
+        let again = try Pipeline.plan(.generate, folder: folder, settings: s, tools: tools)
+        XCTAssertEqual(again[0].step, .drawCharacter(description: "an elf ranger", seed: 7, to: folder.appendingPathComponent("source.png")))
+        guard case .run(_, let args2, _, _) = again[1].step else { return XCTFail("step 2 isn't the engine") }
+        XCTAssertEqual(args2[args2.firstIndex(of: "--seed")! + 1], String(shape))
+
+        XCTAssertEqual(try jobs.makeNewShape(of: "elf", seed: 99).name, "elf-3")
+        XCTAssertEqual(MiniSettings.load(try XCTUnwrap(Gallery.folder(runs, "elf-3"))).shapeSeed, 99)
+        // Another version of it draws afresh: one new seed for both again.
+        let other = MiniSettings.load(try XCTUnwrap(Gallery.folder(runs, try jobs.makeAnotherVersion(of: "elf-2").name)))
+        XCTAssertNil(other.shapeSeed)
+        XCTAssertNotEqual(other.seed, 7)
+        for n in jobs.queue.entries().map(\.name) { try jobs.remove(n) }
+        jobs.waitUntilDone()
+    }
+
     /// A mini's versions are the first one and those naming it, in its project; renaming the
     /// first keeps them together.
     func testTheVersionsOfAMini() throws {

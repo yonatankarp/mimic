@@ -367,6 +367,13 @@ final class AppModel {
         catch { problem = plainWords(error, else: "Couldn't make another version. Try again.") }
     }
 
+    /// A sibling of `mini` from the picture it already has, with only a new 3D shape.
+    func makeNewShape(_ mini: Mini) {
+        let new = Gallery.nextVersionName(install.runs, mini.name)
+        do { try start(new) { try $0.makeNewShape(of: mini.name, as: new).ahead } }
+        catch { problem = plainWords(error, else: "Couldn't make a new 3D shape. Try again.") }
+    }
+
     // MARK: Projects
 
     /// Why `mini` can't be moved to another project right now, or nil.

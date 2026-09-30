@@ -1,6 +1,6 @@
 import Foundation
 
-/// Make Another Version: a sibling mini from the same source with a new seed.
+/// Make Another Version and New 3D Shape: a sibling mini from the same source with a new seed.
 extension JobRunner {
     /// Makes a sibling of `name` in the same project, from the same picture or description and
     /// settings, with a different seed: the seed is what the drawing (for a description or the
@@ -9,19 +9,50 @@ extension JobRunner {
     /// `make`, its place in the queue.
     @discardableResult
     public func makeAnotherVersion(of name: String, as newName: String? = nil, seed: Int? = nil) throws -> (name: String, ahead: Int?) {
+        try version(of: name, as: newName) { settings in
+            (seed: Self.newSeed(seed, not: settings.seed ?? 42), shapeSeed: nil, drawn: nil)
+        }
+    }
+
+    /// New 3D Shape: a sibling like Make Another Version's, from the picture `name`'s step 1 made
+    /// (source.png, copied now so a rename or trash of `name` can't take it away), with a new
+    /// seed for the 3D engine alone. The picture isn't made again, so it's faster and a drawing
+    /// you liked is kept; its own seed stays, so Try Again would draw the same one.
+    @discardableResult
+    public func makeNewShape(of name: String, as newName: String? = nil, seed: Int? = nil) throws -> (name: String, ahead: Int?) {
+        guard let folder = Gallery.folder(install.runs, name) else { throw RequestError.notFound }
+        let drawn = folder.appendingPathComponent("source.png")
+        guard FileManager.default.fileExists(atPath: drawn.path) else { throw RequestError.noDrawing(name) }
+        return try version(of: name, as: newName) { settings in
+            let old = settings.seed ?? 42
+            return (seed: old, shapeSeed: Self.newSeed(seed, not: settings.shapeSeed ?? old), drawn: drawn)
+        }
+    }
+
+    /// `given`, or a random seed (1-999,999) that isn't `old`.
+    private static func newSeed(_ given: Int?, not old: Int) -> Int {
+        if let given { return given }
+        var s = Int.random(in: 1...999_999)
+        while s == old { s = Int.random(in: 1...999_999) }
+        return s
+    }
+
+    /// A sibling of `name` in its project, from its saved source and settings, with the seeds
+    /// (and picture) `seeds` picks from them. Named "<name>-2" (then -3…) unless `as` says.
+    private func version(of name: String, as newName: String?,
+                         _ seeds: (MiniSettings) -> (seed: Int, shapeSeed: Int?, drawn: URL?)) throws -> (name: String, ahead: Int?) {
         guard let folder = Gallery.folder(install.runs, name) else { throw RequestError.notFound }
         guard let (picture, restyle, settings) = try? Self.versionSource(folder) else { throw RequestError.noSource(name) }
         guard let model = EngineDownload.model(settings.model) else { throw RequestError.unknownModel(settings.model ?? "") }
         let new = newName ?? Gallery.nextVersionName(install.runs, name)
-        let old = settings.seed ?? 42
-        var s = seed ?? Int.random(in: 1...999_999)
-        while seed == nil && s == old { s = Int.random(in: 1...999_999) }
+        let (seed, shapeSeed, drawn) = seeds(settings)
         let project = folder.deletingLastPathComponent().standardizedFileURL == install.runs.standardizedFileURL
             ? nil : folder.deletingLastPathComponent().lastPathComponent
-        let ahead = try make(name: new, picture: picture, restyle: restyle, seed: s, sizes: settings.requested ?? Sizes(),
+        let ahead = try make(name: new, picture: picture, restyle: restyle, seed: seed, sizes: settings.requested ?? Sizes(),
                              kind: settings.kind ?? .character, model: model, project: project,
                              versionOf: settings.versionOf ?? name, cartoon: settings.cartoon == true,
-                             shown: settings.shownName(folder: name).flatMap { Rules.shownName(carrying: $0, to: new) })
+                             shown: settings.shownName(folder: name).flatMap { Rules.shownName(carrying: $0, to: new) },
+                             shapeSeed: shapeSeed, drawn: drawn)
         return (new, ahead)
     }
 
@@ -47,6 +78,9 @@ extension JobRunner {
 
     /// Whether Make Another Version can work for this mini (what it was made from was saved).
     public static func canMakeAnotherVersion(_ mini: Mini) -> Bool { (try? versionSource(mini.folder, mini.settings)) != nil }
+
+    /// Whether New 3D Shape can work for this mini: Make Another Version can, and its picture is there.
+    public static func canMakeNewShape(_ mini: Mini) -> Bool { mini.source != nil && canMakeAnotherVersion(mini) }
 }
 
 
