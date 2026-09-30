@@ -51,7 +51,7 @@ enum CLI {
             let minis = Gallery.list(install.runs), projects = Gallery.projects(install.runs)
             func row(_ m: Mini, _ indent: String) {
                 let state = queue.contains { $0.name == m.name } ? "waiting" : m.stl == nil ? "unfinished" : "ready"
-                print("\(indent)\(m.name)\t\(state)\t\(m.created)")
+                print("\(indent)\(m.name)\t\(state)\t\(Mini.listDate(m.created))")
             }
             // Without projects, the same lines as always; with them, a heading each, then Unsorted.
             guard !projects.isEmpty else { minis.forEach { row($0, "") }; return 0 }
