@@ -19,9 +19,21 @@ struct MiniViewer: View {
     let version: Date
     /// "Dwarf Cleric", for VoiceOver.
     let name: String
+    /// What the print file measures, once loaded: the page's details show it too.
+    @Binding var measured: Measured?
     @State private var mini: Entity?
-    @State private var size: String?
     @State private var failed = false
+    /// How to handle it, shown over the view until the first turn or zoom (and always as its tooltip).
+    @AppStorage("viewerHintSeen") private var hintSeen = false
+    static let hint = "Drag to turn · scroll to zoom"
+    static let help = "Drag to turn · pinch or scroll to zoom · double-click to face front"
+    /// The stage's size, running up under the toolbar, and the height below the toolbar.
+    @State private var stageSize = CGSize.zero
+    @State private var seenHeight: CGFloat = 0
+    /// The camera in use: the fit, followed as the window, the sidebar or the details change,
+    /// except while zoomed in or out, so a zoom isn't undone. Face Front fits it again.
+    @State private var camera = ViewerCamera()
+    private var unzoomed: Bool { zoom == 1 && offset == .zero }
     @State private var turn = SIMD2<Float>.zero  // yaw, pitch
     @State private var turnStart: SIMD2<Float>?
     @State private var zoom: Float = 1
@@ -37,52 +49,28 @@ struct MiniViewer: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        Stage(mini: mini, glide: glide,
-              transform: Transform(scale: SIMD3(repeating: zoom),
-                                   rotation: simd_quatf(angle: turn.y, axis: [1, 0, 0]) * simd_quatf(angle: turn.x, axis: [0, 1, 0]),
-                                   translation: SIMD3(offset, 0)),
-              // Pinch and scroll over the mini zoom toward the pointer.
-              zoomed: { factor, anchor in
-                  guard !gliding else { return false }
-                  (zoom, offset) = ViewerZoom.zoomed(scale: zoom, offset: offset, by: factor, toward: anchor)
-                  return true
-              })
-        .opacity(shown ? 1 : 0)
-        .accessibilityElement()
-        .accessibilityLabel(size.map { "3D view of \(name), \($0)" } ?? "3D view of \(name)")
-        // A soft stage for the mini to stand on, lighter in the middle like a studio backdrop.
-        .background(RadialGradient(colors: [Color.primary.opacity(0.07), Color.primary.opacity(0.02)],
-                                   center: .center, startRadius: 40, endRadius: 520))
-        .contentShape(Rectangle())
-        .gesture(DragGesture(minimumDistance: 3).onChanged { g in
-            let start = turnStart ?? turn
-            turnStart = start
-            turn = SIMD2(start.x + Float(g.translation.width) * 0.01,
-                         min(1.1, max(-1.1, start.y + Float(g.translation.height) * 0.01)))
-        }.onEnded { _ in turnStart = nil })
-        .onTapGesture(count: 2) { front() }
-        .overlay(alignment: .topTrailing) {
-            HStack(spacing: 6) {
-                Button { front() } label: { Label("Face Front", systemImage: "arrow.counterclockwise") }
-                    .help("Turn the mini back to face you and zoom back out (or double-click it)")
-            }
-            .glassButton()
-            .controlSize(.small)
-            .padding(10)
+        ZStack {
+            backdrop.ignoresSafeArea()
+            // The stage runs up under the toolbar; the controls below stay clear of it. Not under
+            // the sidebar or the details: a scroll over the stage zooms, which would steal theirs.
+            floorShadow.ignoresSafeArea(edges: .top)
+            stage.ignoresSafeArea(edges: .top)
+                .onGeometryChange(for: CGSize.self) { $0.size } action: { stageSize = $0 }
         }
-        .overlay(alignment: .bottomLeading) {
-            if let size {
-                Text(size).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-                    .padding(.horizontal, 10).padding(.vertical, 5)
-                    .glassCard(cornerRadius: 10)
-                    .padding(10)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { seenHeight = $0 }
+        .onChange(of: fit, initial: true) { if unzoomed { camera = fit } }
+        .onChange(of: unzoomed) { if unzoomed { camera = fit } }
+        .overlay(alignment: .topTrailing) { controls.padding(12) }
+        .overlay(alignment: .bottom) {
+            if mini != nil && !hintSeen {
+                Text(Self.hint).font(.callout).foregroundStyle(.secondary)
+                    .padding(.horizontal, 14).padding(.vertical, 7)
+                    .glassEffect(.regular, in: .capsule)
+                    .padding(16)
+                    .transition(.opacity)
             }
         }
-        .overlay(alignment: .bottomTrailing) {
-            if mini != nil {
-                Text("Drag to turn · pinch or scroll to zoom · double-click to face front").font(.caption).foregroundStyle(.secondary).padding(10)
-            }
-        }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.4), value: hintSeen)
         .overlay {
             if failed {
                 Text("Couldn't show this mini. Try Show in Finder.").foregroundStyle(.secondary)
@@ -98,6 +86,7 @@ struct MiniViewer: View {
         }
         .task(id: [stl.path, version.description]) {
             failed = false
+            measured = nil  // at once: the page's details shouldn't show the last mini's size while it fades
             // The mini on show fades out first: loading blocks the main actor, so the fade has to
             // be over before it starts.
             if mini != nil && shown && !reduceMotion {
@@ -109,18 +98,108 @@ struct MiniViewer: View {
             turn = .zero; zoom = 1; offset = .zero
             // ponytail: loads on the main actor (about 0.4 s for the biggest print file); move the
             // file reading off it if bigger minis make that noticeable.
-            guard let (entity, mm) = try? Self.load(stl) else { mini = nil; size = nil; failed = true; return }
+            guard let (entity, mm) = try? Self.load(stl) else { mini = nil; failed = true; return }
             if !reduceMotion {
                 entity.scale = SIMD3(repeating: 0.94)
                 glide = 0.5  // the stage adds it and grows it into place
             }
-            mini = entity; size = mm
+            mini = entity; measured = mm
             withAnimation(reduceMotion ? nil : .easeOut(duration: 0.4)) { shown = true }
             if gliding {
                 try? await Task.sleep(for: .seconds(glide))
                 glide = 0  // also when cancelled: sleep returns at once
             }
         }
+    }
+
+    /// The mini's box in the scene, 1 m tall; a typical one until its print file is read.
+    private var sizeInScene: SIMD3<Float> {
+        guard let m = measured, m.tall > 0 else { return SIMD3(0.8, 1, 0.8) }
+        return SIMD3(Float(m.wide), Float(m.tall), Float(m.deep)) / Float(m.tall)
+    }
+
+    /// Fits the mini to what's seen: below the toolbar and the controls, above the hint (whose
+    /// room is kept after it's gone, so the mini doesn't move).
+    private var fit: ViewerCamera {
+        ViewerCamera.fitting(sizeInScene, in: stageSize, top: max(0, stageSize.height - seenHeight) + 48, bottom: 56)
+    }
+
+    private var pitch: simd_quatf { simd_quatf(angle: turn.y, axis: [1, 0, 0]) }
+
+    private var stage: some View {
+        Stage(mini: mini, glide: glide, camera: camera,
+              transform: Transform(scale: SIMD3(repeating: zoom),
+                                   rotation: pitch * simd_quatf(angle: turn.x, axis: [0, 1, 0]),
+                                   translation: SIMD3(offset, 0)),
+              // Pinch and scroll over the mini zoom toward the pointer.
+              zoomed: { factor, anchor in
+                  guard !gliding else { return false }
+                  (zoom, offset) = ViewerZoom.zoomed(scale: zoom, offset: offset, by: factor, toward: anchor)
+                  if !hintSeen { hintSeen = true }
+                  return true
+              })
+        .opacity(shown ? 1 : 0)
+        .accessibilityElement()
+        .accessibilityLabel(measured.map { "3D view of \(name), \($0.tall) mm tall with base, \($0.footprint) footprint" } ?? "3D view of \(name)")
+        .contentShape(Rectangle())
+        .gesture(DragGesture(minimumDistance: 3).onChanged { g in
+            let start = turnStart ?? turn
+            turnStart = start
+            turn = SIMD2(start.x + Float(g.translation.width) * 0.01,
+                         min(1.1, max(-1.1, start.y + Float(g.translation.height) * 0.01)))
+        }.onEnded { _ in
+            turnStart = nil
+            if !hintSeen { hintSeen = true }
+        })
+        .onTapGesture(count: 2) { front() }
+        .help(Self.help)
+    }
+
+    /// A soft contact shadow under the base, drawn behind the scene (the base hides its middle).
+    /// It follows the zoom and the tilt; turning round leaves a round shadow as it is. Seen from
+    /// below, it fades away.
+    private var floorShadow: some View {
+        let radius = max(sizeInScene.x, sizeInScene.z) / 2 * 1.3
+        let camera = camera, size = stageSize, zoom = zoom, offset = offset, pitch = pitch
+        func at(_ x: Float, _ z: Float) -> CGPoint { camera.project(pitch.act(SIMD3(x, -0.5, z) * zoom) + SIMD3(offset, 0), in: size) }
+        let middle = at(0, 0), left = at(-radius, 0), right = at(radius, 0), near = at(0, radius), far = at(0, -radius)
+        let base = pitch.act(SIMD3(0, -0.5, 0) * zoom) + SIMD3(offset, 0)
+        let fromAbove = simd_dot(pitch.act(SIMD3(0, 1, 0)), simd_normalize(SIMD3(0, camera.lift, camera.distance) - base))
+        return EllipticalGradient(colors: [.black.opacity(0.3), .black.opacity(0.12), .clear], center: .center,
+                                  startRadiusFraction: 0, endRadiusFraction: 0.5)
+            .frame(width: abs(right.x - left.x), height: max(2, abs(near.y - far.y)))
+            .position(middle)
+            .opacity(shown && size != .zero ? Double(min(1, max(0, fromAbove * 5))) : 0)
+            .animation(glide > 0 ? .easeInOut(duration: glide) : nil, value: turn)
+            .animation(glide > 0 ? .easeInOut(duration: glide) : nil, value: zoom)
+            .animation(glide > 0 ? .easeInOut(duration: glide) : nil, value: offset)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+
+    /// Floating over the view, top right: its size beside Face Front, one piece of glass.
+    private var controls: some View {
+        GlassEffectContainer(spacing: 8) {
+            HStack(spacing: 8) {
+                if let measured {
+                    Text(measured.caption).font(.callout.monospacedDigit()).foregroundStyle(.secondary)
+                        .padding(.horizontal, 12).padding(.vertical, 6)
+                        .glassEffect(.regular, in: .capsule)
+                        .help("Its size with the base: height, then the footprint it stands on.")
+                }
+                Button { front() } label: { Label("Face Front", systemImage: "arrow.counterclockwise") }
+                    .buttonStyle(.glass)
+                    .help("Turn the mini back to face you and zoom back out (or double-click it)")
+                    .disabled(mini == nil)
+            }
+        }
+    }
+
+    /// A studio backdrop that works light or dark: the window's own colour, a shade deeper
+    /// towards the floor (a few percent, never dark).
+    private var backdrop: some View {
+        LinearGradient(colors: [.primary.opacity(0), .primary.opacity(0.035)], startPoint: .center, endPoint: .bottom)
+            .background(Color(nsColor: .windowBackgroundColor))
     }
 
     /// Turns the mini back to face you, gliding there rather than jumping, so you can see which
@@ -149,9 +228,8 @@ struct MiniViewer: View {
     }
 
     /// Print files are Z-up millimetres; the scene is Y-up metres. The mini is centred and
-    /// scaled so the default camera's framing fits it. Also returns its size in millimetres,
-    /// "34 mm tall with base · 25 × 33 mm footprint".
-    static func load(_ url: URL) throws -> (Entity, String) {
+    /// scaled to 1 m tall, which the camera fits to the view. Also returns its size in millimetres.
+    static func load(_ url: URL) throws -> (Entity, Measured) {
         let asset = MDLAsset(url: url)
         guard let mesh = asset.childObjects(of: MDLMesh.self).first as? MDLMesh else { throw CocoaError(.fileReadCorruptFile) }
         let desc = mesh.vertexDescriptor
@@ -168,7 +246,7 @@ struct MiniViewer: View {
             points.append(v); lo = simd_min(lo, v); hi = simd_max(hi, v)
         }
         let dims = hi - lo
-        let size = "\(Int(dims.y.rounded())) mm tall with base · \(Int(dims.x.rounded())) × \(Int(dims.z.rounded())) mm footprint"
+        let size = Measured(tall: Int(dims.y.rounded()), wide: Int(dims.x.rounded()), deep: Int(dims.z.rounded()))
         let centre = (lo + hi) / 2  // the middle of the mini, so it turns in place
         let scale = 1 / max(dims.y, 1)  // 1 m tall: fills the default camera's view
         points = points.map { ($0 - centre) * scale }
@@ -190,16 +268,23 @@ struct MiniViewer: View {
     }
 }
 
+/// A print file's size in millimetres, base included.
+struct Measured: Equatable {
+    let tall: Int, wide: Int, deep: Int
+    var footprint: String { "\(wide) × \(deep) mm" }
+    /// "34 mm tall · 26 × 25 mm", on its glass badge.
+    var caption: String { "\(tall) mm tall · \(footprint)" }
+}
+
 /// The 3D scene, drawn by RealityKit's renderer into a Metal view that redraws only when asked:
 /// when the mini turns, zooms, loads or the view resizes, and every frame only while a glide
 /// (Face Front, the grow-in on load) plays. RealityView can't be paused and drew every frame,
 /// about 20% of a core with nothing moving.
 private struct Stage: NSViewRepresentable {
-    static let distance: Float = 1.7
-    static let fieldOfView: Float = 45  // degrees, top to bottom
     let mini: Entity?
     /// Seconds to glide to a new `transform`; 0 to follow it at once.
     let glide: Double
+    let camera: ViewerCamera
     let transform: Transform
     /// A pinch or scroll over the view: how much to zoom and toward which point of the plane
     /// through the mini. Returns whether it was used.
@@ -209,6 +294,7 @@ private struct Stage: NSViewRepresentable {
     func makeNSView(context: Context) -> MTKView { context.coordinator.view }
     func updateNSView(_ view: MTKView, context: Context) {
         context.coordinator.zoomed = zoomed
+        context.coordinator.frame(camera)
         context.coordinator.show(mini, transform, glide: glide)
     }
     static func dismantleNSView(_ view: MTKView, coordinator: Painter) { coordinator.stopWatching() }
@@ -229,6 +315,8 @@ private struct Stage: NSViewRepresentable {
         /// The glide under way: where it started, when, and for how long.
         private var gliding: (from: Transform, start: CFTimeInterval, seconds: Double)?
         private var zoomEvents: Any?
+        private let camera = PerspectiveCamera()
+        private var fitted = ViewerCamera()
 
         override init() {
             super.init()
@@ -241,11 +329,10 @@ private struct Stage: NSViewRepresentable {
             view.layer?.isOpaque = false  // the stage's backdrop shows through
             watchZoom()
             guard let renderer else { return }
-            // A camera of our own: the default one sits too close.
-            let camera = PerspectiveCamera()
-            camera.camera.fieldOfViewInDegrees = Stage.fieldOfView
+            // A camera of our own, placed to fit the mini to the view (see `ViewerCamera`).
+            camera.camera.fieldOfViewInDegrees = ViewerCamera.fieldOfView
             camera.camera.fieldOfViewOrientation = .vertical
-            camera.position = [0, 0, Stage.distance]
+            camera.position = [0, fitted.lift, fitted.distance]
             renderer.entities.append(contentsOf: [MiniViewer.lights(), camera])
             renderer.activeCamera = camera
             renderer.cameraSettings.colorBackground = .color(CGColor(gray: 0, alpha: 0))
@@ -294,9 +381,15 @@ private struct Stage: NSViewRepresentable {
             guard event.type == .magnify || event.momentumPhase.isEmpty else { return true }
             let factor = event.type == .magnify ? ViewerZoom.factor(magnification: event.magnification)
                 : ViewerZoom.factor(scroll: event.scrollingDeltaY, precise: event.hasPreciseScrollingDeltas)
-            let anchor = ViewerZoom.anchor(at: CGPoint(x: at.x, y: view.bounds.height - at.y), in: view.bounds.size,
-                                           distance: Stage.distance, fieldOfView: Stage.fieldOfView)
-            return zoomed(factor, anchor)
+            return zoomed(factor, fitted.anchor(at: CGPoint(x: at.x, y: view.bounds.height - at.y), in: view.bounds.size))
+        }
+
+        /// Moves the camera when the fit changes (a resize, the sidebar or details shown or hidden).
+        func frame(_ camera: ViewerCamera) {
+            guard camera != fitted else { return }
+            fitted = camera
+            self.camera.position = [0, camera.lift, camera.distance]
+            view.needsDisplay = true
         }
 
         func show(_ entity: Entity?, _ transform: Transform, glide: Double) {

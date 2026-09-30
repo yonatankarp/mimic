@@ -165,10 +165,9 @@ final class SizeAdviceTests: XCTestCase {
         let tips = PrintTips(nozzle: "0.2", kind: .object)
         XCTAssertEqual(tips.copyText, "Layer height 0.06–0.08 mm · Supports: Tree (auto) · Walls: 3–4 · Flat side down")
         XCTAssertFalse(tips.lines.joined().contains("face"))
-        XCTAssertEqual(PrintTips.nowLine(Sizes(height: "80", base: "25", nozzle: "0.4", noBase: true), kind: .object),
-                       "Now: 80 mm longest side · no base · made for a 0.4 mm nozzle")
-        XCTAssertEqual(PrintTips.nowLine(Sizes(height: "80", base: "60", nozzle: "0.4"), kind: .object),
-                       "Now: 80 mm longest side · 60 mm base · made for a 0.4 mm nozzle")
+        XCTAssertEqual(made(Sizes(height: "80", base: "25", nozzle: "0.4", noBase: true), .object),
+                       ["Longest side: 80 mm", "Base: None", "Nozzle: 0.4 mm"])
+        XCTAssertEqual(made(Sizes(height: "80", base: "60", nozzle: "0.4"), .object), ["Longest side: 80 mm", "Base: 60 mm", "Nozzle: 0.4 mm"])
     }
 
     func testSizesPassTheRequestChecks() throws {
@@ -193,12 +192,18 @@ final class SizeAdviceTests: XCTestCase {
         XCTAssertEqual(MakeAdvice.pictureWarnings(width: 300, height: 100).count, 2)
     }
 
-    func testPrintTipsAndNowLine() {
+    func testPrintTipsAndMadeSizes() {
         XCTAssertEqual(PrintTips(nozzle: "0.2").copyText, "Layer height 0.06–0.08 mm · Supports: Tree (auto) · Walls: 3–4 · Upright on its base, no brim")
         XCTAssertEqual(PrintTips(nozzle: "0.6").lines[0], "Layer height 0.2 mm. Supports: Tree (auto). Walls: 2–3.")
-        XCTAssertEqual(PrintTips.nowLine(Sizes(height: "32", base: "25", nozzle: "0.2")),
-                       "Now: 32 mm character · 25 mm base · made for a 0.2 mm nozzle")
-        XCTAssertEqual(PrintTips.nowLine(Sizes()), "Now: 32 mm character · 25 mm base · made for a 0.4 mm nozzle")
+        XCTAssertEqual(made(Sizes(height: "32", base: "25", nozzle: "0.2")), ["Character: 32 mm", "Base: 25 mm", "Nozzle: 0.2 mm"])
+        XCTAssertEqual(made(Sizes(height: "0", noBase: true)), ["Character: 32 mm", "Base: 25 mm", "Nozzle: 0.4 mm"],
+                       "missing or 0 is the default; a character always has a base")
+        XCTAssertEqual(PrintTips.shortLine(Sizes(height: "54.4", nozzle: "0.2")), "54 mm · 0.2 mm nozzle")
+        XCTAssertEqual(PrintTips.shortLine(Sizes()), "32 mm · 0.4 mm nozzle")
+    }
+
+    private func made(_ sizes: Sizes, _ kind: MiniKind = .character) -> [String] {
+        PrintTips.made(sizes, kind: kind).map { "\($0.label): \($0.value)" }
     }
 }
 

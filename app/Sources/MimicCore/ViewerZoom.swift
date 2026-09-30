@@ -51,6 +51,52 @@ public enum ViewerZoom {
     }
 }
 
+/// Where the 3D view's camera stands so the whole mini fits the part of the view you can see:
+/// below the toolbar and the controls, above the hint, with room to spare on every side, by
+/// width as well as height. The camera looks straight ahead; `lift` raises it, which moves the
+/// mini down the view to the middle of the part that's seen.
+public struct ViewerCamera: Equatable, Sendable {
+    public var distance: Float
+    public var lift: Float
+    /// Degrees, top to bottom.
+    public static let fieldOfView: Float = 45
+
+    public init(distance: Float = 1.7, lift: Float = 0) { self.distance = distance; self.lift = lift }
+
+    /// `size` is the mini's in the scene, 1 m tall; `top` and `bottom` are the points of the view
+    /// covered at each edge; `margin` is the share of the seen part kept free around it.
+    public static func fitting(_ size: SIMD3<Float>, in view: CGSize, top: CGFloat, bottom: CGFloat, margin: Float = 0.15) -> ViewerCamera {
+        guard view.width > 0, view.height > 0 else { return ViewerCamera() }
+        let t = tan(fieldOfView * .pi / 360)
+        let height = Float(view.height)
+        // Half the seen band's height, as a share of half the view's (1 = all of it).
+        let band = max(0.2, 1 - Float(top + bottom) / height)
+        let aspect = Float(view.width) / height
+        // It turns, so either side of its footprint can face you, and its nearest edge looks
+        // biggest: fit that edge, and everything behind it fits too.
+        let wide = max(size.x, size.z, 0.01)
+        let perMetre = min((1 - margin) * band / (size.y / 2), (1 - margin) * aspect / (wide / 2))
+        let distance = wide / 2 + 1 / (perMetre * t)
+        return ViewerCamera(distance: distance, lift: Float(top - bottom) / height * distance * t)
+    }
+
+    /// Where a point in the scene lands in the view, in points from the top left.
+    public func project(_ p: SIMD3<Float>, in view: CGSize) -> CGPoint {
+        guard view.width > 0, view.height > 0 else { return .zero }  // not laid out yet
+        let t = tan(Self.fieldOfView * .pi / 360)
+        let depth = max(distance - p.z, 0.01)
+        let aspect = Float(view.width / max(view.height, 1))
+        let x = p.x / (depth * t * aspect), y = (p.y - lift) / (depth * t)
+        return CGPoint(x: CGFloat(x + 1) / 2 * view.width, y: CGFloat(1 - y) / 2 * view.height)
+    }
+
+    /// Where a point in the view falls in the plane through the mini's middle: for zooming
+    /// toward the pointer.
+    public func anchor(at point: CGPoint, in view: CGSize) -> SIMD2<Float> {
+        ViewerZoom.anchor(at: point, in: view, distance: distance, fieldOfView: Self.fieldOfView) + SIMD2(0, lift)
+    }
+}
+
 /// How far through a glide (Face Front, a mini growing into place) the 3D view is: 0 to 1,
 /// easing in and out, so it starts and lands softly.
 public enum Glide {
