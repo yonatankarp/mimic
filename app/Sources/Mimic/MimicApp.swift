@@ -110,8 +110,10 @@ struct MiniCommands: Commands {
             // No icons in the menu bar: the other items have none.
             if let mini, free {
                 AnotherVersionButton(mini: mini, showsIcon: false).environment(model)
+                NewShapeButton(mini: mini, showsIcon: false).environment(model)
             } else {
                 Button("Make Another Version") {}.disabled(true)
+                Button("New 3D Shape") {}.disabled(true)
             }
             if let mini, free { DuplicateButton(mini: mini, showsIcon: false).environment(model) } else { Button("Duplicate…") {}.disabled(true) }
             if free && !chosen.isEmpty {

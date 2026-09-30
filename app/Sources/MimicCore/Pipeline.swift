@@ -88,7 +88,7 @@ public enum Pipeline {
         }
         let mesh: Step = .run(executable: tools.mimic,
                               arguments: ["_engine", source.path, folder.appendingPathComponent("model.glb").path,
-                                          "--seed", String(seed), "--engine", tools.engine, "--model", model.id],
+                                          "--seed", String(settings.shapeSeed ?? seed), "--engine", tools.engine, "--model", model.id],
                               directory: nil, log: folder.appendingPathComponent("pixal3d.log"))
         let drawn = FileManager.default.fileExists(atPath: source.path)
         let shaped = drawn && FileManager.default.fileExists(atPath: folder.appendingPathComponent("model.glb").path)

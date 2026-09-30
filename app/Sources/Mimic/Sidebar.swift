@@ -5,13 +5,15 @@ import SwiftUI
 import TipKit
 import UniformTypeIdentifiers
 
-/// The gallery on the left: a collapsible section per project, then Unsorted; search, the
-/// right-click menus, drag and drop between projects, and Quick Look. Rename, trash and the
-/// project questions are asked at window level (MainWindowChrome), so the Mini menu can ask
-/// too, sidebar hidden or not.
+/// The gallery on the left: a collapsible section per project, then Unsorted; search, sort and
+/// filter (remembered per window), the right-click menus, drag and drop between projects, and
+/// Quick Look. Rename, trash and the project questions are asked at window level
+/// (MainWindowChrome), so the Mini menu can ask too, sidebar hidden or not.
 struct Sidebar: View {
     @Environment(AppModel.self) private var model
     @State private var query = ""
+    @SceneStorage("gallerySort") private var sort = GallerySort.made
+    @SceneStorage("galleryShow") private var show = GalleryShow.all
     @State private var preview: URL?
     /// A mini has been picked in the list since it appeared: the gallery tip can show.
     @State private var picked = false
@@ -41,6 +43,20 @@ struct Sidebar: View {
             return .handled
         }
         .quickLookPreview($preview)
+        // What a search or filter hides is no longer selected, so nothing out of sight is moved,
+        // resized or trashed with what is.
+        .onChange(of: query) { deselectHidden() }
+        .onChange(of: show) { deselectHidden() }
+    }
+
+    private var shown: [Mini] { Gallery.arrange(model.minis, query: query, show: show, sort: sort) }
+
+    private func deselectHidden() {
+        let shown = self.shown
+        var kept = Gallery.visible(model.selection, in: shown)
+        // Else the next reload picks the first mini of all, which the list may not show.
+        if kept.isEmpty, let first = shown.first { kept = [first.id] }
+        if kept != model.selection { model.selection = kept }
     }
 
     /// Named, not inline: an optional tip chosen in the modifier chain is slow to type-check.
@@ -51,16 +67,16 @@ struct Sidebar: View {
 
     private var list: some View {
         @Bindable var model = model
-        let shown = Gallery.search(model.minis, query)
-        let searching = model.minis.count > Gallery.searchAfter && !query.trimmingCharacters(in: .whitespaces).isEmpty
+        let shown = self.shown
+        let narrowed = Gallery.narrowed(model.minis, query: query, show: show)
         return List(selection: $model.selection) {
             if model.projects.isEmpty {
                 Section { rows(shown, project: nil) } header: { header("Minis") }
             } else {
                 ForEach(model.projects, id: \.self) { project in
                     let inside = shown.filter { $0.project == project }
-                    if !searching || !inside.isEmpty {
-                        Section(isExpanded: expanded(project, searching)) {
+                    if !narrowed || !inside.isEmpty {
+                        Section(isExpanded: expanded(project, narrowed)) {
                             rows(inside, project: project)
                             if inside.isEmpty {
                                 Text("Drag minis here").foregroundStyle(.secondary).font(.callout)
@@ -96,6 +112,9 @@ struct Sidebar: View {
                     .buttonStyle(.borderless)
                     .help("A folder to group minis in (⇧⌘N). Drag minis onto it to move them.")
                 Spacer()
+                // Here, not beside the search field: that appears only past six minis, and a
+                // filter must always be there to turn off.
+                if !model.minis.isEmpty { arrangeMenu }
             }
             .padding(.horizontal, 12).padding(.vertical, 8)
         }
@@ -105,7 +124,17 @@ struct Sidebar: View {
         .onDeleteCommand { if model.sheet == nil, !model.chosen.isEmpty { model.askToTrash(model.chosen) } }
         .overlay {
             if shown.isEmpty && !model.minis.isEmpty {
-                ContentUnavailableView.search(text: query)
+                if Gallery.search(model.minis, query).isEmpty {
+                    ContentUnavailableView.search(text: query)
+                } else {
+                    ContentUnavailableView {
+                        Label("No \(Self.title(show).lowercased())", systemImage: "line.3.horizontal.decrease.circle")
+                    } description: {
+                        Text("The list shows only \(Self.title(show).lowercased()) for now.")
+                    } actions: {
+                        Button("Show All Minis") { show = .all }
+                    }
+                }
             }
         }
     }
@@ -138,9 +167,40 @@ struct Sidebar: View {
         }
     }
 
-    /// Open unless collapsed; every project is open while searching, so nothing found is hidden.
-    private func expanded(_ project: String, _ searching: Bool) -> Binding<Bool> {
-        Binding(get: { searching || !model.collapsed.contains(project) },
+    /// Sort By and Show, as in Finder's View menu. Filled while a filter hides some.
+    private var arrangeMenu: some View {
+        Menu {
+            Picker("Sort By", selection: $sort) {
+                Text("Date Made").tag(GallerySort.made)
+                Text("Name").tag(GallerySort.name)
+                Text("Size").tag(GallerySort.size)
+            }
+            Picker("Show", selection: $show) {
+                ForEach(GalleryShow.allCases, id: \.self) { Text(Self.title($0)).tag($0) }
+            }
+        } label: {
+            Image(systemName: show == .all ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+        }
+        .menuStyle(.button).buttonStyle(.borderless)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(show == .all ? "Sort the list, or show only some minis" : "Showing \(Self.title(show).lowercased()) only. Click to show all or sort.")
+        .accessibilityLabel("Sort and Show")
+    }
+
+    private static func title(_ show: GalleryShow) -> String {
+        switch show {
+        case .all: "All Minis"
+        case .characters: "Characters"
+        case .objects: "Objects"
+        case .unfinished: "Unfinished Minis"
+        }
+    }
+
+    /// Open unless collapsed; every project is open while searching or filtering, so nothing
+    /// found is hidden.
+    private func expanded(_ project: String, _ narrowed: Bool) -> Binding<Bool> {
+        Binding(get: { narrowed || !model.collapsed.contains(project) },
                 set: { open in if open { model.collapsed.remove(project) } else { model.collapsed.insert(project) } })
     }
 
@@ -182,6 +242,7 @@ struct Sidebar: View {
             .disabled(!mini.hasModel || model.cantStart != nil || model.waiting(mini.name) != nil)
         Divider()
         AnotherVersionButton(mini: mini)
+        NewShapeButton(mini: mini)
         DuplicateButton(mini: mini)
         MoveToProjectMenu(minis: [mini])
         Divider()
@@ -359,6 +420,21 @@ struct AnotherVersionButton: View {
             .help("Makes it again from the same picture or description, with a different variation number: "
                   + "a detail that came out as a blob may come out right. It goes next to this one, and waits its turn if Mimic is busy.")
             .disabled(model.cantStart != nil || !JobRunner.canMakeAnotherVersion(mini))
+    }
+}
+
+/// New 3D Shape, next to Make Another Version: the same picture, only the 3D shape made again.
+struct NewShapeButton: View {
+    let mini: Mini
+    var showsIcon = true
+    @Environment(AppModel.self) private var model
+    var body: some View {
+        Button { model.makeNewShape(mini) } label: {
+            if showsIcon { Label("New 3D Shape", systemImage: "cube") } else { Text("New 3D Shape") }
+        }
+            .help("Keeps this picture and makes only the 3D shape again, with a different variation number: "
+                  + "quicker than Make Another Version, and a picture you like stays. It goes next to this one, and waits its turn if Mimic is busy.")
+            .disabled(model.cantStart != nil || !JobRunner.canMakeNewShape(mini))
     }
 }
 

@@ -105,6 +105,11 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   folded wing at 7. A picture mini from before `upload.img` was kept has only source.png, which
   is what its 3D step saw, so that is used without the sculpt; a mini with no settings can't be
   made again and the menu item is off.
+- **New 3D Shape** (#86) is Make Another Version that keeps the picture: `make` copies the old
+  mini's source.png into the new folder before it joins the queue, so the plan skips step 1 as
+  it does for Try Again, and a new `shapeSeed` in settings.json goes to `_engine --seed` alone
+  (absent, `seed` drives both). `seed` stays, so the base stones and a redrawn picture come out
+  the same. Offered only when source.png is there.
 - **Duplicate** (#85, `MimicCore/Duplicate.swift`) keeps a second mini of the same shape to
   resize, since Resize replaces the only print file and Make Another Version changes the shape.
   The copy is made in a `_duplicate-…` folder next to it (never listed, so never taken over as a
