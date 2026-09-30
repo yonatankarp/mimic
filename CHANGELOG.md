@@ -7,6 +7,9 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 ### Changed
 - **Mimic now needs macOS 26 (Tahoe).** Every Mac that runs Mimic can update to it for free, in System Settings → General → Software Update.
 
+### Fixed
+- Resize showed Best print and "about 100 mm tall" for a mini made at game scale; it now shows what the mini was made at. A mini made at a size neither choice gives shows neither as chosen.
+
 ## 0.6.0
 
 ### New

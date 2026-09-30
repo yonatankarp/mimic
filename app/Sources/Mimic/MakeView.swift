@@ -454,9 +454,9 @@ struct SizeSection: View {
     var body: some View {
         Section("📏 Size & printer") {
             if !object {  // an object is sized by its longest side: no scale to match
-                Picker("Size for", selection: bind(\.purpose, { $0.setPurpose($1) })) {
-                    Text("🎲 Game scale").tag(SizeCard.Purpose.game)
-                    Text("✨ Best print").tag(SizeCard.Purpose.display)
+                Picker("Size for", selection: bind(\.purpose, { if let p = $1 { $0.setPurpose(p) } })) {
+                    Text("🎲 Game scale").tag(SizeCard.Purpose.game as SizeCard.Purpose?)
+                    Text("✨ Best print").tag(SizeCard.Purpose.display as SizeCard.Purpose?)
                 }
                 .pickerStyle(.segmented)
                 .help("Game scale: the same size as the other minis on your table. Best print: as big as your nozzle needs for faces to come out clearly.")
@@ -535,7 +535,7 @@ struct SizeSection: View {
                 Button("Advanced") { withAnimation { advanced.toggle() } }.buttonStyle(.plain)
             }
         }
-        .onChange(of: card.purpose) { _, p in UserDefaults.standard.set(p.rawValue, forKey: "purpose") }
+        .onChange(of: card.purpose) { _, p in if let p { UserDefaults.standard.set(p.rawValue, forKey: "purpose") } }
         .onChange(of: card.nozzle) { _, n in UserDefaults.standard.set(n, forKey: "nozzle") }
     }
 
