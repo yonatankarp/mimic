@@ -8,7 +8,6 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 - **35 mm (heroic) and 75 mm scales.** Choose them under Game scale in New Mini and Resize. 54 mm minis now get a 40 mm base and 75 mm a 50 mm one, the sizes minis of those scales stand on. In Terminal: `--scale 35`.
 
 ### Changed
-- The list and a mini's page stay quick with hundreds of minis: Mimic reads what it knows about each mini once, when the list refreshes, not every time the window redraws.
 
 ### Fixed
 
