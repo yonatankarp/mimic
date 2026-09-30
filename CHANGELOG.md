@@ -12,6 +12,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 - **A mini's notification has buttons:** Try Again on one that didn't finish, and Open in your slicer on one that's ready. Clicking the notification opens Mimic on that mini.
 - **The Dock shows how many minis are ready and unseen,** and nothing otherwise. It no longer shows a tick, an exclamation mark or the number waiting.
 - The base size slider has marks at 25, 32, 40 and 50 mm. You can still type any size.
+- **Keep an eye on a mini:** drag its progress off the toolbar and it stays open in a small window of its own.
 
 ### Changed
 - **Make My Mini is now Make Mini, and labels and tips are shorter.** Describe it is now Description, Use Mine Instead is Use Original, and the list is headed Minis.
