@@ -74,7 +74,9 @@ public struct SizeCard: Equatable, Sendable {
         inflate = madeInflate.map { Self.clamp($0, Self.inflateRange, step: 0.01) } ?? Self.inflateFor(nozzle)
         noBase = made.noBase
         // The choice shown is the one these sizes match, not the last New Mini's.
-        if height == Self.bestPrint[nozzle] { purpose = .display }
+        // An object's one choice is its suggested size.
+        if kind == .object { purpose = height == Self.objectSize[nozzle] ? .display : nil }
+        else if height == Self.bestPrint[nozzle] { purpose = .display }
         else if let s = Self.scales.first(where: { Double($0) == height }) { purpose = .game; scale = s; realHeight = "" }
         else { purpose = nil }
         suggest()  // refreshes the note; touched values stay
@@ -93,6 +95,10 @@ public struct SizeCard: Equatable, Sendable {
         let h: Double
         warns = false
         switch (kind, purpose) {
+        case (.object, nil):  // loaded at another size than the suggestion: the note is about the size it is
+            h = height
+            let best = Self.objectSize[nozzle] ?? 80
+            note = h < best ? "💡 At \(Int(h)) mm, a \(nozzle) mm nozzle softens fine details a little. For the clearest details, make it about \(Int(best)) mm on its longest side." : ""
         case (.object, _):
             h = Self.objectSize[nozzle] ?? 80
             note = "✨ Sized so details come out clearly on a \(nozzle) mm nozzle: about \(Int(h)) mm on its longest side. Change it to the size you want."

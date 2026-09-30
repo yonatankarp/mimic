@@ -124,6 +124,17 @@ final class SizeAdviceTests: XCTestCase {
         XCTAssertTrue(c.note.hasPrefix("💡 At 45 mm"), c.note)
         c.setPurpose(.display)
         XCTAssertEqual(c.height, 100, "choosing one still sizes it again")
+
+        // An object: its suggestion is its only choice, and the note is about the size it is.
+        var o = SizeCard(purpose: .game, nozzle: "0.4", kind: .object)
+        o.load(Sizes(height: "70", nozzle: "0.4", noBase: true))
+        XCTAssertNil(o.purpose)
+        XCTAssertEqual(o.note, "💡 At 70 mm, a 0.4 mm nozzle softens fine details a little. For the clearest details, make it about 80 mm on its longest side.")
+        o.load(Sizes(height: "120", nozzle: "0.4", noBase: true))
+        XCTAssertNil(o.purpose); XCTAssertEqual(o.note, "")
+        o.load(Sizes(height: "80", nozzle: "0.4", noBase: true))
+        XCTAssertEqual(o.purpose, .display)
+        XCTAssertTrue(o.note.contains("about 80 mm on its longest side"), o.note)
     }
 
     /// Anything else: sized by its longest side for the nozzle, no Game scale, no base unless asked.
