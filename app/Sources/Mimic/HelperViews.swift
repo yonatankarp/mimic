@@ -100,7 +100,7 @@ struct HelperSection: View {
                     Button("Test") { test() }.disabled(testing)
                     if testing { ProgressView().controlSize(.small) }
                     if let testResult {
-                        Text(testResult.ok ? "✅ \(testResult.text)" : testResult.text)
+                        Label(testResult.text, systemImage: testResult.ok ? "checkmark.circle.fill" : "xmark.octagon.fill")
                             .font(.callout).foregroundStyle(testResult.ok ? Color.primary : .red)
                     }
                 }
