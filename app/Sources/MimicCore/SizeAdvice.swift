@@ -12,7 +12,10 @@ public struct SizeCard: Equatable, Sendable {
     public static let heightRange = 15.0...200.0
     public static let baseRange = 20.0...80.0
     public static let inflateRange = 0.0...0.4
-    public static let scales = [28, 32, 54]
+    public static let scales = [28, 32, 35, 54, 75]
+    /// The smallest base a character gets at a scale: what minis of that scale usually stand on.
+    /// Up to 35 mm it's 25 mm, one map square, as `baseFor` gives.
+    public static let scaleBase: [Int: Double] = [54: 40, 75: 50]
     /// Best print sizes the figure so faces come out on the chosen nozzle: judged on a
     /// realistic-proportion character (a 2 m tiefling), faces read from about 64 mm on a 0.2
     /// nozzle and 100 mm on a 0.4; 0.6 is extrapolated.
@@ -126,7 +129,28 @@ public struct SizeCard: Equatable, Sendable {
         // The note names the height as worked out; the slider can only hold its own range.
         if !heightTouched { height = Self.clamp(h, Self.heightRange, step: 1) }
         // An object's base goes under its whole shadow, which is about its longest side.
-        if !baseTouched { base = kind == .object ? min(80, max(25, (height * 0.8 / 5).rounded() * 5)) : Self.baseFor(height) }
+        if !baseTouched {
+            base = kind == .object ? min(80, max(25, (height * 0.8 / 5).rounded() * 5))
+                : max(purpose == .game ? Self.scaleBase[scale] ?? 25 : 25, Self.baseFor(height))
+        }
+    }
+
+    /// "28, 32, 35, 54 or 75", for Terminal's --scale.
+    public static var scaleChoices: String {
+        scales.dropLast().map(String.init).joined(separator: ", ") + " or \(scales.last!)"
+    }
+
+    /// `--scale` in Terminal: Game scale's height (an average 1.8 m human) and base, for what
+    /// wasn't typed, so Terminal sizes a mini as the app does. Nil for a scale not in `scales`.
+    public static func gameSizes(scale: Int, filling sizes: Sizes) -> Sizes? {
+        guard scales.contains(scale) else { return nil }
+        var card = SizeCard(purpose: .game, nozzle: sizes.nozzle ?? "0.4")
+        card.setScale(scale)
+        if let h = sizes.height.flatMap(Double.init) { card.setHeight(h) }  // the base suits the height typed
+        var out = sizes
+        if out.height == nil { out.height = card.sizes.height }
+        if out.base == nil && !out.noBase { out.base = card.sizes.base }
+        return out
     }
 
     /// A real height at a table scale: an average human (1.8 m) is `scale` mm tall.
