@@ -72,6 +72,7 @@ struct Sidebar: View {
                 }
             }
         }
+        .listStyle(.sidebar)
         // Like Notes' New Folder: always there, the first project included.
         .safeAreaInset(edge: .bottom) {
             HStack {
