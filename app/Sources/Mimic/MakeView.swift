@@ -547,6 +547,7 @@ extension SizeCard {
                             kind: MiniKind(rawValue: d.string(forKey: "kind") ?? "") ?? .character)
         card.shape = BaseShape(rawValue: d.string(forKey: "baseShape") ?? "") ?? .round  // a hex-map player wants hex every time
         card.style = BaseStyle(rawValue: d.string(forKey: "baseStyle") ?? "") ?? .plain
+        card.magnet = Magnet(rawValue: d.string(forKey: "magnet") ?? "")  // a player who magnetises does it every time
         return card
     }
 }
@@ -659,6 +660,16 @@ struct SizeSection: View {
             DisclosureGroup(isExpanded: $advanced) {
                 slider("Extra thickness for thin parts", \.inflate, { $0.setInflate($1) }, SizeCard.inflateRange, unit: "mm",
                        hint: "Set by your nozzle. More keeps swords and capes in one piece, but softens faces.", decimals: 2)
+                if !card.noBase {
+                    Picker(selection: $card.magnet) {
+                        Text("None").tag(Magnet?.none)
+                        ForEach(Magnet.allCases, id: \.self) { Text($0.words).tag(Magnet?.some($0)) }
+                    } label: {
+                        Text("Magnet hole")
+                        Text("A hole under the base to glue a magnet into, with a little room to spare. The base gets a little taller to fit it.")
+                    }
+                    .help("For round magnets, sized across by tall")
+                }
                 if !object {
                     Toggle("Use the character's own base instead of adding one", isOn: $card.noBase)
                         .help("For a character already on a base or a rock: Mimic flattens that")
@@ -683,6 +694,7 @@ struct SizeSection: View {
         .onChange(of: card.nozzle) { _, n in UserDefaults.standard.set(n, forKey: "nozzle") }
         .onChange(of: card.shape) { _, s in UserDefaults.standard.set(s.rawValue, forKey: "baseShape") }
         .onChange(of: card.style) { _, s in UserDefaults.standard.set(s.rawValue, forKey: "baseStyle") }
+        .onChange(of: card.magnet) { _, m in UserDefaults.standard.set(m?.rawValue ?? "", forKey: "magnet") }
     }
 
     private var object: Bool { card.kind == .object }

@@ -6,13 +6,13 @@ import simd
 ///     mimic _prep in.glb out.stl [--height 32] [--base 25] [--base-height 3] [--nozzle 0.4]
 ///         [--inflate MM] [--voxel MM] [--faces 800000] [--no-base] [--flatten 0.4]
 ///         [--fit height|longest] [--ground feet|bottom] [--turn DEG] [--base-shape round|square|hex]
-///         [--base-style plain|stone|wood|cobble] [--base-seed N]
+///         [--base-style plain|stone|wood|cobble] [--base-seed N] [--magnet 5x2|6x2|8x3|none]
 ///
 /// Units are millimetres. Steps: scale to --height, centre on what the figure stands on,
 /// inflate the surface by --inflate (thickens blades and staffs by twice that), stand it on a
 /// base (round, square or hex; --base is its width, across the flats for a hex; its top plain
-/// or a floor pressed into it, laid out by --base-seed), make everything one watertight solid, keep the largest piece, slice the bottom
-/// flat, trim the face count, write the STL, render front/left/right/back PNGs next to it.
+/// or a floor pressed into it, laid out by --base-seed, and a hole underneath for --magnet), make everything one watertight
+/// solid, keep the largest piece, slice the bottom flat, trim the face count, write the STL, render front/left/right/back PNGs next to it.
 ///
 /// Ported from pipeline/mini_prep.py, which ran inside Blender; every step exists because of a
 /// real failure, and the comments keep why. It runs as its own program (a hidden subcommand of
@@ -55,11 +55,30 @@ public struct PrepOptions: Equatable, Sendable {
     /// Turn the model this many degrees about its vertical axis first, so it faces the front:
     /// TRELLIS.2 writes its figures facing away from where Pixal3D's face (EngineModel.turn).
     public var turn = 0.0
+    /// A hole under the base for this magnet; none without a base.
+    public var magnet: Magnet?
 
     public init(glb: String, stl: String) { self.glb = glb; self.stl = stl }
 
     public var effectiveInflate: Double { inflate ?? (0.4 * nozzle * 1000).rounded() / 1000 }
     public var effectiveVoxel: Double { voxel ?? (nozzle / 4 * 1000).rounded() / 1000 }
+
+    /// The magnet hole: its width, with room for the nozzle (a printed hole comes out a little
+    /// smaller than drawn, more so on a wide nozzle), and its depth up from the printed bottom,
+    /// with a little room for glue.
+    public var hole: (width: Double, depth: Double)? {
+        guard let magnet, !noBase else { return nil }
+        return (magnet.diameter + max(0.2, nozzle / 2), magnet.height + 0.2)
+    }
+    /// Solid kept over the hole: enough layers to bridge it, clear of the floor's seams.
+    static let roof = 0.8
+    /// The base's height as made: raised when the magnet's hole wouldn't leave `roof` over it.
+    /// The default 3 mm base is 2.6 mm once the bottom is sliced flat, too thin for any of them.
+    public var effectiveBaseHeight: Double {
+        guard let hole else { return baseHeight }
+        let seams = baseStyle == .plain ? 0 : Double(Solid.Floor(baseStyle).depth)
+        return max(baseHeight, flatten + hole.depth + Self.roof + seams)
+    }
 
     public static func parse(_ args: [String]) throws -> PrepOptions {
         var rest = args[...], files: [String] = []
@@ -80,6 +99,10 @@ public struct PrepOptions: Equatable, Sendable {
             case "--faces": o.faces = Int(try number(a))
             case "--turn": o.turn = try number(a)
             case "--no-base": o.noBase = true
+            case "--magnet":
+                let v = rest.popFirst()
+                guard v == "none" || v.flatMap(Magnet.init) != nil else { throw PrepError("--magnet needs 5x2, 6x2, 8x3 or none") }
+                o.magnet = v.flatMap(Magnet.init)
             case "--base-shape":
                 guard let s = rest.popFirst().flatMap(BaseShape.init) else { throw PrepError("--base-shape needs round, square or hex") }
                 o.baseShape = s
@@ -207,7 +230,8 @@ public enum Prep {
         let footprint = 2 * Double(reach)
 
         // Sink the feet 0.6 mm into the base so the two are one solid.
-        let feet: Float = o.noBase ? 0 : Float(o.baseHeight) - 0.6
+        let baseHeight = o.effectiveBaseHeight
+        let feet: Float = o.noBase ? 0 : Float(baseHeight) - 0.6
         let shift = SIMD3(centre.x, centre.y, ground - feet)
         for n in mesh.positions.indices { mesh.positions[n] -= shift }
         lap("placed")
@@ -215,9 +239,10 @@ public enum Prep {
         // One watertight solid: the inflated figure fused to a base with a rounded top edge
         // (like a commercial base), cut flat underneath because generated bases carry bumps.
         // z = 0 is the base's underside, or the ground with --no-base; anything below --flatten goes.
-        let base = o.noBase ? nil : Solid.Base(radius: Float(o.base) / 2, height: Float(o.baseHeight),
-                                               bevel: min(0.6, Float(o.baseHeight) / 3), shape: o.baseShape,
-                                               floor: Solid.Floor(o.baseStyle, nozzle: Float(o.nozzle), seed: o.baseSeed))
+        let base = o.noBase ? nil : Solid.Base(radius: Float(o.base) / 2, height: Float(baseHeight),
+                                               bevel: min(0.6, Float(baseHeight) / 3), shape: o.baseShape,
+                                               floor: Solid.Floor(o.baseStyle, nozzle: Float(o.nozzle), seed: o.baseSeed),
+                                               hole: o.hole.map { Solid.Hole(radius: Float($0.width) / 2, top: Float(max(0, o.flatten) + $0.depth)) })
         let solid = Solid(mesh: mesh, voxel: Float(o.effectiveVoxel), inflate: Float(o.effectiveInflate),
                           base: base, cut: o.flatten > 0 ? Float(o.flatten) : nil)
         var out = solid.surface(mesh)
@@ -255,6 +280,11 @@ public enum Prep {
         if !o.noBase && !o.groundBottom && footprint > o.base {
             lines.append(String(format: "mini_prep: WARNING footprint %.1f mm is wider than the %.0f mm base; raise the base to at least %d mm",
                                 footprint, o.base, Int((footprint + 1).rounded(.up))))
+        }
+        if let magnet = o.magnet {
+            lines.append(o.noBase ? "mini_prep: no base, so no magnet hole"
+                : String(format: "mini_prep: magnet hole %.1f mm wide, %.1f mm deep, for a ", o.hole!.width, o.hole!.depth)
+                    + magnet.words + String(format: " magnet; base %.2f mm tall", baseHeight))
         }
         if o.noBase && !standsAlone {
             lines.append(standWarning + "It can't stand on its own, so it was left upright as the 3D engine made it. Turn on Add a round base to stand it up.")
