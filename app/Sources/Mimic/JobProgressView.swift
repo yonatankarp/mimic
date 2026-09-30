@@ -2,19 +2,18 @@ import AppKit
 import MimicCore
 import SwiftUI
 
-/// The progress sheet: three steps, a bar, the time so far, and what to do when it ends.
-/// Run in Background hides it; the job then shows in the toolbar and on the Dock icon.
+/// The job's popover under its toolbar item: three steps, a bar, the time so far, the queue,
+/// and what to do when it ends. It never covers the window; a click outside closes it.
 struct JobProgressView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openSettings) private var openSettings
-    @State private var confirmingStop = false
     @State private var retryProblem: String?
     /// The raw error behind retryProblem, for the tooltip only.
     @State private var retryDetail: String?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    static let steps = [(1, "🖼️ Getting the picture ready"), (2, "🧊 Building the 3D shape (the long part)"),
-                        (3, "🖨️ Making the print-ready file")]
+    static let steps = [(1, "Getting the picture ready"), (2, "Building the 3D shape (the long part)"),
+                        (3, "Making the print-ready file")]
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -33,30 +32,17 @@ struct JobProgressView: View {
                 }
                 if !model.queue.isEmpty { QueueList(now: context.date) }
                 if !model.ended.isEmpty { endedList }
-                if model.job == nil || model.job?.running == false && model.elsewhere != nil {  // the job's own view has its buttons
-                    HStack { Spacer(); Button("Close") { model.closeJob() }.keyboardShortcut(.cancelAction) }
-                }
             }
         }
-        .padding(20)
-        .frame(width: 460)
-        .onExitCommand { model.closeJob() }  // Esc while running means Run in Background
-        .onChange(of: model.job?.running) { _, running in if running != true { confirmingStop = false } }
-        .alert(model.job.map(stopTitle) ?? "", isPresented: $confirmingStop) {
-            Button("Keep Going", role: .cancel) {}
-            Button("Stop", role: .destructive) { model.stop() }
-        } message: {
-            let s = model.job
-            Text((s?.kind == .prep ? "It keeps its previous size." : "What's been made so far will be thrown away.")
-                 + (model.queue.isEmpty ? "" : " The queue carries on with the next one."))
-        }
+        .padding(16)
+        .frame(width: 400)
     }
 
     private func content(_ s: JobStatus, now: Date) -> some View {
         let who = Mini.displayName(s.name)
         let estimate = model.estimate(s)
         return VStack(alignment: .leading, spacing: 14) {
-            Text(title(s, who: who)).font(.title2.bold())
+            title(s, who: who).font(.title3.bold())
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(Self.steps.filter { s.kind == .generate || $0.0 == 3 }, id: \.0) { n, label in
@@ -79,20 +65,22 @@ struct JobProgressView: View {
                 .progressViewStyle(GlidingBar(working: s.running))
             note(s, estimate: estimate, now: now)
             HStack {
+                Spacer()
                 if s.running {
-                    Button("Stop…") { confirmingStop = true }
-                    Spacer()
-                    Button("Run in Background") { model.runInBackground() }.keyboardShortcut(.defaultAction)
+                    // Asked over the window, not in here: a question inside a popover that closes
+                    // on the next click is easy to lose.
+                    Button("Stop…") { model.jobPopover = false; model.confirmingStop = true }
                 } else {
-                    Button("Close") { model.closeJob() }.keyboardShortcut(.cancelAction)
-                    Spacer()
                     if s.succeeded, let stl = model.minis.first(where: { $0.name == s.name })?.stl {
-                        Button("Open in \(model.slicerName)") { model.openInSlicer(stl) }.keyboardShortcut(.defaultAction)
+                        Button("Open in \(model.slicerName)") { model.jobPopover = false; model.openInSlicer(stl) }
+                            .buttonStyle(.glassProminent)
+                            .keyboardShortcut(.defaultAction)
                     } else if !s.succeeded && !s.canceled {
                         if JobProgress.drawThingsCaused(s) {
-                            Button("Open Setup") { model.closeJob(); SettingsTab.drawThings.select(); openSettings() }
+                            Button("Open Setup") { model.jobPopover = false; SettingsTab.drawThings.select(); openSettings() }
                         }
                         Button("Try Again") { tryAgain(s.name) }
+                            .buttonStyle(.glassProminent)
                             .keyboardShortcut(.defaultAction)
                             .disabled(model.cantStart != nil || model.waiting(s.name) != nil)
                     }
@@ -105,7 +93,8 @@ struct JobProgressView: View {
     private func elsewhere(_ s: JobStatus, now: Date) -> some View {
         let estimate = model.estimate(s)
         return VStack(alignment: .leading, spacing: 10) {
-            Text("\(s.kind == .prep ? "🔁 Resizing" : "⏳ Making") \(Mini.displayName(s.name))").font(.title2.bold())
+            Label("\(s.kind == .prep ? "Resizing" : "Making") \(Mini.displayName(s.name))", systemImage: Self.symbol(s.kind))
+                .font(.title3.bold())
             Text("Another Mimic is doing this one (another copy of the app, or Terminal): stop it there. Step \(s.step) of 3 · \(JobProgress.about(estimate.left(s, now: now))) left.")
                 .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             ProgressView(value: JobProgress.fraction(s, estimate: estimate, now: now)).progressViewStyle(GlidingBar(working: true))
@@ -119,8 +108,8 @@ struct JobProgressView: View {
             Text("Finished while you waited").font(.headline)
             ForEach(Array(model.ended.enumerated().reversed()), id: \.offset) { _, s in
                 HStack {
-                    Image(systemName: s.succeeded ? "checkmark.circle.fill" : s.canceled ? "stop.circle" : "exclamationmark.circle.fill")
-                        .foregroundStyle(s.succeeded ? .green : s.canceled ? .secondary : .red)
+                    Image(systemName: s.succeeded ? "checkmark.circle.fill" : s.canceled ? "stop.circle" : "exclamationmark.triangle.fill")
+                        .foregroundStyle(s.succeeded ? .green : s.canceled ? .secondary : .orange)
                     Text(s.succeeded ? "\(Mini.displayName(s.name)) is ready" : s.canceled ? "Stopped \(Mini.displayName(s.name))"
                                                                             : "\(Mini.displayName(s.name)) didn't finish")
                     Spacer()
@@ -170,17 +159,22 @@ struct JobProgressView: View {
         do { try model.retry(name) } catch { retryProblem = model.plainWords(error); retryDetail = "\(error)" }
     }
 
-    private func title(_ s: JobStatus, who: String) -> String {
+    @ViewBuilder private func title(_ s: JobStatus, who: String) -> some View {
         let prep = s.kind == .prep
-        if s.running { return prep ? "🔁 Resizing \(who)" : "⏳ Making \(who)" }
-        if s.canceled { return prep ? "⏹ Stopped resizing \(who)" : "⏹ Stopped making \(who)" }
-        if s.succeeded { return "🎉 \(who) is ready!" }
-        return "❌ Something went wrong while \(JobRunner.label(s.step).lowercased())"
+        if s.running {
+            Label(prep ? "Resizing \(who)" : "Making \(who)", systemImage: Self.symbol(s.kind))
+        } else if s.canceled {
+            Label(prep ? "Stopped resizing \(who)" : "Stopped making \(who)", systemImage: "stop.circle")
+        } else if s.succeeded {
+            Label { Text("\(who) is ready") } icon: { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green) }
+        } else {
+            Label { Text("Something went wrong while \(JobRunner.label(s.step).lowercased())").fixedSize(horizontal: false, vertical: true) }
+                icon: { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange) }
+        }
     }
 
-    private func stopTitle(_ s: JobStatus) -> String {
-        s.kind == .prep ? "Stop resizing “\(Mini.displayName(s.name))”?" : "Stop making “\(Mini.displayName(s.name))”?"
-    }
+    /// Making or resizing, as the menus show them.
+    static func symbol(_ kind: JobKind) -> String { kind == .prep ? "arrow.up.left.and.arrow.down.right" : "cube" }
 
     private func state(of n: Int, in s: JobStatus) -> StepMark.State {
         if s.running { return n < s.step ? .done : n == s.step ? .active : .pending }
@@ -195,7 +189,6 @@ struct JobProgressView: View {
 private struct QueueList: View {
     @Environment(AppModel.self) private var model
     let now: Date
-    @State private var removing: QueueEntry?
 
     var body: some View {
         let rows = model.queueTimes(now: now)
@@ -212,7 +205,8 @@ private struct QueueList: View {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(Array(rows.enumerated()), id: \.element.entry.name) { i, row in
                         HStack(spacing: 8) {
-                            Text(row.entry.job == .prep ? "🔁" : "🧙").accessibilityHidden(true)
+                            Image(systemName: JobProgressView.symbol(row.entry.job)).foregroundStyle(.secondary)
+                                .frame(width: 18).accessibilityHidden(true)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(Mini.displayName(row.entry.name))
                                 Text("\(row.entry.job == .prep ? "Resize" : "Make") · takes \(JobProgress.about(row.estimate.total)) · ready in \(JobProgress.about(row.ready))")
@@ -224,7 +218,7 @@ private struct QueueList: View {
                                 .disabled(i == 0)
                                 .help("Make this one sooner")
                                 .accessibilityLabel("Move \(Mini.displayName(row.entry.name)) up")
-                            Button { removing = row.entry } label: { Image(systemName: "xmark.circle.fill") }
+                            Button { model.jobPopover = false; model.unqueueing = row.entry } label: { Image(systemName: "xmark.circle.fill") }
                                 .buttonStyle(.borderless)
                                 .foregroundStyle(.secondary)
                                 .help("Take it out of the queue")
@@ -236,13 +230,38 @@ private struct QueueList: View {
             .frame(maxHeight: 180)
             .fixedSize(horizontal: false, vertical: rows.count <= 3)
         }
-        .confirmationDialog(removing.map { "Take “\(Mini.displayName($0.name))” out of the queue?" } ?? "",
-                            isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), presenting: removing) { e in
-            Button(e.job == .prep ? "Don't Resize" : "Take Out and Move to Trash", role: .destructive) { model.removeFromQueue(e.name) }
-            Button("Keep It Waiting", role: .cancel) {}
-        } message: { e in
-            Text(e.job == .prep ? "It keeps its current size." : "It hasn't been made yet, so its picture and settings go to the Trash, where you can get them back.")
-        }
+    }
+}
+
+/// The questions the job's popover asks, over the window: Stop, and taking a job out of the queue.
+private struct JobQuestions: ViewModifier {
+    @Environment(AppModel.self) private var model
+
+    func body(content: Content) -> some View {
+        @Bindable var model = model
+        content
+            .alert(model.job.map(stopTitle) ?? "", isPresented: $model.confirmingStop) {
+                Button("Keep Going", role: .cancel) {}
+                Button("Stop", role: .destructive) { model.stop() }
+            } message: {
+                Text((model.job?.kind == .prep ? "It keeps its previous size." : "What's been made so far will be thrown away.")
+                     + (model.queue.isEmpty ? "" : " The queue carries on with the next one."))
+            }
+            .confirmationDialog(model.unqueueing.map { "Take “\(Mini.displayName($0.name))” out of the queue?" } ?? "",
+                                isPresented: unqueueing, presenting: model.unqueueing) { e in
+                Button(e.job == .prep ? "Don't Resize" : "Take Out and Move to Trash", role: .destructive) { model.removeFromQueue(e.name) }
+                Button("Keep It Waiting", role: .cancel) {}
+            } message: { e in
+                Text(e.job == .prep ? "It keeps its current size." : "It hasn't been made yet, so its picture and settings go to the Trash, where you can get them back.")
+            }
+    }
+
+    private var unqueueing: Binding<Bool> {
+        Binding(get: { model.unqueueing != nil }, set: { if !$0 { model.unqueueing = nil } })
+    }
+
+    private func stopTitle(_ s: JobStatus) -> String {
+        s.kind == .prep ? "Stop resizing “\(Mini.displayName(s.name))”?" : "Stop making “\(Mini.displayName(s.name))”?"
     }
 }
 
@@ -293,7 +312,7 @@ private struct JobPicture: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        // Read every second with the sheet's clock: cheap (a stat), and the picture appears the
+        // Read every second with the popover's clock: cheap (a stat), and the picture appears the
         // moment step 1 writes it.
         let file = shownFile
         let version = (try? FileManager.default.attributesOfItem(atPath: file.path))?[.modificationDate] as? Date
@@ -303,7 +322,7 @@ private struct JobPicture: View {
         Thumbnail(url: version == nil ? nil : file, version: version ?? .distantPast)
             .frame(width: 84, height: 84)
             .clipShape(shape)
-            .glassCard(cornerRadius: 12)  // as the mini's own previews: renders have no background
+            .glassEffect(.regular, in: .rect(cornerRadius: 12))  // as the mini's own previews: renders have no background
             // A soft glow while the long step runs, and the scan. Both sit outside the glass and
             // the glow is a still blur: glass or a shadow around the moving scan redrew with it
             // every frame.
@@ -345,21 +364,23 @@ private struct JobPicture: View {
     }
 }
 
-/// Where the progress goes when it runs in the background: a toolbar button that reopens it.
+/// The job in the toolbar: its progress while it runs, how it went once it ends (until seen).
+/// Clicking it opens the job's popover.
 struct JobToolbarItem: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
+        @Bindable var model = model
         if let s = model.job.flatMap({ model.jobShown || $0.running ? $0 : nil }) ?? model.elsewhere {
-            Button { model.showProgress() } label: {
+            Button { model.jobPopover.toggle() } label: {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     HStack(spacing: 6) {
                         if s.running {
                             ProgressRing(fraction: JobProgress.fraction(s, estimate: model.estimate(s), now: context.date))
                                 .transition(.opacity)
                         } else {
-                            Image(systemName: s.succeeded ? "checkmark.circle.fill" : s.canceled ? "stop.circle" : "exclamationmark.circle.fill")
-                                .foregroundStyle(s.succeeded ? .green : s.canceled ? .secondary : .red)
+                            Image(systemName: s.succeeded ? "checkmark.circle.fill" : s.canceled ? "stop.circle" : "exclamationmark.triangle.fill")
+                                .foregroundStyle(s.succeeded ? .green : s.canceled ? .secondary : .orange)
                                 .transition(reduceMotion || !s.succeeded ? .opacity : .scale(scale: 0.3).combined(with: .opacity))
                         }
                         Text(label(s, now: context.date)).monospacedDigit()
@@ -369,7 +390,8 @@ struct JobToolbarItem: View {
                     .animation(reduceMotion ? nil : .default, value: Int(context.date.timeIntervalSince(s.started)))
                 }
             }
-            .help("Show progress")
+            .help(s.running ? "Show progress, the queue and Stop" : "Show how it went")
+            .popover(isPresented: $model.jobPopover, arrowEdge: .bottom) { JobProgressView().environment(model) }
         }
     }
 
@@ -383,7 +405,7 @@ struct JobToolbarItem: View {
 }
 
 /// The toolbar's progress: a ring around a dot that pulses now and then to say it's still
-/// working. It shows for the whole job with the sheet hidden, so it rests between pulses.
+/// working. It shows for the whole job, so it rests between pulses.
 private struct ProgressRing: View {
     let fraction: Double
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -418,7 +440,7 @@ enum DockProgress {
             while !Task.isCancelled, let s = model.job, s.running {
                 view.fraction = JobProgress.fraction(s, estimate: model.estimate(s))
                 tile.display()
-                // Every second, like the sheet's clock: a 2-second step read as a stutter.
+                // Every second, like the popover's clock: a 2-second step read as a stutter.
                 try? await Task.sleep(for: .seconds(1))
             }
             tile.contentView = nil
@@ -484,9 +506,9 @@ struct MainWindowChrome: ViewModifier {
                 case .rename(let mini): RenameSheet(mini: mini)
                 case .newProject(let mini): ProjectNameSheet(renaming: nil, moving: mini)
                 case .renameProject(let p): ProjectNameSheet(renaming: p)
-                case .progress: JobProgressView()
                 }
             }
+            .modifier(JobQuestions())
             .confirmationDialog("Move “\(model.trashing?.displayName ?? "")” to the Trash?",
                                 isPresented: Binding(get: { model.trashing != nil }, set: { if !$0 { model.trashing = nil } }),
                                 presenting: model.trashing) { mini in

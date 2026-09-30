@@ -1,12 +1,12 @@
 import AppKit
 import MimicCore
 import Observation
+import SwiftUI
 import UserNotifications
 
-/// The sheet over the main window. One at a time, so swapping Make for its progress is a single
-/// change rather than a dismiss and a present racing each other.
+/// The sheet over the main window, one at a time.
 enum AppSheet: Identifiable, Equatable {
-    case make, resize(Mini), rename(Mini), progress
+    case make, resize(Mini), rename(Mini)
     /// Resize All on a project.
     case resizeAll(String)
     /// A new project, and the mini to move into it when asked from Move to Project.
@@ -18,7 +18,6 @@ enum AppSheet: Identifiable, Equatable {
         case .resize(let m): "resize-\(m.name)"
         case .resizeAll(let p): "resize-all-\(p)"
         case .rename(let m): "rename-\(m.name)"
-        case .progress: "progress"
         case .newProject(let m): "new-project-\(m?.name ?? "")"
         case .renameProject(let p): "rename-project-\(p)"
         }
@@ -54,8 +53,17 @@ final class AppModel {
     /// Why a job can't start (a required check failed), or nil: the latest health checks.
     var requiredProblem: String? { Health.shared.blocking }
     var sheet: AppSheet?
-    /// The job has a place on screen: its sheet, or the toolbar item it went to. Close clears it.
+    /// The job stays in the toolbar once it ends, until its popover has been seen.
     var jobShown = false
+    /// The job's popover under its toolbar item: opened by clicking it, and by itself when a job
+    /// starts. Closing it (a click outside, Esc) is when a finished job counts as seen.
+    var jobPopover = false {
+        didSet { if oldValue && !jobPopover { jobSeen() } }
+    }
+    /// "Stop making …?", asked from the job's popover.
+    var confirmingStop = false
+    /// The waiting job on "Take it out of the queue?", asked from the job's popover.
+    var unqueueing: QueueEntry?
     /// The mini waiting on "Move to Trash?", asked from the sidebar or the Mini menu.
     var trashing: Mini?
     /// A rename or trash that was refused, shown as an alert.
@@ -69,10 +77,10 @@ final class AppModel {
     private(set) var queue: [QueueEntry] = []
     /// The job another Mimic is running (the dev app, `mimic` in Terminal), when this one isn't.
     private(set) var elsewhere: JobStatus?
-    /// Jobs that ended since the progress sheet was last closed, the latest last: the queue can
-    /// start the next straight away, so the sheet lists these under the one it shows.
+    /// Jobs that ended since the job's popover was last seen, the latest last: the queue can
+    /// start the next straight away, so the popover lists these under the one it shows.
     var ended: [JobStatus] = []
-    /// "Added to the queue — …", at the top of the progress sheet until that mini starts.
+    /// "Added to the queue — …", at the top of the job's popover until that mini starts.
     var queuedNote: (name: String, text: String)?
 
     init() {
@@ -223,7 +231,7 @@ final class AppModel {
     }
 
     /// Several pictures dropped on New Mini: a mini each, named after its file, all made the same
-    /// way, with one note on the progress sheet. A picture that can't be used is skipped and named
+    /// way, with one note in the job's popover. A picture that can't be used is skipped and named
     /// there. Returns why, in words, when none could be used.
     func make(pictures: [URL], restyle: Bool, seed: Int, sizes: Sizes, kind: MiniKind, project: String?) -> String? {
         var added: [String] = [], skipped: [String] = [], why = "Mimic can't read these pictures."
@@ -299,7 +307,7 @@ final class AppModel {
     }
 
     /// Resize All: every mini in `project` waits its turn to be resized to `sizes`, with one
-    /// note on the progress sheet like several dropped pictures. Returns why, in words, when
+    /// note in the job's popover like several dropped pictures. Returns why, in words, when
     /// none could be added.
     func resizeAll(_ project: String, sizes: Sizes) -> String? {
         let busy = Set(queue.map(\.name) + [current?.name].compactMap { $0 })
@@ -369,21 +377,29 @@ final class AppModel {
         }
     }
 
-    /// Hides the progress sheet; the job carries on and shows in the toolbar and the Dock.
-    func runInBackground() { if sheet == .progress { sheet = nil } }
-
-    func showProgress() { sheet = .progress }
-
-    /// Closes the sheet; a finished job (with nothing running or waiting) leaves the toolbar too.
-    func closeJob() {
-        if sheet == .progress { sheet = nil }
-        queuedNote = nil
+    /// The job's popover closed: a finished job, with nothing running or waiting, leaves the toolbar.
+    private func jobSeen() {
         guard !running && queue.isEmpty && elsewhere == nil else { return }
+        queuedNote = nil
         ended = []
         jobShown = false
     }
 
-    /// Starts the job, or adds it to the queue, and shows the progress sheet either way.
+    /// Opens the job's popover a moment after New Mini or Resize has gone: both in one update
+    /// could drop the popover. VoiceOver is told, as it doesn't notice a popover opening by itself.
+    private func showJob() {
+        Task {
+            try? await Task.sleep(for: .seconds(0.4))
+            guard sheet == nil, !jobPopover else { return }
+            jobPopover = true
+            if let words = queuedNote?.text ?? current.map({ "\($0.kind == .prep ? "Resizing" : "Making") \(Mini.displayName($0.name))" }) {
+                AccessibilityNotification.Announcement(words).post()
+            }
+        }
+    }
+
+    /// Starts the job, or adds it to the queue, and shows its popover either way; the window
+    /// stays free to use.
     private func start(_ name: String, _ begin: (JobRunner) throws -> Int?) throws {
         if let requiredProblem { throw Refusal(description: requiredProblem) }
         let ahead = try begin(jobs)
@@ -393,18 +409,19 @@ final class AppModel {
             queuedNote = (name, "Added to the queue — \(ahead) ahead of it, ready in \(JobProgress.about(ready)).")
         } else {
             queuedNote = nil
-            job = jobs.status  // at once, so the sheet never opens on the previous job
+            job = jobs.status  // at once, so the popover never opens on the previous job
             DockProgress.follow(self)
         }
         jobShown = true
-        sheet = .progress
+        sheet = nil
+        showJob()
     }
 
     private func jobChanged(_ s: JobStatus) {
         let previous = job
         let started = s.running && (previous?.running != true || previous?.name != s.name)
         let finished = !s.running && (previous?.running == true || previous?.name != s.name || previous?.started != s.started)
-        // The job the sheet showed has ended and another came after it: listed under the new one.
+        // The job the popover showed has ended and another came after it: listed under the new one.
         if let previous, !previous.running, previous.name != s.name || previous.started != s.started { ended.append(previous) }
         job = s
         if started {
@@ -414,6 +431,7 @@ final class AppModel {
         }
         refreshQueue()
         guard !s.running else { return }
+        confirmingStop = false
         reload()
         if s.succeeded { selection = s.name }
         if finished {
@@ -424,7 +442,7 @@ final class AppModel {
 
     #if DEBUG
     /// Development only: `MIMIC_DEMO_PROGRESS=<mini>[:<speed>][:fail|:hold][:resize]` plays a
-    /// pretend job through the progress sheet, so its animations can be looked at without a
+    /// pretend job through the job's popover, so its animations can be looked at without a
     /// real ten-minute job. Nothing runs and nothing is written; speed 20 (the default) plays
     /// a make in about half a minute, and hold stays in its long step.
     private func demoProgress(_ spec: String) {
@@ -438,8 +456,9 @@ final class AppModel {
             try? await Task.sleep(for: .seconds(1))  // the window first
             var s = JobStatus(name: parts[0], kind: resize ? .prep : .generate, step: plan[0].step, started: Date())
             s.stepStarted = s.started
-            job = s; jobShown = true; sheet = .progress
+            job = s; jobShown = true
             DockProgress.follow(self)
+            showJob()
             var t = 0.0
             while hold || t < end {
                 try? await Task.sleep(for: .seconds(0.25))
