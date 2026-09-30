@@ -226,14 +226,14 @@ struct TourCallout: View {
         case .gallery:
             "Everything you make lands here. Right-click a mini for more, press space to preview it, or group minis into projects (⇧⌘N)."
         case .settings:
-            "Checks that everything works, and where you choose your slicer and set up Draw Things. It turns orange if something needs you. Happy printing! 🎲"
+            "Settings is in the Mimic menu (⌘,): it checks that everything works, and it's where you choose your slicer and set up Draw Things. If something needs you, Needs Setup appears in the toolbar. Happy printing! 🎲"
         }
     }
 
 }
 
-/// Starts the tour once, puts the welcome over the main window, and follows New Mini opening
-/// and closing.
+/// Starts the tour once, puts the centred cards (the welcome, Settings) over the main window,
+/// and follows New Mini opening and closing.
 struct TourHost: ViewModifier {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -242,18 +242,19 @@ struct TourHost: ViewModifier {
     func body(content: Content) -> some View {
         content
             .overlay {
-                if guide.step == .welcome && guide.visible && model.sheet == nil {
-                    TourCallout(stop: .welcome)
+                if let card {
+                    TourCallout(stop: card)
                         .glassEffect(.regular, in: .rect(cornerRadius: 18))
                         .shadow(radius: reduceMotion ? 0 : 12)
                         .transition(.opacity)
                 }
             }
-            .animation(.easeInOut(duration: 0.25), value: guide.step == .welcome && guide.visible)
+            .animation(.easeInOut(duration: 0.25), value: card)
             .onChange(of: model.sheet) { guide.sheetChanged(model) }
-            // Esc leaves the tour when the main window, not the popover, has the keyboard.
+            // Esc leaves the tour when the main window, not a popover, has the keyboard (a card
+            // has its own Esc).
             .background {
-                if guide.step != nil && guide.step != .welcome && model.sheet == nil {
+                if guide.step?.centred == false && model.sheet == nil {
                     Button("") { guide.leave() }.keyboardShortcut(.cancelAction).hidden()
                 }
             }
@@ -264,5 +265,11 @@ struct TourHost: ViewModifier {
                 try? await Task.sleep(for: .seconds(1))
                 if !Task.isCancelled && model.sheet == nil { guide.begin() }
             }
+    }
+
+    /// The centred stop being shown: not over a sheet or the job's popover, as the other stops.
+    private var card: TourStep? {
+        guard let step = guide.step, step.centred, guide.visible, model.sheet == nil, !model.jobPopover else { return nil }
+        return step
     }
 }

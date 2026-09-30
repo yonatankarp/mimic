@@ -154,6 +154,12 @@ public struct SizeCard: Equatable, Sendable {
 
 /// Advice about the picture and the name, given before a 10-minute wait rather than after it.
 public enum MakeAdvice {
+    /// ⌘V in New Mini: a picture on the clipboard becomes the mini's picture, unless a text field
+    /// is being typed in and there's text to paste too (a copied web page carries both).
+    public static func pastesPicture(typing: Bool, hasText: Bool, hasPicture: Bool) -> Bool {
+        hasPicture && !(typing && hasText)
+    }
+
     /// Pixel sizes, not points: a 144 dpi picture is twice as big as it looks.
     public static func pictureWarnings(width: Int, height: Int, kind: MiniKind = .character) -> [String] {
         var notes: [String] = []

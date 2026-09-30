@@ -49,7 +49,7 @@ struct MiniDetail: View {
                                 isPresented: Binding(get: { offerName != nil }, set: { if !$0 { offerName = nil } }),
                                 presenting: offerName) { name in
                 Button("Rename") { rename(to: name) }.keyboardShortcut(.defaultAction)
-                Button("Keep “\(mini.displayName)”", role: .cancel) {}
+                Button("Cancel", role: .cancel) {}
             } message: { _ in
                 Text("The other versions are in the Trash, so the plain name is free.")
             }
@@ -96,8 +96,9 @@ struct MiniDetail: View {
         }
     }
 
+    /// One group: More, Open in the slicer, and the details panel's toggle.
     @ToolbarContentBuilder private func toolbar(kind: MiniKind) -> some ToolbarContent {
-        ToolbarItem(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .primaryAction) {
             Menu {
                 Button("Resize This Mini…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resize(mini) }
                     .help("Remakes the print file with new sizes. About a minute. The \(kind == .object ? "object" : "character") itself doesn't change.")
@@ -105,22 +106,18 @@ struct MiniDetail: View {
                 Button("Show in Finder", systemImage: "folder") { model.showInFinder(mini) }
                     .help("Shows the print file and the previews in Finder.")
             } label: {
-                Label("More", systemImage: "ellipsis.circle")
+                Label("More", systemImage: "ellipsis")
             }
             .help("Resize this mini, or show it in Finder")
-        }
-        ToolbarItem(placement: .primaryAction) {
             Button("Open in \(model.slicerName)") { if let stl = mini.stl { model.openInSlicer(stl) } }
                 .buttonStyle(.glassProminent)
                 .help("Opens the print file in \(model.slicerName) to slice and print. Choose another slicer in Settings → General.")
                 .disabled(mini.stl == nil)
                 .tourCallout(.mini)
-        }
-        ToolbarItem(placement: .primaryAction) {
             Button { showDetails.toggle() } label: {
                 Label(showDetails ? "Hide Details" : "Show Details", systemImage: "sidebar.trailing")
             }
-            .help(showDetails ? "Hide the details panel" : "Show its size, previews, versions and print tips")
+            .help(showDetails ? "Hide the details panel (⌃⌘I)" : "Show its size, previews, versions and print tips (⌃⌘I)")
         }
     }
 
