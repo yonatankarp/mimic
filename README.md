@@ -144,6 +144,7 @@ mimic list
 | `--base MM` | Size of the base: across it, or across the flat sides for a hex |
 | `--base-shape round` / `square` / `hex` | The base's shape (round unless you give it; a resize keeps the mini's) |
 | `--base-style plain` / `stone` / `wood` / `cobble` | A floor pressed into the top of the base: flagstones, planks or cobblestones (plain unless you give it; a resize keeps the mini's) |
+| `--magnet 5x2` / `6x2` / `8x3` / `none` | A hole under the base for a round magnet this wide by this tall, in mm, with a little room to spare; the base gets taller to fit it (none unless you give it; a resize keeps the mini's) |
 | `--nozzle 0.2` / `0.4` / `0.6` | Your printer's nozzle |
 | `--inflate MM` | Extra thickness for thin parts (set from the nozzle unless you give it) |
 | `--no-base` | Keep the character's own base instead of adding one |
