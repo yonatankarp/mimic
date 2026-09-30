@@ -11,6 +11,9 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 ### Fixed
 - Settings says TRELLIS.2 takes about 14 minutes a mini, as measured, not 12. Once you've made a few minis, it shows the time for your Mac instead, as before.
 
+### Fixed
+- Resize showed Best print and "about 100 mm tall" for a mini made at game scale; it now shows what the mini was made at. A mini made at a size neither choice gives shows neither as chosen. An object made at another size than the suggested one no longer says "about 80 mm on its longest side".
+
 ## 0.6.0
 
 ### New
