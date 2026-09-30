@@ -59,6 +59,17 @@ extension [MiniPreview] {
         guard let i = firstIndex(of: from), indices.contains(i + by) else { return nil }
         return self[i + by]
     }
+
+    /// The preview above (-1) or below (+1) `from` on the page, where the first `wide` (0 or 1)
+    /// sit full width over the views two by two: ↓ from the picture is the first view, ↑ from the
+    /// top row of views is the picture. Nil past the top or bottom.
+    public func step(from: MiniPreview, down by: Int, wide: Int) -> MiniPreview? {
+        guard let i = firstIndex(of: from) else { return nil }
+        let j = i < wide ? (by > 0 ? wide : -1)
+            : i - wide < 2 && by < 0 ? wide - 1
+            : i + 2 * by
+        return indices.contains(j) ? self[j] : nil
+    }
 }
 
 /// The minis folder on disk. A mini is a folder Mimic made (see `isMini`); any other folder at

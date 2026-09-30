@@ -151,7 +151,8 @@ struct MiniDetail: View {
     }
 
     /// Its picture, wide on top, and its views two by two under it; a click enlarges one, a drag
-    /// gives the print file. Once one is clicked, ← → move between them, as in the enlarged view.
+    /// gives the print file. Once one is clicked, ← → go through them all in order, as in the
+    /// enlarged view, and ↑ ↓ move up and down the grid.
     private var previews: some View {
         let all = mini.previews, views = all.suffix(mini.renders.count), current = picked.flatMap { all.contains($0) ? $0 : nil } ?? all.first
         return VStack(spacing: 12) {
@@ -164,20 +165,24 @@ struct MiniDetail: View {
         .focusable(interactions: .edit)  // takes the keyboard without Keyboard Navigation turned on
         .focused($previewsFocused)
         .focusEffectDisabled()  // the picked tile is ringed instead
-        .onKeyPress(.leftArrow) { step(-1, in: all, from: current) }
-        .onKeyPress(.rightArrow) { step(1, in: all, from: current) }
+        // The one place arrows are handled here: the tiles can't take focus, and every arrow is
+        // handled, ends included, so nothing else also moves on the same press.
+        .onKeyPress(keys: [.leftArrow, .rightArrow, .upArrow, .downArrow]) { press in
+            guard model.enlarged == nil, let current else { return .ignored }  // the enlarged view's arrows have it
+            let next = switch press.key {
+            case .leftArrow: all.step(from: current, by: -1)
+            case .rightArrow: all.step(from: current, by: 1)
+            case .upArrow: all.step(from: current, down: -1, wide: all.count - views.count)
+            default: all.step(from: current, down: 1, wide: all.count - views.count)
+            }
+            if let next { picked = next }
+            return .handled
+        }
         .onKeyPress(keys: [.space, .return]) { _ in
             guard model.enlarged == nil, let current else { return .ignored }
             model.enlarged = current
             return .handled
         }
-    }
-
-    /// Stops at the first and last, as the enlarged view does.
-    private func step(_ by: Int, in all: [MiniPreview], from current: MiniPreview?) -> KeyPress.Result {
-        guard model.enlarged == nil, let current else { return .ignored }  // the enlarged view's arrows have it
-        if let next = all.step(from: current, by: by) { picked = next }
-        return .handled
     }
 
     @ViewBuilder private func preview(_ p: MiniPreview, wide: Bool = false, current: MiniPreview?) -> some View {
@@ -199,6 +204,7 @@ struct MiniDetail: View {
             }
         }
         .buttonStyle(.plain)
+        .focusable(false)  // the section has the keyboard, so arrows don't move focus between tiles
         // Dragging a preview out drops the print file itself, under the mini's name.
         if let stl = mini.stl {
             tile
@@ -327,7 +333,7 @@ struct EnlargedPreview: View {
 
 /// A picture from a mini's folder, read again when the mini changes (a resize rewrites the
 /// previews under the same names, which a URL-keyed cache would miss). A new picture fades in
-/// over the old one rather than popping; the progress sheet uses it too.
+/// over the old one rather than popping; the job's popover uses it too.
 struct Thumbnail: View {
     let url: URL?
     let version: Date

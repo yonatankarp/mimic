@@ -6,11 +6,12 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 
 ### New
 - **Previews show both sides of a mini,** left and right, not just one. A mini made before this gets them the next time it's resized.
-- **An enlarged preview closes with a click anywhere around it,** and ← → go through the previews, in the enlarged picture and on the mini's page once you've clicked one.
+- **An enlarged preview closes with a click anywhere around it,** and ← → go through the previews, in the enlarged picture and on the mini's page once you've clicked one. On the page, ↑ ↓ move up and down the grid.
 
 ### Changed
 - **Mimic now needs macOS 26 (Tahoe).** Every Mac that runs Mimic can update to it for free, in System Settings → General → Software Update.
 - A mini's page puts the 3D view first, with its size, previews, versions and print tips in a panel on the right you can hide; Open in your slicer is in the toolbar, with Resize and Show in Finder under More. The gallery shows each mini's size and nozzle instead of when it was made.
+- **Making a mini no longer covers the window.** Its progress, the queue and Stop are in the toolbar: click it to see them. When it's done, the toolbar says so; click it for Open in your slicer, or Try Again.
 - **Settings is organised into tabs:** General, 3D Model, Draw Things & AI, and Advanced. Each is only as tall as what's in it, and Open Settings from New Mini or a mini that needs Draw Things goes straight to the right one.
 - **New Mini shows the picture and the size choices side by side**, so everything fits without scrolling. Its choices are marked with symbols instead of emoji, and Resize explains itself under its title instead of in a box.
 
