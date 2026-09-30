@@ -176,6 +176,7 @@ struct Sidebar: View {
             if let stl = mini.stl { model.openInSlicer(stl) }
         }
         .disabled(mini.stl == nil)  // not made yet: nothing to print
+        CopiesButton(minis: [mini])
         Button("Show in Finder", systemImage: "folder") { model.showInFinder([mini]) }
         Button("Resize This Mini…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resize(mini) }
             .disabled(!mini.hasModel || model.cantStart != nil || model.waiting(mini.name) != nil)
@@ -202,12 +203,27 @@ struct SeveralMenu: View {
         Button("Open Together in \(model.slicerName)", systemImage: "printer") { model.openTogether(minis) }
             .disabled(minis.filter { $0.stl != nil }.count < 2 || model.packing)
             .help("One print file with all of them on the bed, each its own object named after it.")
+        CopiesButton(minis: minis)
         Button("Show in Finder", systemImage: "folder") { model.showInFinder(minis) }
         Button("Resize \(minis.count) Minis…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resizeSeveral(minis) }
             .disabled(!minis.contains(where: \.hasModel) || model.cantStart != nil)
         MoveToProjectMenu(minis: minis)
         Divider()
         Button("Move to Trash", systemImage: "trash", role: .destructive) { model.askToTrash(minis) }
+    }
+}
+
+/// Copies…, next to Open in the slicer: asks how many, for one mini or each of several.
+struct CopiesButton: View {
+    let minis: [Mini]
+    var showsIcon = true
+    @Environment(AppModel.self) private var model
+    var body: some View {
+        Button { model.sheet = .copies(minis) } label: {
+            if showsIcon { Label("Copies…", systemImage: "square.on.square") } else { Text("Copies…") }
+        }
+        .help(minis.count == 1 ? "Several of this mini on the plate, in one print file" : "Several of each on the plate, in one print file")
+        .disabled(!minis.contains { $0.stl != nil } || model.packing || model.sheet != nil)
     }
 }
 
@@ -266,6 +282,34 @@ struct RenameSheet: View {
         if wasSelected { model.selection.remove(mini.id); model.selection.insert(new) }
         model.reload()
         dismiss()
+    }
+}
+
+/// Asks how many copies to print, then opens them in the slicer in one print file.
+struct CopiesSheet: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    let minis: [Mini]
+    @State private var copies = 2
+
+    var body: some View {
+        let made = minis.filter { $0.stl != nil }
+        VStack(alignment: .leading, spacing: 12) {
+            Text(made.count == 1 ? "Copies of “\(made[0].displayName)”" : "Copies of \(made.count) minis").font(.headline)
+            Stepper(value: $copies, in: ThreeMF.copies) {
+                Text(made.count == 1 ? (copies == 1 ? "1 copy" : "\(copies) copies") : "\(copies) of each")
+                    .monospacedDigit()
+            }
+            Text("They go side by side on the plate in one print file.").foregroundStyle(.secondary).font(.callout)
+            HStack {
+                Spacer()
+                Button("Cancel", role: .cancel) { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Open in \(model.slicerName)") { dismiss(); model.openTogether(made, copies: copies) }
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20)
+        .frame(width: 320)
     }
 }
 

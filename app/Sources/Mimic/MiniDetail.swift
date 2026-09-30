@@ -122,10 +122,11 @@ struct MiniDetail: View {
         }
     }
 
-    /// One group: More, Open in the slicer, and the details panel's toggle.
+    /// One group: More (Copies first), Open in the slicer, and the details panel's toggle.
     @ToolbarContentBuilder private func toolbar(kind: MiniKind) -> some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
             Menu {
+                CopiesButton(minis: [mini])
                 Button("Resize This Mini…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resize(mini) }
                     .help("Remakes the print file at new sizes, in about a minute")
                     .disabled(!mini.hasModel || model.cantStart != nil || model.waiting(mini.name) != nil)
@@ -134,7 +135,7 @@ struct MiniDetail: View {
             } label: {
                 Label("More", systemImage: "ellipsis")
             }
-            .help("Resize this mini, or show it in Finder")
+            .help("Print several copies, resize this mini, or show it in Finder")
             Button("Open in \(model.slicerName)") { if let stl = mini.stl { model.openInSlicer(stl) } }
                 .buttonStyle(.glassProminent)
                 .help("Opens the print file in \(model.slicerName) to slice and print")

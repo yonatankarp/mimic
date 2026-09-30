@@ -85,6 +85,7 @@ struct MiniCommands: Commands {
                     .keyboardShortcut("o")
                     .disabled(mini?.stl == nil)
             }
+            CopiesButton(minis: chosen, showsIcon: false).environment(model)
             Button("Show in Finder") { model.showInFinder(chosen) }
                 .keyboardShortcut("r", modifiers: [.command, .option])
                 .disabled(chosen.isEmpty)

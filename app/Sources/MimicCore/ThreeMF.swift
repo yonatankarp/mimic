@@ -1,14 +1,17 @@
 import Foundation
 import simd
 
-/// One print file holding several minis, for Open Together: each mini its own object, named
-/// after it, laid out on the bed with a gap between them, so the slicer can move or remove any
-/// one. A 3MF is a zip of XML; the XML is written here and zipped by the Mac's own `zip`.
+/// One print file holding several minis, for Open Together and Copies: each mini its own object,
+/// named after it, laid out on the bed with a gap between them, so the slicer can move or remove
+/// any one. A copy is the same object placed again, so six goblins are one goblin's worth of file.
+/// A 3MF is a zip of XML; the XML is written here and zipped by the Mac's own `zip`.
 public enum ThreeMF {
     /// A common bed (Bambu's X1 and P1, 256 mm). A party that doesn't fit runs off it, and the
     /// slicer's Arrange puts it right on whatever bed it has.
     public static let bed: Float = 256
     public static let gap: Float = 5
+    /// How many copies of each mini one file can hold.
+    public static let copies = 1...20
 
     /// Where each footprint (width, depth) goes: rows left to right, a new row when one is
     /// full, the whole centred on the bed. Returns each one's lower-left corner.
@@ -25,15 +28,18 @@ public enum ThreeMF {
         return corners.map { $0 + shift }
     }
 
-    /// Writes `parts` (a name, and a print file's triangles as three corners each) as one 3MF.
-    public static func write(_ parts: [(name: String, corners: [SIMD3<Float>])], to url: URL) throws {
+    /// Writes `parts` (a name, and a print file's triangles as three corners each) as one 3MF,
+    /// with `copies` of each.
+    public static func write(_ parts: [(name: String, corners: [SIMD3<Float>])], copies: Int = 1, to url: URL) throws {
+        let copies = min(max(copies, Self.copies.lowerBound), Self.copies.upperBound)
         var bounds: [(lo: SIMD3<Float>, hi: SIMD3<Float>)] = []
         for p in parts {
             var lo = SIMD3<Float>(repeating: .infinity), hi = -lo
             for c in p.corners { lo = simd_min(lo, c); hi = simd_max(hi, c) }
             bounds.append((lo, hi))
         }
-        let corners = layout(bounds.map { SIMD2($0.hi.x - $0.lo.x, $0.hi.y - $0.lo.y) })
+        // Each mini's copies next to each other: the goblins, then the orcs.
+        let corners = layout(bounds.flatMap { b in repeatElement(SIMD2(b.hi.x - b.lo.x, b.hi.y - b.lo.y), count: copies) })
 
         var xml = """
             <?xml version="1.0" encoding="UTF-8"?>
@@ -58,8 +64,10 @@ public enum ThreeMF {
             xml += "<object id=\"\(n + 1)\" name=\"\(escaped(p.name))\" type=\"model\"><mesh><vertices>\n"
             xml += vertices + "</vertices><triangles>\n" + triangles + "</triangles></mesh></object>\n"
             // Moved, not rewritten: its lower-left corner to its place, its bottom on the bed.
-            let move = corners[n] - SIMD2(bounds[n].lo.x, bounds[n].lo.y)
-            build += "<item objectid=\"\(n + 1)\" transform=\"1 0 0 0 1 0 0 0 1 \(move.x) \(move.y) \(-bounds[n].lo.z)\"/>\n"
+            for _ in 0..<copies {
+                let move = corners[n * copies] - SIMD2(bounds[n].lo.x, bounds[n].lo.y)
+                build += "<item objectid=\"\(n + 1)\" transform=\"1 0 0 0 1 0 0 0 1 \(move.x) \(move.y) \(-bounds[n].lo.z)\"/>\n"
+            }
         }
         xml += "</resources>\n" + build + "</build>\n</model>\n"
 
