@@ -149,6 +149,8 @@ struct MiniDetail: View {
                 if let measured {
                     LabeledContent("Height with base", value: "\(measured.tall) mm")
                     LabeledContent("Footprint", value: measured.footprint)
+                    LabeledContent("Filament", value: Filament.words(measured.volume))
+                        .help("Grams of PLA and metres of 1.75 mm filament, printed solid; infill makes a big mini take less")
                 }
             } header: {
                 Label("Size", systemImage: "ruler")

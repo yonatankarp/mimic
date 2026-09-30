@@ -287,7 +287,8 @@ struct MiniViewer: View {
             points.append(v); lo = simd_min(lo, v); hi = simd_max(hi, v)
         }
         let dims = hi - lo
-        let size = Measured(tall: Int(dims.y.rounded()), wide: Int(dims.x.rounded()), deep: Int(dims.z.rounded()))
+        let size = Measured(tall: Int(dims.y.rounded()), wide: Int(dims.x.rounded()), deep: Int(dims.z.rounded()),
+                            volume: Filament.volume(points))  // turned, not yet scaled: still mm
         let centre = (lo + hi) / 2  // the middle of the mini, so it turns in place
         let scale = 1 / max(dims.y, 1)  // 1 m tall: fills the default camera's view
         points = points.map { ($0 - centre) * scale }
@@ -309,9 +310,10 @@ struct MiniViewer: View {
     }
 }
 
-/// A print file's size in millimetres, base included.
+/// A print file's size in millimetres, base included, and its volume in mm³.
 struct Measured: Equatable {
     let tall: Int, wide: Int, deep: Int
+    var volume = 0.0
     var footprint: String { "\(wide) × \(deep) mm" }
     /// "34 mm tall · 26 × 25 mm", on its glass badge.
     var caption: String { "\(tall) mm tall · \(footprint)" }

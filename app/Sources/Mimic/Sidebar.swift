@@ -68,7 +68,11 @@ struct Sidebar: View {
                                     .dropDestination(for: String.self) { names, _ in model.move(names, to: project); return true }
                             }
                         } header: {
-                            Label(project, systemImage: "folder")
+                            HStack {
+                                Label(project, systemImage: "folder")
+                                Spacer()
+                                ProjectFilament(minis: model.minis.filter { $0.project == project })
+                            }
                                 .contextMenu { projectMenu(project) }
                                 .dropDestination(for: String.self) { names, _ in model.move(names, to: project); return true }
                                 .help("Drag minis onto it to move them here. Right-click for more.")
@@ -347,5 +351,23 @@ struct ProjectNameSheet: View {
             problem = model.plainWords(error, else: "Couldn't do that. Is the folder open in another app?"); return
         }
         dismiss()
+    }
+}
+
+/// "up to 23 g" beside a project's name: its minis' filament added up. Read from their print
+/// files off the main thread, again whenever one is made or resized.
+private struct ProjectFilament: View {
+    let minis: [Mini]
+
+    @State private var total: Double?
+
+    var body: some View {
+        Text(total.map(Filament.short) ?? "")
+            .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+            .help("Roughly the filament for every mini in it, printed solid")
+            .task(id: minis.map { "\($0.stl?.path ?? "")@\($0.madeAt.timeIntervalSince1970)" }) {
+                let stls = minis.compactMap(\.stl)
+                total = stls.isEmpty ? nil : await Task.detached { stls.compactMap(Filament.volume(stl:)).reduce(0, +) }.value
+            }
     }
 }
