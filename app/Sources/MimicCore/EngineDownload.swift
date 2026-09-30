@@ -93,18 +93,20 @@ public enum EngineDownload {
     /// Pixal3D, which stays as the choice for the crispest surface.
     public static let catalogue: [EngineModel] = [trellis2Q8, pixal3d]
 
-    /// What an install or a mini with no model recorded uses.
+    /// What a new install makes minis with.
     public static var standard: EngineModel { catalogue[0] }
 
+    /// A mini's model by the id it recorded. None recorded means Pixal3D, the only model before
+    /// 0.4.0, not `standard`: since TRELLIS.2 became the standard, that turned an old mini round
+    /// on Resize (TRELLIS.2's turn) and remade it with another model on Try Again.
     public static func model(_ id: String?) -> EngineModel? {
-        guard let id else { return standard }
-        return catalogue.first { $0.id == id }
+        catalogue.first { $0.id == (id ?? pixal3d.id) }
     }
 
     /// The model this Mac makes minis with: the `model` default, or the standard one when it's
     /// unset or names a model this Mimic doesn't know.
     public static func selected(defaults: UserDefaults) -> EngineModel {
-        model(defaults.string(forKey: "model")) ?? standard
+        defaults.string(forKey: "model").flatMap(model) ?? standard
     }
 
     static let pixal3dURL = URL(string: "https://huggingface.co/raven38/pixal3d-sv-q8_0-v1/resolve/46d399ac986f45a0d7f5b1ca5058614d8729a131")!
