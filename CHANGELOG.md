@@ -7,6 +7,10 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 ### New
 - **Print several copies of a mini at once.** Right-click a mini, or several, and choose Copies…: up to 20 of each go side by side on the plate in one print file, ready to slice.
 
+### Changed
+
+### Fixed
+
 ## 0.7.0
 
 ### New
