@@ -37,6 +37,7 @@ struct MimicApp: App {
                     .disabled(!model.setup.installed)
             }
             SidebarCommands()
+            ImportFromDevicesCommands()  // File → Import from iPhone, for New Mini's picture
             MiniCommands(model: model)
             CommandGroup(replacing: .help) {
                 Button("Mimic Help") { NSWorkspace.shared.open(Self.help) }

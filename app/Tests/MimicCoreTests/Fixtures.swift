@@ -1,4 +1,5 @@
 import Foundation
+import ImageIO
 @testable import MimicCore
 
 /// A throwaway Mimic folder with fake tools: the job runner runs real processes, just not
@@ -39,6 +40,20 @@ struct Fixture {
             try h.truncate(atOffset: UInt64(m.name == short ? m.bytes - 1 : m.bytes))
             try h.close()
         }
+    }
+
+    /// A small real picture to make a mini from: New Mini tidies it, so a stand-in's bytes won't
+    /// do. A JPEG for a name ending .jpg, else a PNG.
+    func picture(_ name: String = "pic.png") throws -> URL {
+        let png = root.appendingPathComponent(name.hasSuffix(".jpg") ? "pic-source.png" : name)
+        try Engine.writePNG([UInt8](repeating: 200, count: 8 * 8 * 4), width: 8, height: 8, to: png)
+        guard name.hasSuffix(".jpg") else { return png }
+        let url = root.appendingPathComponent(name)
+        let src = CGImageSourceCreateWithURL(png as CFURL, nil)!
+        let dest = CGImageDestinationCreateWithURL(url as CFURL, "public.jpeg" as CFString, 1, nil)!
+        CGImageDestinationAddImage(dest, CGImageSourceCreateImageAtIndex(src, 0, nil)!, nil)
+        guard CGImageDestinationFinalize(dest) else { throw CocoaError(.fileWriteUnknown) }
+        return url
     }
 
     /// A mini folder with a 3D model, ready to resize.

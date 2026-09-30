@@ -345,7 +345,7 @@ final class AppModel {
                 added.append(name)
             } catch {
                 skipped.append(url.lastPathComponent)
-                if case RequestError.noPicture = error {} else { why = plainWords(error) }
+                if ![.noPicture, .unreadablePicture].contains(error as? RequestError) { why = plainWords(error) }
             }
         }
         guard let last = added.last else { return why }

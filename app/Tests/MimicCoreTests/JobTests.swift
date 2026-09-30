@@ -66,8 +66,7 @@ final class JobTests: XCTestCase {
     func testTryAgainStartsAtTheStepThatFailed() throws {
         let fx = try Fixture()
         try fx.modelFiles()
-        let picture = fx.root.appendingPathComponent("pic.png")
-        FileManager.default.createFile(atPath: picture.path, contents: Data([1]))
+        let picture = try fx.picture()
         let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/false"), trash: { _ in })
         let d = fx.install.runs.appendingPathComponent("mini")
         try FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
@@ -87,8 +86,7 @@ final class JobTests: XCTestCase {
     /// is in use by then; a model that isn't downloaded is refused before anything is written.
     func testTheModelIsRecordedAndMustBeDownloaded() throws {
         let fx = try Fixture()
-        let picture = fx.root.appendingPathComponent("pic.png")
-        FileManager.default.createFile(atPath: picture.path, contents: Data([1]))
+        let picture = try fx.picture()
         let other = EngineDownload.catalogue.last!
         let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/false"))
         XCTAssertThrowsError(try jobs.make(name: "mini", picture: .image(picture), restyle: false, seed: 1, sizes: sizes, model: other)) {
@@ -165,8 +163,7 @@ final class JobTests: XCTestCase {
     /// the next character into an object, and a character's settings.json has no kind.
     func testMakeRecordsTheKind() throws {
         let fx = try Fixture()
-        let picture = fx.root.appendingPathComponent("pic.png")
-        FileManager.default.createFile(atPath: picture.path, contents: Data([1]))
+        let picture = try fx.picture()
         let d = fx.install.runs.appendingPathComponent("mini")
         let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/false"), trash: { _ in })
         try fx.modelFiles()
@@ -274,8 +271,7 @@ final class JobTests: XCTestCase {
         let fx = try Fixture()
         let childFile = fx.root.appendingPathComponent("child.pid").path
         let engine = try fx.script("fake-engine", "sleep 60 & echo $! > \(childFile); wait")
-        let picture = fx.root.appendingPathComponent("pic.png")
-        FileManager.default.createFile(atPath: picture.path, contents: Data([1]))
+        let picture = try fx.picture()
         let spy = TrashSpy()
         let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: engine), trash: { spy($0) })
         try fx.modelFiles()
@@ -305,8 +301,7 @@ final class JobTests: XCTestCase {
         let fake = try fx.script("fake-mimic", """
             if [ "$1" = _engine ]; then echo half > "$3"; touch \(started); sleep 60 & wait; fi
             """)
-        let picture = fx.root.appendingPathComponent("pic.png")
-        FileManager.default.createFile(atPath: picture.path, contents: Data([1]))
+        let picture = try fx.picture()
         let spy = TrashSpy()
         let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: fake), trash: { spy($0) })
         try fx.modelFiles()
@@ -334,8 +329,7 @@ final class JobTests: XCTestCase {
         let fake = try fx.script("fake-mimic", """
             if [ "$1" = _engine ]; then echo shape > "$3"; else touch \(started); sleep 60 & wait; fi
             """)
-        let picture = fx.root.appendingPathComponent("pic.png")
-        FileManager.default.createFile(atPath: picture.path, contents: Data([1]))
+        let picture = try fx.picture()
         let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: fake), trash: { _ in })
         try fx.modelFiles()
         try jobs.make(name: "mini", picture: .image(picture), restyle: false, seed: 1, sizes: sizes, model: EngineDownload.standard)
