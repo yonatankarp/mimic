@@ -217,12 +217,12 @@ struct TourCallout: View {
             "Game scale matches the other minis on your table; Best print goes for detail. Pick the nozzle your printer uses. Not sure? It's most likely 0.4 mm."
         case .make:
             guide.usingSample
-                ? "Press Make My Mini to make your dwarf 🎉 It takes about 7–10 minutes. Press Run in Background to keep using your Mac, and the tour carries on from there."
-                : "Make My Mini takes about 7–10 minutes. Press Run in Background to keep using your Mac: the toolbar and the Dock icon show how far along it is."
+                ? "Press Make My Mini to make your dwarf 🎉 How long it takes on this Mac is shown next to the button. Press Run in Background to keep using your Mac, and the tour carries on from there."
+                : "How long Make My Mini takes on this Mac is shown next to the button. Press Run in Background to keep using your Mac: the toolbar and the Dock icon show how far along it is. Start another any time and it waits its turn."
         case .mini:
-            "Drag it to turn it around. Open in \(model.slicerName) sends it to your slicer to print, and the print tips below are for your nozzle."
+            "Drag it to turn it around. Open in \(model.slicerName) sends it to your slicer to print, or drag a preview to Finder or any slicer. The print tips below are for your nozzle."
         case .gallery:
-            "Everything you make lands here. Right-click a mini for more, or press space to preview it."
+            "Everything you make lands here. Right-click a mini for more, press space to preview it, or group minis into projects (⇧⌘N)."
         case .settings:
             "Checks that everything works, and where you choose your slicer and set up Draw Things. It turns orange if something needs you. Happy printing! 🎲"
         }

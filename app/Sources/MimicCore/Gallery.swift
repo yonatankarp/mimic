@@ -67,15 +67,19 @@ public enum Gallery {
             .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
     }
 
-    /// Resize All on a project: which of its minis to resize to `sizes`. Those already made at
-    /// them are left out (`same`); those that can't be resized now (no 3D model yet, or `busy`:
-    /// waiting or being made) are `skipped`.
-    public static func toResize(_ minis: [Mini], to sizes: Sizes, busy: Set<String>) -> (resize: [Mini], same: Int, skipped: Int) {
-        var resize: [Mini] = [], same = 0, skipped = 0
+    /// Resize All on a project: which of its minis to resize, each to `sizes` but keeping its
+    /// own base or none (a teapot in a party doesn't get the party's round base). Those already
+    /// made at them are left out (`same`); those that can't be resized now (no 3D model yet, or
+    /// `busy`: waiting or being made) are `skipped`.
+    public static func toResize(_ minis: [Mini], to sizes: Sizes, busy: Set<String>) -> (resize: [(mini: Mini, sizes: Sizes)], same: Int, skipped: Int) {
+        var resize: [(mini: Mini, sizes: Sizes)] = [], same = 0, skipped = 0
         for mini in minis {
+            let settings = MiniSettings.load(mini.folder)
+            var own = sizes
+            own.noBase = (settings.made ?? settings.requested)?.noBase ?? (settings.kind == .object)
             if !mini.hasModel || busy.contains(mini.name) { skipped += 1 }
-            else if MiniSettings.load(mini.folder).made == sizes { same += 1 }
-            else { resize.append(mini) }
+            else if settings.made == own { same += 1 }
+            else { resize.append((mini, own)) }
         }
         return (resize, same, skipped)
     }

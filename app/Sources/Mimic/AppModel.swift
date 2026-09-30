@@ -315,7 +315,7 @@ final class AppModel {
         let busy = Set(queue.map(\.name) + [current?.name].compactMap { $0 })
         let picked = Gallery.toResize(minis.filter { $0.project == project }, to: sizes, busy: busy)
         var added: [String] = [], skipped = picked.skipped, why = "None of these minis can be resized right now."
-        for mini in picked.resize {
+        for (mini, sizes) in picked.resize {
             do { try resize(mini, sizes: sizes); added.append(mini.name) }
             catch { skipped += 1; why = plainWords(error) }
         }

@@ -194,8 +194,15 @@ final class ProjectTests: XCTestCase {
         try MiniSettings.update(runs.appendingPathComponent("Party/raven")) { $0.made = self.sizes }
         try MiniSettings.update(runs.appendingPathComponent("Party/wizard")) { $0.made = Sizes(height: "28", nozzle: "0.4") }
         try fm.removeItem(at: runs.appendingPathComponent("Party/bard/model.glb"))
+        // An object keeps its own no-base, whatever the card says.
+        _ = try fx.mini("teapot", in: "Party")
+        try MiniSettings.update(runs.appendingPathComponent("Party/teapot")) { $0.kind = .object; $0.made = Sizes(height: "80", nozzle: "0.4", noBase: true) }
         let picked = Gallery.toResize(Gallery.list(runs), to: sizes, busy: ["rogue"])
-        XCTAssertEqual(picked.resize.map(\.name), ["wizard"])
+        let resize = Dictionary(uniqueKeysWithValues: picked.resize.map { ($0.mini.name, $0.sizes) })
+        XCTAssertEqual(Set(resize.keys), ["wizard", "teapot"])
+        XCTAssertEqual(resize["wizard"], sizes)
+        XCTAssertEqual(resize["teapot"]?.noBase, true)
+        XCTAssertEqual(resize["teapot"]?.height, sizes.height)
         XCTAssertEqual(picked.same, 1)
         XCTAssertEqual(picked.skipped, 2)
     }

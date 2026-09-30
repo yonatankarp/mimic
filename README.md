@@ -52,9 +52,15 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
    🏺 **Anything else** (a teapot, a car, a chess piece).
 2. Drop in a picture of it, or switch to **Describe it** and write a sentence.
 3. Pick your printer's nozzle and how big to make it.
-4. Press **Make My Mini** and wait about 7–10 minutes.
-5. Press **Open in …** to open it in your slicer, and print. Each mini's page shows the slicer
-   settings to use.
+4. Press **Make My Mini**. A mini takes about 8–15 minutes, depending on the 3D model, and New
+   Mini shows how long on your Mac. Press **Run in Background** to keep using your Mac: Mimic
+   tells you when it's ready.
+5. Press **Open in …** to open it in your slicer, or drag one of its previews to Finder or any
+   slicer, and print. Each mini's page shows the slicer settings to use.
+
+**Several at once?** Press Make My Mini while one is being made and the new one waits its turn.
+Drop several pictures on New Mini to line up a mini for each. Your Mac stays awake until the
+last one is done.
 
 Want a fuller description from a few words? Choose an **AI helper for descriptions** in
 Settings (Claude or another service with your own API key, or Ollama on your Mac), then press
@@ -70,10 +76,11 @@ Your minis are saved in **Documents → Mimic**.
 **Projects** group minis into folders, the same folders you see in Finder. Press **New Project**
 at the bottom of the list (⇧⌘N), then drag minis onto it or right-click a mini → **Move to
 Project**. New Mini puts a mini in the project you're looking at, or any one you pick.
+Right-click a project → **Resize All…** to give every mini in it a new size at once.
 
 A small detail came out as a blob? Right-click the mini → **Make Another Version**: the same
-picture and settings with a different variation number, next to it. Line up two or three and
-keep the best.
+picture and settings with a different variation number, next to it. Line up two or three:
+the mini's page shows them side by side, and **Keep This One** moves the others to the Trash.
 
 ---
 
