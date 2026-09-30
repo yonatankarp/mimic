@@ -376,10 +376,11 @@ public final class JobRunner: @unchecked Sendable {
         }()
         let warnings = (((try? String(contentsOf: log, encoding: .utf8)) ?? "") + "\n" + thisRun)
             .split(separator: "\n").filter { $0.contains("mini_prep: WARNING") }
-        let fragile = warnings.contains { !$0.contains(Prep.partWarning) }
+        let said = [Prep.partWarning, Prep.standWarning]
+        let fragile = warnings.contains { w in !said.contains { w.contains($0) } }
         var notes: [String] = []
         for w in warnings {
-            guard let r = w.range(of: Prep.partWarning) else { continue }
+            guard let r = said.lazy.compactMap({ w.range(of: $0) }).first else { continue }
             let note = String(w[r.upperBound...])
             if !notes.contains(note) { notes.append(note) }  // the job log and prep.log can both carry it
         }

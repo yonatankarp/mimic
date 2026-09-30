@@ -225,9 +225,9 @@ final class PrepTests: XCTestCase {
         XCTAssertEqual(b.hi.z - b.lo.z, a.hi.z - a.lo.z, accuracy: 0.2)
         XCTAssertTrue(turned.watertight)
         // As an object, the wisp hanging below its feet leaves it unable to stand (it rocks on
-        // the wisp's tip), so both are laid down: the same way, or this passes by symmetry alone.
+        // the wisp's tip), so both are left upright as made, neither levelled nor laid down.
         XCTAssertEqual(logged.filter { $0.contains("stable side") }, plainRest)
-        XCTAssertEqual(plainRest.count, 1)
+        XCTAssertEqual(plainRest.count, 0)
     }
 
     /// A held thing the generator didn't join to the figure (a Pixal3D elf's bow): a bar in
@@ -413,64 +413,61 @@ final class PrepTests: XCTestCase {
         return m
     }
 
+    /// What the last `prepObject` said to the person.
+    var said: [String] = []
+
     func prepObject(_ m: Mesh) throws -> (Printed, Bool) {
-        let (_, out, _) = try prep(["--fit", "longest", "--ground", "bottom", "--height", "60", "--no-base", "--faces", "20000"], mesh: m)
+        let (result, out, _) = try prep(["--fit", "longest", "--ground", "bottom", "--height", "60", "--no-base", "--faces", "20000"], mesh: m)
+        said = result.lines.filter { $0.hasPrefix(Prep.standWarning) }
         return (out, logged.contains { $0.hasPrefix("prep: set on its most stable side") })
     }
 
-    /// A box lying at 50°, past what levelling straightens, comes to rest on its biggest face: of
-    /// the two, the one 50° from down rather than 130°, so it's the same turn every run.
-    func testABoxOnItsEdgeIsSetOnItsBiggestFace() throws {
+    /// A box lying at 50°, past what levelling straightens, has no side near its bottom to stand
+    /// on: it is left as the engine made it, and the person told it needs a base.
+    func testABoxOnItsEdgeIsLeftAsMadeAndSaid() throws {
         var m = Mesh()
         m.add(Self.box(half: [1, 0.6, 0.4]), at: [0, 0, 0])
         let (out, turned) = try prepObject(Self.turned(m, 50, about: [1, 0, 0]))
-        let scale: Float = 60 / 2
-        XCTAssertTrue(turned, "\(logged)")
-        XCTAssertTrue(logged.contains("prep: set on its most stable side (turned 50°)"), "\(logged)")
-        XCTAssertGreaterThan(out.flatBottom, 0.9 * 2 * 1.2 * scale * scale, "on its 2 x 1.2 face")
-        XCTAssertEqual(out.bounds.hi.z - out.bounds.lo.z, 0.8 * scale + 0.16 - 0.4, accuracy: 0.4)
+        XCTAssertFalse(turned, "\(logged)")
+        XCTAssertEqual(said.count, 1, "\(said)")
+        XCTAssertLessThan(out.flatBottom, 0.3 * 2 * 1.2 * 30 * 30, "still on its edge")
         XCTAssertTrue(out.watertight)
     }
 
     /// A box 4 times as tall as wide stands on its end, and stays standing: it can be tilted
-    /// 14° before it tips, and a vase or a tower is meant to stand. Past levelling's reach it
-    /// lies on its long side; and one 8 times as tall (7.1°) is too easily knocked over to print
-    /// standing, so it is laid down.
-    func testATallBoxStandsButATippedOrSpindlyOneLiesDown() throws {
+    /// 14° before it tips, and a vase or a tower is meant to stand. One 8 times as tall (7.1°)
+    /// can't stand on its end, but stays standing as made and is said to need a base.
+    func testATallBoxStandsAndASpindlyOneIsSaid() throws {
         var tall = Mesh()
         tall.add(Self.box(half: [0.25, 0.25, 1]), at: [0, 0, 1])
         var (out, turned) = try prepObject(tall)
         XCTAssertFalse(turned, "\(logged)")
         XCTAssertEqual(out.bounds.hi.z - out.bounds.lo.z, 60 + 0.16 - 0.4, accuracy: 0.4, "standing")
 
-        (out, turned) = try prepObject(Self.turned(tall, 60, about: [1, 0, 0]))
-        XCTAssertTrue(turned, "\(logged)")
-        XCTAssertEqual(out.bounds.hi.z - out.bounds.lo.z, 0.5 * 30 + 0.16 - 0.4, accuracy: 0.4, "on its long side")
 
         var spindly = Mesh()
         spindly.add(Self.box(half: [0.25, 0.25, 2]), at: [0, 0, 2])
         (out, turned) = try prepObject(spindly)
-        XCTAssertTrue(turned, "\(logged)")
-        XCTAssertEqual(out.bounds.hi.z - out.bounds.lo.z, 0.5 * 15 + 0.16 - 0.4, accuracy: 0.4, "on its long side")
+        XCTAssertFalse(turned, "\(logged)")
+        XCTAssertEqual(said.count, 1, "\(said)")
+        XCTAssertEqual(out.bounds.hi.z - out.bounds.lo.z, 60 + 0.16 - 0.4, accuracy: 0.4, "standing")
     }
 
-    /// A teapot upside down on its lid's knob (it tips at 5°) is set back on its base; a cup
-    /// upside down on its wide rim stands there: like a vase, it isn't the steadier side that
-    /// decides, only whether it can stand. (On the mesh itself: at print size a fixture this
-    /// coarse loses its knob to the trim, which is what the real teapots are for.)
-    func testAnUpsideDownTeapotIsTurnedOverButAnUpsideDownCupStands() throws {
+    /// A teapot upside down on its lid's knob (it tips at 5°) is left as it is: turning it over
+    /// is further than `rest` goes, since the engine keeps the picture's up. A cup upside down on
+    /// its wide rim stands there: like a vase, it isn't the steadier side that decides, only
+    /// whether it can stand.
+    func testAnUpsideDownTeapotAndCupAreLeftAsTheyAre() throws {
         var pot = Mesh()
         pot.add(Self.cylinder(radius: 0.5, depth: 0.6), at: [0, 0, 0.3])       // body on a flat base
         pot.add(Self.cylinder(radius: 0.05, depth: 0.2), at: [0, 0, 0.65])    // the knob
         pot.add(Self.box(half: [0.2, 0.06, 0.06]), at: [0.65, 0, 0.4])          // spout
         pot.add(Self.box(half: [0.08, 0.03, 0.15]), at: [-0.55, 0, 0.35])       // handle
-        let knob = (32 * 2 + 2)..<(2 * (32 * 2 + 2))
         var upside = Self.turned(pot, 180, about: [1, 0.2, 0])
+        let turnedOver = upside.positions
         XCTAssertEqual(upside.level(), 0)
-        XCTAssertEqual(upside.rest(), 180, accuracy: 0.5)
-        let (lo, hi) = upside.bounds
-        XCTAssertEqual(hi.z - lo.z, 0.75, accuracy: 0.01, "upright")
-        XCTAssertEqual(upside.positions[knob].map(\.z).max()!, hi.z, accuracy: 1e-4, "knob on top")
+        XCTAssertNil(upside.rest())
+        XCTAssertEqual(upside.positions, turnedOver, "untouched")
         var upright = pot
         XCTAssertEqual(upright.rest(), 0, "a teapot on its base stays")
         XCTAssertEqual(upright.positions, pot.positions, "untouched")

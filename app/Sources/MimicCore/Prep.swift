@@ -126,13 +126,22 @@ public enum Prep {
         // character stands on its feet, which aren't a surface to level, so only objects.
         // After the turn: a turn is about the vertical, so levelling finds the same tilt either
         // way, and the figure's facing is settled before anything is measured.
+        var standsAlone = true
         if o.groundBottom {
+            let asMade = mesh.positions
             let degrees = mesh.level()
-            if degrees > 0 { log(String(format: "prep: levelled by %.1f°", degrees)) }
-            // Levelling squares up a lean; one on its side, upside down, or levelled onto the edge
-            // of its foot instead of the foot is then set on a side it can stand on (Mesh.rest).
-            let turned = mesh.rest()
-            if turned > 0 { log(String(format: "prep: set on its most stable side (turned %.0f°)", turned)) }
+            // Levelling squares up a lean; one levelled onto the edge of its foot instead of the
+            // foot is then set on a side near it that it can stand on (Mesh.rest).
+            if let turned = mesh.rest() {
+                if degrees > 0 { log(String(format: "prep: levelled by %.1f°", degrees)) }
+                if turned > 0 { log(String(format: "prep: set on its most stable side (turned %.0f°)", turned)) }
+            } else {
+                // Nothing near its bottom holds it up (a figure on small feet, a bird on a perch):
+                // it stays as the engine made it, since levelling read a raven's tail and perch
+                // as a lean and tipped it 27° onto nothing it could stand on either.
+                mesh.positions = asMade
+                standsAlone = false
+            }
         }
         let height = Float(o.height)
         let thing = o.groundBottom ? "object" : "figure"
@@ -228,6 +237,9 @@ public enum Prep {
             lines.append(String(format: "mini_prep: WARNING footprint %.1f mm is wider than the %.0f mm base; raise the base to at least %d mm",
                                 footprint, o.base, Int((footprint + 1).rounded(.up))))
         }
+        if o.noBase && !standsAlone {
+            lines.append(standWarning + "It can't stand on its own, so it was left upright as the 3D engine made it. Turn on Add a round base to stand it up.")
+        }
         if let longest = parts.map(Prep.longest).max() {
             let what = parts.count == 1 ? "A part came out separate from the \(thing) (about \(Int(longest.rounded())) mm long) and was left out."
                 : "\(parts.count) parts came out separate from the \(thing) (the largest about \(Int(longest.rounded())) mm long) and were left out."
@@ -242,6 +254,8 @@ public enum Prep {
     static let partLength: Float = 0.1
     /// Marks the warning for a part left out; what follows it is said to the person as it is.
     public static let partWarning = "mini_prep: WARNING part: "
+    /// Marks the warning for an object that can't stand without a base; said as it is, too.
+    public static let standWarning = "mini_prep: WARNING stand: "
     /// Marks why prep failed; what follows it is said to the person as it is.
     public static let failure = "mini_prep: FAILED: "
     /// A model whose thinnest side is under this share of its longest is a flat sheet, not a mini.
