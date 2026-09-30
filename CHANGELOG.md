@@ -14,9 +14,13 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 - **Settings is organised into tabs:** General, 3D Model, Draw Things & AI, and Advanced. Each is only as tall as what's in it, and Open Settings from New Mini or a mini that needs Draw Things goes straight to the right one.
 
 ### Fixed
-- **Resize and Try Again no longer turn older minis round.** A mini made before 0.4.0 (with Pixal3D, before Mimic recorded the model) came out facing backwards after a Resize in 0.6.0, and Try Again remade it with TRELLIS.2. Such minis are Pixal3D's again; Resize one that was turned to put it right.
 - Settings says TRELLIS.2 takes about 14 minutes a mini, as measured, not 12. Once you've made a few minis, it shows the time for your Mac instead, as before.
 - Resize showed Best print and "about 100 mm tall" for a mini made at game scale; it now shows what the mini was made at. A mini made at a size neither choice gives shows neither as chosen. An object made at another size than the suggested one no longer says "about 80 mm on its longest side".
+
+## 0.6.1
+
+### Fixed
+- **Resize and Try Again no longer turn older minis round.** A mini made before 0.4.0 (with Pixal3D, before Mimic recorded the model) came out facing backwards after a Resize in 0.6.0, and Try Again remade it with TRELLIS.2. Such minis are Pixal3D's again; Resize one that was turned to put it right.
 
 ## 0.6.0
 
