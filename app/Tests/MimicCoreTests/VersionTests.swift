@@ -58,7 +58,8 @@ final class VersionTests: XCTestCase {
             let s = MiniSettings.load(folder)
             XCTAssertNotEqual(s.seed, old.seed, name)
             XCTAssertEqual(s.versionOf, name)
-            var same = s; same.seed = old.seed; same.versionOf = nil
+            XCTAssertNotNil(s.created, "a new version is a new mini, dated when it was asked for")
+            var same = s; same.seed = old.seed; same.versionOf = nil; same.created = old.created
             XCTAssertEqual(same, old, "\(name): settings other than the seed changed")
             let seed = String(s.seed!)
             let plan = try Pipeline.plan(.generate, folder: folder, settings: s, tools: tools).map(\.step)
