@@ -67,4 +67,37 @@ final class ViewerZoomTests: XCTestCase {
         XCTAssertEqual(Glide.progress(elapsed: -1, over: 0.45), 0)
         XCTAssertEqual(Glide.progress(elapsed: 0, over: 0), 1, "no glide: already there")
     }
+
+    /// Every corner of the mini's box, however it's turned round, lands inside the seen band.
+    func testTheMiniFitsTheSeenPartOfTheView() {
+        let mini = SIMD3<Float>(0.76, 1, 0.74)
+        for (view, top, bottom) in [(CGSize(width: 360, height: 730), 96.0, 56.0), (CGSize(width: 650, height: 680), 96, 56),
+                                    (CGSize(width: 1200, height: 500), 96, 56)] {
+            let camera = ViewerCamera.fitting(mini, in: view, top: top, bottom: bottom)
+            var lo = CGPoint(x: CGFloat.infinity, y: .infinity), hi = CGPoint(x: -CGFloat.infinity, y: -.infinity)
+            for x in [-1, 1] as [Float] { for y in [-1, 1] as [Float] { for z in [-1, 1] as [Float] {
+                for turned in [false, true] {  // a quarter turn swaps width and depth
+                    let half = turned ? SIMD3(mini.z, mini.y, mini.x) / 2 : mini / 2
+                    let p = camera.project(SIMD3(x, y, z) * half, in: view)
+                    lo = CGPoint(x: min(lo.x, p.x), y: min(lo.y, p.y)); hi = CGPoint(x: max(hi.x, p.x), y: max(hi.y, p.y))
+                }
+            } } }
+            XCTAssertGreaterThanOrEqual(lo.y, top, "\(view): clear of the toolbar")
+            XCTAssertLessThanOrEqual(hi.y, view.height - bottom, "\(view): clear of the hint")
+            XCTAssertGreaterThanOrEqual(lo.x, 0); XCTAssertLessThanOrEqual(hi.x, view.width)
+            // Its middle is in the middle of the band.
+            XCTAssertEqual(camera.project(.zero, in: view).y, (top + view.height - bottom) / 2, accuracy: 0.5)
+        }
+        let narrow = ViewerCamera.fitting(mini, in: CGSize(width: 360, height: 730), top: 96, bottom: 56)
+        let wide = ViewerCamera.fitting(mini, in: CGSize(width: 900, height: 730), top: 96, bottom: 56)
+        XCTAssertGreaterThan(narrow.distance, wide.distance, "a narrow view stands further back, to fit its width")
+    }
+
+    func testThePointerMapsOntoTheMinisPlaneWithTheCameraLifted() {
+        let view = CGSize(width: 400, height: 600)
+        let camera = ViewerCamera.fitting(SIMD3(0.8, 1, 0.8), in: view, top: 100, bottom: 50)
+        let p = camera.project(SIMD3(0.2, -0.3, 0), in: view)
+        let back = camera.anchor(at: p, in: view)
+        XCTAssertEqual(back.x, 0.2, accuracy: 1e-4); XCTAssertEqual(back.y, -0.3, accuracy: 1e-4)
+    }
 }
