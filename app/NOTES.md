@@ -264,7 +264,7 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   launcher was tried live from a command-line process with its main thread blocked (Chess:
   opened in 0.25 s, not frontmost, quit when asked). Settings → Open Draw Things when needed
   (`openDrawThings`, on by default); with it on, Draw Things being closed is green in Settings
-  ("opens when needed") and New Mini's grey sculpt and Describe it only need it installed with
+  ("opens when needed") and New Mini's grey sculpt and Description only need it installed with
   FLUX.2 Klein. Tests use a fake launcher (`FakeApp`): never the real app.
 - **The first-run tour is popovers on the real controls** (`Sources/Mimic/TourGuide.swift`;
   when it starts and what comes next is `MimicCore/Tour.swift`, tested). Anchor preferences

@@ -47,7 +47,21 @@ final class AppModel {
     var collapsed = Set(UserDefaults.standard.stringArray(forKey: "collapsedProjects") ?? []) {
         didSet { UserDefaults.standard.set(collapsed.sorted(), forKey: "collapsedProjects") }
     }
-    var selection: Mini.ID?
+    var selection: Mini.ID? {
+        // Picked with Mimic in front: a ready mini has been seen.
+        didSet { if let selection, unseen.contains(selection), NSApp.isActive { unseen.remove(selection); updateBadge() } }
+    }
+    /// Minis that finished while nobody was looking, counted on the Dock icon until seen: picked
+    /// in the list with Mimic in front, or the job's popover seen after they ended.
+    private var unseen: Set<String> = []
+    /// The details panel beside a mini's page, kept between launches. Here rather than in
+    /// @AppStorage, so View → Show/Hide Details follows it as the menus follow the selection.
+    var showDetails = UserDefaults.standard.object(forKey: "showDetails") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(showDetails, forKey: "showDetails") }
+    }
+    /// Opens the main window again after it's been closed (a job carries on without it); set by
+    /// the window.
+    @ObservationIgnored var openMainWindow: () -> Void = {}
     /// The job's latest status, updated on the main thread; nil before the first job.
     var job: JobStatus?
     /// Why a job can't start (a required check failed), or nil: the latest health checks.
@@ -174,11 +188,22 @@ final class AppModel {
         updateBadge()
     }
 
-    /// The number waiting, on the Dock icon; a finished job's ✓ or ! when nothing is.
+    /// How many minis are ready and not yet seen, on the Dock icon; nothing when none are. The
+    /// only place the badge is set.
     func updateBadge() {
-        let tile = NSApp.dockTile
-        if !queue.isEmpty { tile.badgeLabel = "\(queue.count)" }
-        else if let label = tile.badgeLabel, Int(label) != nil { tile.badgeLabel = nil }
+        let label = JobProgress.badge(unseen: unseen, minis: minis.map(\.name))
+        if NSApp.dockTile.badgeLabel != label { NSApp.dockTile.badgeLabel = label }
+    }
+
+    /// Mimic came to the front: the mini on screen has been seen.
+    func becameActive() {
+        if let selection, unseen.remove(selection) != nil { updateBadge() }
+    }
+
+    /// Brings Mimic and its window to the front, opening the window again if it was closed.
+    func showWindow() {
+        NSApp.activate()
+        openMainWindow()
     }
 
     /// The running job, here or in another Mimic.
@@ -441,6 +466,8 @@ final class AppModel {
         queuedNote = nil
         ended = []
         jobShown = false
+        unseen = []
+        updateBadge()
     }
 
     /// Opens the job's popover a moment after New Mini or Resize has gone: both in one update
@@ -493,8 +520,11 @@ final class AppModel {
         guard !s.running else { return }
         confirmingStop = false
         reload()
-        if s.succeeded { selection = s.name }
+        // Not selected: that would pull you away from what you're looking at. The notification
+        // and the job's popover go to it. It counts as ready and unseen unless it's on screen.
         if finished {
+            if s.succeeded, !(NSApp.isActive && selection == s.name) { unseen.insert(s.name) }
+            updateBadge()
             history = timings.load()
             announce(s)
         }
@@ -536,7 +566,6 @@ final class AppModel {
             if fail { s.step = 2; s.problem = "The 3D engine stopped early (pretend)." }
             job = s
             reload()
-            if s.succeeded { selection = s.name }
         }
     }
     #endif
@@ -550,19 +579,48 @@ final class AppModel {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 
+    /// A notification when a mini ends and Mimic isn't in front (or its window was closed), with
+    /// Open in the slicer on a ready one and Try Again on a failed one. Clicking it goes to the mini.
     private func announce(_ s: JobStatus) {
-        guard !s.canceled, !NSApp.isActive else { return }
-        if queue.isEmpty { NSApp.dockTile.badgeLabel = s.succeeded ? "✓" : "!" }
-        guard Bundle.main.bundleIdentifier != nil else { return }
+        guard !s.canceled, !(NSApp.isActive && NSApp.mainWindow != nil), Bundle.main.bundleIdentifier != nil else { return }
         let who = Mini.displayName(s.name)
         let content = UNMutableNotificationContent()
         content.title = s.succeeded ? "\(who) is ready" : "\(who) didn't finish"
-        content.body = s.succeeded ? "Your mini is ready to print." : "Open Mimic to try again."
+        content.body = s.succeeded ? "Ready to print." : "Something went wrong while \(JobRunner.label(s.step).lowercased())."
+        content.categoryIdentifier = s.succeeded ? MiniNotification.ready : MiniNotification.failed
+        content.userInfo = [MiniNotification.mini: s.name]
+        // Again each time: the ready one names the slicer, which can change in Settings.
+        MiniNotification.register(slicer: slicerName)
         content.sound = .default
         // One identifier per mini: a shared one made each notification replace the last, so of
         // three minis finishing from the queue only the last "ready" was left.
         let id = "job-\(s.name)-\(Int(Date().timeIntervalSince1970))"
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: id, content: content, trigger: nil))
+    }
+
+    /// A notification about `name` was clicked (`action` is the default action) or one of its
+    /// buttons pressed.
+    func notificationAnswered(_ action: String, mini name: String) {
+        switch action {
+        case MiniNotification.retry:
+            // In the background, as the job's popover's Try Again; only a refusal brings Mimic forward.
+            do { try retry(name) } catch {
+                problem = plainWords(error, else: "Couldn't try again. Open the mini and try again from there.")
+                go(to: name)
+            }
+        case MiniNotification.open:
+            reload()
+            if let stl = minis.first(where: { $0.name == name })?.stl { openInSlicer(stl) } else { go(to: name) }
+        default:
+            go(to: name)
+        }
+    }
+
+    /// Mimic in front with `name` selected, the window opened again if it was closed.
+    func go(to name: String) {
+        showWindow()
+        reload()
+        if minis.contains(where: { $0.name == name }) { selection = name }
     }
 
     // MARK: Slicer
@@ -584,3 +642,20 @@ final class AppModel {
 
 /// A job refused before it started, in words for people.
 struct Refusal: Error, CustomStringConvertible { let description: String }
+
+/// What a finished mini's notification carries, and its buttons.
+enum MiniNotification {
+    static let ready = "mini-ready", failed = "mini-failed"
+    static let retry = "try-again", open = "open-in-slicer"
+    /// The userInfo key holding the mini's name.
+    static let mini = "mini"
+
+    static func register(slicer: String) {
+        UNUserNotificationCenter.current().setNotificationCategories([
+            UNNotificationCategory(identifier: ready, actions: [UNNotificationAction(identifier: open, title: "Open in \(slicer)")],
+                                   intentIdentifiers: []),
+            UNNotificationCategory(identifier: failed, actions: [UNNotificationAction(identifier: retry, title: "Try Again")],
+                                   intentIdentifiers: []),
+        ])
+    }
+}

@@ -1,7 +1,7 @@
 import Foundation
 import Security
 
-/// The optional AI helper for ✍️ Describe it: turns "a grumpy dwarf blacksmith" into a fuller
+/// The optional AI helper for New Mini's descriptions: turns "a grumpy dwarf blacksmith" into a fuller
 /// description of one figure that prints well. Off unless someone picks a provider in Settings;
 /// it only ever receives the description text.
 public enum HelperProvider: String, CaseIterable, Sendable {

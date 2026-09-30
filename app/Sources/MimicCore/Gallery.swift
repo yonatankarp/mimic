@@ -25,7 +25,7 @@ public struct Mini: Identifiable, Hashable, Sendable {
     /// What its page shows in Previews, in the order ← and → go through them: the picture it
     /// was given, then its views. Only the ones it has.
     public var previews: [MiniPreview] {
-        ((source ?? upload).map { [MiniPreview(caption: "Your picture", url: $0)] } ?? [])
+        ((source ?? upload).map { [MiniPreview(caption: "Picture", url: $0)] } ?? [])
             + renders.map { MiniPreview(caption: $0.view.capitalized, url: $0.url) }
     }
     /// The 3D model a resize starts from: without it only a full Make can finish the mini.

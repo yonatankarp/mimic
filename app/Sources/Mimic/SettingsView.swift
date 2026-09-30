@@ -1,6 +1,7 @@
 import AppKit
 import MimicCore
 import SwiftUI
+import TipKit
 
 /// Settings' tabs. Whoever opens Settings for a reason picks the tab first (`select`), and the
 /// window, open or not, follows: the key is the tab picker's own.
@@ -72,8 +73,11 @@ struct SettingsView: View {
         }
         Section {
             ForEach(health.checks.filter { !$0.required }) { row($0) }
-            Toggle("Open Draw Things when needed", isOn: $openDrawThings)
-                .help("When a mini needs a picture drawn, Mimic opens Draw Things in the background, and quits it afterwards if Mimic was the one that opened it.")
+            Toggle(isOn: $openDrawThings) {
+                Text("Open Draw Things when needed")
+                Text("In the background, and quit afterwards if Mimic opened it.")
+            }
+                .help("Opens Draw Things in the background when a mini needs a picture")
                 .onChange(of: openDrawThings) { if !model.running { health.check(model.install) } }
             if drawThingsProblem {
                 // The steps are on their own tab now; this is the way there.
@@ -95,7 +99,7 @@ struct SettingsView: View {
                 ForEach(slicers) { Text($0.name).tag($0.id) }
                 Text("Mac's default app for 3D files").tag(Slicer.macDefault)
             }
-            .help("Where Open in … sends a finished mini. The Mac's default app is whatever opens .stl files when you double-click one.")
+            .help("Where Open in … sends a finished mini")
         } footer: {
             Text("Mimic lists the slicers it finds on this Mac. The Mac's default app works with any other slicer.")
                 .foregroundStyle(.secondary)
@@ -410,7 +414,7 @@ private struct ResetSection: View {
             LabeledContent("Start over") {
                 Button("Reset Mimic…") { asking = true }
                     .disabled(model.running)
-                    .help(model.running ? "Wait for the mini being made to finish." : "Forget Mimic's settings and show the tour again. Your minis stay.")
+                    .help(model.running ? "Wait for the mini being made to finish" : "Forget Mimic's settings and show the tour again")
             }
             if let problem { Text(problem).font(.callout).foregroundStyle(.red) }
         } footer: {
@@ -419,10 +423,10 @@ private struct ResetSection: View {
         }
         .confirmationDialog("Reset Mimic?", isPresented: $asking) {
             Button("Reset") { reset(removeEngine: false) }
-            Button("Reset and Remove the 3D Engine", role: .destructive) { reset(removeEngine: true) }
+            Button("Reset All", role: .destructive) { reset(removeEngine: true) }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Mimic forgets its settings and any saved AI keys, and shows the tour again. Your minis are kept.\n\nAlso removing the 3D engine shows the first-launch setup again, and downloads the engine again (about 8 GB).")
+            Text("Mimic forgets its settings, tips and any saved AI keys, and shows the tour again. Your minis are kept.\n\nReset All also removes the 3D engine: first-launch setup shows again and downloads it again (about 8 GB).")
         }
     }
 
@@ -433,6 +437,8 @@ private struct ResetSection: View {
             problem = "Couldn't remove the 3D engine. \(model.plainWords(error, else: "Check that Mimic can write to its folder, then try again."))"
             return
         }
+        // The tips show again too: their store is cleared as the new copy starts.
+        UserDefaults.standard.set(true, forKey: Tips.resetKey)
         // Opens again as a fresh launch would: a new copy of the app, then this one quits.
         let config = NSWorkspace.OpenConfiguration()
         config.createsNewApplicationInstance = true

@@ -68,6 +68,14 @@ public enum JobProgress {
     /// switching to another app, or while the job ran, never counts.
     public static func seenEnd(active: Bool, busy: Bool, shownEnd: Bool) -> Bool { active && !busy && shownEnd }
 
+    /// The Dock icon's badge: how many minis are ready and not yet seen, counting only those
+    /// still in the gallery (one trashed or renamed since drops out), or nil for none. A count,
+    /// never a symbol, and not the queue.
+    public static func badge(unseen: Set<String>, minis: [String]) -> String? {
+        let n = unseen.intersection(minis).count
+        return n == 0 ? nil : "\(n)"
+    }
+
     /// The job the toolbar shows, which its popover hangs from: this Mimic's while it runs, and
     /// once it ends until that's been seen (`keptShown`); else what another Mimic is running.
     public static func inToolbar(_ job: JobStatus?, keptShown: Bool, elsewhere: JobStatus?) -> JobStatus? {

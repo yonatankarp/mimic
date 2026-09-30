@@ -20,7 +20,8 @@ struct MiniDetail: View {
     @State private var offerName: String?
     /// What the viewer measured in the print file.
     @State private var measured: Measured?
-    @AppStorage("showDetails") private var showDetails = true
+    /// On the model, so View → Show/Hide Details always names what it will do.
+    private var showDetails: Bool { model.showDetails }
 
     var body: some View {
         let settings = MiniSettings.load(mini.folder)
@@ -30,7 +31,7 @@ struct MiniDetail: View {
         page
             .navigationTitle(mini.displayName)
             .toolbar { toolbar(kind: settings.kind ?? .character) }
-            .inspector(isPresented: $showDetails) {
+            .inspector(isPresented: Binding(get: { model.showDetails }, set: { model.showDetails = $0 })) {
                 details(settings, versions: versions, canKeep: trashable > 0)
                     .inspectorColumnWidth(min: 240, ideal: 290, max: 420)
             }
@@ -101,7 +102,7 @@ struct MiniDetail: View {
         ToolbarItemGroup(placement: .primaryAction) {
             Menu {
                 Button("Resize This Mini…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resize(mini) }
-                    .help("Remakes the print file with new sizes. About a minute. The \(kind == .object ? "object" : "character") itself doesn't change.")
+                    .help("Remakes the print file at new sizes, in about a minute")
                     .disabled(!mini.hasModel || model.cantStart != nil || model.waiting(mini.name) != nil)
                 Button("Show in Finder", systemImage: "folder") { model.showInFinder(mini) }
                     .help("Shows the print file and the previews in Finder.")
@@ -111,13 +112,13 @@ struct MiniDetail: View {
             .help("Resize this mini, or show it in Finder")
             Button("Open in \(model.slicerName)") { if let stl = mini.stl { model.openInSlicer(stl) } }
                 .buttonStyle(.glassProminent)
-                .help("Opens the print file in \(model.slicerName) to slice and print. Choose another slicer in Settings → General.")
+                .help("Opens the print file in \(model.slicerName) to slice and print")
                 .disabled(mini.stl == nil)
                 .tourCallout(.mini)
-            Button { showDetails.toggle() } label: {
+            Button { model.showDetails.toggle() } label: {
                 Label(showDetails ? "Hide Details" : "Show Details", systemImage: "sidebar.trailing")
             }
-            .help(showDetails ? "Hide the details panel (⌃⌘I)" : "Show its size, previews, versions and print tips (⌃⌘I)")
+            .help(showDetails ? "Hide the details panel (⌃⌘I)" : "Show size, previews, versions and print tips (⌃⌘I)")
         }
     }
 
@@ -218,7 +219,7 @@ struct MiniDetail: View {
         if let stl = mini.stl {
             tile
                 .onDrag { NSItemProvider(contentsOf: stl) ?? NSItemProvider() }
-                .help("Click, or press Space, to open it in Quick Look. Drag to Finder or your slicer to copy the print file.")
+                .help("Click or press Space for Quick Look; drag out for the print file")
         } else {
             tile.help("Click, or press Space, to open it in Quick Look")
         }
