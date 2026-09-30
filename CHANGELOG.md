@@ -6,6 +6,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 
 ### New
 - **Pictures from more places.** Drag a picture into New Mini straight from Photos or a web page, or choose File → Import from iPhone to take a photo for it. Each picture is turned upright and made a sensible size when it's added, so big phone photos no longer slow every step down.
+- **35 mm (heroic) and 75 mm scales.** Choose them under Game scale in New Mini and Resize. 54 mm minis now get a 40 mm base and 75 mm a 50 mm one, the sizes minis of those scales stand on. In Terminal: `--scale 35`.
 
 ### Changed
 
