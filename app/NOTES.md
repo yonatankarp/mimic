@@ -426,8 +426,8 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   the next launch. Sparkle sends no system
   profile (`SUEnableSystemProfiling` is off by default).
   Releasing: the release job (macOS, for `hdiutil`) runs `generate_appcast` from the pinned
-  Sparkle 2.10.0 tarball on the disk image, with the version's CHANGELOG section as Markdown
-  notes, and publishes `appcast.xml` with the release. The private key lives in the
+  Sparkle 2.10.0 tarball on the disk image, with the version's release notes (made from its pull
+  requests by `tools/release_notes.py`) as Markdown notes, and publishes `appcast.xml` with the release. The private key lives in the
   maintainer's Keychain and in the `SPARKLE_PRIVATE_KEY` secret, passed on stdin; a key that
   doesn't match `SUPublicEDKey` fails the release rather than publishing an unsigned update.
   Checked locally with a throwaway key: the enclosure URL, `sparkle:version`, the Markdown notes
