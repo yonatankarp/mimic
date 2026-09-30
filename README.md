@@ -33,7 +33,7 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
 3. Pick a 3D model (TRELLIS.2, the default, keeps what a figure holds most reliably; Pixal3D
    is faster, with the crispest surface) and press **Download**. The first time, Mimic
    downloads its 3D engine (8.3 to 9.3 GB, depending on the model). You can keep using your Mac while it does, and
-   switch models later in Settings.
+   switch models later in Settings → 3D Model.
 
 > [!IMPORTANT]
 > **The first time you open Mimic, your Mac may say it can't check it.** Mimic is a free app

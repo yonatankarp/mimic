@@ -46,7 +46,7 @@ public enum RequestError: Error, Equatable, CustomStringConvertible {
         case .noModelYet: "This mini isn't made yet."
         case .notFound: "That mini doesn't exist."
         case .missing(let what): "\(what) is missing or won't start. Open Settings to see how to fix it."
-        case .modelNotDownloaded(let name): "The \(name) 3D model isn't downloaded. Open Settings → 3D model to download it."
+        case .modelNotDownloaded(let name): "The \(name) 3D model isn't downloaded. Open Settings → 3D Model to download it."
         case .queued(let n): "\(Mini.displayName(n)) is already waiting in the queue."
         case .noPicture: "That picture can't be found any more. Choose it again."
         case .badProjectName: "Give the project a name, without a slash or colon, that doesn't start with a dot or an underscore."

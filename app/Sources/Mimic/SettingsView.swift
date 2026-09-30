@@ -55,9 +55,13 @@ struct SettingsView: View {
         }
     }
 
-    /// A tab: a grouped form as tall as what's in it.
+    /// A tab: a grouped form as tall as what's in it, so the window changes height with the
+    /// tab. Only past most of the screen (every check failing, say) does it scroll instead.
     private func pane(@ViewBuilder _ content: () -> some View) -> some View {
-        Form(content: content).formStyle(.grouped).frame(width: Self.width)
+        Form(content: content).formStyle(.grouped)
+            .frame(width: Self.width)
+            .frame(maxHeight: (NSScreen.main?.visibleFrame.height ?? 900) * 0.8)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     @ViewBuilder private var general: some View {
@@ -253,8 +257,6 @@ private struct ModelsSection: View {
         let _ = (setup.removals, Health.shared.lastChecked)
         Section {
             ForEach(EngineDownload.catalogue) { row($0, setup) }
-        } header: {
-            Text("3D model")
         } footer: {
             Text("New minis are made with the model in use. Try Again uses the model a mini was first made with.")
                 .foregroundStyle(.secondary)

@@ -119,4 +119,4 @@ The app downloads a pre-built Pixal3D so that nobody needs Xcode.
 3. Upload the tarball to a GitHub release.
 4. Update `EngineDownload.version` and `EngineDownload.engine` (URL, size, sha256) in
    `app/Sources/MimicCore/EngineDownload.swift`. Installed copies replace an engine whose
-   `VERSION` doesn't match the next time setup runs (Settings → Repair).
+   `VERSION` doesn't match the next time setup runs (Settings → General → Repair).
