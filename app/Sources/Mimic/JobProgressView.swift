@@ -653,7 +653,8 @@ private struct NeedsSetupItem: View {
     }
 }
 
-/// Quitting during a job asks first, and a confirmed quit stops the job before leaving.
+/// Quitting during a job asks first; a confirmed quit stops the job before leaving and puts it
+/// back at the front of the queue, to carry on from its last finished step at the next launch.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let model = AppModel()
@@ -661,26 +662,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let s = model.job, s.running else { return .terminateNow }
         let jobs = model.jobs
-        let alert = NSAlert()
-        let who = Mini.displayName(s.name)
-        alert.messageText = s.kind == .prep ? "Mimic is still resizing “\(who)”" : "Mimic is still making “\(who)”"
-        let waiting = model.queue.count
-        alert.informativeText = (s.kind == .prep ? "Quitting stops it, and it keeps its previous size."
-                                                 : "Quitting stops it, and what's been made so far will be thrown away.")
-            + (waiting == 0 ? "" : " The \(waiting == 1 ? "mini" : "\(waiting) minis") waiting in the queue will start the next time you open Mimic.")
-        // First, so Esc presses it; the destructive button gets no Return.
-        alert.addButton(withTitle: "Cancel")
-        alert.addButton(withTitle: "Quit").hasDestructiveAction = true
-        guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }
+        // Logging out, restarting or shutting down: a question would hold the Mac up, and
+        // nothing is lost by not asking.
+        if !Self.systemQuit {
+            let alert = NSAlert()
+            let who = Mini.displayName(s.name)
+            alert.messageText = s.kind == .prep ? "Mimic is still resizing “\(who)”" : "Mimic is still making “\(who)”"
+            let waiting = model.queue.count
+            alert.informativeText = "Quitting stops it for now. The next time you open Mimic, it carries on from the last step it finished."
+                + (waiting == 0 ? "" : " The \(waiting == 1 ? "mini" : "\(waiting) minis") waiting in the queue will follow.")
+            // First, so Esc presses it.
+            alert.addButton(withTitle: "Cancel")
+            alert.addButton(withTitle: "Quit")
+            guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }
+        }
         jobs.keepGoing = { _ in false }  // the queue waits for the next launch
-        jobs.cancel()
-        // The job's own thread tidies up (the Trash, the lock) once its programs have ended;
+        jobs.cancel(keepingWork: true)
+        // The job's own thread tidies up (the queue, the lock) once its programs have ended;
         // waiting here on the main thread would block the updates it sends.
         DispatchQueue.global().async {
             jobs.waitUntilDone()
             DispatchQueue.main.async { NSApp.reply(toApplicationShouldTerminate: true) }
         }
         return .terminateLater
+    }
+
+    /// The quit is the Mac logging out, restarting or shutting down, as its quit event says.
+    private static var systemQuit: Bool {
+        guard let event = NSAppleEventManager.shared().currentAppleEvent,
+              let why = event.attributeDescriptor(forKeyword: AEKeyword(kAEQuitReason)) ?? event.paramDescriptor(forKeyword: AEKeyword(kAEQuitReason))
+        else { return false }
+        return [kAELogOut, kAEReallyLogOut, kAEShowRestartDialog, kAERestart, kAEShowShutdownDialog, kAEShutDown]
+            .map { OSType($0) }.contains(why.enumCodeValue)
     }
 
     func applicationWillFinishLaunching(_ notification: Notification) {
