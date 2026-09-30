@@ -117,6 +117,9 @@ public struct MiniSettings: Codable, Equatable, Sendable {
     /// The first of its versions, when Make Another Version made it: every version of a mini
     /// names the same one, which is how they're found together (see `Gallery.versions`).
     public var versionOf: String?
+    /// When it was asked for, which the list is sorted by. Older minis have none: their folder's
+    /// creation date stands in (see `Gallery.created`).
+    public var created: Date?
 
     public init() {}
 
@@ -124,10 +127,15 @@ public struct MiniSettings: Codable, Equatable, Sendable {
 
     static func file(_ folder: URL) -> URL { folder.appendingPathComponent("settings.json") }
 
+    /// Dates as readable text, to the millisecond, so minis asked for together still sort in order.
+    private static let dates = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+
     /// Unreadable or missing reads as empty: a mini made before settings existed has none.
     public static func load(_ folder: URL) -> MiniSettings {
+        let dec = JSONDecoder()
+        dec.dateDecodingStrategy = .custom { try dates.parse($0.singleValueContainer().decode(String.self)) }
         guard let data = try? Data(contentsOf: file(folder)),
-              let s = try? JSONDecoder().decode(MiniSettings.self, from: data) else { return MiniSettings() }
+              let s = try? dec.decode(MiniSettings.self, from: data) else { return MiniSettings() }
         return s
     }
 
@@ -137,6 +145,7 @@ public struct MiniSettings: Codable, Equatable, Sendable {
         change(&s)
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+        enc.dateEncodingStrategy = .custom { date, e in var c = e.singleValueContainer(); try c.encode(date.formatted(dates)) }
         try enc.encode(s).write(to: file(folder), options: .atomic)
     }
 }
