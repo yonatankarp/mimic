@@ -69,8 +69,17 @@ final class AppModel {
     /// Mimic is the app in front. Set before the popover closes on switching away (it closes
     /// when the app resigns), which NSApp.isActive may not yet say.
     private var active = true
-    /// "Stop making …?", asked from the job's popover.
+    /// "Stop making …?", asked from the job's popover, the Mini menu or the Dock menu.
     var confirmingStop = false
+    /// The job in the toolbar, which the job's popover hangs from; nil hides both.
+    var toolbarJob: JobStatus? { JobProgress.inToolbar(job, keptShown: jobShown, elsewhere: elsewhere) }
+    /// This Mimic's job can be stopped: "Stop Making…" or "Stop Resizing…" in the menus, else nil.
+    var stopCommand: String? {
+        guard let job, job.running else { return nil }
+        return job.kind == .prep ? "Stop Resizing…" : "Stop Making…"
+    }
+    /// View → Face Front: bumped for the mini's 3D view to turn back to face you.
+    var faceFrontRequests = 0
     /// The waiting job on "Take it out of the queue?", asked from the job's popover.
     var unqueueing: QueueEntry?
     /// The mini waiting on "Move to Trash?", asked from the sidebar or the Mini menu.

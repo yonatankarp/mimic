@@ -3,7 +3,7 @@ import MimicCore
 import Observation
 
 /// The latest health check results, shared by the Settings window, the Make button and the
-/// Settings badge. One instance for the whole app (`Health.shared`), so there's only ever one
+/// toolbar's Needs Setup. One instance for the whole app (`Health.shared`), so there's only ever one
 /// check run and one Draw Things watch going.
 @MainActor @Observable
 final class Health {
