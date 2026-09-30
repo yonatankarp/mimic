@@ -31,7 +31,7 @@ public enum Rules {
 }
 
 public enum RequestError: Error, Equatable, CustomStringConvertible {
-    case badName, badNumber(String), badNozzle, nameTaken(String), busy(String, JobKind = .generate), nothingToRetry, noModelYet, notFound, missing(String), modelNotDownloaded(String), unknownModel(String), queued(String), noPicture,
+    case badName, badNumber(String), badNozzle, nameTaken(String), busy(String, JobKind = .generate), nothingToRetry, noModelYet, notFound, missing(String), modelNotDownloaded(String), unknownModel(String), queued(String), noPicture, unreadablePicture,
          badProjectName, projectTaken(String), projectNotFound, cantMove(String), projectBusy(String, String), noSource(String)
     public var description: String {
         switch self {
@@ -49,6 +49,7 @@ public enum RequestError: Error, Equatable, CustomStringConvertible {
         case .modelNotDownloaded(let name): "The \(name) 3D model isn't downloaded. Open Settings → 3D Model to download it."
         case .queued(let n): "\(Mini.displayName(n)) is already waiting in the queue."
         case .noPicture: "That picture can't be found any more. Choose it again."
+        case .unreadablePicture: "Mimic can't read that picture. Try another one, or save it as a PNG or JPEG first."
         case .badProjectName: "Give the project a name, without a slash or colon, that doesn't start with a dot or an underscore."
         case .projectTaken(let n): "You already have a project or a mini called \(n)."
         case .projectNotFound: "That project doesn't exist."

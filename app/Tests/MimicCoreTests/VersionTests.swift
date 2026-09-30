@@ -35,7 +35,7 @@ final class VersionTests: XCTestCase {
         let fx = try Fixture(), runs = fx.install.runs
         try fx.modelFiles(); try fx.modelFiles(EngineDownload.model("pixal3d-sv")!)
         let tools = fx.tools()
-        let picture = fx.root.appendingPathComponent("pic.png"); fm.createFile(atPath: picture.path, contents: Data("the picture".utf8))
+        let picture = try fx.picture()
         try Gallery.createProject(runs, "Tiefling Party")
         // Something runs first, so the versions wait and nothing is drawn.
         _ = try fx.mini("busy")
@@ -67,7 +67,7 @@ final class VersionTests: XCTestCase {
             switch name {
             case "wizard":  // the same picture, not redrawn: only the 3D seed changes
                 XCTAssertEqual(plan[0], .copyPicture(from: upload, to: source))
-                XCTAssertEqual(try Data(contentsOf: upload), Data("the picture".utf8))
+                XCTAssertEqual(try Engine.rgba(Engine.load(upload)), try Engine.rgba(Engine.load(picture)))
             case "sculpted": XCTAssertEqual(plan[0], .sculptPicture(from: upload, seed: s.seed!, to: source))
             default: XCTAssertEqual(plan[0], .drawCharacter(description: "an elf ranger", seed: s.seed!, to: source))
             }

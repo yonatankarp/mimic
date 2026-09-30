@@ -78,7 +78,7 @@ final class ProjectTests: XCTestCase {
         XCTAssertTrue(Gallery.nameInUse(runs, "orcs"))
         XCTAssertTrue(Gallery.nameInUse(runs, "raven"))
         let jobs = JobRunner(install: fx.install, tools: fx.tools())
-        let picture = fx.root.appendingPathComponent("pic.png"); fm.createFile(atPath: picture.path, contents: Data([1]))
+        let picture = try fx.picture()
         for (name, project) in [("raven", nil), ("raven", "Orcs"), ("dwarf", "Orcs"), ("orcs", nil)] as [(String, String?)] {
             XCTAssertThrowsError(try jobs.make(name: name, picture: .image(picture), restyle: false, seed: 1, sizes: sizes,
                                                model: EngineDownload.standard, project: project), "\(name) in \(project ?? "Unsorted")") {
@@ -127,7 +127,7 @@ final class ProjectTests: XCTestCase {
         try fx.modelFiles()
         _ = try fx.mini("first")
         try Gallery.createProject(runs, "Tiefling Party")
-        let picture = fx.root.appendingPathComponent("pic.png"); fm.createFile(atPath: picture.path, contents: Data([1]))
+        let picture = try fx.picture()
         let spy = TrashSpy()
         let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.recorder(sleep: 0.5)), trash: { spy($0) })
         try jobs.resize(name: "first", sizes: sizes)
@@ -315,7 +315,7 @@ extension ProjectTests {
         let fx = try Fixture(), runs = fx.install.runs
         try fx.modelFiles()
         try Gallery.createProject(runs, "Birds")
-        let picture = fx.root.appendingPathComponent("pic.png"); fm.createFile(atPath: picture.path, contents: Data([1]))
+        let picture = try fx.picture()
         let spy = TrashSpy()
         let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("slow", "sleep 5")), trash: { spy($0) })
         XCTAssertNil(try jobs.make(name: "raven", picture: .image(picture), restyle: false, seed: 1, sizes: sizes,

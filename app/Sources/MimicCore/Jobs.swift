@@ -104,9 +104,12 @@ public final class JobRunner: @unchecked Sendable {
         _ = try sizes.flags()
         guard model.complete(in: install) else { throw RequestError.modelNotDownloaded(model.name) }
         var settings = MiniSettings()
+        var tidied: Data?
         switch picture {
         case .image(let url):
             guard FileManager.default.isReadableFile(atPath: url.path) else { throw RequestError.noPicture }
+            guard let png = try? Engine.tidied(url) else { throw RequestError.unreadablePicture }
+            tidied = png
             settings.source = .image
         case .description(let text, let original):
             settings.source = .desc; settings.desc = text; settings.descOriginal = original
@@ -141,11 +144,9 @@ public final class JobRunner: @unchecked Sendable {
                 // A failed attempt's picture is from what it was asked for then: made again from
                 // this one's, since the plan starts at the 3D step whenever it's there (#79).
                 for f in ["source.png", "source__matted.png"] { try? fm.removeItem(at: folder.appendingPathComponent(f)) }
-                if case .image(let url) = picture {
-                    let upload = folder.appendingPathComponent("upload.img")
-                    try? fm.removeItem(at: upload)
-                    try fm.copyItem(at: url, to: upload)
-                }
+                // Upright, a sensible size and PNG, tidied above (upload.img is its name from
+                // before, when it was a copy of whatever was chosen).
+                try tidied?.write(to: folder.appendingPathComponent("upload.img"), options: .atomic)
             } catch {
                 if created { try? fm.removeItem(at: folder) }
                 throw error

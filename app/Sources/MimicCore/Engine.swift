@@ -230,17 +230,36 @@ public enum Engine {
 
     // MARK: Pictures
 
-    /// The picture upright, at full size: a photo taken sideways is stored on its side with an
-    /// orientation that says so, and New Mini shows it turned upright, so every step reads it
-    /// that way too.
-    static func load(_ url: URL) throws -> CGImage {
+    /// The longest side a new mini's picture is kept at: a 48 MP photo made every step (the
+    /// cutout, its edge cleaning) work on twenty times the pixels, for a 3D engine that sees
+    /// 1024 or 1536 of them.
+    public static let pictureSide = 2048
+
+    /// A new mini's picture as it's kept in its folder: upright, no longer than `pictureSide`
+    /// on its longest side (never enlarged), as PNG with its transparency. Tidied once, when
+    /// it's added, so every step after reads the same picture.
+    public static func tidied(_ url: URL) throws -> Data {
+        let image = try load(url, longest: pictureSide)
+        let png = NSMutableData()
+        guard let dest = CGImageDestinationCreateWithData(png, UTType.png.identifier as CFString, 1, nil) else {
+            throw Failure("Couldn't read the picture \(url.lastPathComponent).")
+        }
+        CGImageDestinationAddImage(dest, image, nil)
+        guard CGImageDestinationFinalize(dest) else { throw Failure("Couldn't read the picture \(url.lastPathComponent).") }
+        return png as Data
+    }
+
+    /// The picture upright, at full size or no longer than `longest`: a photo taken sideways is
+    /// stored on its side with an orientation that says so, and New Mini shows it turned
+    /// upright, so every step reads it that way too.
+    static func load(_ url: URL, longest: Int? = nil) throws -> CGImage {
         guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
               let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
               let w = props[kCGImagePropertyPixelWidth] as? Int, let h = props[kCGImagePropertyPixelHeight] as? Int,
               let image = CGImageSourceCreateThumbnailAtIndex(src, 0, [
                   kCGImageSourceCreateThumbnailFromImageAlways: true,
                   kCGImageSourceCreateThumbnailWithTransform: true,
-                  kCGImageSourceThumbnailMaxPixelSize: max(w, h),
+                  kCGImageSourceThumbnailMaxPixelSize: min(max(w, h), longest ?? max(w, h)),
               ] as CFDictionary) else {
             throw Failure("Couldn't read the picture \(url.lastPathComponent).")
         }

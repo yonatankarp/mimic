@@ -5,6 +5,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 ## 0.8.0
 
 ### New
+- **Pictures from more places.** Drag a picture into New Mini straight from Photos or a web page, or choose File → Import from iPhone to take a photo for it. Each picture is turned upright and made a sensible size when it's added, so big phone photos no longer slow every step down.
 
 ### Changed
 
