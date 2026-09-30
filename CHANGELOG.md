@@ -5,6 +5,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 ## 0.7.0
 
 ### New
+- **Open a whole party in your slicer at once.** Select several minis, or right-click a project, and choose Open Together: one print file with every mini laid out on the bed a little apart, each its own object named after the mini, so you can move or remove any of them.
 - **Select several minis** in the list, the Mac way: ⌘-click, ⇧-click, or ⌘A for all in view. Right-click, the Mini menu and ⌘⌫ then act on all of them: Move to Trash (one question; a mini being made stays, and it says so), Move to Project, Resize (one size for all, like Resize All) and Show in Finder. Drag them onto a project together.
 - **How much filament a mini needs.** A mini's page says roughly how much it takes, "Up to 4 g · 1.3 m" of 1.75 mm PLA, and each project shows the total for its minis beside its name. It's worked out for a solid print, so infill makes big minis take less.
 - **Square and hex bases.** In New Mini and Resize, choose a round, square or hex base; a hex is measured across its flat sides, so a 25 mm hex fits a 1-inch hex map. The figure faces a flat side, and Resize, Try Again and Make Another Version keep the shape. In Terminal: `--base-shape square`.

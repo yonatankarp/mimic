@@ -135,6 +135,8 @@ struct Sidebar: View {
     @ViewBuilder private func projectMenu(_ project: String) -> some View {
         Button("New Mini in This Project…", systemImage: "plus") { model.makeInProject = project; model.sheet = .make }
             .disabled(!model.setup.installed)
+        Button("Open Together in \(model.slicerName)", systemImage: "printer") { model.openTogether(model.minis.filter { $0.project == project }) }
+            .disabled(model.minis.filter { $0.project == project && $0.stl != nil }.count < 2 || model.packing)
         Button("Show in Finder", systemImage: "folder") { model.showInFinder(project: project) }
         Button("Resize All…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resizeAll(project) }
             .disabled(!model.minis.contains { $0.project == project && $0.hasModel } || model.cantStart != nil)
@@ -174,6 +176,9 @@ struct SeveralMenu: View {
     let minis: [Mini]
     @Environment(AppModel.self) private var model
     var body: some View {
+        Button("Open Together in \(model.slicerName)", systemImage: "printer") { model.openTogether(minis) }
+            .disabled(minis.filter { $0.stl != nil }.count < 2 || model.packing)
+            .help("One print file with all of them on the bed, each its own object named after it.")
         Button("Show in Finder", systemImage: "folder") { model.showInFinder(minis) }
         Button("Resize \(minis.count) Minis…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resizeSeveral(minis) }
             .disabled(!minis.contains(where: \.hasModel) || model.cantStart != nil)

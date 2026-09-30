@@ -561,6 +561,36 @@ final class AppModel {
 
     var slicerName: String { Slicer.preferred()?.name ?? "your slicer" }
 
+    /// Minis being put in one print file for Open Together; its menu items wait meanwhile.
+    var packing = false
+
+    /// Open Together: one 3MF with every made mini of `group` laid out on the bed, each its own
+    /// object named after it, opened in the slicer. Named after their project when they share
+    /// one. Written off the main thread (a party's file is tens of MB), kept in the temporary
+    /// folder: the slicer's own project is where it's saved.
+    func openTogether(_ group: [Mini]) {
+        let made = group.filter { $0.stl != nil }
+        guard made.count > 1, !packing else { return }
+        let projects = Set(made.map(\.project))
+        let name = projects.count == 1 ? (projects.first! ?? "Unsorted") : "\(made.count) Minis"
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("Open Together")
+        let url = dir.appendingPathComponent(Rules.slug(name).isEmpty ? "minis.3mf" : "\(name).3mf")
+        let parts = made.map { ($0.displayName, $0.stl!) }
+        packing = true
+        Task {
+            let failed: Error? = await Task.detached {
+                do {
+                    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                    try ThreeMF.write(try parts.map { ($0.0, try STL.read($0.1)) }, to: url)
+                    return nil
+                } catch { return error }
+            }.value
+            packing = false
+            if let failed { problem = plainWords(failed, else: "Couldn't put them in one print file. Open them one at a time instead.") }
+            else { openInSlicer(url) }
+        }
+    }
+
     /// The print file selected in Finder, or the folder when there's no print file yet.
     func showInFinder(_ minis: [Mini]) { NSWorkspace.shared.activateFileViewerSelecting(minis.map { $0.stl ?? $0.folder }) }
 }
