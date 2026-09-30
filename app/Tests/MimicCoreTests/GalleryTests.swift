@@ -7,7 +7,7 @@ final class GalleryTests: XCTestCase {
         let fx = try Fixture(); _ = try fx.mini("dwarf")
         try Gallery.rename(fx.install.runs, from: "dwarf", to: "dwarf-cleric")
         let d = fx.install.runs.appendingPathComponent("dwarf-cleric")
-        for f in ["dwarf-cleric.stl", "dwarf-cleric_front.png", "dwarf-cleric_side.png", "dwarf-cleric_back.png", "model.glb", "source.png"] {
+        for f in ["dwarf-cleric.stl", "dwarf-cleric_front.png", "dwarf-cleric_left.png", "dwarf-cleric_right.png", "dwarf-cleric_back.png", "model.glb", "source.png"] {
             XCTAssertTrue(FileManager.default.fileExists(atPath: d.appendingPathComponent(f).path), f)
         }
         XCTAssertEqual(Gallery.list(fx.install.runs).first?.stl?.lastPathComponent, "dwarf-cleric.stl")
@@ -47,6 +47,27 @@ final class GalleryTests: XCTestCase {
         let fx = try Fixture(); _ = try fx.mini("a"); _ = try fx.mini("_scratch")
         XCTAssertEqual(Gallery.list(fx.install.runs).map(\.name), ["a"])
         XCTAssertEqual(Mini.displayName("tiefling-wizard"), "Tiefling Wizard")
+    }
+
+    /// The page's previews and ← →: only the ones it has, in order, stopping at both ends. A mini
+    /// made before the left and right views shows its one side view.
+    func testPreviewsInOrderAndStepping() throws {
+        let fx = try Fixture(), d = try fx.mini("dwarf")
+        var mini = Gallery.list(fx.install.runs)[0]
+        let previews = mini.previews
+        XCTAssertEqual(previews.map(\.caption), ["Your picture", "Front", "Left", "Right", "Back"])
+        XCTAssertEqual(previews.step(from: previews[0], by: 1)?.caption, "Front")
+        XCTAssertEqual(previews.step(from: previews[3], by: -1)?.caption, "Left")
+        XCTAssertNil(previews.step(from: previews[0], by: -1), "wrapped round from the first")
+        XCTAssertNil(previews.step(from: previews[4], by: 1), "wrapped round from the last")
+
+        let fm = FileManager.default
+        try fm.removeItem(at: d.appendingPathComponent("dwarf_left.png"))
+        try fm.removeItem(at: d.appendingPathComponent("dwarf_right.png"))
+        try fm.removeItem(at: d.appendingPathComponent("source.png"))
+        fm.createFile(atPath: d.appendingPathComponent("dwarf_side.png").path, contents: Data([1]))
+        mini = Gallery.list(fx.install.runs)[0]
+        XCTAssertEqual(mini.previews.map(\.caption), ["Front", "Side", "Back"])
     }
 }
 
