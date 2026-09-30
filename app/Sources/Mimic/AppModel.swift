@@ -56,10 +56,17 @@ final class AppModel {
     /// The job stays in the toolbar once it ends, until its popover has been seen.
     var jobShown = false
     /// The job's popover under its toolbar item: opened by clicking it, and by itself when a job
-    /// starts. Closing it (a click outside, Esc) is when a finished job counts as seen.
+    /// starts with Mimic in front. Closing it (a click outside, Esc, the item) may count a
+    /// finished job as seen; see `jobSeen`.
     var jobPopover = false {
         didSet { if oldValue && !jobPopover { jobSeen() } }
     }
+    /// The popover has shown how the job ended, with Mimic in front. Only then can closing it
+    /// clear the toolbar item.
+    private var shownEnd = false
+    /// Mimic is the app in front. Set before the popover closes on switching away (it closes
+    /// when the app resigns), which NSApp.isActive may not yet say.
+    private var active = true
     /// "Stop making …?", asked from the job's popover.
     var confirmingStop = false
     /// The waiting job on "Take it out of the queue?", asked from the job's popover.
@@ -106,6 +113,13 @@ final class AppModel {
         // A job left running by a Mimic that crashed (or was force-quit) is stopped, and jobs
         // left waiting start, asking nothing: they were asked for. Then every few seconds,
         // since another Mimic may quit or crash with jobs still waiting.
+        let center = NotificationCenter.default
+        center.addObserver(forName: NSApplication.willResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.active = false }
+        }
+        center.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.active = true }
+        }
         Task { [weak self] in
             while let self {
                 self.watchQueue()
@@ -377,9 +391,17 @@ final class AppModel {
         }
     }
 
-    /// The job's popover closed: a finished job, with nothing running or waiting, leaves the toolbar.
+    /// The job's popover is showing: note whether it's showing how the job ended, with Mimic in front.
+    func popoverShowing() {
+        if active && jobPopover && !running && elsewhere == nil { shownEnd = true }
+    }
+
+    /// The job's popover closed. A finished job leaves the toolbar only if it was really seen:
+    /// switching to another app also closes the popover, and the "ready" item must still be
+    /// there when you come back.
     private func jobSeen() {
-        guard !running && queue.isEmpty && elsewhere == nil else { return }
+        defer { shownEnd = false }
+        guard JobProgress.seenEnd(active: active, busy: running || !queue.isEmpty || elsewhere != nil, shownEnd: shownEnd) else { return }
         queuedNote = nil
         ended = []
         jobShown = false
@@ -390,7 +412,8 @@ final class AppModel {
     private func showJob() {
         Task {
             try? await Task.sleep(for: .seconds(0.4))
-            guard sheet == nil, !jobPopover else { return }
+            // Not with another app in front: it would close unseen. The toolbar item stays.
+            guard sheet == nil, !jobPopover, active, NSApp.isActive else { return }
             jobPopover = true
             if let words = queuedNote?.text ?? current.map({ "\($0.kind == .prep ? "Resizing" : "Making") \(Mini.displayName($0.name))" }) {
                 AccessibilityNotification.Announcement(words).post()
@@ -426,6 +449,7 @@ final class AppModel {
         job = s
         if started {
             jobShown = true
+            shownEnd = false
             if queuedNote?.name == s.name { queuedNote = nil }
             DockProgress.follow(self)
         }

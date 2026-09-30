@@ -36,6 +36,8 @@ struct JobProgressView: View {
         }
         .padding(16)
         .frame(width: 400)
+        .onAppear { model.popoverShowing() }
+        .onChange(of: model.running) { model.popoverShowing() }
     }
 
     private func content(_ s: JobStatus, now: Date) -> some View {
