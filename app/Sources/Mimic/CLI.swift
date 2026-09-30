@@ -19,7 +19,7 @@ enum CLI {
       mimic queue remove <name>
       mimic --version                which Mimic this is (also -v)
       mimic --help                   this list (also -h)
-    options: --height MM  --scale 28|32|35|54|75  --base MM  --nozzle 0.2|0.4|0.6  --inflate MM  --no-base  --base-shape round|square|hex  --base-style plain|stone|wood|cobble  --seed N  --model ID
+    options: --height MM  --scale 28|32|35|54|75  --base MM  --nozzle 0.2|0.4|0.6  --inflate MM  --no-base  --base-shape round|square|hex  --base-style plain|stone|wood|cobble  --magnet 5x2|6x2|8x3|none  --seed N  --model ID
     anything that isn't a character: make … --object  [--size MM (longest side)]  [--add-base]
     make … --project "<project>": into that project (made if it's new); a project is a folder in the minis folder
     make-another: the same picture or description and settings with a new seed, next to it ("<name>-2")
@@ -115,7 +115,7 @@ enum CLI {
             rest.removeFirst()
             var sizes = Sizes(), image: String?, restyle = false, seed = 42, description: String?, improve = false
             var model = EngineDownload.selected(defaults: defaults)
-            var object = false, addBase = false, wait = false, projectName: String?, seedGiven = false, shapeGiven = false, styleGiven = false
+            var object = false, addBase = false, wait = false, projectName: String?, seedGiven = false, shapeGiven = false, styleGiven = false, magnetGiven = false
             var scale: Int?
             while let a = rest.first {
                 rest.removeFirst()
@@ -137,6 +137,10 @@ enum CLI {
                 case "--base-style":
                     guard let v = value().flatMap(BaseStyle.init) else { return fail("--base-style needs plain, stone, wood or cobble") }
                     sizes.style = v; styleGiven = true
+                case "--magnet":
+                    let v = value()
+                    guard v == "none" || v.flatMap(Magnet.init) != nil else { return fail("--magnet needs 5x2, 6x2, 8x3 or none") }
+                    sizes.magnet = v.flatMap(Magnet.init); magnetGiven = true
                 case "--image": image = value()
                 case "--restyle": restyle = true
                 case "--improve": improve = true
@@ -160,6 +164,7 @@ enum CLI {
                 let was = saved.made ?? saved.requested
                 if !shapeGiven, let s = was?.shape { sizes.shape = s }
                 if !styleGiven, let s = was?.style { sizes.style = s }
+                if !magnetGiven { sizes.magnet = was?.magnet }
             }
             if projectName != nil && args[0] != "make" { return fail("--project is for mimic make; mimic move moves a mini") }
             if let scale {
