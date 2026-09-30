@@ -19,7 +19,7 @@ struct ImproveBox: View {
             if improved != nil {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        Text("✨ Improved description").font(.headline)
+                        Label("Improved description", systemImage: "sparkles").font(.headline)
                         Spacer()
                         Button("Use Mine Instead") { improved = nil }
                             .help("Go back to the description you wrote. The improved one is dropped.")
@@ -34,7 +34,7 @@ struct ImproveBox: View {
                 }
             } else {
                 HStack(alignment: .firstTextBaseline) {
-                    Button("✨ Improve Description") { improve() }
+                    Button("Improve Description", systemImage: "sparkles") { improve() }.labelStyle(.titleAndIcon)
                         .disabled(working || description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         .help("The AI helper chosen in Settings writes a fuller description of your character. You can edit it or go back to yours.")
                     if working { ProgressView().controlSize(.small) }

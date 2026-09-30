@@ -21,6 +21,8 @@ struct MakeView: View {
     @State private var name = ""
     @State private var seed = 42
     @State private var card = SizeCard.remembered()
+    /// Worked out once, as the sheet opens: the main window can stop being main while it's up.
+    @State private var height = sheetHeight(needs: 720)
     @State private var message: String?
     @State private var messageIsError = false
     /// The raw error behind a message, for the tooltip only.
@@ -37,21 +39,26 @@ struct MakeView: View {
             Text("New Mini").font(.title2.bold())
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding([.horizontal, .top], 20)
+            // Two columns, so the size choices are in sight before Make My Mini without scrolling.
+            // Each column scrolls on its own if it outgrows the sheet (Advanced open, say).
             ScrollViewReader { scroller in
+            HStack(spacing: 0) {
             Form {
                 Section {
-                    Picker("What are you making?", selection: Binding(get: { card.kind }, set: { card.setKind($0) })) {
-                        Text("🧙 A character (a mini)").tag(MiniKind.character)
-                        Text("🏺 Anything else").tag(MiniKind.object)
-                    }
+                    // A segmented control shows words only (SwiftUI drops a segment's symbol on
+                    // the Mac), so the symbol for the choice sits on the row's label.
+                    Picker(selection: Binding(get: { card.kind }, set: { card.setKind($0) })) {
+                        Text("A character (a mini)").tag(MiniKind.character)
+                        Text("Anything else").tag(MiniKind.object)
+                    } label: { Label("What are you making?", systemImage: object ? "cube" : "person.fill") }
                     .pickerStyle(.segmented)
                     .help("A character is made as a tabletop mini: standing, on a round base, sized to match your other minis. Anything else (a teapot, a car, a chess piece) is sized by its longest side, with no base unless you add one.")
                 }
                 Section {
-                    Picker("Start from", selection: $start) {
-                        Text("🖼️ From a picture").tag(Start.picture)
-                        Text("✍️ Describe it").tag(Start.description)
-                    }
+                    Picker(selection: $start) {
+                        Text("From a picture").tag(Start.picture)
+                        Text("Describe it").tag(Start.description)
+                    } label: { Label("Start from", systemImage: start == .picture ? "photo" : "text.cursor") }
                     .pickerStyle(.segmented)
                     .tourStop(.start, arrow: .trailing)
                     .help("From a picture: art or a photo of your \(thing). Describe it: Draw Things draws the \(thing) from your words first.")
@@ -79,18 +86,21 @@ struct MakeView: View {
                             .font(.callout).foregroundStyle(.red)
                     }
                 } header: {
-                    Text(object ? "🏺 Your object" : "🧙 Your character")
+                    Label(object ? "Your object" : "Your character", systemImage: object ? "cube" : "person.fill")
                 } footer: {
                     Text(object ? "💡 Solid objects with bold shapes work best. Thin handles, wires and fine texture may come out soft."
                                 : "💡 Chunky characters with bold shapes work best. Small details, like a pet on a shoulder, may come out soft.")
                         .font(.callout).foregroundStyle(.secondary)
                         .multilineTextAlignment(.leading).frame(maxWidth: .infinity, alignment: .leading)
                 }
-                SizeSection(card: $card, seed: $seed)
             }
             .formStyle(.grouped)
-            // The tour's stops in here can be below the fold (a popover on a control scrolled out
-            // of sight doesn't show), so the form brings each one into view as the tour gets to it.
+            Form { SizeSection(card: $card, seed: $seed) }
+                .formStyle(.grouped)
+                .frame(width: 540)  // wide enough that most hints take one line
+            }
+            // The tour's stops in here can be scrolled out of sight (a popover on a control out of
+            // sight doesn't show), so the forms bring each one into view as the tour gets to it.
             .onChange(of: TourGuide.shared.step) { _, stop in
                 guard let stop, stop.inNewMini else { return }
                 withAnimation { scroller.scrollTo(stop, anchor: .center) }
@@ -128,7 +138,7 @@ struct MakeView: View {
             project = model.makeInProject ?? model.selected?.project ?? ""
             model.makeInProject = nil
         }
-        .frame(width: 580, height: 640)  // fits under the toolbar of the smallest main window; the form scrolls
+        .frame(width: 920, height: height)
         .onChange(of: card.kind) { _, k in
             UserDefaults.standard.set(k.rawValue, forKey: "kind")
             improved = nil  // written for the other kind
@@ -366,6 +376,7 @@ struct ResizeView: View {
     var project: String?
     @Environment(AppModel.self) private var model
     @State private var card: SizeCard
+    @State private var height = sheetHeight(needs: 760)
     /// A refused resize: in words for people, and the raw error for the tooltip.
     @State private var problem: (words: String, detail: String)?
 
@@ -381,20 +392,18 @@ struct ResizeView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Text(project.map { "Resize All in \($0)" } ?? "Resize \(mini.displayName)").font(.title2.bold())
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding([.horizontal, .top], 20)
-            Form {
-                Section {
-                    let takes = JobProgress.about(model.estimate(mini.name, .prep, sizes: card.sizes).total)
-                    Text(project != nil
-                         ? "Remakes every mini's print file with these sizes, one after another, \(takes) each. Minis already this size are left out. The minis themselves don't change."
-                         : "Remakes the print file with these sizes. \(takes.capitalizedFirst)\(model.current == nil ? "" : ", once the jobs ahead of it are done"). The \(card.kind == .object ? "object" : "character") itself doesn't change.")
-                        .foregroundStyle(.secondary)
-                }
-                SizeSection(card: $card, seed: nil)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(project.map { "Resize All in \($0)" } ?? "Resize \(mini.displayName)").font(.title2.bold())
+                Text(project != nil
+                     ? "Remakes every mini's print file with these sizes, one after another, \(takes) each. Minis already this size are left out. The minis themselves don't change."
+                     : "Remakes the print file with these sizes. \(takes.capitalizedFirst)\(model.current == nil ? "" : ", once the jobs ahead of it are done"). The \(card.kind == .object ? "object" : "character") itself doesn't change.")
+                    .font(.callout).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .formStyle(.grouped)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding([.horizontal, .top], 20)
+            Form { SizeSection(card: $card, seed: nil) }
+                .formStyle(.grouped)
             Divider()
             HStack(alignment: .firstTextBaseline) {
                 if let reason = model.cantStart {
@@ -418,8 +427,17 @@ struct ResizeView: View {
             .padding(16)
             .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(width: 580, height: 600)
+        .frame(width: 580, height: height)
     }
+
+    private var takes: String { JobProgress.about(model.estimate(mini.name, .prep, sizes: card.sizes).total) }
+}
+
+/// A sheet's height: `needs` (the whole size card in Game scale, its tallest) where the main
+/// window has room under its toolbar, as at its default size; never under 640, which fits the
+/// smallest window and scrolls the rest. The window stays main while its sheet is key.
+@MainActor func sheetHeight(needs: CGFloat) -> CGFloat {
+    max(640, min(needs, (NSApp.mainWindow?.contentLayoutRect.height ?? 0) - 8))
 }
 
 /// Why Make or Resize can't start, with a way to Settings when the reason is the setup
@@ -452,51 +470,57 @@ struct SizeSection: View {
     @State private var advanced = false
 
     var body: some View {
-        Section("📏 Size & printer") {
+        Section {
             if !object {  // an object is sized by its longest side: no scale to match
-                Picker("Size for", selection: bind(\.purpose, { if let p = $1 { $0.setPurpose(p) } })) {
-                    Text("🎲 Game scale").tag(SizeCard.Purpose.game as SizeCard.Purpose?)
-                    Text("✨ Best print").tag(SizeCard.Purpose.display as SizeCard.Purpose?)
+                Picker(selection: bind(\.purpose, { if let p = $1 { $0.setPurpose(p) } })) {
+                    Text("Game scale").tag(SizeCard.Purpose.game as SizeCard.Purpose?)
+                    Text("Best print").tag(SizeCard.Purpose.display as SizeCard.Purpose?)
+                } label: {
+                    // Each note is its control's subtitle, not a row of its own: the column fits unscrolled.
+                    Label {
+                        Text("Size for")
+                        if gameScale { Text("Matches the other minis on your table.") }  // Best print explains itself in its note below
+                    } icon: { Image(systemName: card.purpose == .display ? "sparkles" : "dice") }
                 }
                 .pickerStyle(.segmented)
                 .help("Game scale: the same size as the other minis on your table. Best print: as big as your nozzle needs for faces to come out clearly.")
             }
-            if gameScale {  // Best print explains itself in its note below
-                Text("Matches the other minis on your table.").font(.callout).foregroundStyle(.secondary)
-            }
-            Picker("🖨️ Your printer's nozzle", selection: bind(\.nozzle, { $0.setNozzle($1) })) {
+            Picker(selection: bind(\.nozzle, { $0.setNozzle($1) })) {
                 Text("0.2 mm · fine").tag("0.2")
                 Text("0.4 mm · standard").tag("0.4")
                 Text("0.6 mm · fast").tag("0.6")
+            } label: {
+                Label {
+                    Text("Your printer's nozzle")
+                    Text("Not sure? Most printers come with 0.4 mm. Choose the same nozzle in your slicer.")
+                } icon: { Image(systemName: "printer") }
             }
             .pickerStyle(.segmented)
             .tourStop(.size, arrow: .top)  // on the nozzle, which characters and objects both show
             .help("The tip your printer prints through. Its size is usually marked on it, or listed in your printer's settings. Mimic thickens thin parts to suit it: finer nozzles keep more detail.")
-            Text("Not sure? Most printers come with 0.4 mm. Choose the same nozzle in your slicer.")
-                .font(.callout).foregroundStyle(.secondary)
             if gameScale {
-                VStack(alignment: .leading, spacing: 4) {
-                    LabeledContent("How tall is the character?") {
-                        HStack(spacing: 4) {
-                            TextField("", text: bind(\.realHeight, { $0.setRealHeight($1) }), prompt: Text("1.80"))
-                                .labelsHidden().frame(width: 64).multilineTextAlignment(.trailing)
-                                .help("How tall the character would be in real life, in metres.")
-                            Text("m")
-                        }
+                LabeledContent {
+                    HStack(spacing: 4) {
+                        TextField("", text: bind(\.realHeight, { $0.setRealHeight($1) }), prompt: Text("1.80"))
+                            .labelsHidden().frame(width: 64).multilineTextAlignment(.trailing)
+                            .help("How tall the character would be in real life, in metres.")
+                        Text("m")
                     }
+                } label: {
+                    Text("How tall is the character?")
                     // SizeCard.gameHeight: blank (or not a number) counts as 1.8 m.
                     Text("In metres. 6 ft ≈ 1.83 m, a halfling ≈ 1 m. Leave blank for an average human (1.8 m).")
-                        .font(.callout).foregroundStyle(.secondary)
                 }
-                Picker("Scale", selection: bind(\.scale, { $0.setScale($1) })) {
+                Picker(selection: bind(\.scale, { $0.setScale($1) })) {
                     Text("28 mm").tag(28)
                     Text("32 mm · most common").tag(32)
                     Text("54 mm").tag(54)
+                } label: {
+                    Text("Scale")
+                    Text("Pick the scale your other minis use. At 32 mm, an average 1.8 m human stands 32 mm tall.")
                 }
                 .pickerStyle(.segmented)
                 .help("The scale your other minis are made at: how tall an average human is on the table. 32 mm is the most common today.")
-                Text("Pick the scale your other minis use. At 32 mm scale, an average 1.8 m human stands 32 mm tall.")
-                    .font(.callout).foregroundStyle(.secondary)
             }
             if !card.note.isEmpty {
                 Text(card.note).font(.callout).foregroundStyle(card.warns ? .orange : .secondary)
@@ -534,6 +558,8 @@ struct SizeSection: View {
             } label: {
                 Button("Advanced") { withAnimation { advanced.toggle() } }.buttonStyle(.plain)
             }
+        } header: {
+            Label("Size & printer", systemImage: "ruler")
         }
         .onChange(of: card.purpose) { _, p in if let p { UserDefaults.standard.set(p.rawValue, forKey: "purpose") } }
         .onChange(of: card.nozzle) { _, n in UserDefaults.standard.set(n, forKey: "nozzle") }
@@ -549,15 +575,17 @@ struct SizeSection: View {
     private func slider(_ label: String, _ get: KeyPath<SizeCard, Double>, _ set: @escaping (inout SizeCard, Double) -> Void,
                         _ range: ClosedRange<Double>, unit: String, hint: String?, decimals: Int = 0) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            LabeledContent(label) {
+            LabeledContent {
                 HStack(spacing: 4) {
                     TextField("", value: bind(get, set), format: .number.precision(.fractionLength(0...decimals)).grouping(.never))
                         .labelsHidden().frame(width: 56).multilineTextAlignment(.trailing)
                     Text(unit)
                 }
+            } label: {
+                Text(label)
+                if let hint { Text(hint) }
             }
             Slider(value: bind(get, set), in: range).labelsHidden()
-            if let hint { Text(hint).font(.callout).foregroundStyle(.secondary) }
         }
     }
 }

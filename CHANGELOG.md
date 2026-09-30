@@ -8,6 +8,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 - **Mimic now needs macOS 26 (Tahoe).** Every Mac that runs Mimic can update to it for free, in System Settings → General → Software Update.
 - A mini's page puts the 3D view first, with its size, previews, versions and print tips in a panel on the right you can hide; Open in your slicer is in the toolbar, with Resize and Show in Finder under More. The gallery shows each mini's size and nozzle instead of when it was made.
 - **Settings is organised into tabs:** General, 3D Model, Draw Things & AI, and Advanced. Each is only as tall as what's in it, and Open Settings from New Mini or a mini that needs Draw Things goes straight to the right one.
+- **New Mini shows the picture and the size choices side by side**, so everything fits without scrolling. Its choices are marked with symbols instead of emoji, and Resize explains itself under its title instead of in a box.
 
 ### Fixed
 - **Resize and Try Again no longer turn older minis round.** A mini made before 0.4.0 (with Pixal3D, before Mimic recorded the model) came out facing backwards after a Resize in 0.6.0, and Try Again remade it with TRELLIS.2. Such minis are Pixal3D's again; Resize one that was turned to put it right.
