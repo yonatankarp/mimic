@@ -18,8 +18,12 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 - **The Dock shows how many minis are ready and unseen,** and nothing otherwise. It no longer shows a tick, an exclamation mark or the number waiting.
 - The base size slider has marks at 25, 32, 40 and 50 mm. You can still type any size.
 - **Keep an eye on a mini:** drag its progress off the toolbar and it stays open in a small window of its own.
+- **Try Again from a mini that didn't finish.** Its page says why it stopped and has Try Again, which is also in its right-click and Mini menus, after a relaunch too. Try Again starts at the step that failed, so a picture already drawn isn't drawn again.
+- **A mini being made says so on its page:** which step it's on, how long it has left, and Show Progress.
 
 ### Changed
+- The warnings about a part left out, or thin parts that may be fragile, stay on a mini's page after you quit Mimic, until you resize it or make it again.
+- The list refreshes by itself when minis or projects change in Finder or Terminal, and when you come back to Mimic.
 - **Make My Mini is now Make Mini, and labels and tips are shorter.** Describe it is now Description, Use Mine Instead is Use Original, and the list is headed Minis.
 - **The tour is five short stops; other tips appear the first time you need them,** in the list and by the size choices. Reset Mimic shows them again.
 - **Closing the window no longer stops a mini being made; it carries on in the Dock.** Click the Dock icon to bring the window back. Quitting still asks first.
