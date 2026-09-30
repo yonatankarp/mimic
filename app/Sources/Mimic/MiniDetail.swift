@@ -15,6 +15,7 @@ struct MiniDetail: View {
     /// The preview open in Quick Look, or nil.
     @State private var looking: URL?
     @State private var copied = false
+    @State private var copiedDescription = false
     @State private var confirmKeep = false
     /// The plain name offered after Keep This One.
     @State private var offerName: String?
@@ -155,6 +156,7 @@ struct MiniDetail: View {
             sizeSection(settings.made, kind: kind)
             Section { previews } header: { Label("Previews", systemImage: "photo.on.rectangle") }
             if versions.count > 1 { versionsSection(versions, canKeep: canKeep) }
+            madeFromSection(MadeFrom(settings, created: mini.created))
             if mini.stl != nil {
                 tipsSection(PrintTips(nozzle: settings.made?.nozzle ?? settings.requested?.nozzle ?? SizeCard.remembered().nozzle, kind: kind))
             }
@@ -280,6 +282,31 @@ struct MiniDetail: View {
         }
         .buttonStyle(.plain)
         .help(v.name == mini.name ? "The version you're looking at." : "Shows this version.")
+    }
+
+    /// How it was made (#83): only what its settings recorded.
+    @ViewBuilder private func madeFromSection(_ made: MadeFrom) -> some View {
+        if !made.isEmpty {
+            Section {
+                if let description = made.description {
+                    Text(description).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                }
+                ForEach(made.rows, id: \.label) { LabeledContent($0.label, value: $0.value) }
+                if let description = made.description {
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(description, forType: .string)
+                        copiedDescription = true
+                        Task { try? await Task.sleep(for: .seconds(1.5)); copiedDescription = false }
+                    } label: {
+                        Label(copiedDescription ? "Copied" : "Copy Description", systemImage: copiedDescription ? "checkmark" : "doc.on.doc")
+                    }
+                    .help("Copies the description it was drawn from, to use again.")
+                }
+            } header: {
+                Label("Made From", systemImage: "wand.and.stars")
+            }
+        }
     }
 
     private func tipsSection(_ tips: PrintTips) -> some View {
