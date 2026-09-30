@@ -61,6 +61,12 @@ public enum JobProgress {
 
     /// The web version's test: a failure whose reason names Draw Things is fixed in Setup.
     public static func drawThingsCaused(_ s: JobStatus) -> Bool { s.problem?.contains("Draw Things") == true }
+
+    /// Whether closing the job's popover means how the job ended was seen, so it can leave the
+    /// toolbar: only with Mimic in front (`active`), nothing running or waiting (`busy`), and the
+    /// popover having shown the end while Mimic was in front (`shownEnd`). A popover closed by
+    /// switching to another app, or while the job ran, never counts.
+    public static func seenEnd(active: Bool, busy: Bool, shownEnd: Bool) -> Bool { active && !busy && shownEnd }
 }
 
 extension String {

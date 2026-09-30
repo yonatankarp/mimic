@@ -55,6 +55,9 @@ final class TourGuide {
         after.map { go(to: $0, wait: step == .newMini ? 0.8 : step == .make ? 0.5 : 0.2) } ?? leave()
     }
 
+    /// Cancel (or Esc, which presses it) in New Mini leaves the tour from its stops there.
+    func newMiniCancelled() { if step?.inNewMini == true { leave() } }
+
     func useSample(_ model: AppModel) {
         sample = Self.samplePicture
         usingSample = true
@@ -65,15 +68,14 @@ final class TourGuide {
     func takeSample() -> URL? { defer { sample = nil }; return sample }
 
     /// New Mini opened or closed by hand: from New Mini's stop, pressing + goes inside. Inside,
-    /// Make My Mini carries on in the main window once the progress is out of the way; Cancel
-    /// (and Esc, which presses it) leaves the tour.
+    /// Make My Mini closes it and carries on in the main window once the job's popover is closed
+    /// (it opens a moment later, so the wait is longer than that). Cancel leaves the tour first.
     func sheetChanged(_ model: AppModel) {
         guard let step else { return }
         if step == .newMini, model.sheet == .make { go(to: .start, wait: 0.5) }
-        if step.inNewMini, model.sheet == nil { return leave() }
         if step.inNewMini, model.sheet != .make {
             usingSample = false
-            Tour.next(after: .make, onScreen: onScreen).map { go(to: $0, wait: 0.5) } ?? leave()
+            Tour.next(after: .make, onScreen: onScreen).map { go(to: $0, wait: 1) } ?? leave()
         }
     }
 
@@ -130,9 +132,9 @@ private struct TourStopModifier: ViewModifier {
     private var guide: TourGuide { .shared }
 
     /// Only while its window is the one in front: New Mini's stops with New Mini open, the
-    /// main window's with no sheet over it.
+    /// main window's with no sheet over it and the job's popover closed.
     private var shown: Bool {
-        guide.step == stop && guide.visible && (stop.inNewMini ? model.sheet == .make : model.sheet == nil)
+        guide.step == stop && guide.visible && (stop.inNewMini ? model.sheet == .make : model.sheet == nil && !model.jobPopover)
     }
 
     func body(content: Content) -> some View {
@@ -217,8 +219,8 @@ struct TourCallout: View {
             "Game scale matches the other minis on your table; Best print goes for detail. Pick the nozzle your printer uses. Not sure? It's most likely 0.4 mm."
         case .make:
             guide.usingSample
-                ? "Press Make My Mini to make your dwarf 🎉 How long it takes on this Mac is shown next to the button. Press Run in Background to keep using your Mac, and the tour carries on from there."
-                : "How long Make My Mini takes on this Mac is shown next to the button. Press Run in Background to keep using your Mac: the toolbar and the Dock icon show how far along it is. Start another any time and it waits its turn."
+                ? "Press Make My Mini to make your dwarf. How long it takes on this Mac is shown next to the button. Its progress opens from the toolbar; click anywhere else to close it, and the tour carries on from there."
+                : "How long Make My Mini takes on this Mac is shown next to the button. Keep using Mimic while it's made: the toolbar and the Dock icon show how far along it is, and clicking it in the toolbar shows the steps, the queue and Stop. Start another any time and it waits its turn."
         case .mini:
             "Drag it to turn it around. Open in \(model.slicerName) sends it to your slicer to print, or drag a preview to Finder or any slicer. The panel on the right has its size, previews and print tips for your nozzle."
         case .gallery:

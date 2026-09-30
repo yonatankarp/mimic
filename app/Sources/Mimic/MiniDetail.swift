@@ -333,7 +333,7 @@ struct EnlargedPreview: View {
 
 /// A picture from a mini's folder, read again when the mini changes (a resize rewrites the
 /// previews under the same names, which a URL-keyed cache would miss). A new picture fades in
-/// over the old one rather than popping; the progress sheet uses it too.
+/// over the old one rather than popping; the job's popover uses it too.
 struct Thumbnail: View {
     let url: URL?
     let version: Date
