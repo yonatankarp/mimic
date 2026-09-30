@@ -131,12 +131,13 @@ struct MiniDetail: View {
                 Button("Resize This Mini…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resize(mini) }
                     .help("Remakes the print file at new sizes, in about a minute")
                     .disabled(!mini.hasModel || model.cantStart != nil || model.waiting(mini.name) != nil)
+                EditAndMakeAgainButton(mini: mini)
                 Button("Show in Finder", systemImage: "folder") { model.showInFinder([mini]) }
                     .help("Shows the print file and the previews in Finder.")
             } label: {
                 Label("More", systemImage: "ellipsis")
             }
-            .help("Print several copies, resize this mini, or show it in Finder")
+            .help("Print several copies, resize this mini, make it again with changes, or show it in Finder")
             Button("Open in \(model.slicerName)") { if let stl = mini.stl { model.openInSlicer(stl) } }
                 .buttonStyle(.glassProminent)
                 .help("Opens the print file in \(model.slicerName) to slice and print")

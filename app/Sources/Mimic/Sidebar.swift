@@ -243,6 +243,7 @@ struct Sidebar: View {
         Divider()
         AnotherVersionButton(mini: mini)
         NewShapeButton(mini: mini)
+        EditAndMakeAgainButton(mini: mini)
         DuplicateButton(mini: mini)
         MoveToProjectMenu(minis: [mini])
         Divider()
@@ -435,6 +436,21 @@ struct NewShapeButton: View {
             .help("Keeps this picture and makes only the 3D shape again, with a different variation number: "
                   + "quicker than Make Another Version, and a picture you like stays. It goes next to this one, and waits its turn if Mimic is busy.")
             .disabled(model.cantStart != nil || !JobRunner.canMakeNewShape(mini))
+    }
+}
+
+/// Edit & Make Again, for the right-click menu, the Mini menu and a mini's More menu: New Mini
+/// filled in with everything the mini was made from, ready to change.
+struct EditAndMakeAgainButton: View {
+    let mini: Mini
+    var showsIcon = true
+    @Environment(AppModel.self) private var model
+    var body: some View {
+        Button { model.sheet = .makeAgain(mini) } label: {
+            if showsIcon { Label("Edit & Make Again…", systemImage: "slider.horizontal.3") } else { Text("Edit & Make Again…") }
+        }
+            .help("Opens New Mini with this mini's picture or description, sizes and choices filled in, to change what you like and make it as a new mini")
+            .disabled(!model.setup.installed || !JobRunner.canMakeAnotherVersion(mini))
     }
 }
 

@@ -644,6 +644,7 @@ struct MainWindowChrome: ViewModifier {
             .sheet(item: $model.sheet) { [room] sheet in
                 switch sheet {
                 case .make: MakeView(room: room)
+                case .makeAgain(let mini): MakeView(room: room, form: MakeForm.again(mini, install: model.install, card: .remembered()), again: mini)
                 case .resize(let mini): ResizeView(mini: mini, room: room)
                 case .resizeAll(let p):
                     let group = model.minis.filter { $0.project == p }

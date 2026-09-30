@@ -105,6 +105,15 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   folded wing at 7. A picture mini from before `upload.img` was kept has only source.png, which
   is what its 3D step saw, so that is used without the sculpt; a mini with no settings can't be
   made again and the menu item is off.
+- **Edit & Make Again** (#84) opens New Mini filled in from a mini (`MakeForm.again`, next to
+  Make Another Version and from the same saved source): picture or description (the one typed,
+  with the helper's version shown), the grey sculpt, cartoon, sizes and base, project, variation
+  number (kept, so an unchanged description draws the same, with New 3D Shape's `shapeSeed`
+  until the number is changed) and the next version's name. Not
+  `versionOf`: once edited it's a mini of its own. New Mini has no model control, so the model it
+  was made with is carried only while it's downloaded, and the sheet says so with a way back to
+  the Mac's choice. The tour's sample fills New Mini the same way. A test makes a mini again
+  from the form unchanged and compares every setting, so one the form drops fails it.
 - **New 3D Shape** (#86) is Make Another Version that keeps the picture: `make` copies the old
   mini's source.png into the new folder before it joins the queue, so the plan skips step 1 as
   it does for Try Again, and a new `shapeSeed` in settings.json goes to `_engine --seed` alone
