@@ -107,7 +107,6 @@ struct MakeView: View {
             Form { SizeSection(card: $card, seed: $seed) }
                 .formStyle(.grouped)
                 .reportsHeight(1, into: $forms)
-                .frame(width: 540)  // most hints on one line; the picture's column gets the rest
             }
             // The tour's stops in here can be scrolled out of sight (a popover on a control out of
             // sight doesn't show), so the forms bring each one into view as the tour gets to it.
@@ -148,8 +147,9 @@ struct MakeView: View {
             project = model.makeInProject ?? model.selected?.project ?? ""
             model.makeInProject = nil
         }
-        // 1000 from the default window up (460 for the picture's column); the smallest takes 940.
-        .frame(width: min(1000, room.width - 20), height: height)
+        // Two equal columns: 540 each from the default window up (the size column's hints mostly
+        // on one line, so Game scale fits unscrolled), 460 each in the smallest.
+        .frame(width: min(1080, room.width - 40), height: height)
         .fitsForms($height, $forms, room: room.height)
         .onChange(of: card.kind) { _, k in
             UserDefaults.standard.set(k.rawValue, forKey: "kind")
