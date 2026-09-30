@@ -2,6 +2,11 @@
 
 What's new in each version of Mimic. The release workflow publishes a version's section here as its release notes, so write it for people who use Mimic, not for developers.
 
+## 0.8.0
+
+### Fixed
+- **Quitting while a mini is being made no longer throws it away.** It goes back to the front of the queue and carries on from the last step it finished the next time you open Mimic. Logging out or restarting your Mac doesn't wait for an answer either.
+
 ## 0.7.0
 
 ### New
