@@ -215,7 +215,7 @@ final class ProjectTests: XCTestCase {
         _ = try fx.mini("wizard", in: "Party")
         try MiniSettings.update(runs.appendingPathComponent("Party/teapot")) { $0.kind = .object; $0.made = Sizes(height: "32", base: "25", nozzle: "0.4", noBase: true) }
         try MiniSettings.update(runs.appendingPathComponent("Party/wizard")) { $0.made = Sizes(height: "32", base: "25", nozzle: "0.4") }
-        let picked = Gallery.toResize(Gallery.list(runs), to: Sizes(height: "32", base: "25", nozzle: "0.4", shape: .hex), busy: [])
+        let picked = Gallery.toResize(Gallery.list(runs), to: Sizes(height: "32", base: "25", nozzle: "0.4", shape: .hex, style: .stone), busy: [])
         XCTAssertEqual(picked.resize.map(\.mini.name), ["wizard"], "the round wizard becomes hex")
         XCTAssertEqual(picked.resize.first?.sizes.shape, .hex)
         XCTAssertEqual(picked.same, 1, "the teapot has no base to make hex")

@@ -57,6 +57,9 @@ public enum Pipeline {
         let flags = try (settings.requested ?? Sizes()).flags()
             + (settings.isObject ? ["--fit", "longest", "--ground", "bottom"] : [])
             + (model.turn == 0 ? [] : ["--turn", String(model.turn)])
+            // The stones are laid out by the mini's own number: Try Again lays them the same way,
+            // another version differently.
+            + (settings.requested?.flags().contains("--base-style") == true ? ["--base-seed", String(settings.seed ?? 42)] : [])
         let prep: Step = .run(executable: tools.mimic,
                               arguments: ["_prep", folder.appendingPathComponent("model.glb").path,
                                           folder.appendingPathComponent("\(name).stl").path] + flags,

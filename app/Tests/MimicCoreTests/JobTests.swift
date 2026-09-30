@@ -130,6 +130,10 @@ final class JobTests: XCTestCase {
                         "--height", "80.0", "--nozzle", "0.4", "--no-base", "--fit", "longest", "--ground", "bottom", "--turn", "180"]
         guard case let .run(_, args, _, _) = try plan(.prep, settings { _ in })[0] else { return XCTFail("resize runs print prep") }
         XCTAssertEqual(args, prepArgs)
+        // A floor on its base is laid out by the mini's number, so Try Again lays it the same way.
+        guard case let .run(_, floor, _, _) = try plan(.prep, settings { $0.requested = Sizes(height: "80", base: "40", nozzle: "0.4", style: .wood) })[0]
+        else { return XCTFail("resize runs print prep") }
+        XCTAssertEqual(Array(floor.drop { $0 != "--base-style" }), ["--base-style", "wood", "--fit", "longest", "--ground", "bottom", "--turn", "180", "--base-seed", "7"])
         XCTAssertEqual(try plan(.generate, settings { $0.source = .desc; $0.desc = "a teapot" })[0], .drawObject(description: "a teapot", seed: 7, to: src))
         XCTAssertEqual(try plan(.generate, settings { $0.source = .image; $0.restyle = true })[0], .sculptObject(from: up, seed: 7, to: src))
         XCTAssertEqual(try plan(.generate, settings { $0.source = .image; $0.restyle = false })[0], .copyPicture(from: up, to: src))

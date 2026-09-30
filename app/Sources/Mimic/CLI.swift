@@ -19,7 +19,7 @@ enum CLI {
       mimic queue remove <name>
       mimic --version                which Mimic this is (also -v)
       mimic --help                   this list (also -h)
-    options: --height MM  --base MM  --nozzle 0.2|0.4|0.6  --inflate MM  --no-base  --base-shape round|square|hex  --seed N  --model ID
+    options: --height MM  --base MM  --nozzle 0.2|0.4|0.6  --inflate MM  --no-base  --base-shape round|square|hex  --base-style plain|stone|wood|cobble  --seed N  --model ID
     anything that isn't a character: make … --object  [--size MM (longest side)]  [--add-base]
     make … --project "<project>": into that project (made if it's new); a project is a folder in the minis folder
     make-another: the same picture or description and settings with a new seed, next to it ("<name>-2")
@@ -115,7 +115,7 @@ enum CLI {
             rest.removeFirst()
             var sizes = Sizes(), image: String?, restyle = false, seed = 42, description: String?, improve = false
             var model = EngineDownload.selected(defaults: defaults)
-            var object = false, addBase = false, wait = false, projectName: String?, seedGiven = false, shapeGiven = false
+            var object = false, addBase = false, wait = false, projectName: String?, seedGiven = false, shapeGiven = false, styleGiven = false
             while let a = rest.first {
                 rest.removeFirst()
                 func value() -> String? { rest.isEmpty ? nil : rest.removeFirst() }
@@ -130,6 +130,9 @@ enum CLI {
                 case "--base-shape":
                     guard let v = value().flatMap(BaseShape.init) else { return fail("--base-shape needs round, square or hex") }
                     sizes.shape = v; shapeGiven = true
+                case "--base-style":
+                    guard let v = value().flatMap(BaseStyle.init) else { return fail("--base-style needs plain, stone, wood or cobble") }
+                    sizes.style = v; styleGiven = true
                 case "--image": image = value()
                 case "--restyle": restyle = true
                 case "--improve": improve = true
@@ -149,8 +152,10 @@ enum CLI {
             // An object has no round base unless asked for one; a resize keeps what the mini is.
             if args[0] == "resize", let saved = Gallery.folder(install.runs, name).map(MiniSettings.load) {
                 object = saved.isObject
-                // A hex mini resized stays hex, as in the app.
-                if !shapeGiven, let s = (saved.made ?? saved.requested)?.shape { sizes.shape = s }
+                // A hex mini on a stone floor resized stays that, as in the app.
+                let was = saved.made ?? saved.requested
+                if !shapeGiven, let s = was?.shape { sizes.shape = s }
+                if !styleGiven, let s = was?.style { sizes.style = s }
             }
             if projectName != nil && args[0] != "make" { return fail("--project is for mimic make; mimic move moves a mini") }
             if object {

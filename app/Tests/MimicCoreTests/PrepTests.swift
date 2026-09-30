@@ -317,6 +317,51 @@ final class PrepTests: XCTestCase {
         }
     }
 
+    /// A floor is pressed into the top of the base: stones stand up to the plain top, seams go no
+    /// deeper than 0.45 mm, so the feet (sunk 0.6 mm) are still one piece with the base; the
+    /// bottom stays flat. The same seed lays the same floor, another seed another one.
+    func testFloorsArePressedIntoTheBase() throws {
+        let top: Float = 3 - 0.4  // the base's top, once 0.4 mm is sliced off the bottom
+        for style in ["stone", "wood", "cobble"] {
+            let (_, out, stl) = try prep(["--base-style", style, "--base-seed", "7", "--faces", "60000"])
+            XCTAssertTrue(out.watertight, style)
+            XCTAssertEqual(out.pieces, 1, "\(style): the figure is still one piece with its base")
+            XCTAssertGreaterThan(out.flatBottom, 0.95 * .pi * 12.5 * 12.5, style)
+            // The top of the base, away from the figure and the rounded edge.
+            let floor = out.positions.filter {
+                let r = simd_length(SIMD2($0.x, $0.y))
+                return r > 7 && r < 11 && $0.z > 1.5 && $0.z < top + 0.3
+            }
+            let zs: [Float] = floor.map { $0.z }
+            XCTAssertEqual(zs.max()!, top, accuracy: 0.05, "\(style): stones or planks reach the top")
+            XCTAssertGreaterThan(zs.min()!, top - 0.5, "\(style): no seam deeper than the feet are sunk")
+            XCTAssertLessThan(zs.min()!, top - 0.35, "\(style): the seams are cut")
+            let again = try prep(["--base-style", style, "--base-seed", "7", "--faces", "60000"]).2
+            XCTAssertEqual(try Data(contentsOf: again), try Data(contentsOf: stl), "\(style): the same seed, the same floor")
+            let other = try prep(["--base-style", style, "--base-seed", "8", "--faces", "60000"]).2
+            XCTAssertNotEqual(try Data(contentsOf: other), try Data(contentsOf: stl), "\(style): another seed, another floor")
+        }
+    }
+
+    /// Planks run front to back: across them a seam every plank, along one hardly any.
+    func testPlanksRunFrontToBack() {
+        let f = Solid.Floor(.wood)
+        func seams(_ point: (Float) -> (Float, Float)) -> Int {
+            var n = 0, inSeam = false
+            for t in stride(from: Float(-12), to: 12, by: 0.05) {
+                let (x, y) = point(t)
+                let now = Solid.relief(x, y, f) > 0.4
+                if now && !inSeam { n += 1 }
+                inSeam = now
+            }
+            return n
+        }
+        for x: Float in [-10, -5, 0, 5, 10] {
+            for y: Float in [-9.1, 0.3, 3.7, 11] { XCTAssertGreaterThan(Solid.relief(x, y, f), 0.4, "a seam runs front to back at x = \(x)") }
+        }
+        XCTAssertLessThanOrEqual(seams { (2.5, $0) }, 2, "along a plank, 24 mm: only its ends, 20 mm apart")
+    }
+
     /// Each view is the figure's own: facing +y, its left is -x. A figure with a nose (+y) and
     /// its left hand held out (-x): from the front the hand is on the picture's right, as when
     /// facing someone; from its left the nose points left, from its right it points right. The

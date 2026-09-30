@@ -503,13 +503,14 @@ struct CantStart: View {
 }
 
 extension SizeCard {
-    /// The kind, purpose, nozzle and base shape last chosen: most people keep one printer.
+    /// The kind, purpose, nozzle and base last chosen: most people keep one printer.
     static func remembered() -> SizeCard {
         let d = UserDefaults.standard
         var card = SizeCard(purpose: Purpose(rawValue: d.string(forKey: "purpose") ?? "") ?? .game,
                             nozzle: d.string(forKey: "nozzle") ?? "0.4",
                             kind: MiniKind(rawValue: d.string(forKey: "kind") ?? "") ?? .character)
         card.shape = BaseShape(rawValue: d.string(forKey: "baseShape") ?? "") ?? .round  // a hex-map player wants hex every time
+        card.style = BaseStyle(rawValue: d.string(forKey: "baseStyle") ?? "") ?? .plain
         return card
     }
 }
@@ -590,15 +591,24 @@ struct SizeSection: View {
                        hint: "Set for you by the choices above; type a value or drag to change it. The base adds about 2 mm.")
             }
             if !object || !card.noBase {
-                Picker(selection: $card.shape) {
-                    Label("Round", systemImage: "circle").tag(BaseShape.round)
-                    Label("Square", systemImage: "square").tag(BaseShape.square)
-                    Label("Hex", systemImage: "hexagon").tag(BaseShape.hex)
-                } label: {
-                    Text("Base")
+                // Shape and top on one row, so the column still fits unscrolled.
+                LabeledContent("Base") {
+                    HStack {
+                        Picker("Shape", selection: $card.shape) {
+                            Text("Round").tag(BaseShape.round)
+                            Text("Square").tag(BaseShape.square)
+                            Text("Hex").tag(BaseShape.hex)
+                        }
+                        .pickerStyle(.segmented).fixedSize()
+                        .help("Square and hex bases fit grid and hex maps; the figure faces a flat side")
+                        Picker("Top", selection: $card.style) {
+                            ForEach(BaseStyle.allCases, id: \.self) { Text($0.words.capitalizedFirst).tag($0) }
+                        }
+                        .fixedSize()
+                        .help("Plain, or a floor pressed into the top of the base: flagstones, planks or cobblestones")
+                    }
+                    .labelsHidden()
                 }
-                .pickerStyle(.segmented)
-                .help("Square and hex bases fit grid and hex maps; the figure faces a flat side")
                 slider("Base size", \.base, { $0.setBase($1) }, SizeCard.baseRange, unit: "mm",
                        hint: card.shape == .hex ? "Across the flat sides." : nil, ticks: [25, 32, 40, 50])
                     .help(baseHelp)
@@ -630,6 +640,7 @@ struct SizeSection: View {
         .onChange(of: card.purpose) { _, p in if let p { UserDefaults.standard.set(p.rawValue, forKey: "purpose") } }
         .onChange(of: card.nozzle) { _, n in UserDefaults.standard.set(n, forKey: "nozzle") }
         .onChange(of: card.shape) { _, s in UserDefaults.standard.set(s.rawValue, forKey: "baseShape") }
+        .onChange(of: card.style) { _, s in UserDefaults.standard.set(s.rawValue, forKey: "baseStyle") }
     }
 
     private var object: Bool { card.kind == .object }

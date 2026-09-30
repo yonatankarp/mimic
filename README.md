@@ -142,6 +142,7 @@ mimic list
 | `--height MM` | How tall the character is, feet to top; the base adds about 2 mm |
 | `--base MM` | Size of the base: across it, or across the flat sides for a hex |
 | `--base-shape round` / `square` / `hex` | The base's shape (round unless you give it; a resize keeps the mini's) |
+| `--base-style plain` / `stone` / `wood` / `cobble` | A floor pressed into the top of the base: flagstones, planks or cobblestones (plain unless you give it; a resize keeps the mini's) |
 | `--nozzle 0.2` / `0.4` / `0.6` | Your printer's nozzle |
 | `--inflate MM` | Extra thickness for thin parts (set from the nozzle unless you give it) |
 | `--no-base` | Keep the character's own base instead of adding one |

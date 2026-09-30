@@ -34,6 +34,7 @@ public struct SizeCard: Equatable, Sendable {
     public private(set) var inflate: Double
     public var noBase = false
     public var shape = BaseShape.round
+    public var style = BaseStyle.plain
     public private(set) var heightTouched = false, baseTouched = false, inflateTouched = false
     /// The line under the size choices, and whether it's a warning.
     public private(set) var note = ""
@@ -74,7 +75,7 @@ public struct SizeCard: Equatable, Sendable {
         inflateTouched = madeInflate != nil
         inflate = madeInflate.map { Self.clamp($0, Self.inflateRange, step: 0.01) } ?? Self.inflateFor(nozzle)
         noBase = made.noBase
-        if !made.noBase { shape = made.shape }  // no base keeps the last shape chosen, for if one is added
+        if !made.noBase { shape = made.shape; style = made.style }  // no base keeps the last ones chosen, for if one is added
         // The choice shown is the one these sizes match, not the last New Mini's.
         // An object's one choice is its suggested size.
         if kind == .object { purpose = height == Self.objectSize[nozzle] ? .display : nil }
@@ -88,7 +89,7 @@ public struct SizeCard: Equatable, Sendable {
     /// otherwise print prep picks it from the nozzle itself.
     public var sizes: Sizes {
         Sizes(height: Self.text(height), base: Self.text(base), nozzle: nozzle,
-              inflate: inflateTouched ? Self.text(inflate) : nil, noBase: noBase, shape: shape)
+              inflate: inflateTouched ? Self.text(inflate) : nil, noBase: noBase, shape: shape, style: style)
     }
 
     private mutating func resuggest() { heightTouched = false; baseTouched = false; suggest() }
@@ -220,10 +221,11 @@ public struct PrintTips: Sendable {
 
     /// What a mini was made at, as its page lists it: Character 32 mm, Base 25 mm, Nozzle 0.4 mm.
     /// An object's first row is its longest side, and its base may be None. A base that isn't
-    /// round says so: Base 25 mm hex.
+    /// round says so, and so does a floor on it: Base 25 mm hex, stone floor.
     public static func made(_ made: Sizes, kind: MiniKind = .character) -> [(label: String, value: String)] {
         [(kind == .object ? "Longest side" : "Character", "\(mm(made.height, 32)) mm"),
-         ("Base", kind == .object && made.noBase ? "None" : "\(mm(made.base, 25)) mm" + (made.shape == .round ? "" : " \(made.shape.rawValue)")),
+         ("Base", kind == .object && made.noBase ? "None" : "\(mm(made.base, 25)) mm" + (made.shape == .round ? "" : " \(made.shape.rawValue)")
+            + (made.style == .plain ? "" : ", \(made.style.words)")),
          ("Nozzle", "\(made.nozzle ?? "0.4") mm")]
     }
 

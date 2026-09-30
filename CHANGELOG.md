@@ -6,6 +6,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 
 ### New
 - **Square and hex bases.** In New Mini and Resize, choose a round, square or hex base; a hex is measured across its flat sides, so a 25 mm hex fits a 1-inch hex map. The figure faces a flat side, and Resize, Try Again and Make Another Version keep the shape. In Terminal: `--base-shape square`.
+- **Stone, wooden and cobblestone floors on the base.** Choose one beside the base's shape in New Mini or Resize: the stones or planks are pressed into the base itself, so they print. The feet still stand firmly on it, the seams suit your nozzle, and Try Again lays the stones the same way. In Terminal: `--base-style stone`.
 - **Previews show both sides of a mini,** left and right, not just one. A mini made before this gets them the next time it's resized.
 - **Previews open in Quick Look.** Click one, or press Space: ← → go through them, Space closes it, and you can share it or go full screen. On the mini's page, once you've clicked a preview, ← → go through them there too, and ↑ ↓ move up and down the grid.
 - **Turn the 3D view with the arrow keys** (↑ ↓ tilt it) **and zoom with ⌘= and ⌘−**, once you've clicked it. VoiceOver can turn it too.
