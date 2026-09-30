@@ -251,7 +251,7 @@ struct TourHost: ViewModifier {
             .onChange(of: model.sheet) { guide.sheetChanged(model) }
             // Esc leaves the tour when the main window, not the popover, has the keyboard.
             .background {
-                if guide.step != nil && guide.step != .welcome && model.sheet == nil {
+                if guide.step != nil && guide.step != .welcome && model.sheet == nil && model.enlarged == nil {
                     Button("") { guide.leave() }.keyboardShortcut(.cancelAction).hidden()
                 }
             }

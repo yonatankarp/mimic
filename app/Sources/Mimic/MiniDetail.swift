@@ -8,7 +8,9 @@ import SwiftUI
 struct MiniDetail: View {
     let mini: Mini
     @Environment(AppModel.self) private var model
-    @State private var enlarged: Enlarged?
+    /// The preview tile ← → move from while the previews have the keyboard.
+    @State private var picked: MiniPreview?
+    @FocusState private var previewsFocused: Bool
     @State private var copied = false
     @State private var confirmKeep = false
     /// The plain name offered after Keep This One.
@@ -48,19 +50,9 @@ struct MiniDetail: View {
             } message: { _ in
                 Text("The other versions are in the Trash, so the plain name is free.")
             }
-            .sheet(item: $enlarged) { e in
-                VStack(spacing: 12) {
-                    Thumbnail(url: e.url, version: mini.madeAt)
-                        .frame(minWidth: 400, idealWidth: 560, minHeight: 400, idealHeight: 560)  // with the caption row, fits the smallest main window
-                        .onTapGesture { enlarged = nil }
-                    HStack {
-                        Text("\(mini.displayName) · \(e.caption)").foregroundStyle(.secondary)
-                        Spacer()
-                        Button("Done") { enlarged = nil }.keyboardShortcut(.defaultAction)
-                    }
-                }
-                .padding()
-                .background { Button("") { enlarged = nil }.keyboardShortcut(.cancelAction).hidden() }
+            // Closing the enlarged picture leaves its tile picked here, so ← → carry on from it.
+            .onChange(of: model.enlarged) { old, new in
+                if new == nil, let old, mini.previews.contains(old) { picked = old; previewsFocused = true }
             }
     }
 
@@ -158,29 +150,55 @@ struct MiniDetail: View {
         }
     }
 
-    /// Its picture and the three views; a click enlarges one, a drag gives the print file.
+    /// Its picture, wide on top, and its views two by two under it; a click enlarges one, a drag
+    /// gives the print file. Once one is clicked, ← → move between them, as in the enlarged view.
     private var previews: some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-            ForEach([("Your picture", mini.source ?? mini.upload)] + mini.renders.map { ($0.view.capitalized, Optional($0.url)) },
-                    id: \.0) { caption, url in
-                preview(caption, url)
+        let all = mini.previews, views = all.suffix(mini.renders.count), current = picked.flatMap { all.contains($0) ? $0 : nil } ?? all.first
+        return VStack(spacing: 12) {
+            if let picture = all.dropLast(views.count).first { preview(picture, wide: true, current: current) }
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                ForEach(views) { preview($0, current: current) }
             }
         }
         .padding(.vertical, 4)
+        .focusable(interactions: .edit)  // takes the keyboard without Keyboard Navigation turned on
+        .focused($previewsFocused)
+        .focusEffectDisabled()  // the picked tile is ringed instead
+        .onKeyPress(.leftArrow) { step(-1, in: all, from: current) }
+        .onKeyPress(.rightArrow) { step(1, in: all, from: current) }
+        .onKeyPress(keys: [.space, .return]) { _ in
+            guard model.enlarged == nil, let current else { return .ignored }
+            model.enlarged = current
+            return .handled
+        }
     }
 
-    @ViewBuilder private func preview(_ caption: String, _ url: URL?) -> some View {
-        let tile = Button { enlarged = url.map { Enlarged(caption: caption, url: $0) } } label: {
+    /// Stops at the first and last, as the enlarged view does.
+    private func step(_ by: Int, in all: [MiniPreview], from current: MiniPreview?) -> KeyPress.Result {
+        guard model.enlarged == nil, let current else { return .ignored }  // the enlarged view's arrows have it
+        if let next = all.step(from: current, by: by) { picked = next }
+        return .handled
+    }
+
+    @ViewBuilder private func preview(_ p: MiniPreview, wide: Bool = false, current: MiniPreview?) -> some View {
+        let tile = Button {
+            picked = p
+            previewsFocused = true
+            model.enlarged = p
+        } label: {
             VStack(spacing: 4) {
-                Thumbnail(url: url, version: mini.madeAt)
-                    .aspectRatio(1, contentMode: .fit)
+                Thumbnail(url: p.url, version: mini.madeAt)
+                    .aspectRatio(wide ? 2 : 1, contentMode: .fit)
                     .background(Color.primary.opacity(0.05), in: .rect(cornerRadius: 10))  // renders have no background
                     .clipShape(.rect(cornerRadius: 10))
-                Text(caption).font(.caption).foregroundStyle(.secondary)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.accentColor, lineWidth: previewsFocused && p == current ? 3 : 0)
+                    }
+                Text(p.caption).font(.caption).foregroundStyle(.secondary)
             }
         }
         .buttonStyle(.plain)
-        .disabled(url == nil)
         // Dragging a preview out drops the print file itself, under the mini's name.
         if let stl = mini.stl {
             tile
@@ -247,11 +265,64 @@ struct MiniDetail: View {
     }
 }
 
-/// A preview shown big, and what it's a view of.
-private struct Enlarged: Identifiable {
-    let caption: String
-    let url: URL
-    var id: URL { url }
+/// The selected mini's preview shown big over the whole window, like Quick Look: a click around
+/// it, Escape or the close button closes it, and ← → (or the chevrons) go through the mini's
+/// previews, stopping at the first and last.
+struct EnlargedPreview: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        if let mini = model.selected, let shown = model.enlarged, mini.previews.contains(shown) {
+            let previews = mini.previews
+            let close = { model.enlarged = nil }
+            ZStack {
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea()
+                    .contentShape(.rect)
+                    .onTapGesture(perform: close)
+                VStack(spacing: 12) {
+                    Thumbnail(url: shown.url, version: mini.madeAt)
+                        .frame(maxWidth: 900, maxHeight: 900)  // the renders' own size
+                        .aspectRatio(1, contentMode: .fit)
+                        .background(Color.primary.opacity(0.05), in: .rect(cornerRadius: 12))  // renders have no background
+                        .onTapGesture(perform: close)
+                    HStack(spacing: 16) {
+                        stepButton(-1, in: previews, from: shown)
+                        Text("\(mini.displayName) · \(shown.caption)")
+                            .foregroundStyle(.secondary)
+                            .frame(minWidth: 180)
+                        stepButton(1, in: previews, from: shown)
+                    }
+                }
+                .padding(16)
+                .background(.regularMaterial, in: .rect(cornerRadius: 20))
+                .overlay(alignment: .topTrailing) {
+                    Button(action: close) { Image(systemName: "xmark.circle.fill").font(.title2).symbolRenderingMode(.hierarchical) }
+                        .buttonStyle(.plain)
+                        .keyboardShortcut(.cancelAction)
+                        .help("Close (Esc)")
+                        .accessibilityLabel("Close")
+                        .padding(8)
+                }
+                .contentShape(.rect)  // a click on the card's empty parts isn't a click around it
+                .padding(32)
+            }
+            .transition(.opacity)
+        }
+    }
+
+    private func stepButton(_ by: Int, in previews: [MiniPreview], from shown: MiniPreview) -> some View {
+        let next = previews.step(from: shown, by: by)
+        return Button { if let next { model.enlarged = next } } label: {
+            Image(systemName: by < 0 ? "chevron.left" : "chevron.right")
+        }
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.circle)
+        .keyboardShortcut(by < 0 ? .leftArrow : .rightArrow, modifiers: [])
+        .disabled(next == nil)
+        .help(next.map { "\($0.caption) (\(by < 0 ? "←" : "→"))" } ?? "")
+        .accessibilityLabel(by < 0 ? "Previous preview" : "Next preview")
+    }
 }
 
 /// A picture from a mini's folder, read again when the mini changes (a resize rewrites the

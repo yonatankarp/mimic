@@ -17,8 +17,16 @@ public struct Mini: Identifiable, Hashable, Sendable {
     public var source: URL? { existing("source.png") }
     /// The picture it was given, before step 1 made source.png from it.
     public var upload: URL? { existing("upload.img") }
+    /// Its views, front first. A mini rendered before the left and right views has a side view
+    /// instead, until a resize renders them (and removes it).
     public var renders: [(view: String, url: URL)] {
-        ["front", "side", "back"].compactMap { v in existing("\(name)_\(v).png").map { (v, $0) } }
+        ["front", "left", "right", "side", "back"].compactMap { v in existing("\(name)_\(v).png").map { (v, $0) } }
+    }
+    /// What its page shows in Previews, in the order ← and → go through them: the picture it
+    /// was given, then its views. Only the ones it has.
+    public var previews: [MiniPreview] {
+        ((source ?? upload).map { [MiniPreview(caption: "Your picture", url: $0)] } ?? [])
+            + renders.map { MiniPreview(caption: $0.view.capitalized, url: $0.url) }
     }
     /// The 3D model a resize starts from: without it only a full Make can finish the mini.
     public var hasModel: Bool { existing("model.glb") != nil }
@@ -35,6 +43,22 @@ public struct Mini: Identifiable, Hashable, Sendable {
 
     public static func == (a: Mini, b: Mini) -> Bool { a.name == b.name && a.madeAt == b.madeAt && a.project == b.project }
     public func hash(into h: inout Hasher) { h.combine(name) }
+}
+
+/// One of a mini's pictures: the one it was made from, or a view of it.
+public struct MiniPreview: Hashable, Identifiable, Sendable {
+    public let caption: String
+    public let url: URL
+    public var id: URL { url }
+}
+
+extension [MiniPreview] {
+    /// The preview `by` places (-1 or +1) from `from`, or nil past either end: ← and → stop at
+    /// the first and last rather than going round.
+    public func step(from: MiniPreview, by: Int) -> MiniPreview? {
+        guard let i = firstIndex(of: from), indices.contains(i + by) else { return nil }
+        return self[i + by]
+    }
 }
 
 /// The minis folder on disk. A mini is a folder Mimic made (see `isMini`); any other folder at
@@ -147,7 +171,7 @@ public enum Gallery {
 }
 
 extension Gallery {
-    /// Renames a mini: its folder and every file named after it (the print file and the three
+    /// Renames a mini: its folder and every file named after it (the print file and the
     /// previews), which is how the app finds them. Its date is the print file's, so it keeps its
     /// place in the gallery.
     public static func rename(_ runs: URL, from old: String, to new: String, busyWith: String? = nil) throws {
@@ -159,7 +183,7 @@ extension Gallery {
         guard !nameInUse(runs, new), !fm.fileExists(atPath: dst.path) else { throw RequestError.nameTaken(new) }
         guard busyWith != old else { throw RequestError.busy(old) }
         try fm.moveItem(at: src, to: dst)
-        for suffix in [".stl", "_front.png", "_side.png", "_back.png"] {
+        for suffix in [".stl", "_front.png", "_left.png", "_right.png", "_side.png", "_back.png"] {
             let f = dst.appendingPathComponent(old + suffix)
             if fm.fileExists(atPath: f.path) { try fm.moveItem(at: f, to: dst.appendingPathComponent(new + suffix)) }
         }

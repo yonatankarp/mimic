@@ -4,6 +4,10 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 
 ## 0.7.0
 
+### New
+- **Previews show both sides of a mini,** left and right, not just one. A mini made before this gets them the next time it's resized.
+- **An enlarged preview closes with a click anywhere around it,** and ← → go through the previews, in the enlarged picture and on the mini's page once you've clicked one.
+
 ### Changed
 - **Mimic now needs macOS 26 (Tahoe).** Every Mac that runs Mimic can update to it for free, in System Settings → General → Software Update.
 - A mini's page puts the 3D view first, with its size, previews, versions and print tips in a panel on the right you can hide; Open in your slicer is in the toolbar, with Resize and Show in Finder under More. The gallery shows each mini's size and nozzle instead of when it was made.

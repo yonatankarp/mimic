@@ -100,7 +100,7 @@ flowchart TD
   image --> cut["✂️ Cut out the character<br/><i>Apple Vision</i>"]
   cut --> mesh["🧊 3D model<br/><i>TRELLIS.2 or Pixal3D</i>"]
   mesh --> prep["🖨️ Print prep<br/><i>Swift, in Mimic</i>"]
-  prep --> out["STL + front, side and back previews"]
+  prep --> out["STL + front, left, right and back previews"]
   out --> slicer["Your slicer"]
 ```
 
