@@ -47,6 +47,7 @@ struct MiniViewer: View {
     /// a new print file crossfades rather than popping.
     @State private var shown = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(AppModel.self) private var model
 
     var body: some View {
         ZStack {
@@ -60,6 +61,7 @@ struct MiniViewer: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { seenHeight = $0 }
         .onChange(of: fit, initial: true) { if unzoomed { camera = fit } }
         .onChange(of: unzoomed) { if unzoomed { camera = fit } }
+        .onChange(of: model.faceFrontRequests) { front() }  // View → Face Front
         .overlay(alignment: .topTrailing) { controls.padding(12) }
         .overlay(alignment: .bottom) {
             if mini != nil && !hintSeen {
@@ -189,7 +191,7 @@ struct MiniViewer: View {
                 }
                 Button { front() } label: { Label("Face Front", systemImage: "arrow.counterclockwise") }
                     .buttonStyle(.glass)
-                    .help("Turn the mini back to face you and zoom back out (or double-click it)")
+                    .help("Turn the mini back to face you and zoom back out (⌘0, or double-click it)")
                     .disabled(mini == nil)
             }
         }

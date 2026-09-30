@@ -104,12 +104,13 @@ struct Sidebar: View {
         }
     }
 
-    /// A section's title with a + for a new project, so there's one in the list from the start.
+    /// A section's title with a New Project button, so there's one in the list from the start.
+    /// A folder, as at the bottom: + is New Mini, in the toolbar.
     private func header(_ title: String) -> some View {
         HStack {
             Text(title)
             Spacer()
-            Button { model.sheet = .newProject(moving: nil) } label: { Image(systemName: "plus") }
+            Button { model.sheet = .newProject(moving: nil) } label: { Image(systemName: "folder.badge.plus") }
                 .buttonStyle(.borderless)
                 .help("New Project (⇧⌘N): a folder to group minis in.")
                 .accessibilityLabel("New Project")
@@ -238,9 +239,12 @@ struct GalleryRow: View {
 /// Make Another Version, for the right-click menu and the Mini menu.
 struct AnotherVersionButton: View {
     let mini: Mini
+    var showsIcon = true
     @Environment(AppModel.self) private var model
     var body: some View {
-        Button("Make Another Version", systemImage: "square.on.square") { model.makeAnotherVersion(mini) }
+        Button { model.makeAnotherVersion(mini) } label: {
+            if showsIcon { Label("Make Another Version", systemImage: "square.on.square") } else { Text("Make Another Version") }
+        }
             .help("Makes it again from the same picture or description, with a different variation number: "
                   + "a detail that came out as a blob may come out right. It goes next to this one, and waits its turn if Mimic is busy.")
             .disabled(model.cantStart != nil || !JobRunner.canMakeAnotherVersion(mini))
@@ -251,9 +255,10 @@ struct AnotherVersionButton: View {
 /// can't move; the menu says so instead of listing projects.
 struct MoveToProjectMenu: View {
     let mini: Mini
+    var showsIcon = true
     @Environment(AppModel.self) private var model
     var body: some View {
-        Menu("Move to Project", systemImage: "folder") {
+        Menu {
             if let why = model.whyCantMove(mini) {
                 Text(why)
             } else {
@@ -265,6 +270,8 @@ struct MoveToProjectMenu: View {
                 Divider()
                 Button("New Project…") { model.sheet = .newProject(moving: mini) }
             }
+        } label: {
+            if showsIcon { Label("Move to Project", systemImage: "folder") } else { Text("Move to Project") }
         }
     }
 }

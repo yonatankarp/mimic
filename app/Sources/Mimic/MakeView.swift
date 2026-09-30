@@ -162,7 +162,8 @@ struct MakeView: View {
             if health.lastChecked == nil && !health.running && !model.running { health.check(model.install) }
             await health.watchDrawThings(model.install)
         }
-        // ⌘V: a picture on the clipboard becomes the picture; anything else pastes as usual.
+        // ⌘V: a picture on the clipboard becomes the picture; anything else pastes as usual, and
+        // so does text while a field is being typed in (see paste()).
         .background { Button("") { paste() }.keyboardShortcut("v").hidden() }
         .fileImporter(isPresented: $choosing, allowedContentTypes: [.image]) { result in
             if case .success(let url) = result { take(url) }
@@ -262,6 +263,14 @@ struct MakeView: View {
 
     private func paste() {
         let pb = NSPasteboard.general
+        // Typing in a field (its editor is an NSText) with text to paste: the text, as anywhere.
+        let typing = NSApp.keyWindow?.firstResponder is NSText
+        let hasText = pb.availableType(from: [.string]) != nil
+        let hasPicture = NSImage.canInit(with: pb) || pb.canReadObject(forClasses: [NSURL.self], options: [.urlReadingContentsConformToTypes: [UTType.image.identifier]])
+        guard MakeAdvice.pastesPicture(typing: typing, hasText: hasText, hasPicture: hasPicture) else {
+            NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
+            return
+        }
         if let url = (pb.readObjects(forClasses: [NSURL.self], options: [.urlReadingContentsConformToTypes: [UTType.image.identifier]]) as? [URL])?.first {
             return take(url)
         }

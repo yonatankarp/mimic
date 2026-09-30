@@ -138,7 +138,6 @@ struct SettingsView: View {
 
     @ViewBuilder private var advanced: some View {
         TimingsSection()
-        TerminalSection()
         ResetSection()
         Section {
             // Selectable, so it can be copied into a bug report.
@@ -367,9 +366,10 @@ private struct TimingsSection: View {
     }
 }
 
-/// The command-line tool lives inside the app, and a disk image can't put it on the PATH:
-/// one command does, the same one for everyone.
-private struct TerminalSection: View {
+/// Mimic → Install Command-Line Tool…: the command-line tool lives inside the app, and a disk
+/// image can't put it on the PATH: one command does, the same one for everyone.
+@MainActor
+enum CommandLineTool {
     // /usr/local/bin is on every Mac's PATH (/etc/paths), but a new Mac doesn't have it and
     // only an administrator can make it, hence sudo; ~/.local/bin would need no password but
     // isn't on the PATH, which would take a second step. The app's own path only when it's in
@@ -378,25 +378,23 @@ private struct TerminalSection: View {
         let app = Bundle.main.bundlePath.hasPrefix("/Applications/") ? Bundle.main.bundlePath : "/Applications/Mimic.app"
         return "sudo mkdir -p /usr/local/bin && sudo ln -sf \"\(app)/Contents/MacOS/mimic\" /usr/local/bin/mimic"
     }()
-    @State private var copied = false
 
-    var body: some View {
-        Section {
-            HStack {
-                Text(Self.command).font(.system(.callout, design: .monospaced)).textSelection(.enabled)
-                Spacer()
-                Button(copied ? "Copied" : "Copy") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(Self.command, forType: .string)
-                    copied = true
-                }
-            }
-        } header: {
-            Text("Use Mimic from Terminal")
-        } footer: {
-            Text("Paste this into Terminal once, then type mimic to make minis from there. It asks for your Mac password, because it adds mimic to a folder every account on this Mac uses.")
-                .foregroundStyle(.secondary)
-        }
+    /// The command, selectable, with Copy Command (Return) and Cancel (Esc).
+    static func show() {
+        let alert = NSAlert()
+        alert.messageText = "Install Command-Line Tool"
+        alert.informativeText = "Copy this command, paste it into Terminal once, then type mimic to make minis from there. It asks for your Mac password, because it adds mimic to a folder every account on this Mac uses."
+        let text = NSTextField(wrappingLabelWithString: command)
+        text.font = .monospacedSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
+        text.isSelectable = true
+        text.preferredMaxLayoutWidth = 280
+        text.frame.size = NSSize(width: 280, height: text.fittingSize.height)
+        alert.accessoryView = text
+        alert.addButton(withTitle: "Copy Command")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(command, forType: .string)
     }
 }
 
