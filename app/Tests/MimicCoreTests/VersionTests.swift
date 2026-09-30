@@ -117,4 +117,92 @@ final class VersionTests: XCTestCase {
         XCTAssertFalse(JobRunner.canMakeAnotherVersion(Gallery.list(fx.install.runs).first { $0.name == "tiefling-sculpt" }!))
         XCTAssertThrowsError(try jobs.makeAnotherVersion(of: "tiefling-sculpt")) { XCTAssertEqual($0 as? RequestError, .noSource("tiefling-sculpt")) }
     }
+
+    /// Edit & Make Again (#84): New Mini filled in from a mini, then made unchanged as New Mini
+    /// makes it, gives a mini whose settings are the old one's but for its name and date. So a
+    /// choice the form leaves behind, or a setting added later that it doesn't carry, fails here.
+    func testEditAndMakeAgainCarriesEveryChoice() throws {
+        let fx = try Fixture(), runs = fx.install.runs
+        let pixal = try XCTUnwrap(EngineDownload.model("pixal3d-sv"))
+        try fx.modelFiles(); try fx.modelFiles(pixal)
+        let picture = try fx.picture()
+        try Gallery.createProject(runs, "Tiefling Party")
+        // Paused, so the minis wait and nothing runs or changes their settings.
+        let jobs = JobRunner(install: fx.install, tools: fx.tools())
+        try jobs.setPaused(true)
+        // Every size chosen, none left to the card's suggestions.
+        let full = Sizes(height: "100", base: "40", nozzle: "0.2", inflate: "0.15", shape: .hex, style: .stone, magnet: .mm6x2)
+        try jobs.make(name: "elodie", picture: .image(picture), restyle: true, seed: 7, sizes: full, kind: .object,
+                      model: pixal, project: "Tiefling Party", shown: "Élodie")
+        try jobs.make(name: "toon", picture: .image(picture), restyle: true, seed: 123, sizes: full, model: EngineDownload.cartoon, cartoon: true)
+        try jobs.make(name: "plain", picture: .image(picture), restyle: false, seed: 5, sizes: full, model: EngineDownload.standard)
+        try jobs.make(name: "elf", picture: .description("an elf ranger with a bow", original: "elf archer"), restyle: false, seed: 9,
+                      sizes: full, model: EngineDownload.standard, project: "Tiefling Party")
+        try jobs.make(name: "dwarf", picture: .description("a dwarf"), restyle: false, seed: 42,
+                      sizes: Sizes(height: "32", base: "25", nozzle: "0.4", noBase: true), model: EngineDownload.standard)
+
+        let minis = Gallery.list(runs)
+        for name in ["elodie", "toon", "plain", "elf", "dwarf"] {
+            let mini = try XCTUnwrap(minis.first { $0.name == name })
+            let f = try XCTUnwrap(MakeForm.again(mini, install: fx.install, card: SizeCard()), name)
+            let new = Rules.folderName(f.name)
+            XCTAssertEqual(new, "\(name)-2", "\(name): the name filled in gives a new version's folder")
+            // What MakeView.make() does with the form's values.
+            let source: PictureSource = f.fromPicture ? .image(try XCTUnwrap(f.picture))
+                : f.improved.map { PictureSource.description($0, original: f.description) } ?? .description(f.description)
+            let model = EngineDownload.forMaking(cartoon: f.cartoon, chosen: f.model.flatMap { EngineDownload.model($0) } ?? EngineDownload.standard)
+            try jobs.make(name: new, picture: source, restyle: f.fromPicture && f.restyle, seed: f.seed, sizes: f.card.sizes,
+                          kind: f.card.kind, model: model, project: f.project, cartoon: f.cartoon, shown: f.name)
+            let folder = try XCTUnwrap(Gallery.folder(runs, new))
+            var old = mini.settings, made = MiniSettings.load(folder)
+            XCTAssertNotNil(made.created)
+            old.name = nil; old.nameFolder = nil; old.created = nil
+            made.name = nil; made.nameFolder = nil; made.created = nil
+            XCTAssertEqual(made, old, "\(name): a choice wasn't carried over")
+            XCTAssertEqual(Gallery.list(runs).first { $0.name == new }?.project, mini.project, "\(name) left its project")
+            if f.fromPicture {
+                XCTAssertEqual(try Engine.rgba(Engine.load(folder.appendingPathComponent("upload.img"))),
+                               try Engine.rgba(Engine.load(mini.folder.appendingPathComponent("upload.img"))), "\(name): not the same picture")
+            }
+        }
+        let form = { (name: String) in MakeForm.again(Gallery.list(runs).first { $0.name == name }!, install: fx.install, card: SizeCard())! }
+        // The name as typed, numbered; the description as typed, with the helper's version shown.
+        XCTAssertEqual(form("elodie").name, "Élodie 3", "elodie-2 is taken now")
+        XCTAssertEqual(form("elf").description, "elf archer")
+        XCTAssertEqual(form("elf").improved, "an elf ranger with a bow")
+        XCTAssertEqual(form("dwarf").description, "a dwarf")
+        XCTAssertNil(form("dwarf").improved)
+        XCTAssertEqual(form("dwarf").name, "Dwarf 3")
+        XCTAssertEqual(form("plain").restyle, false)
+        XCTAssertEqual(form("elodie").model, "pixal3d-sv", "made with Pixal3D, not this Mac's choice")
+        XCTAssertNil(form("toon").model, "a cartoon is always made with Pixal3D")
+        for n in jobs.queue.entries().map(\.name) { try jobs.remove(n) }
+        jobs.waitUntilDone()
+    }
+
+    /// Older minis: one from before upload.img was kept is filled in with source.png, without
+    /// the sculpt it already is; one with nothing saved to make it from can't be; a model that
+    /// isn't here any more is this Mac's choice instead.
+    func testEditAndMakeAgainOfOlderMinis() throws {
+        let fx = try Fixture()
+        let old = try fx.mini("old-picture")
+        try MiniSettings.update(old) {
+            $0.source = .image; $0.restyle = true; $0.requested = self.sizes; $0.model = "pixal3d-sv"; $0.seed = 3
+        }
+        _ = try fx.mini("tiefling-sculpt")  // model.glb and no settings.json
+        let minis = Gallery.list(fx.install.runs)
+        let f = try XCTUnwrap(MakeForm.again(minis.first { $0.name == "old-picture" }!, install: fx.install, card: SizeCard()))
+        XCTAssertEqual(f.picture?.lastPathComponent, "source.png")
+        XCTAssertTrue(f.fromPicture)
+        XCTAssertFalse(f.restyle, "source.png is already the sculpt")
+        XCTAssertEqual(f.seed, 3)
+        XCTAssertEqual(f.card.sizes, SizeCard().loaded(sizes))
+        XCTAssertNil(f.model, "Pixal3D isn't downloaded")
+        XCTAssertEqual(f.name, "Old Picture 2")
+        XCTAssertNil(MakeForm.again(minis.first { $0.name == "tiefling-sculpt" }!, install: fx.install, card: SizeCard()))
+    }
+}
+
+private extension SizeCard {
+    func loaded(_ s: Sizes) -> Sizes { var c = self; c.load(s); return c.sizes }
 }

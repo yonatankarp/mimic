@@ -5,7 +5,8 @@ import SwiftUI
 import TipKit
 import UniformTypeIdentifiers
 
-/// The Make a Mini sheet (⌘N): a picture or a description, a name, and the size card.
+/// The Make a Mini sheet (⌘N): a picture or a description, a name, and the size card. It starts
+/// empty, or filled in from a mini (Edit & Make Again) or with the tour's sample.
 struct MakeView: View {
     enum Start: String { case picture, description }
 
@@ -29,9 +30,31 @@ struct MakeView: View {
     /// What the two columns need, for `fitsForms`.
     @State private var forms = FormHeights(columns: 2)
 
-    init(room: CGSize) {
+    /// The mini it was filled in from, for Edit & Make Again.
+    private let again: Mini?
+    /// The 3D model `again` was made with, while it's used instead of this Mac's choice.
+    @State private var madeWith: String?
+
+    init(room: CGSize, form: MakeForm? = nil, again: Mini? = nil) {
         self.room = room
+        self.again = again
         _height = State(initialValue: min(720, room.height - 8))
+        // Filled in here rather than on appear, so no onChange takes it for a choice made in the
+        // sheet (a kind changed forgets the improved description; the size card's are remembered).
+        let form = form ?? TourGuide.shared.takeSample().map { MakeForm(picture: $0, name: TourGuide.sampleName, card: .remembered()) }
+        guard let form else { return }
+        _start = State(initialValue: form.fromPicture ? .picture : .description)
+        _picture = State(initialValue: form.picture.flatMap { url in
+            Picture(url, caption: again.map { "The picture \($0.displayName) was made from" }) })
+        _restyle = State(initialValue: form.restyle)
+        _cartoon = State(initialValue: form.cartoon)
+        _description = State(initialValue: form.description)
+        _improved = State(initialValue: form.improved)
+        _name = State(initialValue: form.name)
+        _seed = State(initialValue: form.seed)
+        _card = State(initialValue: form.card)
+        _project = State(initialValue: form.project ?? "")
+        _madeWith = State(initialValue: form.model)
     }
     @State private var message: String?
     @State private var messageIsError = false
@@ -72,6 +95,15 @@ struct MakeView: View {
                     .pickerStyle(.segmented)
                     .help("Start from a picture of your \(thing), or from a description")
                     if start == .picture { picturePane } else { descriptionPane }
+                    if let again, let used = madeWith.flatMap({ EngineDownload.model($0) }), used != model.setup.chosen, !cartoonOn {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text("Made with \(used.name), as \(again.displayName) was.").foregroundStyle(.secondary)
+                            Spacer()
+                            Button("Use \(model.setup.chosen.name)") { madeWith = nil }
+                                .help("Make it with the 3D model chosen in Settings instead")
+                        }
+                        .font(.callout)
+                    }
                     TextField("Name", text: $name, prompt: Text(object ? "e.g. Teapot" : "e.g. Dwarf Cleric"))
                         .help("How it's listed, and what its print file is called")
                         .focused($nameFocused)
@@ -135,11 +167,10 @@ struct MakeView: View {
             .padding(16)
             .fixedSize(horizontal: false, vertical: true)
         }
-        // The tour's "Use the Sample": its picture and name, ready to make.
         .onAppear {
-            if let url = TourGuide.shared.takeSample() { name = TourGuide.sampleName; take(url) }
-            // The project you're looking at: the one New Mini was asked from, else the selected mini's.
-            project = model.makeInProject ?? model.selected?.project ?? ""
+            // The project you're looking at: the one New Mini was asked from, else the selected
+            // mini's. Edit & Make Again keeps the mini's own.
+            if again == nil { project = model.makeInProject ?? model.selected?.project ?? "" }
             model.makeInProject = nil
         }
         // Two equal columns: 540 each from the default window up (the size column's hints mostly
@@ -184,7 +215,7 @@ struct MakeView: View {
                 VStack(spacing: 6) {
                     if let picture {
                         Image(nsImage: picture.image).resizable().scaledToFit().frame(maxHeight: 180)
-                        Text(picture.url.lastPathComponent).font(.caption).foregroundStyle(.secondary)
+                        Text(picture.caption).font(.caption).foregroundStyle(.secondary)
                     } else {
                         Image(systemName: "photo.badge.plus").font(.largeTitle).foregroundStyle(.secondary)
                         Text("Drop a picture, paste it (⌘V), or click to choose")
@@ -374,7 +405,8 @@ struct MakeView: View {
         do {
             if project == Self.newProject { project = try model.createProject(newProjectName) }
             try model.make(name: slug, picture: source, restyle: start == .picture && sculpt,
-                           seed: seed, sizes: card.sizes, kind: card.kind, project: project.isEmpty ? nil : project, cartoon: cartoonOn, shown: name)
+                           seed: seed, sizes: card.sizes, kind: card.kind, project: project.isEmpty ? nil : project, cartoon: cartoonOn, shown: name,
+                           model: madeWith.flatMap { EngineDownload.model($0) })
         } catch {
             say(model.plainWords(error), error: true)
             messageDetail = "\(error)"
@@ -405,8 +437,10 @@ struct Picture {
     let image: NSImage
     /// Pixels, upright.
     let width: Int, height: Int
+    /// What's said under it: its file's name, unless there's something better to say.
+    let caption: String
 
-    init?(_ url: URL) {
+    init?(_ url: URL, caption: String? = nil) {
         guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
               let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
               let w = props[kCGImagePropertyPixelWidth] as? Int, let h = props[kCGImagePropertyPixelHeight] as? Int,
@@ -415,6 +449,7 @@ struct Picture {
         let turned = [5, 6, 7, 8].contains(props[kCGImagePropertyOrientation] as? Int ?? 1)
         self.url = url
         self.image = image
+        self.caption = caption ?? url.lastPathComponent
         (width, height) = turned ? (h, w) : (w, h)
     }
 }
