@@ -205,9 +205,15 @@ private struct QueueList: View {
             HStack(alignment: .firstTextBaseline) {
                 Text("Waiting (\(rows.count))").font(.headline)
                 Spacer()
-                if let last = rows.last {
+                if model.hold == nil, let last = rows.last {
                     Text("All done in \(JobProgress.about(last.ready))").foregroundStyle(.secondary).monospacedDigit()
                 }
+                Button(model.pauseCommand) { model.togglePause() }
+                    .help(model.paused ? "Carry on with the queue" : "Let the mini being made finish, and start no more until you resume")
+            }
+            if let hold = model.hold {
+                Label(hold.sentence, systemImage: hold == .paused ? "pause.circle" : "battery.50percent")
+                    .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
@@ -217,7 +223,7 @@ private struct QueueList: View {
                                 .frame(width: 18).accessibilityHidden(true)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(Mini.displayName(row.entry.name))
-                                Text("\(row.entry.job == .prep ? "Resize" : "Make") · takes \(JobProgress.about(row.estimate.total)) · ready in \(JobProgress.about(row.ready))")
+                                Text(times(row.entry, estimate: row.estimate, ready: row.ready))
                                     .font(.callout).foregroundStyle(.secondary).monospacedDigit()
                             }
                             Spacer()
@@ -238,6 +244,13 @@ private struct QueueList: View {
             .frame(maxHeight: 180)
             .fixedSize(horizontal: false, vertical: rows.count <= 3)
         }
+    }
+
+    /// "Make · takes about 9 minutes · ready in about 20 minutes", without when it's ready while
+    /// the queue is held.
+    private func times(_ entry: QueueEntry, estimate: Estimate, ready: TimeInterval) -> String {
+        let takes = "\(entry.job == .prep ? "Resize" : "Make") · takes \(JobProgress.about(estimate.total))"
+        return model.hold == nil ? "\(takes) · ready in \(JobProgress.about(ready))" : takes
     }
 }
 
@@ -378,33 +391,46 @@ struct JobToolbarItem: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         @Bindable var model = model
-        if let s = model.toolbarJob {
+        // One button either way, so its popover stays open when Resume starts the next mini.
+        if model.toolbarJob != nil || model.queueHeld != nil {
             Button { model.jobPopover.toggle() } label: {
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    HStack(spacing: 6) {
-                        if s.running {
-                            ProgressRing(fraction: JobProgress.fraction(s, estimate: model.estimate(s), now: context.date))
-                                .transition(.opacity)
-                        } else {
-                            Image(systemName: s.succeeded ? "checkmark.circle.fill" : s.canceled ? "stop.circle" : "exclamationmark.triangle.fill")
-                                .foregroundStyle(s.succeeded ? .green : s.canceled ? .secondary : .orange)
-                                .transition(reduceMotion || !s.succeeded ? .opacity : .scale(scale: 0.3).combined(with: .opacity))
+                if let s = model.toolbarJob {
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        HStack(spacing: 6) {
+                            if s.running {
+                                ProgressRing(fraction: JobProgress.fraction(s, estimate: model.estimate(s), now: context.date))
+                                    .transition(.opacity)
+                            } else {
+                                Image(systemName: s.succeeded ? "checkmark.circle.fill" : s.canceled ? "stop.circle" : "exclamationmark.triangle.fill")
+                                    .foregroundStyle(s.succeeded ? .green : s.canceled ? .secondary : .orange)
+                                    .transition(reduceMotion || !s.succeeded ? .opacity : .scale(scale: 0.3).combined(with: .opacity))
+                            }
+                            Text(label(s, now: context.date)).monospacedDigit()
+                                .contentTransition(.numericText())
                         }
-                        Text(label(s, now: context.date)).monospacedDigit()
-                            .contentTransition(.numericText())
+                        .animation(reduceMotion ? nil : .bouncy, value: s.running)
+                        .animation(reduceMotion ? nil : .default, value: Int(context.date.timeIntervalSince(s.started)))
                     }
-                    .animation(reduceMotion ? nil : .bouncy, value: s.running)
-                    .animation(reduceMotion ? nil : .default, value: Int(context.date.timeIntervalSince(s.started)))
+                } else if let hold = model.queueHeld {
+                    // Nothing running and the queue held: what it waits for, and Resume in the popover.
+                    Label("\(hold == .paused ? "Paused" : "On battery") · \(model.queue.count) waiting",
+                          systemImage: hold == .paused ? "pause.circle" : "battery.50percent")
+                        .labelStyle(.titleAndIcon)
                 }
             }
-            .help(s.running ? "Show progress, the queue and Stop" : "Show how it went")
+            .help(tip)
             .background { DetachablePopover(isPresented: $model.jobPopover) { JobProgressView().environment(model) } }
         }
     }
 
+    private var tip: String {
+        if let s = model.toolbarJob { return s.running ? "Show progress, the queue and Stop" : "Show how it went" }
+        return model.queueHeld?.sentence ?? ""
+    }
+
     private func label(_ s: JobStatus, now: Date) -> String {
         let who = Mini.displayName(s.name)
-        let waiting = model.queue.isEmpty ? "" : " · \(model.queue.count) waiting"
+        let waiting = model.queue.isEmpty ? "" : " · \(model.queue.count) waiting" + (model.paused ? ", paused" : "")
         if s.running { return "\(s.kind == .prep ? "Resizing" : "Making") \(who) · \(JobProgress.clock(now.timeIntervalSince(s.started)))\(waiting)" }
         if s.canceled { return "Stopped \(who)\(waiting)" }
         return (s.succeeded ? "\(who) is ready" : "\(who) didn't finish") + waiting

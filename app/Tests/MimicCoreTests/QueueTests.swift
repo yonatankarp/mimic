@@ -77,6 +77,65 @@ final class QueueTests: XCTestCase {
         XCTAssertEqual(ran(fx), ["a", "b", "d"])
     }
 
+    /// Pause after this one (#89): the running job finishes, nothing after it starts, in this
+    /// Mimic or another (the pause is on disk), and resuming carries on in order.
+    func testPauseAfterThisOneHoldsTheQueueForEveryMimic() throws {
+        let fx = try Fixture()
+        for n in ["a", "b", "c"] { _ = try fx.mini(n) }
+        let prep = try overlapCatcher(fx, hold: 0.5)
+        let a = JobRunner(install: fx.install, tools: fx.tools(mimic: prep))
+        let b = JobRunner(install: fx.install, tools: fx.tools(mimic: prep))
+        XCTAssertNil(try a.resize(name: "a", sizes: sizes))
+        XCTAssertEqual(try a.resize(name: "b", sizes: sizes), 1)
+        try a.setPaused(true)
+        a.waitUntilDone()
+        XCTAssertEqual(ran(fx), ["a"], "the one running finishes, and nothing after it starts")
+        XCTAssertEqual(a.queue.entries().map(\.name), ["b"])
+        XCTAssertEqual(b.hold(), .paused, "another Mimic sees the pause")
+        b.pump()
+        XCTAssertNil(b.status, "another Mimic started the paused queue")
+        XCTAssertEqual(try b.resize(name: "c", sizes: sizes), 1, "one ahead of it, and nothing running")
+        XCTAssertNil(b.status)
+        try b.setPaused(false)
+        XCTAssertNil(a.hold())
+        b.waitUntilDone()
+        XCTAssertEqual(ran(fx), ["a", "b", "c"])
+        XCTAssertEqual(b.queue.entries(), [])
+    }
+
+    /// Don't start minis on battery: nothing new starts while the Mac is on battery, and the
+    /// queue carries on when it's plugged in and someone looks again.
+    func testNothingStartsOnBattery() throws {
+        let fx = try Fixture(); _ = try fx.mini("a")
+        let battery = Flag(true)
+        let jobs = JobRunner(install: fx.install, tools: fx.tools())
+        jobs.heldForPower = { battery.value }
+        XCTAssertEqual(try jobs.resize(name: "a", sizes: sizes), 0, "nothing ahead of it")
+        XCTAssertNil(jobs.status, "it started on battery")
+        XCTAssertEqual(jobs.hold(), .battery)
+        jobs.pump()
+        XCTAssertNil(jobs.status)
+        battery.value = false  // plugged in
+        jobs.pump()
+        jobs.waitUntilDone()
+        XCTAssertEqual(jobs.status?.succeeded, true)
+        XCTAssertEqual(jobs.queue.entries(), [])
+    }
+
+    /// A job's programs run at a lower priority, so the Mac stays quick to use meanwhile (#89).
+    func testJobProgramsRunAtALowerPriority() throws {
+        let fx = try Fixture(); _ = try fx.mini("a")
+        let out = fx.root.appendingPathComponent("nice.txt")
+        let prep = try fx.script("prep", "ps -o nice= -p $$ > \(out.path)")
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: prep))
+        try jobs.resize(name: "a", sizes: sizes)
+        jobs.waitUntilDone()
+        XCTAssertEqual(jobs.status?.succeeded, true)
+        // nice adds to what it's started with: whatever runs the tests may already be niced.
+        XCTAssertEqual(try String(contentsOf: out, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines),
+                       String(min(20, getpriority(PRIO_PROCESS, 0) + 10)))
+    }
+
     /// A queued new mini is on disk at once (its picture, its settings) and shows as unfinished;
     /// taking it out of the queue sends its folder to the Trash, as stopping it would.
     func testAQueuedMiniIsWrittenAtOnceAndRemovingItTrashesIt() throws {
@@ -219,5 +278,16 @@ final class QueueTests: XCTestCase {
         let next = JobQueue.openLock(url)
         defer { close(next) }
         XCTAssertEqual(flock(next, LOCK_EX | LOCK_NB), 0, "a job's leftover program holds the lock")
+    }
+}
+
+/// A switch the job runner reads from its own threads.
+final class Flag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var on: Bool
+    init(_ on: Bool) { self.on = on }
+    var value: Bool {
+        get { lock.withLock { on } }
+        set { lock.withLock { on = newValue } }
     }
 }
