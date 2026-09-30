@@ -76,9 +76,15 @@ struct MiniCommands: Commands {
         CommandMenu("Mini") {
             let mini = model.selected, chosen = model.chosen, several = chosen.count > 1
             let free = model.sheet == nil
-            Button("Open in \(model.slicerName)") { if let stl = mini?.stl { model.openInSlicer(stl) } }
-                .keyboardShortcut("o")
-                .disabled(mini?.stl == nil)
+            if several {
+                Button("Open Together in \(model.slicerName)") { model.openTogether(chosen) }
+                    .keyboardShortcut("o")
+                    .disabled(chosen.filter { $0.stl != nil }.count < 2 || model.packing)
+            } else {
+                Button("Open in \(model.slicerName)") { if let stl = mini?.stl { model.openInSlicer(stl) } }
+                    .keyboardShortcut("o")
+                    .disabled(mini?.stl == nil)
+            }
             Button("Show in Finder") { model.showInFinder(chosen) }
                 .keyboardShortcut("r", modifiers: [.command, .option])
                 .disabled(chosen.isEmpty)
