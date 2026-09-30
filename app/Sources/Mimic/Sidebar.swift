@@ -279,7 +279,7 @@ struct GalleryRow: View {
     private var line: String {
         if let status { return status }
         if mini.stl == nil { return "Not finished" }
-        return MiniSettings.load(mini.folder).made.map(PrintTips.shortLine) ?? mini.madeAt.formatted(.relative(presentation: .named))
+        return mini.settings.made.map(PrintTips.shortLine) ?? mini.madeAt.formatted(.relative(presentation: .named))
     }
 
     var body: some View {

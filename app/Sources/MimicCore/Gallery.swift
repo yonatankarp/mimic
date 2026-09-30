@@ -11,10 +11,14 @@ public struct Mini: Identifiable, Hashable, Sendable {
     public let created: Date
     /// The project it's in (its parent folder's name), or nil when it's unsorted.
     public var project: String?
+    /// Its settings.json as the gallery read it, once per reload: what the list and its page
+    /// show, so a redraw never reads the file. What a job runs from is read afresh instead.
+    public let settings: MiniSettings
     public var id: String { name }
 
-    public init(name: String, folder: URL, madeAt: Date, created: Date? = nil, project: String? = nil) {
+    public init(name: String, folder: URL, madeAt: Date, created: Date? = nil, project: String? = nil, settings: MiniSettings = MiniSettings()) {
         self.name = name; self.folder = folder; self.madeAt = madeAt; self.created = created ?? madeAt; self.project = project
+        self.settings = settings
     }
     public var stl: URL? { existing("\(name).stl") }
     public var source: URL? { existing("source.png") }
@@ -56,7 +60,10 @@ public struct Mini: Identifiable, Hashable, Sendable {
         return FileManager.default.fileExists(atPath: u.path) ? u : nil
     }
 
-    public static func == (a: Mini, b: Mini) -> Bool { a.name == b.name && a.madeAt == b.madeAt && a.project == b.project }
+    /// Settings included, so a reload notices a run that failed or a rename that moved its versions.
+    public static func == (a: Mini, b: Mini) -> Bool {
+        a.name == b.name && a.madeAt == b.madeAt && a.project == b.project && a.settings == b.settings
+    }
     public func hash(into h: inout Hasher) { h.combine(name) }
 }
 
@@ -99,13 +106,15 @@ public enum Gallery {
     /// Every mini, in every project, the most recently asked for first.
     public static func list(_ runs: URL) -> [Mini] {
         var out: [Mini] = []
+        func mini(_ dir: URL, project: String?) -> Mini {
+            let settings = MiniSettings.load(dir)
+            return Mini(name: dir.lastPathComponent, folder: dir, madeAt: madeAt(dir), created: created(dir, settings), project: project, settings: settings)
+        }
         for dir in subfolders(runs) {
             if isMini(dir) {
-                out.append(Mini(name: dir.lastPathComponent, folder: dir, madeAt: madeAt(dir), created: created(dir)))
+                out.append(mini(dir, project: nil))
             } else {
-                out += subfolders(dir).filter(isMini).map {
-                    Mini(name: $0.lastPathComponent, folder: $0, madeAt: madeAt($0), created: created($0), project: dir.lastPathComponent)
-                }
+                out += subfolders(dir).filter(isMini).map { mini($0, project: dir.lastPathComponent) }
             }
         }
         return out.sorted { $0.created > $1.created }
@@ -124,7 +133,7 @@ public enum Gallery {
     public static func toResize(_ minis: [Mini], to sizes: Sizes, busy: Set<String>) -> (resize: [(mini: Mini, sizes: Sizes)], same: Int, skipped: Int) {
         var resize: [(mini: Mini, sizes: Sizes)] = [], same = 0, skipped = 0
         for mini in minis {
-            let settings = MiniSettings.load(mini.folder)
+            let settings = mini.settings
             var own = sizes
             own.noBase = (settings.made ?? settings.requested)?.noBase ?? (settings.kind == .object)
             if own.noBase { own.shape = .round; own.style = .plain; own.magnet = nil }  // as it reads back: no base has no shape
@@ -209,8 +218,8 @@ public enum Gallery {
 
     /// When a mini was asked for: saved in its settings, else (older minis) its folder's creation
     /// date, which a rename, a move or a resize leaves alone.
-    public static func created(_ folder: URL) -> Date {
-        MiniSettings.load(folder).created
+    public static func created(_ folder: URL, _ settings: MiniSettings) -> Date {
+        settings.created
             ?? (try? FileManager.default.attributesOfItem(atPath: folder.path)[.creationDate] as? Date) ?? .distantPast
     }
 }
@@ -230,7 +239,7 @@ extension Gallery {
         try fm.moveItem(at: src, to: dst)
         try renameFiles(in: dst, from: old, to: new)
         // Its other versions name it as their first: they follow it.
-        for m in list(runs) where MiniSettings.load(m.folder).versionOf == old {
+        for m in list(runs) where m.settings.versionOf == old {
             try? MiniSettings.update(m.folder) { $0.versionOf = new }
         }
     }
