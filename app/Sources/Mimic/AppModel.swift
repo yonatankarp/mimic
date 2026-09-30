@@ -48,8 +48,6 @@ final class AppModel {
         didSet { UserDefaults.standard.set(collapsed.sorted(), forKey: "collapsedProjects") }
     }
     var selection: Mini.ID?
-    /// The selected mini's preview shown big over the window, or nil.
-    var enlarged: MiniPreview?
     /// The job's latest status, updated on the main thread; nil before the first job.
     var job: JobStatus?
     /// Why a job can't start (a required check failed), or nil: the latest health checks.
@@ -69,12 +67,24 @@ final class AppModel {
     /// Mimic is the app in front. Set before the popover closes on switching away (it closes
     /// when the app resigns), which NSApp.isActive may not yet say.
     private var active = true
-    /// "Stop making …?", asked from the job's popover.
+    /// "Stop making …?", asked from the job's popover, the Mini menu or the Dock menu.
     var confirmingStop = false
+    /// The job in the toolbar, which the job's popover hangs from; nil hides both.
+    var toolbarJob: JobStatus? { JobProgress.inToolbar(job, keptShown: jobShown, elsewhere: elsewhere) }
+    /// This Mimic's job can be stopped: "Stop Making…" or "Stop Resizing…" in the menus, else nil.
+    var stopCommand: String? {
+        guard let job, job.running else { return nil }
+        return job.kind == .prep ? "Stop Resizing…" : "Stop Making…"
+    }
+    /// View → Face Front: bumped for the mini's 3D view to turn back to face you.
+    var faceFrontRequests = 0
     /// The waiting job on "Take it out of the queue?", asked from the job's popover.
     var unqueueing: QueueEntry?
-    /// The mini waiting on "Move to Trash?", asked from the sidebar or the Mini menu.
+    /// A mini waiting in the queue, on "Move to Trash?": Undo can't put it back in the queue,
+    /// so it's asked first (see `askToTrash`).
     var trashing: Mini?
+    /// The main window's, for Undo Move to Trash; set by the window.
+    @ObservationIgnored weak var undo: UndoManager?
     /// A rename or trash that was refused, shown as an alert.
     var problem: String?
 
@@ -352,6 +362,12 @@ final class AppModel {
     /// A mini that can't be renamed or trashed right now: being made here or in another Mimic.
     var busyWith: String? { current?.name }
 
+    /// Move to Trash from the sidebar or the Mini menu: at once, as Edit → Undo puts it back;
+    /// asked first only for one waiting in the queue, which Undo can't put back in it.
+    func askToTrash(_ mini: Mini) {
+        if waiting(mini.name) != nil { trashing = mini } else { trash(mini) }
+    }
+
     func trash(_ mini: Mini) {
         do {
             // Waiting to be made: out of the queue first (a new mini's folder goes to the Trash then).
@@ -360,11 +376,29 @@ final class AppModel {
                 refreshQueue()
                 if entry.job == .generate { return reload() }
             }
-            try Gallery.moveToTrash(install.runs, name: mini.name, busyWith: busyWith)
+            let (folder, trashed) = try Gallery.moveToTrash(install.runs, name: mini.name, busyWith: busyWith)
+            if let trashed { undoable(folder, trashed) }
         } catch {
             problem = plainWords(error, else: "Couldn't move it to the Trash. Try Show in Finder and delete it there.")
         }
         reload()  // picks the newest mini if this one was selected
+    }
+
+    /// Undo puts it back from the Trash and shows it; Redo moves it there again. Several moved at
+    /// once (Keep This One) come back with one Undo: the undo manager groups them by event.
+    private func undoable(_ folder: URL, _ trashed: URL) {
+        let name = folder.lastPathComponent
+        undo?.registerUndo(withTarget: self) { model in
+            do { try Gallery.putBack(model.install.runs, from: trashed, to: folder) }
+            catch { model.problem = model.plainWords(error, else: "Couldn't put it back. Is it still in the Trash?"); return }
+            model.reload()
+            model.selection = name
+            model.undo?.registerUndo(withTarget: model) { model in
+                if let mini = model.minis.first(where: { $0.name == name }) { model.trash(mini) }
+            }
+            model.undo?.setActionName("Move to Trash")
+        }
+        undo?.setActionName("Move to Trash")
     }
 
     /// Keep This One: moves `mini`'s other versions to the Trash (waiting ones leave the queue).

@@ -243,7 +243,7 @@ private struct JobQuestions: ViewModifier {
         @Bindable var model = model
         content
             .alert(model.job.map(stopTitle) ?? "", isPresented: $model.confirmingStop) {
-                Button("Keep Going", role: .cancel) {}
+                Button("Cancel", role: .cancel) {}
                 Button("Stop", role: .destructive) { model.stop() }
             } message: {
                 Text((model.job?.kind == .prep ? "It keeps its previous size." : "What's been made so far will be thrown away.")
@@ -252,7 +252,7 @@ private struct JobQuestions: ViewModifier {
             .confirmationDialog(model.unqueueing.map { "Take “\(Mini.displayName($0.name))” out of the queue?" } ?? "",
                                 isPresented: unqueueing, presenting: model.unqueueing) { e in
                 Button(e.job == .prep ? "Don't Resize" : "Take Out and Move to Trash", role: .destructive) { model.removeFromQueue(e.name) }
-                Button("Keep It Waiting", role: .cancel) {}
+                Button("Cancel", role: .cancel) {}
             } message: { e in
                 Text(e.job == .prep ? "It keeps its current size." : "It hasn't been made yet, so its picture and settings go to the Trash, where you can get them back.")
             }
@@ -324,10 +324,9 @@ private struct JobPicture: View {
         Thumbnail(url: version == nil ? nil : file, version: version ?? .distantPast)
             .frame(width: 84, height: 84)
             .clipShape(shape)
-            .glassEffect(.regular, in: .rect(cornerRadius: 12))  // as the mini's own previews: renders have no background
-            // A soft glow while the long step runs, and the scan. Both sit outside the glass and
-            // the glow is a still blur: glass or a shadow around the moving scan redrew with it
-            // every frame.
+            .background(Color.primary.opacity(0.05), in: shape)  // as the mini's own previews: renders have no background
+            // A soft glow while the long step runs, and the scan. The glow is a still blur: a
+            // shadow around the moving scan redrew with it every frame.
             .background { shape.fill(Color.accentColor.opacity(building ? 0.45 : 0)).blur(radius: 8) }
             .overlay { if building && !reduceMotion { LightSweep(vertical: true, crossing: 2.6, rest: 1.6, strength: 0.35).clipShape(shape) } }
             .overlay(alignment: .bottomTrailing) {
@@ -373,7 +372,7 @@ struct JobToolbarItem: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         @Bindable var model = model
-        if let s = model.job.flatMap({ model.jobShown || $0.running ? $0 : nil }) ?? model.elsewhere {
+        if let s = model.toolbarJob {
             Button { model.jobPopover.toggle() } label: {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     HStack(spacing: 6) {
@@ -477,6 +476,7 @@ struct MainWindowChrome: ViewModifier {
         Binding(get: { model.problem != nil }, set: { if !$0 { model.problem = nil } })
     }
     @Environment(AppModel.self) private var model
+    @Environment(\.undoManager) private var undoManager
     /// The window's size under its toolbar: New Mini and Resize grow up to it.
     @State private var room = CGSize(width: 960, height: 640)
 
@@ -485,16 +485,11 @@ struct MainWindowChrome: ViewModifier {
         content
             .onGeometryChange(for: CGSize.self) { $0.size } action: { room = $0 }
             .toolbar {
+                // What's going on, then New Mini apart from it; the mini's page adds its own group.
                 ToolbarItem(placement: .primaryAction) { UpdateToolbarItem() }
                 ToolbarItem(placement: .primaryAction) { JobToolbarItem() }
-                ToolbarItem(placement: .primaryAction) {
-                    OpenSettingsButton(tab: Health.shared.needsAttention ? .general : nil) {
-                        Label("Settings", systemImage: Health.shared.needsAttention ? "exclamationmark.triangle.fill" : "gearshape")
-                    }
-                    .foregroundStyle(Health.shared.needsAttention ? .orange : .primary)
-                    .help(Health.shared.blocking ?? "Settings (⌘,)")
-                    .tourStop(.settings)
-                }
+                ToolbarItem(placement: .primaryAction) { NeedsSetupItem() }
+                ToolbarSpacer(.fixed, placement: .primaryAction)
                 ToolbarItem(placement: .primaryAction) {
                     Button { model.sheet = .make } label: { Label("New Mini", systemImage: "plus") }
                         .help("Make a new mini (⌘N)")
@@ -520,10 +515,12 @@ struct MainWindowChrome: ViewModifier {
                                 isPresented: Binding(get: { model.trashing != nil }, set: { if !$0 { model.trashing = nil } }),
                                 presenting: model.trashing) { mini in
                 Button("Move to Trash", role: .destructive) { model.trash(mini) }
-                Button("Keep It", role: .cancel) {}
+                Button("Cancel", role: .cancel) {}
             } message: { _ in
-                Text("You can put it back from the Trash if you change your mind.")
+                Text("It leaves the queue. You can put it back from the Trash, but not in the queue.")
             }
+            // Move to Trash registers its Undo with the window's undo manager (Edit → Undo).
+            .onChange(of: undoManager, initial: true) { model.undo = undoManager }
             // Deleting a project never trashes its minis silently: keeping them is the default.
             .confirmationDialog("Delete the project “\(model.deletingProject ?? "")”?",
                                 isPresented: Binding(get: { model.deletingProject != nil }, set: { if !$0 { model.deletingProject = nil } }),
@@ -551,6 +548,26 @@ struct MainWindowChrome: ViewModifier {
     }
 }
 
+/// Settings lives in the Mimic menu (⌘,); the toolbar only says so when something needs you,
+/// and goes straight to what's missing.
+private struct NeedsSetupItem: View {
+    private var health: Health { .shared }
+
+    var body: some View {
+        if let why = health.blocking {
+            OpenSettingsButton(tab: .general) {
+                Label {
+                    Text("Needs Setup")
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                }
+                .labelStyle(.titleAndIcon)
+            }
+            .help(why)
+        }
+    }
+}
+
 /// Quitting during a job asks first, and a confirmed quit stops the job before leaving.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -566,7 +583,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.informativeText = (s.kind == .prep ? "Quitting stops it, and it keeps its previous size."
                                                  : "Quitting stops it, and what's been made so far will be thrown away.")
             + (waiting == 0 ? "" : " The \(waiting == 1 ? "mini" : "\(waiting) minis") waiting in the queue will start the next time you open Mimic.")
-        alert.addButton(withTitle: "Keep Going")
+        // First, so Esc presses it; the destructive button gets no Return.
+        alert.addButton(withTitle: "Cancel")
         alert.addButton(withTitle: "Stop and Quit").hasDestructiveAction = true
         guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }
         jobs.keepGoing = { _ in false }  // the queue waits for the next launch
@@ -588,4 +606,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.dockTile.badgeLabel = nil  // seen it
         model.updateBadge()  // the number waiting stays
     }
+
+    /// New Mini, and the job's progress and Stop while one runs, from the Dock icon.
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        let menu = NSMenu()
+        let free = model.sheet == nil
+        func add(_ title: String, _ action: Selector) {
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+            item.target = self
+            menu.addItem(item)
+        }
+        if model.setup.installed && free { add("New Mini…", #selector(newMini)) }
+        if model.toolbarJob != nil && free { add("Show Progress", #selector(showProgress)) }
+        if let title = model.stopCommand, free { add(title, #selector(stopJob)) }
+        return menu
+    }
+
+    // Mimic comes to the front first, then acts: the job's popover keeps track of whether it is.
+    @objc private func newMini() { NSApp.activate(); Task { model.sheet = .make } }
+    @objc private func showProgress() { NSApp.activate(); Task { model.jobPopover = true } }
+    @objc private func stopJob() { NSApp.activate(); Task { model.confirmingStop = true } }
 }

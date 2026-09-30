@@ -67,6 +67,12 @@ public enum JobProgress {
     /// popover having shown the end while Mimic was in front (`shownEnd`). A popover closed by
     /// switching to another app, or while the job ran, never counts.
     public static func seenEnd(active: Bool, busy: Bool, shownEnd: Bool) -> Bool { active && !busy && shownEnd }
+
+    /// The job the toolbar shows, which its popover hangs from: this Mimic's while it runs, and
+    /// once it ends until that's been seen (`keptShown`); else what another Mimic is running.
+    public static func inToolbar(_ job: JobStatus?, keptShown: Bool, elsewhere: JobStatus?) -> JobStatus? {
+        job.flatMap { keptShown || $0.running ? $0 : nil } ?? elsewhere
+    }
 }
 
 extension String {

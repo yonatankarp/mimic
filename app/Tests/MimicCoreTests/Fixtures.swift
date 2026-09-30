@@ -56,5 +56,5 @@ final class TrashSpy: @unchecked Sendable {
     private let lock = NSLock()
     private var items: [URL] = []
     var trashed: [URL] { lock.withLock { items } }
-    func callAsFunction(_ u: URL) { lock.withLock { items.append(u) } }
+    @discardableResult func callAsFunction(_ u: URL) -> URL? { lock.withLock { items.append(u) }; return nil }
 }

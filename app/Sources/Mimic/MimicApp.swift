@@ -25,6 +25,10 @@ struct MimicApp: App {
                     Button("Check for Updates…") { model.updates.check() }
                 }
             }
+            // An action, not a setting: after Settings in the Mimic menu.
+            CommandGroup(after: .appSettings) {
+                Button("Install Command-Line Tool…") { CommandLineTool.show() }
+            }
             CommandGroup(replacing: .newItem) {
                 Button("New Mini…") { model.sheet = .make }
                     .keyboardShortcut("n")
@@ -51,10 +55,22 @@ struct MimicApp: App {
 
 /// The Mini menu: what the buttons and the right-click menu do to the selected mini, with
 /// keyboard shortcuts. Disabled whenever a sheet is up, so a shortcut can't swap it out.
+/// The mini page's own toolbar and 3D view controls are in the View menu.
 struct MiniCommands: Commands {
     let model: AppModel
+    @AppStorage("showDetails") private var showDetails = true
 
     var body: some Commands {
+        CommandGroup(after: .sidebar) {
+            Divider()
+            // ⌃⌘I as the system's inspector toggle, next to Show Sidebar's ⌃⌘S.
+            Button(showDetails ? "Hide Details" : "Show Details") { showDetails.toggle() }
+                .keyboardShortcut("i", modifiers: [.command, .control])
+                .disabled(model.selected == nil)
+            Button("Face Front") { model.faceFrontRequests += 1 }
+                .keyboardShortcut("0")
+                .disabled(model.selected?.stl == nil || model.sheet != nil)
+        }
         CommandMenu("Mini") {
             let mini = model.selected
             let free = model.sheet == nil
@@ -62,7 +78,7 @@ struct MiniCommands: Commands {
                 .keyboardShortcut("o")
                 .disabled(mini?.stl == nil)
             Button("Show in Finder") { if let mini { model.showInFinder(mini) } }
-                .keyboardShortcut("r", modifiers: [.command, .shift])
+                .keyboardShortcut("r", modifiers: [.command, .option])
                 .disabled(mini == nil)
             Divider()
             Button("Resize This Mini…") { if let mini { model.sheet = .resize(mini) } }
@@ -72,8 +88,9 @@ struct MiniCommands: Commands {
                 .disabled(mini == nil || !free || mini.flatMap { model.waiting($0.name) } != nil)
             Divider()
             if let mini, free {
-                AnotherVersionButton(mini: mini).environment(model)
-                MoveToProjectMenu(mini: mini).environment(model)
+                // No icons in the menu bar: the other items have none.
+                AnotherVersionButton(mini: mini, showsIcon: false).environment(model)
+                MoveToProjectMenu(mini: mini, showsIcon: false).environment(model)
             } else {
                 Button("Make Another Version") {}.disabled(true)
                 Button("Move to Project") {}.disabled(true)
@@ -83,7 +100,13 @@ struct MiniCommands: Commands {
                 .keyboardShortcut("n", modifiers: [.command, .shift])
                 .disabled(!free || !model.setup.installed)
             Divider()
-            Button("Move to Trash…") { model.trashing = mini }
+            // The job's toolbar item, from the keyboard.
+            Button("Show Progress") { model.jobPopover = true }
+                .disabled(model.toolbarJob == nil || !free)
+            Button(model.stopCommand ?? "Stop Making…") { model.confirmingStop = true }
+                .disabled(model.stopCommand == nil || !free)
+            Divider()
+            Button("Move to Trash") { if let mini { model.askToTrash(mini) } }
                 .keyboardShortcut(.delete)
                 .disabled(mini == nil || !free)
         }
@@ -114,11 +137,6 @@ struct ContentView: View {
                                            description: Text("Pick a mini on the left."))
                 }
             }
-            .overlay { EnlargedPreview() }
-            .animation(.easeOut(duration: 0.15), value: model.enlarged)
-            // Another mini, or a sheet from the toolbar or a menu, takes over from it.
-            .onChange(of: model.selection) { model.enlarged = nil }
-            .onChange(of: model.sheet) { if model.sheet != nil { model.enlarged = nil } }
         } else {
             SetupView()
         }

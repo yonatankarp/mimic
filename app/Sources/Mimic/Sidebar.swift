@@ -2,6 +2,7 @@ import AppKit
 import MimicCore
 import QuickLook
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// The gallery on the left: a collapsible section per project, then Unsorted; search, the
 /// right-click menus, drag and drop between projects, and Quick Look. Rename, trash and the
@@ -85,8 +86,8 @@ struct Sidebar: View {
         }
         // A new mini slides into the list (and a trashed one out) rather than popping.
         .animation(reduceMotion ? nil : .default, value: shown.map(\.id))
-        // Delete (or ⌘⌫ from the Mini menu) asks before trashing, as the context menu does.
-        .onDeleteCommand { if let mini = model.selected, model.sheet == nil { model.trashing = mini } }
+        // Delete (or ⌘⌫ from the Mini menu) moves it to the Trash, as the context menu does.
+        .onDeleteCommand { if let mini = model.selected, model.sheet == nil { model.askToTrash(mini) } }
         .overlay {
             if shown.isEmpty && !model.minis.isEmpty {
                 ContentUnavailableView.search(text: query)
@@ -97,19 +98,20 @@ struct Sidebar: View {
     private func rows(_ minis: [Mini], project: String?) -> some View {
         ForEach(minis) { mini in
             GalleryRow(mini: mini, status: rowStatus(mini)).contextMenu { menu(for: mini) }
-                .help("Press space to preview it. Drag it onto a project to move it. Right-click for more.")
-                .draggable(mini.name)
+                .help("Press space to preview it. Drag it onto a project to move it, or to Finder or your slicer to copy its print file. Right-click for more.")
+                .draggable(MiniDrag(name: mini.name, stl: mini.stl))
                 // Dropped on a mini: into that mini's project.
                 .dropDestination(for: String.self) { names, _ in model.move(names, to: project); return true }
         }
     }
 
-    /// A section's title with a + for a new project, so there's one in the list from the start.
+    /// A section's title with a New Project button, so there's one in the list from the start.
+    /// A folder, as at the bottom: + is New Mini, in the toolbar.
     private func header(_ title: String) -> some View {
         HStack {
             Text(title)
             Spacer()
-            Button { model.sheet = .newProject(moving: nil) } label: { Image(systemName: "plus") }
+            Button { model.sheet = .newProject(moving: nil) } label: { Image(systemName: "folder.badge.plus") }
                 .buttonStyle(.borderless)
                 .help("New Project (⇧⌘N): a folder to group minis in.")
                 .accessibilityLabel("New Project")
@@ -154,7 +156,21 @@ struct Sidebar: View {
         Divider()
         Button("Rename…", systemImage: "pencil") { model.sheet = .rename(mini) }
             .disabled(model.waiting(mini.name) != nil)
-        Button("Move to Trash…", systemImage: "trash", role: .destructive) { model.trashing = mini }
+        Button("Move to Trash", systemImage: "trash", role: .destructive) { model.askToTrash(mini) }
+    }
+}
+
+/// A mini dragged from the list. Inside Mimic it's its name, which the projects take to move it
+/// (never a copy of its files); to Finder or a slicer it's its print file, as a dragged preview is.
+/// No bare file URL goes out: Finder could take that as a move out of the minis folder.
+struct MiniDrag: Transferable {
+    let name: String
+    let stl: URL?
+
+    static var transferRepresentation: some TransferRepresentation {
+        ProxyRepresentation(exporting: \.name).visibility(.ownProcess)
+        FileRepresentation(exportedContentType: UTType(filenameExtension: "stl") ?? .data) { SentTransferredFile($0.stl!) }
+            .exportingCondition { $0.stl != nil }
     }
 }
 
@@ -238,9 +254,12 @@ struct GalleryRow: View {
 /// Make Another Version, for the right-click menu and the Mini menu.
 struct AnotherVersionButton: View {
     let mini: Mini
+    var showsIcon = true
     @Environment(AppModel.self) private var model
     var body: some View {
-        Button("Make Another Version", systemImage: "square.on.square") { model.makeAnotherVersion(mini) }
+        Button { model.makeAnotherVersion(mini) } label: {
+            if showsIcon { Label("Make Another Version", systemImage: "square.on.square") } else { Text("Make Another Version") }
+        }
             .help("Makes it again from the same picture or description, with a different variation number: "
                   + "a detail that came out as a blob may come out right. It goes next to this one, and waits its turn if Mimic is busy.")
             .disabled(model.cantStart != nil || !JobRunner.canMakeAnotherVersion(mini))
@@ -251,9 +270,10 @@ struct AnotherVersionButton: View {
 /// can't move; the menu says so instead of listing projects.
 struct MoveToProjectMenu: View {
     let mini: Mini
+    var showsIcon = true
     @Environment(AppModel.self) private var model
     var body: some View {
-        Menu("Move to Project", systemImage: "folder") {
+        Menu {
             if let why = model.whyCantMove(mini) {
                 Text(why)
             } else {
@@ -265,6 +285,8 @@ struct MoveToProjectMenu: View {
                 Divider()
                 Button("New Project…") { model.sheet = .newProject(moving: mini) }
             }
+        } label: {
+            if showsIcon { Label("Move to Project", systemImage: "folder") } else { Text("Move to Project") }
         }
     }
 }

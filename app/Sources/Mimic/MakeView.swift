@@ -162,7 +162,8 @@ struct MakeView: View {
             if health.lastChecked == nil && !health.running && !model.running { health.check(model.install) }
             await health.watchDrawThings(model.install)
         }
-        // ⌘V: a picture on the clipboard becomes the picture; anything else pastes as usual.
+        // ⌘V: a picture on the clipboard becomes the picture; anything else pastes as usual, and
+        // so does text while a field is being typed in (see paste()).
         .background { Button("") { paste() }.keyboardShortcut("v").hidden() }
         .fileImporter(isPresented: $choosing, allowedContentTypes: [.image]) { result in
             if case .success(let url) = result { take(url) }
@@ -262,6 +263,14 @@ struct MakeView: View {
 
     private func paste() {
         let pb = NSPasteboard.general
+        // Typing in a field (its editor is an NSText) with text to paste: the text, as anywhere.
+        let typing = NSApp.keyWindow?.firstResponder is NSText
+        let hasText = pb.availableType(from: [.string]) != nil
+        let hasPicture = NSImage.canInit(with: pb) || pb.canReadObject(forClasses: [NSURL.self], options: [.urlReadingContentsConformToTypes: [UTType.image.identifier]])
+        guard MakeAdvice.pastesPicture(typing: typing, hasText: hasText, hasPicture: hasPicture) else {
+            NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
+            return
+        }
         if let url = (pb.readObjects(forClasses: [NSURL.self], options: [.urlReadingContentsConformToTypes: [UTType.image.identifier]]) as? [URL])?.first {
             return take(url)
         }
@@ -548,7 +557,8 @@ struct SizeSection: View {
                 LabeledContent {
                     HStack(spacing: 4) {
                         TextField("", text: bind(\.realHeight, { $0.setRealHeight($1) }), prompt: Text("1.80"))
-                            .labelsHidden().frame(width: 64).multilineTextAlignment(.trailing)
+                            .labelsHidden().accessibilityLabel("How tall is the character?")
+                            .frame(width: 64).multilineTextAlignment(.trailing)
                             .help("How tall the character would be in real life, in metres.")
                         Text("m")
                     }
@@ -596,6 +606,7 @@ struct SizeSection: View {
                     VStack(alignment: .leading, spacing: 4) {
                         LabeledContent("Variation number") {
                             TextField("", value: seed, format: .number.grouping(.never)).labelsHidden().frame(width: 90)
+                                .accessibilityLabel("Variation number")
                         }
                         Text("Same description + same number = same drawing. Change it for a different take.")
                             .font(.callout).foregroundStyle(.secondary)
@@ -624,14 +635,14 @@ struct SizeSection: View {
             LabeledContent {
                 HStack(spacing: 4) {
                     TextField("", value: bind(get, set), format: .number.precision(.fractionLength(0...decimals)).grouping(.never))
-                        .labelsHidden().frame(width: 56).multilineTextAlignment(.trailing)
+                        .labelsHidden().accessibilityLabel(label).frame(width: 56).multilineTextAlignment(.trailing)
                     Text(unit)
                 }
             } label: {
                 Text(label)
                 if let hint { Text(hint) }
             }
-            Slider(value: bind(get, set), in: range).labelsHidden()
+            Slider(value: bind(get, set), in: range).labelsHidden().accessibilityLabel(label)
         }
     }
 }

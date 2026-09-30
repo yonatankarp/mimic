@@ -43,6 +43,38 @@ final class GalleryTests: XCTestCase {
         XCTAssertThrowsError(try Gallery.moveToTrash(fx.install.runs, name: "dwarf", busyWith: "dwarf", trash: { spy($0) }))
     }
 
+    /// Undo for Move to Trash, with a folder standing in for the Trash.
+    func testPutBackFromTheTrash() throws {
+        let fx = try Fixture(), fm = FileManager.default, runs = fx.install.runs
+        let bin = fx.root.appendingPathComponent("Trash")
+        try fm.createDirectory(at: bin, withIntermediateDirectories: true)
+        func toBin(_ u: URL) throws -> URL? {
+            let to = bin.appendingPathComponent(u.lastPathComponent)
+            try fm.moveItem(at: u, to: to)
+            return to
+        }
+        _ = try Gallery.createProject(runs, "Party")
+        try fm.moveItem(at: try fx.mini("dwarf"), to: runs.appendingPathComponent("Party/dwarf"))
+        let (folder, trashed) = try Gallery.moveToTrash(runs, name: "dwarf", trash: toBin)
+        XCTAssertNil(Gallery.folder(runs, "dwarf"))
+        try Gallery.putBack(runs, from: XCTUnwrap(trashed), to: folder)
+        XCTAssertTrue(fm.fileExists(atPath: runs.appendingPathComponent("Party/dwarf/dwarf.stl").path), "not back in its project")
+
+        // Its project deleted meanwhile: made again.
+        let again = try Gallery.moveToTrash(runs, name: "dwarf", trash: toBin)
+        try fm.removeItem(at: runs.appendingPathComponent("Party"))
+        try Gallery.putBack(runs, from: XCTUnwrap(again.trashed), to: again.folder)
+        XCTAssertEqual(Gallery.list(runs).map(\.project), ["Party"])
+
+        // Its name taken meanwhile: left in the Trash.
+        let third = try Gallery.moveToTrash(runs, name: "dwarf", trash: toBin)
+        _ = try fx.mini("dwarf")
+        XCTAssertThrowsError(try Gallery.putBack(runs, from: XCTUnwrap(third.trashed), to: third.folder)) {
+            XCTAssertEqual($0 as? RequestError, .nameTaken("dwarf"))
+        }
+        XCTAssertTrue(fm.fileExists(atPath: bin.appendingPathComponent("dwarf").path))
+    }
+
     func testHiddenAndOrder() throws {
         let fx = try Fixture(); _ = try fx.mini("a"); _ = try fx.mini("_scratch")
         XCTAssertEqual(Gallery.list(fx.install.runs).map(\.name), ["a"])
