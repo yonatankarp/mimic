@@ -216,6 +216,22 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   Pixal3D keeps the crispest surface and is faster on bulky figures, so it stays as the second
   choice. TRELLIS.2 Lite lost the elf's bow and was no faster than TRELLIS.2, so it was removed.
   A mini or install with no model recorded now means TRELLIS.2 (alpha: no compatibility kept).
+- **Cartoons: the grey sculpt, then Pixal3D** (0.7.0, [#3](https://github.com/yonatankarp/mimic/issues/3);
+  New Mini's "It's a cartoon", `EngineDownload.forMaking`). A flat 2D cartoon given straight to
+  TRELLIS.2 came out as a flat sheet, 0.1 mm thick. With the grey sculpt both models give a
+  recognisable figure, but TRELLIS.2 builds it out of flat panels (head, limbs), already in the
+  engine's own output, and smoothing afterwards didn't fix it. Pixal3D's is smooth. Seen on
+  Piposh (three pictures from a game's model sheet, not committed: someone else's character) and
+  on the two pictures in `docs/cartoon-check/`, drawn for this with Draw Things: a chubby frog
+  knight (big head, stubby limbs) and a 1930s-style wizard with noodle-thin legs and a thin staff.
+  Both came out smooth and in one piece at 34 mm, with no fragile warning, and the sculpt kept
+  the cartoon proportions. So the sculpt prompt has nothing cartoon-specific yet.
+  **The cartoon check:** when the sculpt prompt, the Draw Things model or a 3D model changes,
+  make both pictures as cartoons and compare them with the minis above. From the repository:
+  `MIMIC_HOME=. "app/build/Mimic Dev.app/Contents/MacOS/mimic" make cartoon-frog --image
+  docs/cartoon-check/frog-knight.png --restyle --model pixal3d-sv` (and `noodle-wizard.png`).
+  Look for panels, lost limbs or staff, and the frog's face. `testTheSculptPromptsAreChecked`
+  fails whenever the prompt text changes, to remind whoever changed it.
 - **Model files come straight from Hugging Face,** pinned to a revision, each file checked
   against its sha256; the app's check compares every file's size.
 - **Children get an explicit environment,** never the app's own: launched from the Dock, the

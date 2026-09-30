@@ -27,6 +27,13 @@ final class DrawThingsTests: XCTestCase {
         }
     }
 
+    /// The character sculpt prompt, word for word. A change needs the cartoon check first
+    /// (NOTES.md, "Cartoons"): make docs/cartoon-check's two pictures as cartoons, then update this.
+    func testTheSculptPromptsAreChecked() {
+        XCTAssertEqual(DrawThings.sculptPrompt, "Turn this character into an unpainted grey plastic tabletop miniature sculpt. Keep the same character, pose, face, clothing, weapons and accessories. Clean sculpted forms, bold readable shapes, slightly larger head and hands, feet or hem resting on the ground, no base. Plain light grey studio background, soft even lighting, 3D render.",
+                       "The sculpt prompt changed: run the cartoon check in app/NOTES.md (Cartoons), then update this test.")
+    }
+
     /// Nothing listens on port 9, so these never reach the Draw Things running on this Mac.
     private let offline = ["DRAWTHINGS_URL": "http://127.0.0.1:9"]
 
