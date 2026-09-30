@@ -39,6 +39,17 @@ final class SearchTests: XCTestCase {
         XCTAssertEqual(Gallery.search(all, "bard").map(\.name), ["bob"])
     }
 
+    func testSearchIgnoresAccentsAndCapitals() {
+        var s = MiniSettings()
+        s.name("Élodie", folder: "elodie")
+        let elodie = Mini(name: "elodie", folder: URL(fileURLWithPath: "/tmp/elodie"), madeAt: .distantPast, settings: s)
+        let all = minis(seven) + [elodie, mini("cafe", desc: "a tiny CAFÉ counter")]
+        XCTAssertEqual(elodie.displayName, "Élodie")
+        XCTAssertEqual(Gallery.search(all, "elodie").map(\.name), ["elodie"])
+        XCTAssertEqual(Gallery.search(all, "ÉLO").map(\.name), ["elodie"])
+        XCTAssertEqual(Gallery.search(all, "cafe").map(\.name), ["cafe"], "in the description too")
+    }
+
     func testDateMadeIsNewestFirstByWhenAskedFor() {
         // Not by madeAt, which a resize changes: the list would jump on every resize.
         let old = Mini(name: "old", folder: URL(fileURLWithPath: "/tmp/old"), madeAt: Date(timeIntervalSince1970: 2_000_000),
