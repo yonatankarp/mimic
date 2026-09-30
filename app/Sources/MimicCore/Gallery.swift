@@ -14,11 +14,15 @@ public struct Mini: Identifiable, Hashable, Sendable {
     /// Its settings.json as the gallery read it, once per reload: what the list and its page
     /// show, so a redraw never reads the file. What a job runs from is read afresh instead.
     public let settings: MiniSettings
+    /// It has its print file, as the gallery found it on its reload: what the Unfinished
+    /// filter goes by, so filtering never looks on disk.
+    public let finished: Bool
     public var id: String { name }
 
-    public init(name: String, folder: URL, madeAt: Date, created: Date? = nil, project: String? = nil, settings: MiniSettings = MiniSettings()) {
+    public init(name: String, folder: URL, madeAt: Date, created: Date? = nil, project: String? = nil, settings: MiniSettings = MiniSettings(),
+                finished: Bool = true) {
         self.name = name; self.folder = folder; self.madeAt = madeAt; self.created = created ?? madeAt; self.project = project
-        self.settings = settings
+        self.settings = settings; self.finished = finished
     }
     public var stl: URL? { existing("\(name).stl") }
     public var source: URL? { existing("source.png") }
@@ -60,9 +64,10 @@ public struct Mini: Identifiable, Hashable, Sendable {
         return FileManager.default.fileExists(atPath: u.path) ? u : nil
     }
 
-    /// Settings included, so a reload notices a run that failed or a rename that moved its versions.
+    /// Settings and `finished` included, so a reload notices a run that failed or finished, or a
+    /// rename that moved its versions.
     public static func == (a: Mini, b: Mini) -> Bool {
-        a.name == b.name && a.madeAt == b.madeAt && a.project == b.project && a.settings == b.settings
+        a.name == b.name && a.madeAt == b.madeAt && a.project == b.project && a.settings == b.settings && a.finished == b.finished
     }
     public func hash(into h: inout Hasher) { h.combine(name) }
 }
@@ -107,8 +112,10 @@ public enum Gallery {
     public static func list(_ runs: URL) -> [Mini] {
         var out: [Mini] = []
         func mini(_ dir: URL, project: String?) -> Mini {
-            let settings = MiniSettings.load(dir)
-            return Mini(name: dir.lastPathComponent, folder: dir, madeAt: madeAt(dir), created: created(dir, settings), project: project, settings: settings)
+            let settings = MiniSettings.load(dir), name = dir.lastPathComponent
+            let finished = FileManager.default.fileExists(atPath: dir.appendingPathComponent("\(name).stl").path)
+            return Mini(name: name, folder: dir, madeAt: madeAt(dir), created: created(dir, settings), project: project, settings: settings,
+                        finished: finished)
         }
         for dir in subfolders(runs) {
             if isMini(dir) {
