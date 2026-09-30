@@ -1,4 +1,5 @@
 import Foundation
+import simd
 
 /// The size card of the Make and Resize sheets: what the mini is for, the nozzle, and the
 /// sizes those suggest. Ported number for number from the web page's size card.
@@ -229,5 +230,37 @@ public struct PrintTips: Sendable {
     /// A size in whole millimetres; missing or 0 is the default.
     private static func mm(_ s: String?, _ fallback: Double) -> Int {
         Int((s.flatMap(Double.init).flatMap { $0 == 0 ? nil : $0 } ?? fallback).rounded())
+    }
+}
+
+/// How much filament a print file takes: its volume printed solid, in PLA on 1.75 mm filament.
+/// Small minis print nearly solid (their walls meet in the middle); infill makes a big one take
+/// less, and supports a little more. So it's "up to", a rough figure for a spool running low.
+public enum Filament {
+    /// PLA, g/cm³.
+    static let density = 1.24
+    /// 1.75 mm filament's cross-section, mm².
+    static let area = Double.pi * 0.875 * 0.875
+
+    /// mm³ inside a closed surface given as separate triangles, three corners each (an STL).
+    public static func volume(_ corners: [SIMD3<Float>]) -> Double {
+        var six = 0.0
+        for t in stride(from: 0, to: corners.count - 2, by: 3) {
+            six += Double(simd_dot(corners[t], simd_cross(corners[t + 1], corners[t + 2])))
+        }
+        return abs(six) / 6
+    }
+
+    public static func volume(stl: URL) -> Double? { (try? STL.read(stl)).map(volume) }
+
+    public static func grams(_ mm3: Double) -> Double { mm3 / 1000 * density }
+
+    /// "up to 4 g", "up to 1 g" for less: whole grams.
+    public static func short(_ mm3: Double) -> String { "up to \(max(1, Int(grams(mm3).rounded()))) g" }
+
+    /// "Up to 4 g · 1.3 m": grams of PLA, metres of 1.75 mm filament.
+    public static func words(_ mm3: Double) -> String {
+        let metres = max(0.1, mm3 / area / 1000)
+        return short(mm3).capitalizedFirst + String(format: " · %.1f m", metres)
     }
 }

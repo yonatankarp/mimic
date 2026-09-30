@@ -218,6 +218,22 @@ final class SizeAdviceTests: XCTestCase {
         XCTAssertEqual(PrintTips.shortLine(Sizes()), "32 mm · 0.4 mm nozzle")
     }
 
+    /// A 20 mm cube is 8000 mm³: about 10 g of PLA, 3.3 m of 1.75 mm filament. Read back from
+    /// its print file, and the same turned inside out.
+    func testFilament() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("cube-\(UUID().uuidString).stl")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let cube = PrepTests.box(half: [10, 10, 10])
+        try STL.write(cube, to: url)
+        let volume = try XCTUnwrap(Filament.volume(stl: url))
+        XCTAssertEqual(volume, 8000, accuracy: 1)
+        var inside = cube
+        inside.triangles = inside.triangles.map { SIMD3($0.x, $0.z, $0.y) }
+        XCTAssertEqual(Filament.volume(inside.triangles.flatMap { [inside.positions[Int($0.x)], inside.positions[Int($0.y)], inside.positions[Int($0.z)]] }), 8000, accuracy: 1)
+        XCTAssertEqual(Filament.words(volume), "Up to 10 g · 3.3 m")
+        XCTAssertEqual(Filament.short(200), "up to 1 g", "never 0 g")
+    }
+
     private func made(_ sizes: Sizes, _ kind: MiniKind = .character) -> [String] {
         PrintTips.made(sizes, kind: kind).map { "\($0.label): \($0.value)" }
     }
