@@ -301,8 +301,7 @@ final class JobTests: XCTestCase {
         let fake = try fx.script("fake-mimic", """
             if [ "$1" = _engine ]; then echo half > "$3"; touch \(started); sleep 60 & wait; fi
             """)
-        let picture = fx.root.appendingPathComponent("pic.png")
-        FileManager.default.createFile(atPath: picture.path, contents: Data([1]))
+        let picture = try fx.picture()
         let spy = TrashSpy()
         let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: fake), trash: { spy($0) })
         try fx.modelFiles()
@@ -330,8 +329,7 @@ final class JobTests: XCTestCase {
         let fake = try fx.script("fake-mimic", """
             if [ "$1" = _engine ]; then echo shape > "$3"; else touch \(started); sleep 60 & wait; fi
             """)
-        let picture = fx.root.appendingPathComponent("pic.png")
-        FileManager.default.createFile(atPath: picture.path, contents: Data([1]))
+        let picture = try fx.picture()
         let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: fake), trash: { _ in })
         try fx.modelFiles()
         try jobs.make(name: "mini", picture: .image(picture), restyle: false, seed: 1, sizes: sizes, model: EngineDownload.standard)
