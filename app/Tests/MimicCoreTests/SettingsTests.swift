@@ -62,11 +62,18 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(json["requested"] as? [String: String], ["height": "32", "nozzle": "0.4", "shape": "hex"])
         XCTAssertEqual(MiniSettings.load(folder).requested?.shape, .hex)
         XCTAssertEqual(try Sizes(shape: .hex).flags(), ["--base-shape", "hex"])
-        for sizes in [Sizes(height: "32", shape: .round), Sizes(height: "32", noBase: true, shape: .square)] {
+        XCTAssertEqual(try Sizes(style: .stone).flags(), ["--base-style", "stone"])
+        try MiniSettings.update(folder) { $0.requested = Sizes(height: "32", shape: .square, style: .cobble) }
+        XCTAssertEqual((try JSONSerialization.jsonObject(with: Data(contentsOf: folder.appendingPathComponent("settings.json"))) as! [String: [String: String]])["requested"],
+                       ["height": "32", "shape": "square", "style": "cobble"])
+        XCTAssertEqual(MiniSettings.load(folder).requested?.style, .cobble)
+        for sizes in [Sizes(height: "32", shape: .round), Sizes(height: "32", noBase: true, shape: .square, style: .wood)] {
             try MiniSettings.update(folder) { $0.requested = sizes }
             json = try JSONSerialization.jsonObject(with: Data(contentsOf: folder.appendingPathComponent("settings.json"))) as! [String: Any]
             XCTAssertNil((json["requested"] as? [String: String])?["shape"])
+            XCTAssertNil((json["requested"] as? [String: String])?["style"])
             XCTAssertFalse(try sizes.flags().contains("--base-shape"))
+            XCTAssertFalse(try sizes.flags().contains("--base-style"))
             XCTAssertEqual(MiniSettings.load(folder).requested, sizes)
         }
         try #"{"requested": {"height": "32", "shape": "star"}}"#.write(to: folder.appendingPathComponent("settings.json"), atomically: true, encoding: .utf8)

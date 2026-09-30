@@ -498,13 +498,14 @@ struct CantStart: View {
 }
 
 extension SizeCard {
-    /// The kind, purpose, nozzle and base shape last chosen: most people keep one printer.
+    /// The kind, purpose, nozzle and base last chosen: most people keep one printer.
     static func remembered() -> SizeCard {
         let d = UserDefaults.standard
         var card = SizeCard(purpose: Purpose(rawValue: d.string(forKey: "purpose") ?? "") ?? .game,
                             nozzle: d.string(forKey: "nozzle") ?? "0.4",
                             kind: MiniKind(rawValue: d.string(forKey: "kind") ?? "") ?? .character)
         card.shape = BaseShape(rawValue: d.string(forKey: "baseShape") ?? "") ?? .round  // a hex-map player wants hex every time
+        card.style = BaseStyle(rawValue: d.string(forKey: "baseStyle") ?? "") ?? .plain
         return card
     }
 }
@@ -592,6 +593,10 @@ struct SizeSection: View {
                 }
                 .pickerStyle(.segmented)
                 .help("Square and hex bases fit grid and hex maps; the figure faces one of the flat sides.")
+                Picker("Top of the base", selection: $card.style) {
+                    ForEach(BaseStyle.allCases, id: \.self) { Text($0.words.capitalizedFirst).tag($0) }
+                }
+                .help("A floor pressed into the top of the base, deep enough to print: flagstones, planks or cobblestones. The figure's feet still sit firmly on it.")
                 slider("Base size", \.base, { $0.setBase($1) }, SizeCard.baseRange, unit: "mm",
                        hint: card.shape == .hex ? "Across the flat sides." : nil)
                     .help(baseHelp)
@@ -622,6 +627,7 @@ struct SizeSection: View {
         .onChange(of: card.purpose) { _, p in if let p { UserDefaults.standard.set(p.rawValue, forKey: "purpose") } }
         .onChange(of: card.nozzle) { _, n in UserDefaults.standard.set(n, forKey: "nozzle") }
         .onChange(of: card.shape) { _, s in UserDefaults.standard.set(s.rawValue, forKey: "baseShape") }
+        .onChange(of: card.style) { _, s in UserDefaults.standard.set(s.rawValue, forKey: "baseStyle") }
     }
 
     private var object: Bool { card.kind == .object }

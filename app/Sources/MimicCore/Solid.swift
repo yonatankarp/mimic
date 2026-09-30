@@ -12,7 +12,30 @@ import simd
 /// and a mesh turned inside out still reads as solid.
 struct Solid {
     /// `radius` is half the base's width: to a round base's rim, a square's or a hex's flat sides.
-    struct Base { var radius: Float, height: Float, bevel: Float, shape = BaseShape.round }
+    struct Base { var radius: Float, height: Float, bevel: Float, shape = BaseShape.round, floor = Floor(.plain) }
+
+    /// A floor pressed into the top of the base: stones, cobbles or planks, their seams cut
+    /// `depth` deep. Shallower than the 0.6 mm the feet are sunk, so wherever a foot stands,
+    /// even on a seam, it's still one solid with the base. Seams are as wide as two nozzle
+    /// lines, so they print on any nozzle, and the stones grow with a wide nozzle to leave room
+    /// between the seams.
+    struct Floor {
+        var style: BaseStyle
+        var depth: Float = 0.45
+        /// Half a seam's width.
+        var seam: Float
+        /// Stone, cobble or plank width.
+        var size: Float
+        var seed: UInt32
+
+        init(_ style: BaseStyle, nozzle: Float = 0.4, seed: Int = 0) {
+            self.style = style
+            seam = nozzle
+            let grow = max(1, nozzle / 0.4)
+            size = grow * (style == .cobble ? 3.5 : style == .wood ? 5 : 7)
+            self.seed = UInt32(truncatingIfNeeded: seed)
+        }
+    }
 
     /// Grid points are origin + (i, j, k) × h.
     let origin: SIMD3<Float>
@@ -143,11 +166,65 @@ struct Solid {
         case .hex:
             a = Self.hexagon(SIMD2(p.x, p.y), b.radius - b.bevel); side = a - b.bevel
         }
-        let c = p.z - (b.height - b.bevel)
+        // The floor lowers the top where it's cut. Worked out only near the top: a point further
+        // up or down is outside or inside either way, and nowhere near where the surface is drawn.
+        var top = b.height
+        if b.floor.style != .plain && p.z > b.height - b.floor.depth - 2 * h && p.z < b.height + 2 * h {
+            top -= Self.relief(p.x, p.y, b.floor)
+        }
+        let c = p.z - (top - b.bevel)
         if a > 0 && c > 0 { return (a * a + c * c).squareRoot() - b.bevel }
-        let vertical = max(p.z - b.height, -p.z)
+        let vertical = max(p.z - top, -p.z)
         if side > 0 && vertical > 0 { return (side * side + vertical * vertical).squareRoot() }
         return max(side, vertical)
+    }
+
+    /// How far below the base's top the floor is at (x, y): 0 on a stone or plank, `depth` in
+    /// the middle of a seam, with sloped sides so the field stays smooth enough to draw. Stones
+    /// sit at slightly different heights and cobbles are domed, as real ones are. Planks run
+    /// front to back, with staggered ends and a little grain.
+    static func relief(_ x: Float, _ y: Float, _ f: Floor) -> Float {
+        let edge: Float, top: Float
+        switch f.style {
+        case .plain: return 0
+        case .stone, .cobble:
+            // Stones are the cells around points jittered on a grid (Voronoi); a seam is where the
+            // nearest two points are about as near.
+            let u = x / f.size, v = y / f.size
+            let i0 = Int32(u.rounded(.down)), j0 = Int32(v.rounded(.down))
+            var d1: Float = .infinity, d2: Float = .infinity, id: (Int32, Int32) = (0, 0)
+            for j in (j0 - 1)...(j0 + 1) {
+                for i in (i0 - 1)...(i0 + 1) {
+                    let px = Float(i) + 0.15 + 0.7 * hash(i, j, f.seed), py = Float(j) + 0.15 + 0.7 * hash(i, j, f.seed &+ 1)
+                    let d = ((u - px) * (u - px) + (v - py) * (v - py)).squareRoot()
+                    if d < d1 { d2 = d1; d1 = d; id = (i, j) } else if d < d2 { d2 = d }
+                }
+            }
+            edge = (d2 - d1) / 2 * f.size
+            let tilt = 0.12 * hash(id.0, id.1, f.seed &+ 2)
+            top = f.style == .cobble ? tilt + 0.3 * min(1, d1 * d1 * 2) : tilt
+        case .wood:
+            let n = Int32((x / f.size).rounded(.down))
+            let across = x - Float(n) * f.size
+            let length = 4 * f.size, along = y + length * hash(n, 0, f.seed)
+            let m = (along / length).rounded(.down)
+            let lengthwise = along - m * length
+            edge = min(across, f.size - across, lengthwise, length - lengthwise)
+            // Grain: a few shallow grooves along the plank, wandering a little.
+            let wander = 0.8 * sin(y * 0.3 + 6 * hash(n, Int32(m), f.seed &+ 3))
+            let grain = pow(max(0, sin(across / f.size * 8 * .pi + wander)), 8)
+            top = 0.06 * hash(n, Int32(m), f.seed &+ 2) + 0.12 * grain
+        }
+        let slope = min(1, max(0, (edge - f.seam / 2) / f.seam))
+        return min(f.depth, f.depth * (1 - slope) + top)
+    }
+
+    /// A number in [0, 1) for a cell and a seed, the same every time.
+    static func hash(_ i: Int32, _ j: Int32, _ seed: UInt32) -> Float {
+        var h = UInt32(bitPattern: i) &* 0x8DA6_B343 ^ UInt32(bitPattern: j) &* 0xD816_3841 ^ seed &* 0xCB1A_B31F
+        h = (h ^ (h >> 13)) &* 0x5BD1_E995
+        h ^= h >> 15
+        return Float(h & 0xFF_FFFF) / Float(0x100_0000)
     }
 
     /// Signed distance from p to a square centred on the origin, `half` from centre to side.

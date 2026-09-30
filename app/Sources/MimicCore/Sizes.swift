@@ -13,11 +13,14 @@ public struct Sizes: Equatable, Sendable {
     /// Round unless chosen, and always round with no base: so a mini made before shapes, or one
     /// without a base, reads the same as one made now (Resize All leaves minis already its size).
     public var shape = BaseShape.round
+    /// Plain unless chosen, and always plain with no base, like the shape.
+    public var style = BaseStyle.plain
 
     public init(height: String? = nil, base: String? = nil, nozzle: String? = nil, inflate: String? = nil, noBase: Bool = false,
-                shape: BaseShape = .round) {
+                shape: BaseShape = .round, style: BaseStyle = .plain) {
         self.height = height; self.base = base; self.nozzle = nozzle; self.inflate = inflate; self.noBase = noBase
         self.shape = noBase ? .round : shape
+        self.style = noBase ? .plain : style
     }
 
     /// Checks every value, then returns print prep's flags. Throws before anything is saved.
@@ -33,13 +36,15 @@ public struct Sizes: Equatable, Sendable {
             guard Rules.nozzles.contains(nozzle) else { throw RequestError.badNozzle }
             out += ["--nozzle", nozzle]
         }
-        if noBase { out.append("--no-base") } else if shape != .round { out += ["--base-shape", shape.rawValue] }
+        if noBase { out.append("--no-base"); return out }
+        if shape != .round { out += ["--base-shape", shape.rawValue] }
+        if style != .plain { out += ["--base-style", style.rawValue] }
         return out
     }
 }
 
 extension Sizes: Codable {
-    private enum K: String, CodingKey { case height, base, nozzle, inflate, nobase, shape }
+    private enum K: String, CodingKey { case height, base, nozzle, inflate, nobase, shape, style }
     public init(from d: Decoder) throws {
         let c = try d.container(keyedBy: K.self)
         func text(_ k: K) -> String? {
@@ -50,6 +55,7 @@ extension Sizes: Codable {
         height = text(.height); base = text(.base); nozzle = text(.nozzle); inflate = text(.inflate)
         noBase = text(.nobase) == "1" || (try? c.decode(Bool.self, forKey: .nobase)) == true
         shape = noBase ? .round : text(.shape).flatMap(BaseShape.init) ?? .round
+        style = noBase ? .plain : text(.style).flatMap(BaseStyle.init) ?? .plain
     }
     public func encode(to e: Encoder) throws {
         var c = e.container(keyedBy: K.self)
@@ -59,6 +65,7 @@ extension Sizes: Codable {
         try c.encodeIfPresent(inflate, forKey: .inflate)
         if noBase { try c.encode("1", forKey: .nobase) }
         if !noBase && shape != .round { try c.encode(shape.rawValue, forKey: .shape) }
+        if !noBase && style != .plain { try c.encode(style.rawValue, forKey: .style) }
     }
 }
 
@@ -67,6 +74,21 @@ extension Sizes: Codable {
 /// hex faces the figure with a flat side.
 public enum BaseShape: String, CaseIterable, Sendable {
     case round, square, hex
+}
+
+/// What the top of the base looks like: flat, or a floor pressed into it (Solid.relief).
+public enum BaseStyle: String, CaseIterable, Sendable {
+    case plain, stone, wood, cobble
+
+    /// "stone floor": how the mini's page and the size card name it.
+    public var words: String {
+        switch self {
+        case .plain: "plain"
+        case .stone: "stone floor"
+        case .wood: "wooden floor"
+        case .cobble: "cobblestones"
+        }
+    }
 }
 
 /// What a mini is of. Stored as settings.json's "kind" only for an object: absent means a
