@@ -138,6 +138,9 @@ public final class JobRunner: @unchecked Sendable {
                     s.versionOf = versionOf
                     s.created = Date()  // a failed attempt's folder made again is a new mini
                 }
+                // A failed attempt's picture is from what it was asked for then: made again from
+                // this one's, since the plan starts at the 3D step whenever it's there (#79).
+                for f in ["source.png", "source__matted.png"] { try? fm.removeItem(at: folder.appendingPathComponent(f)) }
                 if case .image(let url) = picture {
                     let upload = folder.appendingPathComponent("upload.img")
                     try? fm.removeItem(at: upload)
@@ -388,6 +391,18 @@ public final class JobRunner: @unchecked Sendable {
         // Print prep runs as its own program, so why it failed is only in its log.
         if code != 0, problem == nil, let r = thisRun.range(of: Prep.failure, options: .backwards) {
             problem = String(thisRun[r.upperBound...].prefix { $0 != "\n" })
+        }
+        // Kept with the mini, so its page says it after a relaunch too.
+        if !canceled {
+            let step = status?.step
+            try? MiniSettings.update(folder) { s in
+                if code == 0 {
+                    s.notes = notes.isEmpty ? nil : notes; s.fragile = fragile ? true : nil
+                    s.failed = nil; s.failedStep = nil
+                } else {
+                    s.failed = problem ?? "It stopped while \(Self.label(step ?? 2).lowercased())."; s.failedStep = step
+                }
+            }
         }
         let finished: JobStatus? = lock.withLock {
             current?.running = false

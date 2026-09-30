@@ -61,6 +61,28 @@ final class JobTests: XCTestCase {
         }
     }
 
+    /// Try Again starts at the step that failed (#79): a picture already made isn't drawn again,
+    /// and a new Make in a failed attempt's folder doesn't reuse that attempt's picture.
+    func testTryAgainStartsAtTheStepThatFailed() throws {
+        let fx = try Fixture()
+        try fx.modelFiles()
+        let picture = fx.root.appendingPathComponent("pic.png")
+        FileManager.default.createFile(atPath: picture.path, contents: Data([1]))
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/false"), trash: { _ in })
+        let d = fx.install.runs.appendingPathComponent("mini")
+        try FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
+        let src = d.appendingPathComponent("source.png")
+        try MiniSettings.update(d) { $0.source = .image }  // a failed attempt, with the picture it drew
+        FileManager.default.createFile(atPath: src.path, contents: Data("old".utf8))
+        try jobs.make(name: "mini", picture: .image(picture), restyle: true, seed: 1, sizes: sizes, model: EngineDownload.standard)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: src.path), "a new Make draws its own picture")
+        jobs.waitUntilDone()
+        let settings = MiniSettings.load(d), tools = fx.tools(mimic: "/app/mimic")
+        XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: settings, tools: tools).map(\.number), [1, 2, 3])
+        FileManager.default.createFile(atPath: src.path, contents: Data([1]))  // step 1 finished, step 2 failed
+        XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: settings, tools: tools).map(\.number), [2, 3], "not drawn again")
+    }
+
     /// A new mini records the model it's made with, so Try Again uses that one and not whatever
     /// is in use by then; a model that isn't downloaded is refused before anything is written.
     func testTheModelIsRecordedAndMustBeDownloaded() throws {
@@ -224,6 +246,26 @@ final class JobTests: XCTestCase {
         try both.resize(name: "elf", sizes: sizes); both.waitUntilDone()
         XCTAssertEqual(both.status?.notes, [part])
         XCTAssertEqual(both.status?.fragile, true)
+    }
+
+    /// The warnings are kept with the mini (#80), for its page after a relaunch, until a run
+    /// replaces them; why a run failed too (#78), until one finishes.
+    func testWarningsAndFailuresAreKeptWithTheMini() throws {
+        let fx = try Fixture(); let d = try fx.mini("elf")
+        let part = "A part came out separate from the figure (about 30 mm long) and was left out."
+        let warns = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("prep", "echo 'mini_prep: WARNING footprint'; echo '\(Prep.partWarning)\(part)'")))
+        try warns.resize(name: "elf", sizes: sizes); warns.waitUntilDone()
+        XCTAssertEqual(MiniSettings.load(d).notes, [part])
+        XCTAssertEqual(MiniSettings.load(d).fragile, true)
+        let fails = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("prep2", "echo 'mini_prep: FAILED the model is flat'; exit 1")))
+        try fails.resize(name: "elf", sizes: sizes); fails.waitUntilDone()
+        XCTAssertNotNil(MiniSettings.load(d).failed, "why it failed is kept")
+        XCTAssertEqual(MiniSettings.load(d).failedStep, 3)
+        XCTAssertEqual(MiniSettings.load(d).notes, [part], "a failed run leaves the print file, and its warnings, as they were")
+        let quiet = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/true"))
+        try quiet.resize(name: "elf", sizes: sizes); quiet.waitUntilDone()
+        let s = MiniSettings.load(d)
+        XCTAssertNil(s.notes); XCTAssertNil(s.fragile); XCTAssertNil(s.failed, "a finished run clears them")
     }
 
     /// Stop during the 3D step: the job and its child end, it reads as stopped, and the
