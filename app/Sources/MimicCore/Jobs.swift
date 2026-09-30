@@ -437,14 +437,16 @@ public final class JobRunner: @unchecked Sendable {
         // The next job, if any, starts before the lock is let go: no other Mimic can slip in.
         let going = keepGoing
         do {
-            try queue.locked { entries in
-                // Back at the front in the same locked section the lock is let go in: no other
-                // Mimic sees the queue without it.
-                if canceled && kept && !entries.contains(where: { $0.name == entry.name }) {
-                    entries.insert(QueueEntry(name: entry.name, job: kind, added: entry.added), at: 0)
+            // Back at the front while this runner still holds the job lock, so no other Mimic can
+            // start anything meanwhile; saved before the lock is let go (and waitUntilDone returns).
+            if canceled && kept {
+                try queue.locked { entries in
+                    if !entries.contains(where: { $0.name == entry.name }) {
+                        entries.insert(QueueEntry(name: entry.name, job: kind, added: entry.added), at: 0)
+                    }
                 }
-                if going(entries) { startNext(&entries) } else { releaseJobLock() }
             }
+            try queue.locked { entries in if going(entries) { startNext(&entries) } else { releaseJobLock() } }
         } catch {
             if status?.running != true { releaseJobLock() }
         }

@@ -327,8 +327,8 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   the job lock runs the queue: the app always carries on; `mimic make` carries on only until its
   own mini is made, then leaves the rest; quitting the app stops carrying on (the queue waits
   for the next launch, which starts it without asking). A job stopped by quitting goes back to
-  the front of the queue, in the same locked section that lets go of the job lock, instead of
-  to the Trash (#82): the step it was on loses its half-written file (the picture, or
+  the front of the queue while its runner still holds the job lock, instead of to the Trash
+  (#82): the step it was on loses its half-written file (the picture, or
   model.glb, which trellis-cli writes in place), and the plan skips every step whose file is
   there, so it carries on from the last step it finished. A log-out, restart or shutdown (the
   quit event's reason) doesn't ask first: the question would hold the Mac up, and quitting
