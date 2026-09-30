@@ -12,7 +12,8 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
 
 ### What you need
 
-- A Mac with Apple silicon (M1 or newer), on macOS 15 (Sequoia) or newer
+- A Mac with Apple silicon (M1 or newer), on macOS 26 (Tahoe) or newer. Every such Mac can
+  update to it for free, in System Settings → General → Software Update.
 - 32 GB of memory
 - About 25 GB of free space
 - A 3D printer, and a slicer for it, such as [Bambu Studio](https://github.com/bambulab/BambuStudio),
