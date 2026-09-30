@@ -116,20 +116,21 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   side's nearest edge, h its height. Measured on real models, after levelling: bases 13–26°
   (teapot2, vase, teapot, and figures run as objects down to the elf on its feet at 8.4°); the
   teapots and the vase on their sides or upside down, nothing within 30° of down above 6.1°. A
-  box 4 or 6 times as tall as wide stands (14°, 9.5°), 8 times (7.1°) is laid down. Standing on
+  box 4 or 6 times as tall as wide stands (14°, 9.5°), 8 times (7.1°) can't stand. Standing on
   a side within 10° of down, it is left alone however much steadier lying would be: a vase, a
   pillar or a statue with a flat back is never laid down, so "much more stable elsewhere" is
   deliberately not a reason. Otherwise it goes onto the steadiest side (most lift,
-  sqrt(r² + h²) − h, to tip it; nearest to down on a tie) within 30° of down, else of all. It
-  runs after levelling and nothing levels after it: the side's facing is already exact. The
+  sqrt(r² + h²) − h, to tip it; nearest to down on a tie) within 30° of down, and never further.
+  Laying down whatever couldn't stand turned out wrong on real models: a hoodie guy (centre of
+  mass outside his feet) and a perched raven came out upright from the engine and were laid on
+  their backs. With no side near its bottom to stand on, it is left as the engine made it, the
+  levelling undone too (it had tipped the raven 27° onto its tail and perch), and without a base
+  the person is told it needs one. So an object that really came out on its side or upside down
+  now stays that way; only turned test models ever did. It runs after levelling and nothing levels after it: the side's facing is already exact. The
   real teapot had been levelled 2.8° onto the edge of its foot and printed 20° askew; it now
   stands on its foot. teapot2, the vase and every character give the same bytes as before;
-  turned 90° either way or 180°, the teapots and the vase came back upright on their bases,
-  except the vase upside down, which stands on its mouth's rim (9.2°) and so stays. 0.3–0.5 s
-  for a million triangles in a release build. Limits: a figure that only stands on a base (the
-  halfling bard and a tiefling, centre of mass outside their feet) is laid down if made as an
-  object, and so is one with a thin part hanging below its base (the test fixture's wisp).
-  Characters never go through this.
+  turned 90° either way or 180° they used to come back upright on their bases, which is what
+  was given up above. 0.3–0.5 s for a million triangles in a release build. Characters never go through this.
 - **Same data on disk.** `runs/<name>/` with `<name>.stl`, `<name>_{front,side,back}.png`,
   `source.png` and `settings.json` (`requested` / `made` / how it was made), so minis made by
   the web version appear in the app unchanged.
@@ -264,7 +265,7 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   launcher was tried live from a command-line process with its main thread blocked (Chess:
   opened in 0.25 s, not frontmost, quit when asked). Settings → Open Draw Things when needed
   (`openDrawThings`, on by default); with it on, Draw Things being closed is green in Settings
-  ("opens when needed") and New Mini's grey sculpt and Describe it only need it installed with
+  ("opens when needed") and New Mini's grey sculpt and Description only need it installed with
   FLUX.2 Klein. Tests use a fake launcher (`FakeApp`): never the real app.
 - **The first-run tour is popovers on the real controls** (`Sources/Mimic/TourGuide.swift`;
   when it starts and what comes next is `MimicCore/Tour.swift`, tested). Anchor preferences

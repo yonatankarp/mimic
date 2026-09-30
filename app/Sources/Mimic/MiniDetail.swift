@@ -1,5 +1,6 @@
 import AppKit
 import MimicCore
+import QuickLook
 import SwiftUI
 
 /// A mini's page: the 3D view fills it, running up under the toolbar; Open in the slicer and
@@ -11,15 +12,19 @@ struct MiniDetail: View {
     /// The preview tile ← → move from while the previews have the keyboard.
     @State private var picked: MiniPreview?
     @FocusState private var previewsFocused: Bool
+    /// The preview open in Quick Look, or nil.
+    @State private var looking: URL?
     @State private var copied = false
     @State private var confirmKeep = false
     /// The plain name offered after Keep This One.
     @State private var offerName: String?
     /// What the viewer measured in the print file.
     @State private var measured: Measured?
-    @AppStorage("showDetails") private var showDetails = true
+    /// On the model, so View → Show/Hide Details always names what it will do.
+    private var showDetails: Bool { model.showDetails }
 
     var body: some View {
+        @Bindable var model = model
         let settings = MiniSettings.load(mini.folder)
         let versions = Gallery.versions(of: mini, in: model.minis)
         // One being made stays where it is.
@@ -27,7 +32,7 @@ struct MiniDetail: View {
         page
             .navigationTitle(mini.displayName)
             .toolbar { toolbar(kind: settings.kind ?? .character) }
-            .inspector(isPresented: $showDetails) {
+            .inspector(isPresented: $model.showDetails) {
                 details(settings, versions: versions, canKeep: trashable > 0)
                     .inspectorColumnWidth(min: 240, ideal: 290, max: 420)
             }
@@ -40,20 +45,25 @@ struct MiniDetail: View {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("You can get them back from the Trash.")
+                Text("Edit → Undo puts them back.")
             }
             .confirmationDialog("Call it “\(Mini.displayName(offerName ?? ""))”?",
                                 isPresented: Binding(get: { offerName != nil }, set: { if !$0 { offerName = nil } }),
                                 presenting: offerName) { name in
                 Button("Rename") { rename(to: name) }.keyboardShortcut(.defaultAction)
-                Button("Keep “\(mini.displayName)”", role: .cancel) {}
+                Button("Cancel", role: .cancel) {}
             } message: { _ in
                 Text("The other versions are in the Trash, so the plain name is free.")
             }
-            // Closing the enlarged picture leaves its tile picked here, so ← → carry on from it.
-            .onChange(of: model.enlarged) { old, new in
-                if new == nil, let old, mini.previews.contains(old) { picked = old; previewsFocused = true }
+            // Its previews in Quick Look, in page order: ← → go through them there too, and the
+            // tile of the one last shown stays picked here, so ← → carry on from it.
+            .quickLookPreview($looking, in: mini.previews.map(\.url))
+            .onChange(of: looking) { _, url in
+                if let p = mini.previews.first(where: { $0.url == url }) { picked = p; previewsFocused = true }
             }
+            // Another mini, or a sheet from the toolbar or a menu, takes over from it.
+            .onChange(of: mini.name) { looking = nil }
+            .onChange(of: model.sheet) { if model.sheet != nil { looking = nil } }
     }
 
     /// The 3D view, edge to edge; or why there isn't one yet.
@@ -82,37 +92,34 @@ struct MiniDetail: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: 360, alignment: .leading)
                 .padding(12)
-                .glassEffect(.regular, in: .rect(cornerRadius: 16))
+                .background(.regularMaterial, in: .rect(cornerRadius: 16))  // content, not a control: no glass
                 .padding(12)
             }
         }
     }
 
+    /// One group: More, Open in the slicer, and the details panel's toggle.
     @ToolbarContentBuilder private func toolbar(kind: MiniKind) -> some ToolbarContent {
-        ToolbarItem(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .primaryAction) {
             Menu {
                 Button("Resize This Mini…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resize(mini) }
-                    .help("Remakes the print file with new sizes. About a minute. The \(kind == .object ? "object" : "character") itself doesn't change.")
+                    .help("Remakes the print file at new sizes, in about a minute")
                     .disabled(!mini.hasModel || model.cantStart != nil || model.waiting(mini.name) != nil)
                 Button("Show in Finder", systemImage: "folder") { model.showInFinder(mini) }
                     .help("Shows the print file and the previews in Finder.")
             } label: {
-                Label("More", systemImage: "ellipsis.circle")
+                Label("More", systemImage: "ellipsis")
             }
             .help("Resize this mini, or show it in Finder")
-        }
-        ToolbarItem(placement: .primaryAction) {
             Button("Open in \(model.slicerName)") { if let stl = mini.stl { model.openInSlicer(stl) } }
                 .buttonStyle(.glassProminent)
-                .help("Opens the print file in \(model.slicerName) to slice and print. Choose another slicer in Settings → General.")
+                .help("Opens the print file in \(model.slicerName) to slice and print")
                 .disabled(mini.stl == nil)
                 .tourCallout(.mini)
-        }
-        ToolbarItem(placement: .primaryAction) {
-            Button { showDetails.toggle() } label: {
+            Button { model.showDetails.toggle() } label: {
                 Label(showDetails ? "Hide Details" : "Show Details", systemImage: "sidebar.trailing")
             }
-            .help(showDetails ? "Hide the details panel" : "Show its size, previews, versions and print tips")
+            .help(showDetails ? "Hide the details panel (⌃⌘I)" : "Show size, previews, versions and print tips (⌃⌘I)")
         }
     }
 
@@ -152,9 +159,9 @@ struct MiniDetail: View {
         }
     }
 
-    /// Its picture, wide on top, and its views two by two under it; a click enlarges one, a drag
-    /// gives the print file. Once one is clicked, ← → go through them all in order, as in the
-    /// enlarged view, and ↑ ↓ move up and down the grid.
+    /// Its picture, wide on top, and its views two by two under it; a click opens one in Quick
+    /// Look, a drag gives the print file. Once one is clicked, ← → go through them all in order,
+    /// as in Quick Look, ↑ ↓ move up and down the grid, and Space or Return opens Quick Look.
     private var previews: some View {
         let all = mini.previews, views = all.suffix(mini.renders.count), current = picked.flatMap { all.contains($0) ? $0 : nil } ?? all.first
         return VStack(spacing: 12) {
@@ -170,19 +177,23 @@ struct MiniDetail: View {
         // The one place arrows are handled here: the tiles can't take focus, and every arrow is
         // handled, ends included, so nothing else also moves on the same press.
         .onKeyPress(keys: [.leftArrow, .rightArrow, .upArrow, .downArrow]) { press in
-            guard model.enlarged == nil, let current else { return .ignored }  // the enlarged view's arrows have it
+            guard let current else { return .ignored }
             let next = switch press.key {
             case .leftArrow: all.step(from: current, by: -1)
             case .rightArrow: all.step(from: current, by: 1)
             case .upArrow: all.step(from: current, down: -1, wide: all.count - views.count)
             default: all.step(from: current, down: 1, wide: all.count - views.count)
             }
-            if let next { picked = next }
+            if let next {
+                picked = next
+                if looking != nil { looking = next.url }  // Quick Look follows, if it's open
+            }
             return .handled
         }
+        // As in Finder and the sidebar: Space opens Quick Look, and closes it again.
         .onKeyPress(keys: [.space, .return]) { _ in
-            guard model.enlarged == nil, let current else { return .ignored }
-            model.enlarged = current
+            guard let current else { return .ignored }
+            looking = looking == nil ? current.url : nil
             return .handled
         }
     }
@@ -191,7 +202,7 @@ struct MiniDetail: View {
         let tile = Button {
             picked = p
             previewsFocused = true
-            model.enlarged = p
+            looking = p.url
         } label: {
             VStack(spacing: 4) {
                 Thumbnail(url: p.url, version: mini.madeAt)
@@ -211,9 +222,9 @@ struct MiniDetail: View {
         if let stl = mini.stl {
             tile
                 .onDrag { NSItemProvider(contentsOf: stl) ?? NSItemProvider() }
-                .help("Click to enlarge. Drag to Finder or your slicer to copy the print file.")
+                .help("Click or press Space for Quick Look; drag out for the print file")
         } else {
-            tile.help("Click to enlarge")
+            tile.help("Click, or press Space, to open it in Quick Look")
         }
     }
 
@@ -264,72 +275,21 @@ struct MiniDetail: View {
         }
     }
 
-    /// The kept version takes the plain name.
+    /// The kept version takes the plain name. Undo gives it back its own, so a second Undo can
+    /// put the version that had the plain name back from the Trash.
     private func rename(to name: String) {
-        do { try Gallery.rename(model.install.runs, from: mini.name, to: name, busyWith: model.busyWith) }
+        let old = mini.name
+        do { try Gallery.rename(model.install.runs, from: old, to: name, busyWith: model.busyWith) }
         catch { model.problem = model.plainWords(error, else: "Couldn't rename it. Is its folder open in another app?"); return }
         model.reload()
         model.selection = name
-    }
-}
-
-/// The selected mini's preview shown big over the whole window, like Quick Look: a click around
-/// it, Escape or the close button closes it, and ← → (or the chevrons) go through the mini's
-/// previews, stopping at the first and last.
-struct EnlargedPreview: View {
-    @Environment(AppModel.self) private var model
-
-    var body: some View {
-        if let mini = model.selected, let shown = model.enlarged, mini.previews.contains(shown) {
-            let previews = mini.previews
-            let close = { model.enlarged = nil }
-            ZStack {
-                Color.black.opacity(0.4)
-                    .ignoresSafeArea()
-                    .contentShape(.rect)
-                    .onTapGesture(perform: close)
-                VStack(spacing: 12) {
-                    Thumbnail(url: shown.url, version: mini.madeAt)
-                        .frame(maxWidth: 900, maxHeight: 900)  // the renders' own size
-                        .aspectRatio(1, contentMode: .fit)
-                        .background(Color.primary.opacity(0.05), in: .rect(cornerRadius: 12))  // renders have no background
-                        .onTapGesture(perform: close)
-                    HStack(spacing: 16) {
-                        stepButton(-1, in: previews, from: shown)
-                        Text("\(mini.displayName) · \(shown.caption)")
-                            .foregroundStyle(.secondary)
-                            .frame(minWidth: 180)
-                        stepButton(1, in: previews, from: shown)
-                    }
-                }
-                .padding(16)
-                .background(.regularMaterial, in: .rect(cornerRadius: 20))
-                .overlay(alignment: .topTrailing) {
-                    Button(action: close) { Image(systemName: "xmark.circle.fill").font(.title2).symbolRenderingMode(.hierarchical) }
-                        .buttonStyle(.plain)
-                        .keyboardShortcut(.cancelAction)
-                        .help("Close (Esc)")
-                        .accessibilityLabel("Close")
-                        .padding(8)
-                }
-                .contentShape(.rect)  // a click on the card's empty parts isn't a click around it
-                .padding(32)
-            }
-            .transition(.opacity)
+        model.undo?.registerUndo(withTarget: model) { model in
+            do { try Gallery.rename(model.install.runs, from: name, to: old, busyWith: model.busyWith) }
+            catch { model.problem = model.plainWords(error, else: "Couldn't rename it back. Is its folder open in another app?"); return }
+            model.reload()
+            model.selection = old
         }
-    }
-
-    private func stepButton(_ by: Int, in previews: [MiniPreview], from shown: MiniPreview) -> some View {
-        let next = previews.step(from: shown, by: by)
-        return Button { if let next { model.enlarged = next } } label: {
-            Image(systemName: by < 0 ? "chevron.left" : "chevron.right")
-        }
-        .buttonStyle(.bordered)
-        .buttonBorderShape(.circle)
-        .keyboardShortcut(by < 0 ? .leftArrow : .rightArrow, modifiers: [])
-        .disabled(next == nil)
-        .help(next.map { "\($0.caption) (\(by < 0 ? "←" : "→"))" } ?? "")
-        .accessibilityLabel(by < 0 ? "Previous preview" : "Next preview")
+        model.undo?.setActionName("Rename")
     }
 }
 

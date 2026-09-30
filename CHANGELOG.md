@@ -9,18 +9,39 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 - **Square and hex bases.** In New Mini and Resize, choose a round, square or hex base; a hex is measured across its flat sides, so a 25 mm hex fits a 1-inch hex map. The figure faces a flat side, and Resize, Try Again and Make Another Version keep the shape. In Terminal: `--base-shape square`.
 - **Stone, wooden and cobblestone floors on the base.** Choose one beside the base's shape in New Mini or Resize: the stones or planks are pressed into the base itself, so they print. The feet still stand firmly on it, the seams suit your nozzle, and Try Again lays the stones the same way. In Terminal: `--base-style stone`.
 - **Previews show both sides of a mini,** left and right, not just one. A mini made before this gets them the next time it's resized.
-- **An enlarged preview closes with a click anywhere around it,** and ← → go through the previews, in the enlarged picture and on the mini's page once you've clicked one. On the page, ↑ ↓ move up and down the grid.
+- **Previews open in Quick Look.** Click one, or press Space: ← → go through them, Space closes it, and you can share it or go full screen. On the mini's page, once you've clicked a preview, ← → go through them there too, and ↑ ↓ move up and down the grid.
+- **Turn the 3D view with the arrow keys** (↑ ↓ tilt it) **and zoom with ⌘= and ⌘−**, once you've clicked it. VoiceOver can turn it too.
+- **Drag a mini from the list** to Finder or your slicer to get its print file. Dragging it onto a project still moves it there.
+- **A mini's notification has buttons:** Try Again on one that didn't finish, and Open in your slicer on one that's ready. Clicking the notification opens Mimic on that mini.
+- **The Dock shows how many minis are ready and unseen,** and nothing otherwise. It no longer shows a tick, an exclamation mark or the number waiting.
+- The base size slider has marks at 25, 32, 40 and 50 mm. You can still type any size.
+- **Keep an eye on a mini:** drag its progress off the toolbar and it stays open in a small window of its own.
 
 ### Changed
+- **Make My Mini is now Make Mini, and labels and tips are shorter.** Describe it is now Description, Use Mine Instead is Use Original, and the list is headed Minis.
+- **The tour is five short stops; other tips appear the first time you need them,** in the list and by the size choices. Reset Mimic shows them again.
+- **Closing the window no longer stops a mini being made; it carries on in the Dock.** Click the Dock icon to bring the window back. Quitting still asks first.
+- A finished mini is no longer picked for you, so you stay on what you're looking at. Its notification and Show Mini in the toolbar's progress take you to it.
+- Questions have shorter buttons: deleting a project asks Keep Minis or Delete All, and Reset Mimic offers Reset All to remove the 3D engine too.
+- **Settings is in the Mimic menu (⌘,).** The toolbar no longer has a Settings button: it shows Needs Setup only when something needs you, and clicking it goes straight to what's missing.
+- **More from the menus and the keyboard.** View → Show Details (⌃⌘I) shows or hides the details panel, and View → Face Front (⌘0) turns the mini back to you. The Mini menu has Show Progress and Stop Making… while a mini is being made, and so does the Dock icon's menu, with New Mini….
+- **Install the `mimic` command from Mimic → Install Command-Line Tool…**, instead of Settings → Advanced.
+- **Show in Finder is now ⌥⌘R** (it was ⇧⌘R).
+- The sidebar's New Project button is a folder, as at the bottom of the sidebar, so it isn't mistaken for New Mini.
 - **Mimic now needs macOS 26 (Tahoe).** Every Mac that runs Mimic can update to it for free, in System Settings → General → Software Update.
 - A mini's page puts the 3D view first, with its size, previews, versions and print tips in a panel on the right you can hide; Open in your slicer is in the toolbar, with Resize and Show in Finder under More. The gallery shows each mini's size and nozzle instead of when it was made.
 - **Making a mini no longer covers the window.** Its progress, the queue and Stop are in the toolbar: click it to see them. When it's done, the toolbar says so; click it for Open in your slicer, or Try Again.
 - **Settings is organised into tabs:** General, 3D Model, Draw Things & AI, and Advanced. Each is only as tall as what's in it, and Open Settings from New Mini or a mini that needs Draw Things goes straight to the right one.
 - **New Mini shows the picture and the size choices side by side**, so everything fits without scrolling. Its choices are marked with symbols instead of emoji, and Resize explains itself under its title instead of in a box.
+- **Move to Trash no longer asks first:** Edit → Undo (⌘Z) puts the mini back. Undo works for Keep This One too. A mini waiting in the queue still asks, as Undo can't put it back in the queue.
 
 ### Fixed
+- Questions that ask before doing something now say Cancel for the way out, so Esc always backs out, including the question when you quit while a mini is being made.
+- ⌘V in New Mini pastes text into the field you're typing in; a copied picture still becomes the mini's picture.
 - Settings says TRELLIS.2 takes about 14 minutes a mini, as measured, not 12. Once you've made a few minis, it shows the time for your Mac instead, as before.
 - Resize showed Best print and "about 100 mm tall" for a mini made at game scale; it now shows what the mini was made at. A mini made at a size neither choice gives shows neither as chosen. An object made at another size than the suggested one no longer says "about 80 mm on its longest side".
+- VoiceOver names every size field and slider in New Mini and Resize.
+- Tips, notes and the tour no longer use emoji, which VoiceOver read out; a symbol sits beside a tip or warning instead.
 
 ## 0.6.1
 
