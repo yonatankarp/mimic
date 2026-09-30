@@ -433,7 +433,7 @@ struct ResizeView: View {
         self.room = room
         _height = State(initialValue: min(720, room.height - 8))
         var c = SizeCard.remembered()
-        let saved = MiniSettings.load(mini.folder)
+        let saved = mini.settings
         c.setKind(saved.kind ?? .character)  // before the sizes: choosing a kind suggests sizes afresh
         if let sizes = saved.made ?? saved.requested { c.load(sizes) }
         _card = State(initialValue: c)

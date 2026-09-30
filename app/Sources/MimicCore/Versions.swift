@@ -27,8 +27,8 @@ extension JobRunner {
     /// What a mini was made from, to make it again: nil-free or `nothingToRetry`. A picture mini
     /// from before upload.img was kept (the web version) has only source.png, which is exactly
     /// what its 3D step saw, so that's used without redrawing it.
-    static func versionSource(_ folder: URL) throws -> (PictureSource, restyle: Bool, MiniSettings) {
-        let settings = MiniSettings.load(folder)
+    static func versionSource(_ folder: URL, _ settings: MiniSettings? = nil) throws -> (PictureSource, restyle: Bool, MiniSettings) {
+        let settings = settings ?? MiniSettings.load(folder)
         guard settings.requested != nil else { throw RequestError.nothingToRetry }
         switch settings.source {
         case .image:
@@ -45,7 +45,7 @@ extension JobRunner {
     }
 
     /// Whether Make Another Version can work for this mini (what it was made from was saved).
-    public static func canMakeAnotherVersion(_ mini: Mini) -> Bool { (try? versionSource(mini.folder)) != nil }
+    public static func canMakeAnotherVersion(_ mini: Mini) -> Bool { (try? versionSource(mini.folder, mini.settings)) != nil }
 }
 
 
@@ -54,8 +54,8 @@ extension Gallery {
     /// mini in the same project that names it as `versionOf`. Just `mini` when it has none;
     /// minis made before versions were recorded have none.
     public static func versions(of mini: Mini, in minis: [Mini]) -> [Mini] {
-        let root = MiniSettings.load(mini.folder).versionOf ?? mini.name
-        return minis.filter { $0.project == mini.project && ($0.name == root || MiniSettings.load($0.folder).versionOf == root) }
+        let root = mini.settings.versionOf ?? mini.name
+        return minis.filter { $0.project == mini.project && ($0.name == root || $0.settings.versionOf == root) }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 

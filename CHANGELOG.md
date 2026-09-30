@@ -7,6 +7,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 ### New
 
 ### Changed
+- The list and a mini's page stay quick with hundreds of minis: Mimic reads what it knows about each mini once, when the list refreshes, not every time the window redraws.
 
 ### Fixed
 

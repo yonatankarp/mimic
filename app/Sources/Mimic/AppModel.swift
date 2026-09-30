@@ -250,7 +250,7 @@ final class AppModel {
     // MARK: Time estimates
 
     func estimate(_ name: String, _ kind: JobKind, sizes: Sizes? = nil) -> Estimate {
-        jobs.estimate(name, kind, sizes: sizes, history: history)
+        jobs.estimate(name, kind, sizes: sizes, history: history, minis: minis)
     }
 
     func estimate(_ s: JobStatus) -> Estimate { estimate(s.name, s.kind) }
@@ -269,7 +269,7 @@ final class AppModel {
 
     /// Each waiting job with its estimate and when it should be ready.
     func queueTimes(now: Date = Date()) -> [(entry: QueueEntry, estimate: Estimate, ready: TimeInterval)] {
-        jobs.queueTimes(queue, running: current, history: history, now: now)
+        jobs.queueTimes(queue, running: current, history: history, now: now, minis: minis)
     }
 
     /// Minutes a mini takes with `m` on this Mac, when it has made enough to know (Settings).
@@ -408,7 +408,7 @@ final class AppModel {
     /// A mini that didn't finish and can be tried again: no print file, not waiting or being
     /// made, and it kept what it was asked for.
     func canRetry(_ mini: Mini) -> Bool {
-        mini.stl == nil && waiting(mini.name) == nil && current?.name != mini.name && MiniSettings.load(mini.folder).requested != nil
+        mini.stl == nil && waiting(mini.name) == nil && current?.name != mini.name && mini.settings.requested != nil
     }
 
     /// Try Again from a failed mini's page or menus; a refusal is said as an alert.

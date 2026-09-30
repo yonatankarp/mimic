@@ -136,7 +136,11 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   the web version appear in the app unchanged. The list is in the order minis were asked for,
   `created` in settings.json (#75; older minis go by their folder's creation date), not by the
   print file's time, which every resize changes; the 3D view, the thumbnails and `mimic --wait`
-  still watch that time to notice a new print file.
+  still watch that time to notice a new print file. The gallery reads each settings.json once
+  per reload into `Mini.settings`, which the list, a mini's page and the estimates use, so a
+  redraw or a progress tick reads no file (#95). A `Mini` compares its settings too, so a reload
+  after a run or a rename shows what changed; jobs, Try Again and the command line still read
+  the file, since they must see what's on disk now.
 - **3D viewer: RealityKit.** Measured on the dwarf's 40 MB, 2.4M-vertex print file:
   Model I/O reads the STL in 0.08 s; SceneKit builds a scene in 0.03 s (265 MB); a RealityKit
   mesh takes 0.37 s (573 MB). Both are fine; SceneKit is no longer developed, so RealityKit.
