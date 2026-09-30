@@ -43,7 +43,7 @@ final class JobTests: XCTestCase {
                               arguments: ["_prep", d.appendingPathComponent("model.glb").path,
                                           d.appendingPathComponent("mini.stl").path] + flags + ["--turn", "180"],
                               directory: nil, log: d.appendingPathComponent("prep.log"))
-        func settings(_ f: (inout MiniSettings) -> Void) -> MiniSettings { var s = MiniSettings(); s.seed = 7; s.requested = sizes; f(&s); return s }
+        func settings(_ f: (inout MiniSettings) -> Void) -> MiniSettings { var s = MiniSettings(); s.seed = 7; s.requested = sizes; s.model = "trellis2-q8"; f(&s); return s }
         let cases: [(String, JobKind, MiniSettings, [Step])] = [
             ("picture", .generate, settings { $0.source = .image; $0.restyle = false }, [.copyPicture(from: up, to: src), mesh(), turned]),
             ("picture, redrawn", .generate, settings { $0.source = .image; $0.restyle = true }, [.sculptPicture(from: up, seed: 7, to: src), mesh(), turned]),
@@ -88,10 +88,11 @@ final class JobTests: XCTestCase {
         jobs.waitUntilDone()
     }
 
-    /// A mini with no `model` is the standard one, TRELLIS.2; an install with nothing chosen uses
-    /// the standard model and, once that is downloaded, has nothing more to download.
-    func testOlderMinisAndInstallsMeanTheStandardModel() throws {
-        XCTAssertEqual(EngineDownload.model(MiniSettings().model), EngineDownload.standard)
+    /// A mini with no `model` was made before 0.4.0, so with Pixal3D (not the standard model,
+    /// TRELLIS.2, which would turn it round on Resize); an install with nothing chosen uses the
+    /// standard model and, once that is downloaded, has nothing more to download.
+    func testOlderMinisMeanPixal3DAndInstallsTheStandardModel() throws {
+        XCTAssertEqual(EngineDownload.model(MiniSettings().model)?.id, "pixal3d-sv")
         let old = try JSONDecoder().decode(MiniSettings.self, from: Data(#"{"requested": {"height": "32"}, "seed": 3}"#.utf8))
         XCTAssertNil(old.model)
         let suite = "mimic-test-\(UUID().uuidString)"
@@ -122,7 +123,7 @@ final class JobTests: XCTestCase {
         let d = fx.install.runs.appendingPathComponent("pot")
         let src = d.appendingPathComponent("source.png"), up = d.appendingPathComponent("upload.img")
         func settings(_ f: (inout MiniSettings) -> Void) -> MiniSettings {
-            var s = MiniSettings(); s.seed = 7; s.kind = .object; s.requested = Sizes(height: "80", nozzle: "0.4", noBase: true); f(&s); return s
+            var s = MiniSettings(); s.seed = 7; s.kind = .object; s.model = "trellis2-q8"; s.requested = Sizes(height: "80", nozzle: "0.4", noBase: true); f(&s); return s
         }
         func plan(_ kind: JobKind, _ s: MiniSettings) throws -> [Step] { try Pipeline.plan(kind, folder: d, settings: s, tools: fx.tools(mimic: "/app/mimic")).map(\.step) }
         let prepArgs = ["_prep", d.appendingPathComponent("model.glb").path, d.appendingPathComponent("pot.stl").path,
@@ -170,7 +171,7 @@ final class JobTests: XCTestCase {
         XCTAssertEqual(try prepArgs { $0.model = "trellis2-q8" }, base + turn, "a TRELLIS.2 character changed")
         XCTAssertEqual(try prepArgs { $0.kind = .object; $0.model = "pixal3d-sv" }, base + object, "a Pixal3D object changed")
         XCTAssertEqual(try prepArgs { $0.model = "pixal3d-sv" }, base, "a Pixal3D character changed")
-        XCTAssertEqual(try prepArgs { _ in }, base + turn, "the standard model, TRELLIS.2, is turned")
+        XCTAssertEqual(try prepArgs { _ in }, base, "a mini with no model recorded is Pixal3D's, so not turned")
     }
 
     /// Kind, model and the helper's original description all survive a round trip through
@@ -190,7 +191,7 @@ final class JobTests: XCTestCase {
         XCTAssertEqual(json["model"] as? String, "trellis2-q8")
         XCTAssertEqual(json["descOriginal"] as? String, "teapot")
         XCTAssertFalse(MiniSettings().isObject)
-        XCTAssertEqual(EngineDownload.model(MiniSettings().model), EngineDownload.standard)
+        XCTAssertEqual(EngineDownload.model(MiniSettings().model)?.id, "pixal3d-sv")
     }
 
     /// prep.log is appended to, so a warning from an earlier run must not follow the mini around.
