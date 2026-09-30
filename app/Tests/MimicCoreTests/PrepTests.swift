@@ -241,7 +241,7 @@ final class PrepTests: XCTestCase {
         XCTAssertEqual(parts.count, 1, "\(result.lines)")
         // 1.2 × (32 / 2.65) = 14.5 mm, plus the inflate at each end.
         XCTAssertTrue(parts.first?.contains("A part came out separate from the figure (about 15 mm long) and was left out.") == true, "\(parts)")
-        XCTAssertTrue(parts.first?.hasSuffix("Try Make Another Version. If you use Pixal3D, TRELLIS.2 (Settings → 3D model) joins held things more reliably.") == true)
+        XCTAssertTrue(parts.first?.hasSuffix("Try Make Another Version. If you use Pixal3D, TRELLIS.2 (Settings → 3D Model) joins held things more reliably.") == true)
         XCTAssertEqual(out.pieces, 1)
         let above = out.positions.filter { $0.z > out.bounds.lo.z + 5 }  // above the base
         XCTAssertGreaterThan(above.map(\.y).min()!, -6, "the bar (at y ≈ -6.6 mm) is out of the print file")

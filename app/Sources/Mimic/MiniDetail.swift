@@ -112,7 +112,7 @@ struct MiniDetail: View {
         ToolbarItem(placement: .primaryAction) {
             Button("Open in \(model.slicerName)") { if let stl = mini.stl { model.openInSlicer(stl) } }
                 .buttonStyle(.glassProminent)
-                .help("Opens the print file in \(model.slicerName) to slice and print. Choose another slicer in Settings.")
+                .help("Opens the print file in \(model.slicerName) to slice and print. Choose another slicer in Settings → General.")
                 .disabled(mini.stl == nil)
                 .tourCallout(.mini)
         }

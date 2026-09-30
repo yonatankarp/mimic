@@ -260,7 +260,7 @@ struct SetupView: View {
                 Text("Optional").font(.caption).padding(.horizontal, 8).padding(.vertical, 2)
                     .background(.quaternary, in: Capsule())
             }
-            Text("A free app that lets Mimic draw a character from a description, and turn drawings into grey sculpts. It doesn't even need to be open: Mimic uses its command line tool, which comes with the 3D engine. Your own pictures work without it, and you can set it up any time in Settings.")
+            Text("A free app that lets Mimic draw a character from a description, and turn drawings into grey sculpts. It doesn't even need to be open: Mimic uses its command line tool, which comes with the 3D engine. Your own pictures work without it, and you can set it up any time in Settings → Draw Things & AI.")
                 .foregroundStyle(.secondary)
             DrawThingsSteps()
         }
@@ -296,7 +296,7 @@ struct ModelChoice: View {
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(m == selection ? .isSelected : [])
             }
-            Text("You can switch later in Settings.").font(.footnote).foregroundStyle(.secondary)
+            Text("You can switch later in Settings → 3D Model.").font(.footnote).foregroundStyle(.secondary)
         }
     }
 }
