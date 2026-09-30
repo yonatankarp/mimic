@@ -38,6 +38,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 - **Move to Trash no longer asks first:** Edit → Undo (⌘Z) puts the mini back. Undo works for Keep This One too. A mini waiting in the queue still asks, as Undo can't put it back in the queue.
 
 ### Fixed
+- A mini whose folder you renamed or copied in Finder ("Dwarf Cleric", "dwarf-cleric copy") no longer shows as not finished and can't be renamed or moved to the Trash: Mimic gives it a name it can use and keeps its files with it. Move to Trash and Show in Finder work on any mini in the list.
 - Questions that ask before doing something now say Cancel for the way out, so Esc always backs out, including the question when you quit while a mini is being made.
 - ⌘V in New Mini pastes text into the field you're typing in; a copied picture still becomes the mini's picture.
 - Settings says TRELLIS.2 takes about 14 minutes a mini, as measured, not 12. Once you've made a few minis, it shows the time for your Mac instead, as before.
