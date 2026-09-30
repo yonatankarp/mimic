@@ -17,6 +17,7 @@ enum CLI {
       mimic models
       mimic queue
       mimic queue remove <name>
+      mimic queue pause | resume     no new mini starts until it's resumed, in any Mimic
       mimic --version                which Mimic this is (also -v)
       mimic --help                   this list (also -h)
     options: --height MM  --scale 28|32|35|54|75  --base MM  --nozzle 0.2|0.4|0.6  --inflate MM  --no-base  --base-shape round|square|hex  --base-style plain|stone|wood|cobble  --seed N  --model ID
@@ -40,6 +41,7 @@ enum CLI {
         // its app, so it would read its own empty settings rather than the app's.
         let defaults = Bundle.main.bundleIdentifier == nil ? UserDefaults(suiteName: "com.mimic.app") ?? .standard : .standard
         let install = Install.locate(defaults: defaults)
+        let power = Power.holds(suite: defaults == .standard ? nil : "com.mimic.app")
         let timings = Timings.standard()
         var rest = Array(args.dropFirst())
         switch args.first {
@@ -93,7 +95,15 @@ enum CLI {
             return 0
         case "queue":
             let jobs = JobRunner(install: install)
+            jobs.heldForPower = power
             jobs.cleanUpLeftovers()
+            if rest == ["pause"] || rest == ["resume"] {
+                // Started by the app, not here: this command ends at once, and a job needs its runner.
+                do { try jobs.setPaused(rest == ["pause"], start: false) } catch { return fail("\(error)") }
+                print(rest == ["pause"] ? "Paused the queue: a mini being made finishes, and no new one starts until you resume it (mimic queue resume, or in Mimic)."
+                                        : "Resumed the queue. Mimic carries on with it, or the next time you open it.")
+                return 0
+            }
             if rest.first == "remove" {
                 guard rest.count == 2 else { return fail("usage: mimic queue remove <name>") }
                 do {
@@ -176,6 +186,7 @@ enum CLI {
             }
             timings.seedIfNeeded(runs: install.runs)  // before the first record marks it done
             let jobs = JobRunner(install: install, timings: timings, version: BuildInfo.version)
+            jobs.heldForPower = power
             // This terminal runs the queue only until its own mini is made; the app runs the rest.
             jobs.keepGoing = { $0.contains { $0.name == name } }
             let mine = Mine(name: name)
@@ -202,14 +213,22 @@ enum CLI {
             } catch {
                 return fail("\(error)")
             }
-            if let ahead {
+            if ahead != nil, jobs.hold() != nil {
+                print("Added to the queue.")
+            } else if let ahead {
                 let ready = jobs.queueTimes(jobs.queue.entries(), running: jobs.running(), history: timings.load())
                     .first { $0.entry.name == name }?.ready ?? 0
                 print("Added to the queue — \(ahead) ahead of it, ready in \(JobProgress.about(ready)).")
             }
             // Running here (this one, or one that was waiting before it): see it through.
             if jobs.status?.running == true { return follow(jobs, mine) }
+            switch jobs.hold() {
+            case .paused?: print("The queue is paused, so it waits until you resume it: mimic queue resume, or in Mimic.")
+            case .battery?: print(QueueHold.battery.sentence)
+            case nil: break
+            }
             guard wait else {
+                if jobs.hold() != nil { return 0 }
                 print("It starts when the one before it is done, in whichever Mimic is making that. If none is open by then, it starts the next time you open Mimic. See the queue: mimic queue")
                 return 0
             }
@@ -334,8 +353,10 @@ enum CLI {
             let left = jobs.estimate(r.name, r.kind, history: history).left(r)
             print("Now: \(r.kind == .prep ? "resizing" : "making") \(r.name), step \(r.step) of 3, \(JobProgress.about(left)) left")
         } else {
-            print(queue.isEmpty ? "Nothing is being made." : "Nothing is being made right now: the queue starts when you open Mimic.")
+            print(queue.isEmpty ? "Nothing is being made." : jobs.hold() != nil ? "Nothing is being made right now."
+                  : "Nothing is being made right now: the queue starts when you open Mimic.")
         }
+        if let hold = jobs.hold() { print(hold.sentence) }
         for (i, row) in jobs.queueTimes(queue, running: running, history: history).enumerated() {
             print("\(i + 1). \(row.entry.name)\t\(row.entry.job == .prep ? "resize" : "make")\ttakes \(JobProgress.about(row.estimate.total))\tready in \(JobProgress.about(row.ready))")
         }

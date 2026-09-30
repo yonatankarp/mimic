@@ -68,6 +68,7 @@ public final class JobRunner: @unchecked Sendable {
     /// The running job was stopped by quitting: it goes back to the front of the queue, keeping
     /// what it made, instead of to the Trash.
     private var keepWork = false
+    private var power: @Sendable () -> Bool = { false }
     public var onChange: (@Sendable (JobStatus) -> Void)?
 
     /// `timings`: where to record each finished job (nil records nothing, as in tests);
@@ -91,6 +92,33 @@ public final class JobRunner: @unchecked Sendable {
     public var keepGoing: @Sendable ([QueueEntry]) -> Bool {
         get { lock.withLock { continues } }
         set { lock.withLock { continues = newValue } }
+    }
+
+    /// The Mac is on battery with Don't start minis on battery on (`Power.holds`): the queue's
+    /// next job waits. Asked each time one could start.
+    public var heldForPower: @Sendable () -> Bool {
+        get { lock.withLock { power } }
+        set { lock.withLock { power = newValue } }
+    }
+
+    /// Why the queue's next job wouldn't start now, or nil.
+    public func hold() -> QueueHold? {
+        if queue.paused { return .paused }
+        return heldForPower() ? .battery : nil
+    }
+
+    /// Pauses the queue for every Mimic on this Mac, or resumes it and, with `start`, starts its
+    /// next job here if none is running. Pausing lets the running job finish: "Pause after this one".
+    public func setPaused(_ paused: Bool, start: Bool = true) throws {
+        try queue.locked { entries in
+            let fm = FileManager.default
+            if paused {
+                guard fm.createFile(atPath: queue.pausedFile.path, contents: nil) else { throw POSIXError(.EIO) }
+            } else {
+                if fm.fileExists(atPath: queue.pausedFile.path) { try fm.removeItem(at: queue.pausedFile) }
+                if start { pumpLocked(&entries) }
+            }
+        }
     }
 
     // MARK: Asking for a job
@@ -272,23 +300,24 @@ public final class JobRunner: @unchecked Sendable {
     private func enqueue(_ entry: QueueEntry, _ entries: inout [QueueEntry]) -> Int? {
         entries.append(entry)
         pumpLocked(&entries)
-        // Still waiting: the job lock is someone's (ours, or another Mimic's), so one is running.
+        // Still waiting: one is running (ours, or another Mimic's), or the queue is held.
         guard let waiting = entries.firstIndex(where: { $0.name == entry.name }) else { return nil }
-        return waiting + 1
+        return waiting + (hold() != nil && running() == nil ? 0 : 1)
     }
 
     private func pumpLocked(_ entries: inout [QueueEntry]) {
         if !holding {
-            guard !entries.isEmpty, takeJobLock() else { return }
+            guard !entries.isEmpty, hold() == nil, takeJobLock() else { return }
         } else if status?.running == true {
             return  // it starts the next itself when it ends
         }
         startNext(&entries)
     }
 
-    /// Starts the first waiting job that can start; releases the job lock when none can.
+    /// Starts the first waiting job that can start; releases the job lock when none can, or the
+    /// queue is paused or waiting for power.
     private func startNext(_ entries: inout [QueueEntry]) {
-        while !entries.isEmpty {
+        while !entries.isEmpty, hold() == nil {
             let entry = entries.removeFirst()
             do {
                 try begin(entry)
@@ -471,8 +500,12 @@ public final class JobRunner: @unchecked Sendable {
             try picture { try drawThings.sculpt(picture: from, seed: seed, kind: .object) }.write(to: to, options: .atomic)
             return 0
         case let .run(executable, arguments, directory, log):
-            let p = try GroupProcess(executable: executable, arguments: arguments, environment: tools.environment,
-                                     workingDirectory: directory, log: log.path)
+            // At a lower priority (#89), so the Mac stays quick to use meanwhile. nice runs the
+            // program in its own place (same pid, so Stop and the leftover record still find it),
+            // and whatever it starts inherits it. Measured: on an idle Mac, work across every core
+            // took as long at nice 10 as at 0.
+            let p = try GroupProcess(executable: "/usr/bin/nice", arguments: ["-n", String(Self.nice), executable] + arguments,
+                                     environment: tools.environment, workingDirectory: directory, log: log.path)
             let stopNow = lock.withLock { () -> Bool in process = p; return current?.canceled == true }
             Leftover.record(pid: p.pid, runs: install.runs)
             if stopNow { p.terminateGroup() }  // Stop pressed while the program was starting
@@ -499,7 +532,7 @@ public final class JobRunner: @unchecked Sendable {
     /// Whether the queue's next job, which this runner will run, asks Draw Things for a picture.
     private func nextNeedsDrawThings() -> Bool {
         let entries = queue.entries()
-        guard let next = entries.first, next.job == .generate, keepGoing(entries) else { return false }
+        guard let next = entries.first, next.job == .generate, keepGoing(entries), hold() == nil else { return false }
         guard let folder = Gallery.folder(install.runs, next.name) else { return false }
         let s = MiniSettings.load(folder)
         return s.source == .desc || s.restyle == true
@@ -518,6 +551,9 @@ public final class JobRunner: @unchecked Sendable {
     private func notify() {
         if let s = status { onChange?(s) }
     }
+
+    /// The nice value job programs run at.
+    static let nice = 10
 
     public static func label(_ step: Int) -> String {
         ["", "Getting the picture ready", "Building the 3D shape", "Making the print-ready file"][max(0, min(3, step))]
