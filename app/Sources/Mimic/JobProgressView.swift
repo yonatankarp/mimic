@@ -447,11 +447,8 @@ private final class DockTileView: NSView {
 /// What the main window adds around the gallery: the sheets and questions, and the toolbar's
 /// New Mini button and job progress. Kept here so the window's own layout stays about the gallery.
 struct MainWindowChrome: ViewModifier {
-    // Named, not written inline: inside the long modifier chain below they made one expression
+    // Named, not written inline: inside the long modifier chain below it made one expression
     // too slow for CI's Swift to type-check.
-    private var showsUpdateNotice: Binding<Bool> {
-        Binding(get: { model.updates.notice != nil }, set: { if !$0 { model.updates.notice = nil } })
-    }
     private var showsProblem: Binding<Bool> {
         Binding(get: { model.problem != nil }, set: { if !$0 { model.problem = nil } })
     }
@@ -488,7 +485,6 @@ struct MainWindowChrome: ViewModifier {
                 case .newProject(let mini): ProjectNameSheet(renaming: nil, moving: mini)
                 case .renameProject(let p): ProjectNameSheet(renaming: p)
                 case .progress: JobProgressView()
-                case .update: UpdateSheet()
                 }
             }
             .confirmationDialog("Move “\(model.trashing?.displayName ?? "")” to the Trash?",
@@ -515,9 +511,6 @@ struct MainWindowChrome: ViewModifier {
                 let count = model.minis.filter { $0.project == project }.count
                 Text(count == 0 ? "The empty project goes to the Trash."
                      : "Its \(count == 1 ? "mini moves" : "\(count) minis move") to Unsorted, unless you choose to move \(count == 1 ? "it" : "them") to the Trash too. You can put anything back from the Trash.")
-            }
-            .alert(model.updates.notice ?? "", isPresented: showsUpdateNotice) {
-                Button("OK") {}
             }
             .alert(model.problem ?? "", isPresented: showsProblem) {
                 Button("OK") {}

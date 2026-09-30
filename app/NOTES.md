@@ -341,49 +341,39 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
 - **Self-signed, by decision.** The disk image is downloaded through a browser, so macOS
   quarantines it and the first open needs System Settings → Privacy & Security → Open Anyway,
   once; the README and a note in the disk image say so. A Developer ID would remove that step.
-- **Updates: our own updater, not Sparkle** (`MimicCore/Updates.swift`, `Mimic/UpdateView.swift`;
-  0.5.0). Sparkle would be Mimic's first third-party code, and would need its own framework and
-  XPC services copied into the hand-assembled bundle by `bundle.sh`, an EdDSA key pair, and an
-  appcast feed generated and published by the release workflow. Its EdDSA signature is the one
-  thing it adds over what's here: it protects against someone who takes over the GitHub
-  account and publishes a release, but only if the private key lives somewhere other than CI,
-  which for a one-person hobby project it would not. Ours is a few hundred lines on what releases already
-  have: `releases/latest` (GitHub documents that it leaves pre-releases and drafts out; not
-  observable here, since the engine's pre-release predates 0.4.1; and `Updates.offer`
-  also refuses them and any tag that isn't `vX.Y.Z`, so the engine's `pixal3d-d1b4926`
-  pre-release is never an update), the disk image and its line in the release's `SHA256SUMS`.
-  That checksum comes from the same release over TLS: it catches a damaged or cut-off download,
-  not a compromised account. The download reuses setup's `fetch` (resumes, deletes a file whose
-  sha256 is wrong). Then `hdiutil attach -nobrowse -readonly -noautoopen` at a mount point of
-  its own (an open disk image would push it to "Mimic 1"), `ditto` Mimic.app to a hidden
-  `.Mimic-update-<uuid>.app` beside the running app (same disk, so the swap is a rename), check
-  it (version equals the release's, bundle id `com.mimic.app` so settings carry over,
-  `codesign --verify --deep --strict`), and `renamex_np(RENAME_SWAP)`: one step, never a moment
-  without a Mimic there. The old app then sits at the hidden name and is removed; a launch
-  sweeps any left over. Relaunch is a small `sh` that waits for this pid to end, then
-  `open -n` the app with Mimic's own `MIMIC_*` variables, so a test copy stays a test copy.
-  The shell means the old and new Mimic never run at once. A window with a sheet (or an alert,
-  which SwiftUI shows as one) up refuses to quit, so those are closed first (seen: with the
-  update sheet up, the old Mimic stayed open).
-  Checked at launch and then from the queue's 3-second watch, at most once a day counted from
-  the last *attempt* (an offline Mac doesn't retry every 3 seconds); "Last checked" is the last
-  success. A development build (`AppVersion` parses only `X.Y.Z`) never checks by itself and a
-  manual check says so. Never while a mini is being made (here or in another Mimic), waiting in
-  the queue, or the engine downloading: Update becomes "Update When the Queue Is Done", and the
-  rule is checked again after the download and after staging. Where the account can't write
-  the app's folder (another user's /Applications, a translocated copy, the disk image itself)
-  it downloads the disk image, checks it and opens it instead. Sent: a GET with User-Agent
-  `Mimic/<version>`, nothing else. Quarantine: URLSession sets none (Mimic's Info.plist has no
-  `LSFileQuarantineEnabled`), so the new app opens without Open Anyway; checked on the real
-  update below (`xattr`: no `com.apple.quarantine` anywhere in it; `com.apple.provenance` is
-  not quarantine). The Keychain (#13): an ad-hoc signature's identity is the binary's hash,
-  so after any update macOS may ask once to let Mimic use a saved AI key (see the AI helper
-  above); not seen, since the test copy had no saved keys. Seen end to end with a throwaway
-  "Mimic Update Test" (own bundle id, version 0.4.1, a debug build, in a scratch folder,
-  `MIMIC_FAKE_HOME` set): `MIMIC_UPDATE_NOW=1` (debug builds only) checked and pressed Update,
-  it downloaded the real 0.4.2 disk image, verified it, replaced itself with the real Mimic
-  0.4.2 (Info.plist 0.4.2, `com.mimic.app`, signature valid), quit, and the new one started
-  with the same `MIMIC_FAKE_HOME`, about 8 seconds in all.
+- **Updates: Sparkle** (`Mimic/UpdateView.swift`; issue #15). A first updater of our own
+  (GitHub's `releases/latest`, the disk image checked against `SHA256SUMS`, swapped in place)
+  was built for 0.6.0 and replaced by Sparkle before it shipped: the updater most Mac apps
+  outside the App Store use, so the one everyone relies on from 0.6.0 is the proven one. Its
+  EdDSA signature also covers what a checksum from the same release can't: a release published
+  by someone else. Sparkle 2 comes through SwiftPM, linked into the `Mimic` target only (rpath
+  `@executable_path/../Frameworks`, which dyld resolves through the real path, so `mimic`
+  symlinked into `/usr/local/bin` still finds it). `bundle.sh` copies `Sparkle.framework` into
+  `Contents/Frameworks` with `ditto` (it's full of symlinks) and drops its XPC services, which
+  only sandboxed apps need; then it signs inside out, `Autoupdate`, `Updater.app`, the framework,
+  the app, with the same identity and no `--deep`. Info.plist: `SUFeedURL`
+  (`releases/latest/download/appcast.xml`, so always the newest release's), `SUPublicEDKey`, and
+  `SUEnableAutomaticChecks` on, which also stops Sparkle asking on the second launch whether to
+  check. Sparkle compares `CFBundleVersion`, the commit count. The updater only starts in the
+  release build (`com.mimic.app`): the dev build has no Check for Updates… and no Settings →
+  Updates, and never updates itself.
+  Kept from the first version: a scheduled check that finds an update shows only a note in the
+  toolbar (Sparkle's gentle reminders: the user driver's delegate shows scheduled updates
+  itself), and the note opens Sparkle's window; Check for Updates… is Sparkle's standard UI.
+  Never installing while a mini is being made (here or in another Mimic), waiting in the queue,
+  or setup downloading: `shouldPostponeRelaunchForUpdate` holds Sparkle's go-ahead, the note
+  says "installs when the queue is done", and the queue's 3-second watch gives it back once the
+  queue is empty, closing any sheet first (a window with a sheet up refuses to quit; seen with
+  the first updater). An update installed on quit instead needs nothing: quitting already asks
+  about a running mini, and the queue carries on at the next launch. Sparkle sends no system
+  profile (`SUEnableSystemProfiling` is off by default).
+  Releasing: the release job (macOS, for `hdiutil`) runs `generate_appcast` from the pinned
+  Sparkle 2.10.0 tarball on the disk image, with the version's CHANGELOG section as Markdown
+  notes, and publishes `appcast.xml` with the release. The private key lives in the
+  maintainer's Keychain and in the `SPARKLE_PRIVATE_KEY` secret, passed on stdin; a key that
+  doesn't match `SUPublicEDKey` fails the release rather than publishing an unsigned update.
+  Checked locally with a throwaway key: the enclosure URL, `sparkle:version`, the Markdown notes
+  and a signature that verifies. Not yet seen: a real update from one release to the next.
 
 ## Not yet seen working
 

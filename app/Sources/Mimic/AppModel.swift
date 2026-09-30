@@ -6,7 +6,7 @@ import UserNotifications
 /// The sheet over the main window. One at a time, so swapping Make for its progress is a single
 /// change rather than a dismiss and a present racing each other.
 enum AppSheet: Identifiable, Equatable {
-    case make, resize(Mini), rename(Mini), progress, update
+    case make, resize(Mini), rename(Mini), progress
     /// Resize All on a project.
     case resizeAll(String)
     /// A new project, and the mini to move into it when asked from Move to Project.
@@ -19,7 +19,6 @@ enum AppSheet: Identifiable, Equatable {
         case .resizeAll(let p): "resize-all-\(p)"
         case .rename(let m): "rename-\(m.name)"
         case .progress: "progress"
-        case .update: "update"
         case .newProject(let m): "new-project-\(m?.name ?? "")"
         case .renameProject(let p): "rename-project-\(p)"
         }
@@ -107,15 +106,6 @@ final class AppModel {
         }
         #if DEBUG
         if let spec = ProcessInfo.processInfo.environment["MIMIC_DEMO_PROGRESS"] { demoProgress(spec) }
-        // Development only: check for an update at launch and install it at once, as pressing
-        // Check for Updates… then Update would (how the updater was tried end to end).
-        if ProcessInfo.processInfo.environment["MIMIC_UPDATE_NOW"] != nil {
-            Task { [updates] in
-                await updates.check(manual: true)
-                while updates.phase == .checking { try? await Task.sleep(for: .seconds(0.2)) }  // the launch check's
-                updates.install()
-            }
-        }
         #endif
     }
 
