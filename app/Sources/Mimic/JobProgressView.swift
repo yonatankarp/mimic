@@ -398,7 +398,7 @@ struct JobToolbarItem: View {
                 }
             }
             .help(s.running ? "Show progress, the queue and Stop" : "Show how it went")
-            .popover(isPresented: $model.jobPopover, arrowEdge: .bottom) { JobProgressView().environment(model) }
+            .background { DetachablePopover(isPresented: $model.jobPopover) { JobProgressView().environment(model) } }
         }
     }
 
@@ -408,6 +408,53 @@ struct JobToolbarItem: View {
         if s.running { return "\(s.kind == .prep ? "Resizing" : "Making") \(who) · \(JobProgress.clock(now.timeIntervalSince(s.started)))\(waiting)" }
         if s.canceled { return "Stopped \(who)\(waiting)" }
         return (s.succeeded ? "\(who) is ready" : "\(who) didn't finish") + waiting
+    }
+}
+
+/// `.popover(isPresented:)` that can be dragged off into a small window of its own, to keep an eye
+/// on a job: SwiftUI's popover can't detach, AppKit's can. Opens under the view it's behind,
+/// closes on a click outside, Esc, or switching apps (unless detached), and sets `isPresented`
+/// back to false when it closes, as SwiftUI's does. A new hosting controller each time, so its
+/// content appears afresh.
+private struct DetachablePopover<Content: View>: NSViewRepresentable {
+    @Binding var isPresented: Bool
+    @ViewBuilder let content: () -> Content
+
+    func makeNSView(context: Context) -> NSView { NSView() }
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func updateNSView(_ view: NSView, context: Context) {
+        let c = context.coordinator
+        c.closed = { isPresented = false }
+        if isPresented, c.popover == nil {
+            let popover = NSPopover()
+            popover.behavior = .transient
+            popover.animates = true
+            popover.delegate = c
+            let host = NSHostingController(rootView: content())
+            host.sizingOptions = .preferredContentSize
+            popover.contentViewController = host
+            c.popover = popover
+            // After this update, once the view is in its window.
+            DispatchQueue.main.async {
+                guard c.popover === popover, view.window != nil else { c.popover = nil; c.closed(); return }
+                popover.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
+            }
+        } else if !isPresented, let popover = c.popover {
+            popover.close()
+        }
+    }
+
+    static func dismantleNSView(_ view: NSView, coordinator: Coordinator) { coordinator.popover?.close() }
+
+    final class Coordinator: NSObject, NSPopoverDelegate {
+        var popover: NSPopover?
+        var closed: () -> Void = {}
+        func popoverShouldDetach(_ popover: NSPopover) -> Bool { true }
+        func popoverDidClose(_ notification: Notification) {
+            popover = nil
+            closed()
+        }
     }
 }
 
