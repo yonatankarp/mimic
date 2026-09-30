@@ -13,9 +13,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 - **More from the menus and the keyboard.** View → Show Details (⌃⌘I) shows or hides the details panel, and View → Face Front (⌘0) turns the mini back to you. The Mini menu has Show Progress and Stop Making… while a mini is being made, and so does the Dock icon's menu, with New Mini….
 - **Install the `mimic` command from Mimic → Install Command-Line Tool…**, instead of Settings → Advanced.
 - **Show in Finder is now ⌥⌘R** (it was ⇧⌘R).
-- Questions that ask before doing something now say Cancel for the way out, so Esc always backs out, including the question when you quit while a mini is being made.
 - The sidebar's New Project button is a folder, as at the bottom of the sidebar, so it isn't mistaken for New Mini.
-- ⌘V in New Mini pastes text into the field you're typing in; a copied picture still becomes the mini's picture.
 - **Mimic now needs macOS 26 (Tahoe).** Every Mac that runs Mimic can update to it for free, in System Settings → General → Software Update.
 - A mini's page puts the 3D view first, with its size, previews, versions and print tips in a panel on the right you can hide; Open in your slicer is in the toolbar, with Resize and Show in Finder under More. The gallery shows each mini's size and nozzle instead of when it was made.
 - **Making a mini no longer covers the window.** Its progress, the queue and Stop are in the toolbar: click it to see them. When it's done, the toolbar says so; click it for Open in your slicer, or Try Again.
@@ -23,6 +21,8 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 - **New Mini shows the picture and the size choices side by side**, so everything fits without scrolling. Its choices are marked with symbols instead of emoji, and Resize explains itself under its title instead of in a box.
 
 ### Fixed
+- Questions that ask before doing something now say Cancel for the way out, so Esc always backs out, including the question when you quit while a mini is being made.
+- ⌘V in New Mini pastes text into the field you're typing in; a copied picture still becomes the mini's picture.
 - Settings says TRELLIS.2 takes about 14 minutes a mini, as measured, not 12. Once you've made a few minis, it shows the time for your Mac instead, as before.
 - Resize showed Best print and "about 100 mm tall" for a mini made at game scale; it now shows what the mini was made at. A mini made at a size neither choice gives shows neither as chosen. An object made at another size than the suggested one no longer says "about 80 mm on its longest side".
 

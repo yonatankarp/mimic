@@ -74,6 +74,4 @@ final class Health {
         if missing.isEmpty { return nil }
         return "Mimic isn't fully set up yet: \(missing.joined(separator: ", "))."
     }
-
-    var needsAttention: Bool { blocking != nil }
 }
