@@ -80,6 +80,26 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(MiniSettings.load(folder).requested?.shape, .round, "a shape it doesn't know reads as round")
     }
 
+    /// A magnet hole is written only when chosen, and never with no base: so minis made before
+    /// magnets, and those without one, read the same.
+    func testAMagnetHoleIsWrittenOnlyWhenChosen() throws {
+        try MiniSettings.update(folder) { $0.requested = Sizes(height: "32", shape: .hex, magnet: .mm6x2) }
+        let json = try JSONSerialization.jsonObject(with: Data(contentsOf: folder.appendingPathComponent("settings.json"))) as! [String: [String: String]]
+        XCTAssertEqual(json["requested"], ["height": "32", "shape": "hex", "magnet": "6x2"])
+        XCTAssertEqual(MiniSettings.load(folder).requested?.magnet, .mm6x2)
+        XCTAssertEqual(try Sizes(magnet: .mm8x3).flags(), ["--magnet", "8x3"])
+        let bare = Sizes(height: "32", noBase: true, magnet: .mm5x2)
+        XCTAssertNil(bare.magnet, "no base, no hole")
+        XCTAssertFalse(try bare.flags().contains("--magnet"))
+        try MiniSettings.update(folder) { $0.requested = Sizes(height: "32") }
+        let plain = try JSONSerialization.jsonObject(with: Data(contentsOf: folder.appendingPathComponent("settings.json"))) as! [String: [String: String]]
+        XCTAssertNil(plain["requested"]?["magnet"])
+        try #"{"requested": {"height": "32", "magnet": "9x9"}, "made": {"height": "32", "magnet": "5x2", "nobase": "1"}}"#
+            .write(to: folder.appendingPathComponent("settings.json"), atomically: true, encoding: .utf8)
+        XCTAssertNil(MiniSettings.load(folder).requested?.magnet, "a magnet it doesn't know reads as none")
+        XCTAssertNil(MiniSettings.load(folder).made?.magnet, "and so does one with no base")
+    }
+
     /// And the web version must be able to read what the app writes (strings, nobase "1").
     func testWritesTheWebFormat() throws {
         try MiniSettings.update(folder) { $0.requested = Sizes(height: "32", nozzle: "0.4", noBase: true) }
