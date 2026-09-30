@@ -1,3 +1,4 @@
+import ImageIO
 import XCTest
 @testable import MimicCore
 
@@ -186,21 +187,26 @@ final class QueueTests: XCTestCase {
     func testAQueuedMiniIsWrittenAtOnceAndRemovingItTrashesIt() throws {
         let fx = try Fixture(); _ = try fx.mini("first")
         try fx.modelFiles()
-        let picture = fx.root.appendingPathComponent("pic.png")
-        FileManager.default.createFile(atPath: picture.path, contents: Data([1]))
+        let picture = try fx.picture("photo.jpg")
         let spy = TrashSpy()
         let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("slow", "sleep 1")), trash: { spy($0) })
         try jobs.resize(name: "first", sizes: sizes)
         XCTAssertEqual(try jobs.make(name: "second", picture: .image(picture), restyle: false, seed: 1, sizes: sizes,
                                      model: EngineDownload.standard), 1)
         let folder = fx.install.runs.appendingPathComponent("second")
-        XCTAssertTrue(FileManager.default.fileExists(atPath: folder.appendingPathComponent("upload.img").path))
+        let upload = try XCTUnwrap(CGImageSourceCreateWithURL(folder.appendingPathComponent("upload.img") as CFURL, nil))
+        XCTAssertEqual(CGImageSourceGetType(upload) as String?, "public.png", "the picture was kept as it came, not tidied")
         XCTAssertEqual(MiniSettings.load(folder).requested, sizes)
         XCTAssertThrowsError(try jobs.make(name: "second", picture: .image(picture), restyle: false, seed: 1, sizes: sizes,
                                            model: EngineDownload.standard)) { XCTAssertEqual($0 as? RequestError, .queued("second")) }
         // Refused before anything is written: a picture that's gone.
         XCTAssertThrowsError(try jobs.make(name: "third", picture: .image(fx.root.appendingPathComponent("gone.png")), restyle: false,
                                            seed: 1, sizes: sizes, model: EngineDownload.standard)) { XCTAssertEqual($0 as? RequestError, .noPicture) }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fx.install.runs.appendingPathComponent("third").path))
+        // And one that isn't a picture at all.
+        let notes = fx.root.appendingPathComponent("notes.png"); FileManager.default.createFile(atPath: notes.path, contents: Data("hi".utf8))
+        XCTAssertThrowsError(try jobs.make(name: "third", picture: .image(notes), restyle: false, seed: 1, sizes: sizes,
+                                           model: EngineDownload.standard)) { XCTAssertEqual($0 as? RequestError, .unreadablePicture) }
         XCTAssertFalse(FileManager.default.fileExists(atPath: fx.install.runs.appendingPathComponent("third").path))
         XCTAssertTrue(try jobs.remove("second"))
         XCTAssertEqual(spy.trashed.map(\.lastPathComponent), ["second"])

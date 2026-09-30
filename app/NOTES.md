@@ -105,6 +105,12 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   folded wing at 7. A picture mini from before `upload.img` was kept has only source.png, which
   is what its 3D step saw, so that is used without the sculpt; a mini with no settings can't be
   made again and the menu item is off.
+- **A picture is tidied once, when it's added** (`Engine.tidied`, called by `make` before
+  anything is written): turned upright, no longer than 2048 on its longest side, and written as
+  PNG to `upload.img` (the name is from when it was a plain copy; kept so older minis read the
+  same). The cutout and its edge cleaning ran on every pixel of a 48 MP photo for an engine that
+  sees 1536 at most. New Mini takes drops as a picture file, else as the picture's data or a
+  promised file (Photos, browsers), never a web address; Import from iPhone goes the same way.
 - **Same data on disk.** `runs/<name>/` (or `runs/<project>/<name>/`) with `<name>.stl`, `<name>_{front,side,back}.png`,
 - **An object that can't stand is set on a side it can** (`Mesh.rest`, `MimicCore/Rest.swift`),
   after levelling. Its sides are the faces of its convex hull (quickhull over one point per
