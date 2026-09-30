@@ -6,7 +6,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 
 ### New
 - **Previews show both sides of a mini,** left and right, not just one. A mini made before this gets them the next time it's resized.
-- **An enlarged preview closes with a click anywhere around it,** and ← → go through the previews, in the enlarged picture and on the mini's page once you've clicked one.
+- **An enlarged preview closes with a click anywhere around it,** and ← → go through the previews, in the enlarged picture and on the mini's page once you've clicked one. On the page, ↑ ↓ move up and down the grid.
 
 ### Changed
 - **Mimic now needs macOS 26 (Tahoe).** Every Mac that runs Mimic can update to it for free, in System Settings → General → Software Update.
