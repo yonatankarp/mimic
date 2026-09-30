@@ -19,7 +19,9 @@ struct MimicApp: App {
         }
         .commands {
             CommandGroup(after: .appInfo) {
-                Button("Check for Updates…") { Task { await model.updates.check(manual: true) } }
+                if model.updates.enabled {
+                    Button("Check for Updates…") { model.updates.check() }
+                }
             }
             CommandGroup(replacing: .newItem) {
                 Button("New Mini…") { model.sheet = .make }

@@ -75,7 +75,8 @@ jobs:
   release:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: build
-    runs-on: ubuntu-latest
+    # macOS: Sparkle's tools read the app inside the disk image.
+    runs-on: macos-26
     permissions:
       contents: write
     steps:
@@ -84,15 +85,41 @@ jobs:
         with:
           name: mimic
           path: dist
-      - name: Publish
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Release notes
         run: |
           version="${GITHUB_REF_NAME#v}"
           # The release notes are this version's section of CHANGELOG.md: GitHub's generated
           # notes list merged pull requests, and Mimic's changes don't arrive as pull requests.
           awk -v v="## $version" '$0 == v {on=1; next} /^## / {on=0} on' CHANGELOG.md > notes.md
           [ -s notes.md ] || { echo "CHANGELOG.md has no section for $version"; exit 1; }
+      - name: Appcast
+        # What Mimic's updater (Sparkle) reads: the new version, its disk image signed with
+        # Sparkle's key, and the release notes. Published with each release, so
+        # releases/latest/download/appcast.xml is always the newest.
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          [ -n "$SPARKLE_PRIVATE_KEY" ] || { echo "No SPARKLE_PRIVATE_KEY: a release needs its appcast."; exit 1; }
+          curl -fsSL -o "$RUNNER_TEMP/sparkle.tar.xz" https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-2.10.0.tar.xz
+          echo "c2bf58aa8387266ac179357b1415d6f2635f044da8be41042af32425dae6da0c  $RUNNER_TEMP/sparkle.tar.xz" | shasum -a 256 -c
+          mkdir -p "$RUNNER_TEMP/sparkle" "$RUNNER_TEMP/appcast"
+          tar -xf "$RUNNER_TEMP/sparkle.tar.xz" -C "$RUNNER_TEMP/sparkle"
+          # Its own folder: generate_appcast reads every file there, and writes beside them.
+          dmg="$(cd dist && ls Mimic-*.dmg)"
+          cp "dist/$dmg" "$RUNNER_TEMP/appcast/"
+          cp notes.md "$RUNNER_TEMP/appcast/${dmg%.dmg}.md"
+          # The key goes in on stdin, never on the command line or in a file.
+          "$RUNNER_TEMP/sparkle/bin/generate_appcast" --ed-key-file - --embed-release-notes \
+            --download-url-prefix "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/" \
+            "$RUNNER_TEMP/appcast" <<< "$SPARKLE_PRIVATE_KEY"
+          # A key that doesn't match the app's SUPublicEDKey only warns, and leaves the update unsigned.
+          grep -q 'sparkle:edSignature=' "$RUNNER_TEMP/appcast/appcast.xml" || { echo "The appcast isn't signed: SPARKLE_PRIVATE_KEY doesn't match SUPublicEDKey."; exit 1; }
+          cp "$RUNNER_TEMP/appcast/appcast.xml" dist/
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
           cd dist
           shasum -a 256 * > SHA256SUMS
           gh release create "$GITHUB_REF_NAME" * --repo "$GITHUB_REPOSITORY" --title "Mimic $version" --notes-file ../notes.md

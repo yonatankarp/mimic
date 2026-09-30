@@ -24,8 +24,13 @@ swift build -c release --product mimic -Xlinker -platform_version -Xlinker macos
 bin="$(swift build -c release --show-bin-path)/mimic"
 app="build/$name.app"
 rm -rf "$app"
-mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" "$app/Contents/Frameworks"
 cp "$bin" "$app/Contents/MacOS/mimic"
+# Sparkle, for updates (the binary looks in ../Frameworks). ditto keeps its symlinks. Its XPC
+# services are only for sandboxed apps, and Mimic isn't one.
+sparkle="$app/Contents/Frameworks/Sparkle.framework"
+ditto "$(dirname "$bin")/Sparkle.framework" "$sparkle"
+rm -rf "$sparkle/XPCServices" "$sparkle/Versions/B/XPCServices"
 cp Mimic.icns "$app/Contents/Resources/Mimic.icns"
 # SwiftPM's resource bundle (the tour's sample picture); Bundle.main.resourceURL is where the app looks.
 cp -R "$(dirname "$bin")/Mimic_Mimic.bundle" "$app/Contents/Resources/"
@@ -43,17 +48,24 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>CFBundleVersion</key><string>$build</string>
   <key>MimicCommit</key><string>$commit</string>
   <key>LSMinimumSystemVersion</key><string>15.0</string>
+  <key>SUFeedURL</key><string>https://github.com/yonatankarp/mimic/releases/latest/download/appcast.xml</string>
+  <key>SUPublicEDKey</key><string>Dw9fswgPGLG2UoKzVMTIdvoQZd/m317sFxOecEoDXMk=</string>
+  <key>SUEnableAutomaticChecks</key><true/>
   <key>NSHighResolutionCapable</key><true/>
 </dict></plist>
 PLIST
 # Releases are signed with Mimic's own certificate (MIMIC_SIGN_IDENTITY, set up by CI): the same
 # signer every version, so macOS knows an update is the same app and doesn't ask again for saved
-# AI keys. Anything else is signed ad hoc, which is enough to run on this Mac.
-if [ -n "${MIMIC_SIGN_IDENTITY:-}" ]; then
-  codesign --force --deep --timestamp=none -s "$MIMIC_SIGN_IDENTITY" ${MIMIC_SIGN_KEYCHAIN:+--keychain "$MIMIC_SIGN_KEYCHAIN"} "$app"
-else
-  codesign --force --deep -s - "$app" 2>/dev/null
-fi
+# AI keys. Anything else is signed ad hoc, which is enough to run on this Mac. Inside out:
+# Sparkle's helpers, then Sparkle, then the app.
+sign() {
+  if [ -n "${MIMIC_SIGN_IDENTITY:-}" ]; then
+    codesign --force --timestamp=none -s "$MIMIC_SIGN_IDENTITY" ${MIMIC_SIGN_KEYCHAIN:+--keychain "$MIMIC_SIGN_KEYCHAIN"} "$1"
+  else
+    codesign --force -s - "$1" 2>/dev/null
+  fi
+}
+for code in "$sparkle/Versions/B/Autoupdate" "$sparkle/Versions/B/Updater.app" "$sparkle" "$app"; do sign "$code"; done
 # The dev build uses this checkout as its Mimic folder (runs/ and engine/). The release build
 # finds its own: ~/Documents/Mimic and ~/Library/Application Support/Mimic.
 [ "$kind" = release ] || defaults write "$id" installDir "$(cd .. && pwd)"
