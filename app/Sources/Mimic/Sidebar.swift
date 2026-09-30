@@ -92,7 +92,7 @@ struct Sidebar: View {
         // Like Notes' New Folder: always there, the first project included.
         .safeAreaInset(edge: .bottom) {
             HStack {
-                Button { model.sheet = .newProject(moving: nil) } label: { Label("New Project", systemImage: "folder.badge.plus") }
+                Button { model.sheet = .newProject(moving: []) } label: { Label("New Project", systemImage: "folder.badge.plus") }
                     .buttonStyle(.borderless)
                     .help("A folder to group minis in (⇧⌘N). Drag minis onto it to move them.")
                 Spacer()
@@ -101,8 +101,8 @@ struct Sidebar: View {
         }
         // A new mini slides into the list (and a trashed one out) rather than popping.
         .animation(reduceMotion ? nil : .default, value: shown.map(\.id))
-        // Delete (or ⌘⌫ from the Mini menu) moves it to the Trash, as the context menu does.
-        .onDeleteCommand { if let mini = model.selected, model.sheet == nil { model.askToTrash(mini) } }
+        // Delete (or ⌘⌫ from the Mini menu) moves them to the Trash, as the context menu does.
+        .onDeleteCommand { if model.sheet == nil, !model.chosen.isEmpty { model.askToTrash(model.chosen) } }
         .overlay {
             if shown.isEmpty && !model.minis.isEmpty {
                 ContentUnavailableView.search(text: query)
@@ -112,9 +112,14 @@ struct Sidebar: View {
 
     private func rows(_ minis: [Mini], project: String?) -> some View {
         ForEach(minis) { mini in
-            GalleryRow(mini: mini, status: rowStatus(mini)).contextMenu { menu(for: mini) }
-                .help("Space to preview; drag onto a project, or out for its print file")
-                .draggable(MiniDrag(name: mini.name, stl: mini.stl))
+            // Per row, not the List's contextMenu(forSelectionType:), which took the project
+            // headers' own menus: every selected mini when it's among several, else this one.
+            GalleryRow(mini: mini, status: rowStatus(mini))
+                .contextMenu {
+                    if model.selection.count > 1 && model.selection.contains(mini.id) { SeveralMenu(minis: model.chosen) } else { menu(for: mini) }
+                }
+                .help("Space to preview; drag onto a project, or out for its print file; ⌘-click to select several")
+                .draggable(drag(mini))
                 // Dropped on a mini: into that mini's project.
                 .dropDestination(for: String.self) { names, _ in model.move(names, to: project); return true }
         }
@@ -126,7 +131,7 @@ struct Sidebar: View {
         HStack {
             Text(title)
             Spacer()
-            Button { model.sheet = .newProject(moving: nil) } label: { Image(systemName: "folder.badge.plus") }
+            Button { model.sheet = .newProject(moving: []) } label: { Image(systemName: "folder.badge.plus") }
                 .buttonStyle(.borderless)
                 .help("New Project (⇧⌘N): a folder to group minis in.")
                 .accessibilityLabel("New Project")
@@ -157,21 +162,43 @@ struct Sidebar: View {
         return nil
     }
 
+    /// One of several selected drags them all, as their names: to a project, never out (one
+    /// print file is all a drag out can carry).
+    private func drag(_ mini: Mini) -> MiniDrag {
+        guard model.selection.count > 1, model.selection.contains(mini.id) else { return MiniDrag(name: mini.name, stl: mini.stl) }
+        return MiniDrag(name: Gallery.dragged(model.chosen.map(\.name)), stl: nil)
+    }
+
     @ViewBuilder private func menu(for mini: Mini) -> some View {
         Button("Open in \(model.slicerName)", systemImage: "printer") {
             if let stl = mini.stl { model.openInSlicer(stl) }
         }
         .disabled(mini.stl == nil)  // not made yet: nothing to print
-        Button("Show in Finder", systemImage: "folder") { model.showInFinder(mini) }
+        Button("Show in Finder", systemImage: "folder") { model.showInFinder([mini]) }
         Button("Resize This Mini…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resize(mini) }
             .disabled(!mini.hasModel || model.cantStart != nil || model.waiting(mini.name) != nil)
         Divider()
         AnotherVersionButton(mini: mini)
-        MoveToProjectMenu(mini: mini)
+        MoveToProjectMenu(minis: [mini])
         Divider()
         Button("Rename…", systemImage: "pencil") { model.sheet = .rename(mini) }
             .disabled(model.waiting(mini.name) != nil)
-        Button("Move to Trash", systemImage: "trash", role: .destructive) { model.askToTrash(mini) }
+        Button("Move to Trash", systemImage: "trash", role: .destructive) { model.askToTrash([mini]) }
+    }
+}
+
+/// What can be done to several minis at once: in the right-click menu and on the page that
+/// stands in for a mini's when several are selected.
+struct SeveralMenu: View {
+    let minis: [Mini]
+    @Environment(AppModel.self) private var model
+    var body: some View {
+        Button("Show in Finder", systemImage: "folder") { model.showInFinder(minis) }
+        Button("Resize \(minis.count) Minis…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resizeSeveral(minis) }
+            .disabled(!minis.contains(where: \.hasModel) || model.cantStart != nil)
+        MoveToProjectMenu(minis: minis)
+        Divider()
+        Button("Move to Trash", systemImage: "trash", role: .destructive) { model.askToTrash(minis) }
     }
 }
 
@@ -225,10 +252,10 @@ struct RenameSheet: View {
         } catch {
             problem = model.plainWords(error, else: "Couldn't rename it. Is its folder open in another app?"); return
         }
-        let wasSelected = model.selection == mini.id
+        let wasSelected = model.selection.contains(mini.id)
         // Both in one go, so the window never shows another mini in between.
+        if wasSelected { model.selection.remove(mini.id); model.selection.insert(new) }
         model.reload()
-        if wasSelected { model.selection = new }
         dismiss()
     }
 }
@@ -281,24 +308,26 @@ struct AnotherVersionButton: View {
     }
 }
 
-/// Move to Project ▸, for the right-click menu and the Mini menu. A mini being made or waiting
-/// can't move; the menu says so instead of listing projects.
+/// Move to Project ▸, for the right-click menu and the Mini menu, for one mini or several. One
+/// mini being made or waiting can't move, and the menu says so instead of listing projects;
+/// among several, it stays and says so.
 struct MoveToProjectMenu: View {
-    let mini: Mini
+    let minis: [Mini]
     var showsIcon = true
     @Environment(AppModel.self) private var model
     var body: some View {
+        let names = minis.map(\.name)
         Menu {
-            if let why = model.whyCantMove(mini) {
+            if let why = minis.count == 1 ? minis.first.flatMap(model.whyCantMove) : nil {
                 Text(why)
             } else {
-                Button("Unsorted") { model.move([mini.name], to: nil) }.disabled(mini.project == nil)
+                Button("Unsorted") { model.move(names, to: nil) }.disabled(minis.allSatisfy { $0.project == nil })
                 if !model.projects.isEmpty { Divider() }
                 ForEach(model.projects, id: \.self) { p in
-                    Button(p) { model.move([mini.name], to: p) }.disabled(mini.project == p)
+                    Button(p) { model.move(names, to: p) }.disabled(minis.allSatisfy { $0.project == p })
                 }
                 Divider()
-                Button("New Project…") { model.sheet = .newProject(moving: mini) }
+                Button("New Project…") { model.sheet = .newProject(moving: minis) }
             }
         } label: {
             if showsIcon { Label("Move to Project", systemImage: "folder") } else { Text("Move to Project") }
@@ -312,7 +341,7 @@ struct ProjectNameSheet: View {
     @Environment(\.dismiss) private var dismiss
     /// nil: a new project.
     let renaming: String?
-    var moving: Mini?
+    var moving: [Mini] = []
     @State private var text = ""
     @State private var problem: String?
 
@@ -320,8 +349,8 @@ struct ProjectNameSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(renaming.map { "Rename “\($0)”" } ?? "New Project").font(.headline)
             if renaming == nil {
-                Text(moving.map { "A folder in your minis folder. \($0.displayName) moves into it." }
-                     ?? "A folder in your minis folder, to group minis in. Drag minis onto it to move them there.")
+                Text(moving.isEmpty ? "A folder in your minis folder, to group minis in. Drag minis onto it to move them there."
+                     : "A folder in your minis folder. \(moving.count == 1 ? moving[0].displayName + " moves" : "The \(moving.count) minis move") into it.")
                     .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             TextField("Project name", text: $text, prompt: Text("e.g. Tiefling Party"))  // Return presses the button
@@ -345,7 +374,7 @@ struct ProjectNameSheet: View {
                 try model.renameProject(renaming, to: text)
             } else {
                 let name = try model.createProject(text)
-                if let moving { model.move([moving.name], to: name) }
+                if !moving.isEmpty { model.move(moving.map(\.name), to: name) }
             }
         } catch {
             problem = model.plainWords(error, else: "Couldn't do that. Is the folder open in another app?"); return

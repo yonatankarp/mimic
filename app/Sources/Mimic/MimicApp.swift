@@ -74,31 +74,40 @@ struct MiniCommands: Commands {
                 .disabled(model.selected?.stl == nil || model.sheet != nil)
         }
         CommandMenu("Mini") {
-            let mini = model.selected
+            let mini = model.selected, chosen = model.chosen, several = chosen.count > 1
             let free = model.sheet == nil
             Button("Open in \(model.slicerName)") { if let stl = mini?.stl { model.openInSlicer(stl) } }
                 .keyboardShortcut("o")
                 .disabled(mini?.stl == nil)
-            Button("Show in Finder") { if let mini { model.showInFinder(mini) } }
+            Button("Show in Finder") { model.showInFinder(chosen) }
                 .keyboardShortcut("r", modifiers: [.command, .option])
-                .disabled(mini == nil)
+                .disabled(chosen.isEmpty)
             Divider()
-            Button("Resize This Mini…") { if let mini { model.sheet = .resize(mini) } }
-                .keyboardShortcut("r")
-                .disabled(mini?.hasModel != true || model.cantStart != nil || !free || mini.flatMap { model.waiting($0.name) } != nil)
+            if several {
+                Button("Resize \(chosen.count) Minis…") { model.sheet = .resizeSeveral(chosen) }
+                    .keyboardShortcut("r")
+                    .disabled(!chosen.contains(where: \.hasModel) || model.cantStart != nil || !free)
+            } else {
+                Button("Resize This Mini…") { if let mini { model.sheet = .resize(mini) } }
+                    .keyboardShortcut("r")
+                    .disabled(mini?.hasModel != true || model.cantStart != nil || !free || mini.flatMap { model.waiting($0.name) } != nil)
+            }
             Button("Rename…") { if let mini { model.sheet = .rename(mini) } }
                 .disabled(mini == nil || !free || mini.flatMap { model.waiting($0.name) } != nil)
             Divider()
+            // No icons in the menu bar: the other items have none.
             if let mini, free {
-                // No icons in the menu bar: the other items have none.
                 AnotherVersionButton(mini: mini, showsIcon: false).environment(model)
-                MoveToProjectMenu(mini: mini, showsIcon: false).environment(model)
             } else {
                 Button("Make Another Version") {}.disabled(true)
+            }
+            if free && !chosen.isEmpty {
+                MoveToProjectMenu(minis: chosen, showsIcon: false).environment(model)
+            } else {
                 Button("Move to Project") {}.disabled(true)
             }
             // ⌘N is New Mini; ⇧⌘N a new project, as a new folder is in Finder.
-            Button("New Project…") { model.sheet = .newProject(moving: nil) }
+            Button("New Project…") { model.sheet = .newProject(moving: []) }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
                 .disabled(!free || !model.setup.installed)
             Divider()
@@ -108,9 +117,9 @@ struct MiniCommands: Commands {
             Button(model.stopCommand ?? "Stop Making…") { model.showWindow(); model.confirmingStop = true }
                 .disabled(model.stopCommand == nil || !free)
             Divider()
-            Button("Move to Trash") { if let mini { model.askToTrash(mini) } }
+            Button("Move to Trash") { model.askToTrash(chosen) }
                 .keyboardShortcut(.delete)
-                .disabled(mini == nil || !free)
+                .disabled(chosen.isEmpty || !free)
         }
     }
 }
@@ -125,6 +134,14 @@ struct ContentView: View {
             } detail: {
                 if let mini = model.selected {
                     MiniDetail(mini: mini)
+                } else if model.selection.count > 1 {
+                    ContentUnavailableView {
+                        Label("\(model.chosen.count) minis selected", systemImage: "square.stack.3d.up")
+                    } description: {
+                        Text("Resize them together, move them to a project, or move them to the Trash.")
+                    } actions: {
+                        HStack { SeveralMenu(minis: model.chosen) }.fixedSize()
+                    }
                 } else if model.minis.isEmpty {
                     ContentUnavailableView {
                         Label("No minis yet", systemImage: "cube")

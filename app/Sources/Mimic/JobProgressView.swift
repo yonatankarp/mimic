@@ -77,7 +77,7 @@ struct JobProgressView: View {
                 } else {
                     if s.succeeded, let stl = model.minis.first(where: { $0.name == s.name })?.stl {
                         // A finished mini isn't selected by itself; this goes to it.
-                        if model.selection != s.name {
+                        if model.selection != [s.name] {
                             Button("Show Mini") { model.jobPopover = false; model.go(to: s.name) }
                         }
                         Button("Open in \(model.slicerName)") { model.jobPopover = false; model.openInSlicer(stl) }
@@ -580,20 +580,24 @@ struct MainWindowChrome: ViewModifier {
                 case .make: MakeView(room: room)
                 case .resize(let mini): ResizeView(mini: mini, room: room)
                 case .resizeAll(let p):
-                    if let first = model.minis.first(where: { $0.project == p && $0.hasModel }) { ResizeView(mini: first, project: p, room: room) }
+                    let group = model.minis.filter { $0.project == p }
+                    if let first = group.first(where: \.hasModel) { ResizeView(mini: first, group: group, project: p, room: room) }
+                case .resizeSeveral(let group):
+                    if let first = group.first(where: \.hasModel) { ResizeView(mini: first, group: group, room: room) }
                 case .rename(let mini): RenameSheet(mini: mini)
-                case .newProject(let mini): ProjectNameSheet(renaming: nil, moving: mini)
+                case .newProject(let group): ProjectNameSheet(renaming: nil, moving: group)
                 case .renameProject(let p): ProjectNameSheet(renaming: p)
                 }
             }
             .modifier(JobQuestions())
-            .confirmationDialog("Move “\(model.trashing?.displayName ?? "")” to the Trash?",
-                                isPresented: Binding(get: { model.trashing != nil }, set: { if !$0 { model.trashing = nil } }),
-                                presenting: model.trashing) { mini in
-                Button("Move to Trash", role: .destructive) { model.trash(mini) }
+            .confirmationDialog(model.trashing.count == 1 ? "Move “\(model.trashing[0].displayName)” to the Trash?" : "Move \(model.trashing.count) minis to the Trash?",
+                                isPresented: Binding(get: { !model.trashing.isEmpty }, set: { if !$0 { model.trashing = [] } }),
+                                presenting: model.trashing) { group in
+                Button("Move to Trash", role: .destructive) { model.trash(group) }
                 Button("Cancel", role: .cancel) {}
-            } message: { _ in
-                Text("It leaves the queue. You can put it back from the Trash, but not in the queue.")
+            } message: { group in
+                Text(group.count == 1 ? "It leaves the queue. You can put it back from the Trash, but not in the queue."
+                     : "Those waiting leave the queue. You can put them back from the Trash, but not in the queue.")
             }
             // Move to Trash registers its Undo with the window's undo manager (Edit → Undo).
             .onChange(of: undoManager, initial: true) { model.undo = undoManager }

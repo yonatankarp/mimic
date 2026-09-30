@@ -389,7 +389,10 @@ struct Picture {
 /// Resize This Mini: the size card, loaded with what the mini is now. With `project`, Resize
 /// All: one card for every mini in it, loaded from `mini`, the first.
 struct ResizeView: View {
+    /// The mini whose sizes the card starts from: the one resized, or the first of `group`.
     let mini: Mini
+    /// Several resized together: a project's (Resize All) or those selected.
+    var group: [Mini]?
     var project: String?
     @Environment(AppModel.self) private var model
     @State private var card: SizeCard
@@ -400,8 +403,9 @@ struct ResizeView: View {
     /// A refused resize: in words for people, and the raw error for the tooltip.
     @State private var problem: (words: String, detail: String)?
 
-    init(mini: Mini, project: String? = nil, room: CGSize) {
+    init(mini: Mini, group: [Mini]? = nil, project: String? = nil, room: CGSize) {
         self.mini = mini
+        self.group = group
         self.project = project
         self.room = room
         _height = State(initialValue: min(720, room.height - 8))
@@ -415,8 +419,8 @@ struct ResizeView: View {
     var body: some View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(project.map { "Resize All in \($0)" } ?? "Resize \(mini.displayName)").font(.title2.bold())
-                Text(project != nil
+                Text(project.map { "Resize All in \($0)" } ?? group.map { "Resize \($0.count) Minis" } ?? "Resize \(mini.displayName)").font(.title2.bold())
+                Text(group != nil
                      ? "Remakes every mini's print file with these sizes, one after another, \(takes) each. Minis already this size are left out. The minis themselves don't change."
                      : "Remakes the print file with these sizes. \(takes.capitalizedFirst)\(model.current == nil ? "" : ", once the jobs ahead of it are done"). The \(card.kind == .object ? "object" : "character") itself doesn't change.")
                     .font(.callout).foregroundStyle(.secondary)
@@ -438,14 +442,14 @@ struct ResizeView: View {
                 Spacer()
                 Button("Cancel") { model.sheet = nil }.keyboardShortcut(.cancelAction)
                 Button(project == nil ? "Resize" : "Resize All") {
-                    if let project {
-                        if let why = model.resizeAll(project, sizes: card.sizes) { problem = (why, why) }
+                    if let group {
+                        if let why = model.resizeAll(group, sizes: card.sizes) { problem = (why, why) }
                     } else {
                         do { try model.resize(mini, sizes: card.sizes) } catch { problem = (model.plainWords(error), "\(error)") }
                     }
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(model.cantStart != nil || (project == nil && model.waiting(mini.name) != nil))
+                .disabled(model.cantStart != nil || (group == nil && model.waiting(mini.name) != nil))
             }
             .padding(16)
             .fixedSize(horizontal: false, vertical: true)

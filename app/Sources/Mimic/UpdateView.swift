@@ -47,7 +47,7 @@ final class Updater: NSObject, SPUUpdaterDelegate {
         self.relaunch = nil
         // A window with a sheet up refuses to quit (seen: the old Mimic stayed open), so the
         // sheet goes first, and so do alerts and questions, which SwiftUI shows as sheets too.
-        model?.sheet = nil; model?.problem = nil; model?.trashing = nil; model?.deletingProject = nil
+        model?.sheet = nil; model?.problem = nil; model?.trashing = []; model?.deletingProject = nil
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(0.5))
             if busy { self.relaunch = relaunch; return }  // a mini started meanwhile, maybe in another Mimic

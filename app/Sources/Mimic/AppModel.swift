@@ -9,16 +9,19 @@ enum AppSheet: Identifiable, Equatable {
     case make, resize(Mini), rename(Mini)
     /// Resize All on a project.
     case resizeAll(String)
-    /// A new project, and the mini to move into it when asked from Move to Project.
-    case newProject(moving: Mini?)
+    /// Resize on several minis selected together.
+    case resizeSeveral([Mini])
+    /// A new project, and the minis to move into it when asked from Move to Project.
+    case newProject(moving: [Mini])
     case renameProject(String)
     var id: String {
         switch self {
         case .make: "make"
         case .resize(let m): "resize-\(m.name)"
         case .resizeAll(let p): "resize-all-\(p)"
+        case .resizeSeveral(let m): "resize-several-\(Gallery.dragged(m.map(\.name)))"
         case .rename(let m): "rename-\(m.name)"
-        case .newProject(let m): "new-project-\(m?.name ?? "")"
+        case .newProject(let m): "new-project-\(Gallery.dragged(m.map(\.name)))"
         case .renameProject(let p): "rename-project-\(p)"
         }
     }
@@ -47,9 +50,10 @@ final class AppModel {
     var collapsed = Set(UserDefaults.standard.stringArray(forKey: "collapsedProjects") ?? []) {
         didSet { UserDefaults.standard.set(collapsed.sorted(), forKey: "collapsedProjects") }
     }
-    var selection: Mini.ID? {
+    /// The minis selected in the sidebar: one, or several (⌘-click, ⇧-click, ⌘A).
+    var selection = Set<Mini.ID>() {
         // Picked with Mimic in front: a ready mini has been seen.
-        didSet { if let selection, unseen.contains(selection), NSApp.isActive { unseen.remove(selection); updateBadge() } }
+        didSet { if NSApp.isActive, !unseen.isDisjoint(with: selection) { unseen.subtract(selection); updateBadge() } }
     }
     /// Minis that finished while nobody was looking, counted on the Dock icon until seen: picked
     /// in the list with Mimic in front, or the job's popover seen after they ended.
@@ -94,9 +98,9 @@ final class AppModel {
     var faceFrontRequests = 0
     /// The waiting job on "Take it out of the queue?", asked from the job's popover.
     var unqueueing: QueueEntry?
-    /// A mini waiting in the queue, on "Move to Trash?": Undo can't put it back in the queue,
-    /// so it's asked first (see `askToTrash`).
-    var trashing: Mini?
+    /// Minis on "Move to Trash?", when one of them waits in the queue: Undo can't put it back
+    /// in the queue, so it's asked first (see `askToTrash`).
+    var trashing: [Mini] = []
     /// The main window's, for Undo Move to Trash; set by the window.
     @ObservationIgnored weak var undo: UndoManager?
     /// A rename or trash that was refused, shown as an alert.
@@ -157,13 +161,17 @@ final class AppModel {
         #endif
     }
 
-    var selected: Mini? { minis.first { $0.id == selection } }
+    /// The one selected mini, whose page shows; nil when none or several are.
+    var selected: Mini? { selection.count == 1 ? minis.first { selection.contains($0.id) } : nil }
+    /// Every selected mini, in the gallery's order.
+    var chosen: [Mini] { minis.filter { selection.contains($0.id) } }
     var running: Bool { job?.running == true }
 
     func reload() {
         minis = Gallery.list(install.runs)
         projects = Gallery.projects(install.runs)
-        if selection == nil || selected == nil { selection = minis.first?.id }
+        selection = selection.filter { id in minis.contains { $0.id == id } }
+        if selection.isEmpty, let first = minis.first { selection = [first.id] }
     }
 
     // MARK: The queue
@@ -197,7 +205,7 @@ final class AppModel {
 
     /// Mimic came to the front: the mini on screen has been seen.
     func becameActive() {
-        if let selection, unseen.remove(selection) != nil { updateBadge() }
+        if !unseen.isDisjoint(with: selection) { unseen.subtract(selection); updateBadge() }
     }
 
     /// Brings Mimic and its window to the front, opening the window again if it was closed.
@@ -327,9 +335,10 @@ final class AppModel {
         return name
     }
 
-    /// Moves minis (one, or several dragged together) into `project`, nil being Unsorted.
+    /// Moves minis (one, or several dragged together) into `project`, nil being Unsorted. One
+    /// waiting or being made stays, and says so.
     func move(_ names: [String], to project: String?) {
-        for name in names where minis.first(where: { $0.name == name })?.project != project {
+        for name in Gallery.dropped(names) where minis.first(where: { $0.name == name })?.project != project {
             do { try jobs.move(mini: name, toProject: project) }
             catch { problem = plainWords(error, else: "Couldn't move it. Is its folder open in another app?") }
         }
@@ -357,12 +366,15 @@ final class AppModel {
         try start(mini.name) { try $0.resize(name: mini.name, sizes: sizes) }
     }
 
-    /// Resize All: every mini in `project` waits its turn to be resized to `sizes`, with one
-    /// note in the job's popover like several dropped pictures. Returns why, in words, when
-    /// none could be added.
-    func resizeAll(_ project: String, sizes: Sizes) -> String? {
+    /// Resize All on a project.
+    func resizeAll(_ project: String, sizes: Sizes) -> String? { resizeAll(minis.filter { $0.project == project }, sizes: sizes) }
+
+    /// Resize All, or Resize on several selected: each mini waits its turn to be resized to
+    /// `sizes`, with one note in the job's popover like several dropped pictures. Returns why, in
+    /// words, when none could be added.
+    func resizeAll(_ group: [Mini], sizes: Sizes) -> String? {
         let busy = Set(queue.map(\.name) + [current?.name].compactMap { $0 })
-        let picked = Gallery.toResize(minis.filter { $0.project == project }, to: sizes, busy: busy)
+        let picked = Gallery.toResize(group, to: sizes, busy: busy)
         var added: [String] = [], skipped = picked.skipped, why = "None of these minis can be resized right now."
         for (mini, sizes) in picked.resize {
             do { try resize(mini, sizes: sizes); added.append(mini.name) }
@@ -387,10 +399,19 @@ final class AppModel {
     /// A mini that can't be renamed or trashed right now: being made here or in another Mimic.
     var busyWith: String? { current?.name }
 
-    /// Move to Trash from the sidebar or the Mini menu: at once, as Edit → Undo puts it back;
-    /// asked first only for one waiting in the queue, which Undo can't put back in it.
-    func askToTrash(_ mini: Mini) {
-        if waiting(mini.name) != nil { trashing = mini } else { trash(mini) }
+    /// Move to Trash from the sidebar or the Mini menu, for one mini or several: at once, as
+    /// Edit → Undo puts them back; asked first only when one waits in the queue, which Undo
+    /// can't put back in it.
+    func askToTrash(_ group: [Mini]) {
+        if group.contains(where: { waiting($0.name) != nil }) { trashing = group } else { trash(group) }
+    }
+
+    /// Moves minis to the Trash; one Undo puts them all back (grouped by event). The one being
+    /// made stays, and says so.
+    func trash(_ group: [Mini]) {
+        let picked = Gallery.toTrash(group, busyWith: busyWith)
+        for mini in picked.trash { trash(mini) }
+        if let s = picked.staying { problem = "“\(s.displayName)” is being made, so it stayed. Move it to the Trash once it's done." }
     }
 
     func trash(_ mini: Mini) {
@@ -417,7 +438,7 @@ final class AppModel {
             do { try Gallery.putBack(model.install.runs, from: trashed, to: folder) }
             catch { model.problem = model.plainWords(error, else: "Couldn't put it back. Is it still in the Trash?"); return }
             model.reload()
-            model.selection = name
+            model.selection = [name]
             model.undo?.registerUndo(withTarget: model) { model in
                 if let mini = model.minis.first(where: { $0.name == name }) { model.trash(mini) }
             }
@@ -523,7 +544,7 @@ final class AppModel {
         // Not selected: that would pull you away from what you're looking at. The notification
         // and the job's popover go to it. It counts as ready and unseen unless it's on screen.
         if finished {
-            if s.succeeded, !(NSApp.isActive && selection == s.name) { unseen.insert(s.name) }
+            if s.succeeded, !(NSApp.isActive && selection == [s.name]) { unseen.insert(s.name) }
             updateBadge()
             history = timings.load()
             announce(s)
@@ -620,7 +641,7 @@ final class AppModel {
     func go(to name: String) {
         showWindow()
         reload()
-        if minis.contains(where: { $0.name == name }) { selection = name }
+        if minis.contains(where: { $0.name == name }) { selection = [name] }
     }
 
     // MARK: Slicer
@@ -637,7 +658,7 @@ final class AppModel {
     var slicerName: String { Slicer.preferred()?.name ?? "your slicer" }
 
     /// The print file selected in Finder, or the folder when there's no print file yet.
-    func showInFinder(_ mini: Mini) { NSWorkspace.shared.activateFileViewerSelecting([mini.stl ?? mini.folder]) }
+    func showInFinder(_ minis: [Mini]) { NSWorkspace.shared.activateFileViewerSelecting(minis.map { $0.stl ?? $0.folder }) }
 }
 
 /// A job refused before it started, in words for people.

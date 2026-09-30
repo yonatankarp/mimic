@@ -105,7 +105,7 @@ struct MiniDetail: View {
                 Button("Resize This Mini…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resize(mini) }
                     .help("Remakes the print file at new sizes, in about a minute")
                     .disabled(!mini.hasModel || model.cantStart != nil || model.waiting(mini.name) != nil)
-                Button("Show in Finder", systemImage: "folder") { model.showInFinder(mini) }
+                Button("Show in Finder", systemImage: "folder") { model.showInFinder([mini]) }
                     .help("Shows the print file and the previews in Finder.")
             } label: {
                 Label("More", systemImage: "ellipsis")
@@ -244,7 +244,7 @@ struct MiniDetail: View {
     }
 
     private func versionTile(_ v: Mini) -> some View {
-        Button { model.selection = v.id } label: {
+        Button { model.selection = [v.id] } label: {
             VStack(spacing: 4) {
                 Thumbnail(url: v.renders.first?.url ?? v.source ?? v.upload, version: v.madeAt)
                     .frame(width: 64, height: 64)
@@ -282,12 +282,12 @@ struct MiniDetail: View {
         do { try Gallery.rename(model.install.runs, from: old, to: name, busyWith: model.busyWith) }
         catch { model.problem = model.plainWords(error, else: "Couldn't rename it. Is its folder open in another app?"); return }
         model.reload()
-        model.selection = name
+        model.selection = [name]
         model.undo?.registerUndo(withTarget: model) { model in
             do { try Gallery.rename(model.install.runs, from: name, to: old, busyWith: model.busyWith) }
             catch { model.problem = model.plainWords(error, else: "Couldn't rename it back. Is its folder open in another app?"); return }
             model.reload()
-            model.selection = old
+            model.selection = [old]
         }
         model.undo?.setActionName("Rename")
     }
