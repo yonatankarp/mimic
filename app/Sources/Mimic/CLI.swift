@@ -361,7 +361,7 @@ enum CLI {
             try Render.views(result.mesh, besides: URL(fileURLWithPath: options.stl))
             return 0
         } catch {
-            return fail("mini_prep: \(error)")
+            return fail(Prep.failure + "\(error)")
         }
     }
 
