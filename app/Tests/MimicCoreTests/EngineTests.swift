@@ -49,6 +49,21 @@ final class EngineTests: XCTestCase {
         XCTAssertFalse(try Engine.isCutOut(jpeg), "a picture with no alpha at all read as a cutout")
     }
 
+    /// A photo taken sideways (stored 60 wide, 40 tall, orientation 6: turn it a quarter to the
+    /// right) is read upright, as New Mini shows it, by the cutout and the grey sculpt alike.
+    func testSidewaysPhotosAreReadUpright() throws {
+        let photo = f.root.appendingPathComponent("sideways.jpg")
+        let src = CGImageSourceCreateWithURL(try picture("wide.png", width: 60, height: 40) { _, _ in 255 } as CFURL, nil)!
+        let dest = CGImageDestinationCreateWithURL(photo as CFURL, "public.jpeg" as CFString, 1, nil)!
+        CGImageDestinationAddImage(dest, CGImageSourceCreateImageAtIndex(src, 0, nil)!,
+                                   [kCGImagePropertyOrientation: 6] as CFDictionary)
+        XCTAssertTrue(CGImageDestinationFinalize(dest))
+        let image = try Engine.load(photo)
+        XCTAssertEqual([image.width, image.height], [40, 60], "the cutout reads the photo on its side")
+        let (_, w, h) = try DrawThings.fitForEdit(photo)
+        XCTAssertEqual([w, h], [1024, 1536], "the grey sculpt gets the photo on its side")
+    }
+
     /// A soft edge pixel takes the character's colour, not the backdrop's; its alpha stays.
     /// Clear pixels beyond reach are black, never the backdrop (trellis-cli sees their RGB).
     func testEdgesTakeTheCharactersColour() {
