@@ -65,7 +65,7 @@ public enum ThreeMF {
             xml += vertices + "</vertices><triangles>\n" + triangles + "</triangles></mesh></object>\n"
             // Moved, not rewritten: its lower-left corner to its place, its bottom on the bed.
             for c in 0..<copies {
-                let move = corners[n * copies + c] -SIMD2(bounds[n].lo.x, bounds[n].lo.y)
+                let move = corners[n * copies + c] - SIMD2(bounds[n].lo.x, bounds[n].lo.y)
                 build += "<item objectid=\"\(n + 1)\" transform=\"1 0 0 0 1 0 0 0 1 \(move.x) \(move.y) \(-bounds[n].lo.z)\"/>\n"
             }
         }
