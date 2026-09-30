@@ -5,11 +5,11 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 ## 0.8.0
 
 ### New
+- **35 mm (heroic) and 75 mm scales.** Choose them under Game scale in New Mini and Resize. 54 mm minis now get a 40 mm base and 75 mm a 50 mm one, the sizes minis of those scales stand on. In Terminal: `--scale 35`.
 
 ### Changed
 
 ### Fixed
-- **Quitting while a mini is being made no longer throws it away.** It goes back to the front of the queue and carries on from the last step it finished the next time you open Mimic. Logging out or restarting your Mac doesn't wait for an answer either.
 
 ## 0.7.0
 
