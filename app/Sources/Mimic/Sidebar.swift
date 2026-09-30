@@ -364,7 +364,7 @@ private struct ProjectFilament: View {
     var body: some View {
         Text(total.map(Filament.short) ?? "")
             .font(.caption).foregroundStyle(.secondary).monospacedDigit()
-            .help("Roughly the filament for every mini in it, printed solid. Infill makes big ones take less, and supports a little more.")
+            .help("Roughly the filament for every mini in it, printed solid")
             .task(id: minis.map { "\($0.stl?.path ?? "")@\($0.madeAt.timeIntervalSince1970)" }) {
                 let stls = minis.compactMap(\.stl)
                 total = stls.isEmpty ? nil : await Task.detached { stls.compactMap(Filament.volume(stl:)).reduce(0, +) }.value
