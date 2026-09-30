@@ -20,7 +20,7 @@ extension JobRunner {
             ? nil : folder.deletingLastPathComponent().lastPathComponent
         let ahead = try make(name: new, picture: picture, restyle: restyle, seed: s, sizes: settings.requested ?? Sizes(),
                              kind: settings.kind ?? .character, model: model, project: project,
-                             versionOf: settings.versionOf ?? name,
+                             versionOf: settings.versionOf ?? name, cartoon: settings.cartoon == true,
                              shown: settings.shownName(folder: name).flatMap { Rules.shownName(carrying: $0, to: new) })
         return (new, ahead)
     }

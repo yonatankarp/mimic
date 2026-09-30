@@ -331,7 +331,7 @@ final class AppModel {
     func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes, kind: MiniKind = .character,
               project: String? = nil, cartoon: Bool = false, shown: String? = nil) throws {
         let chosen = EngineDownload.forMaking(cartoon: cartoon, chosen: setup.chosen)
-        try start(name) { try $0.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, kind: kind, model: chosen, project: project, shown: shown) }
+        try start(name) { try $0.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, kind: kind, model: chosen, project: project, cartoon: cartoon, shown: shown) }
     }
 
     /// Several pictures dropped on New Mini: a mini each, named after its file, all made the same

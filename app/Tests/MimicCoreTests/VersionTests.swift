@@ -47,10 +47,11 @@ final class VersionTests: XCTestCase {
         try jobs.make(name: "wizard", picture: .image(picture), restyle: false, seed: 7, sizes: big, kind: .object,
                       model: EngineDownload.model("pixal3d-sv")!, project: "Tiefling Party")
         try jobs.make(name: "sculpted", picture: .image(picture), restyle: true, seed: 7, sizes: big, model: EngineDownload.standard, project: "Tiefling Party")
+        try jobs.make(name: "toon", picture: .image(picture), restyle: true, seed: 7, sizes: big, model: EngineDownload.cartoon, cartoon: true)
         try jobs.make(name: "elf", picture: .description("an elf ranger", original: "elf"), restyle: false, seed: 42, sizes: sizes,
                       model: EngineDownload.standard)
 
-        for (name, project) in [("wizard", "Tiefling Party"), ("sculpted", "Tiefling Party"), ("elf", nil)] as [(String, String?)] {
+        for (name, project) in [("wizard", "Tiefling Party"), ("sculpted", "Tiefling Party"), ("toon", nil), ("elf", nil)] as [(String, String?)] {
             let old = MiniSettings.load(try XCTUnwrap(Gallery.folder(runs, name)))
             let (new, ahead) = try jobs.makeAnotherVersion(of: name)
             XCTAssertEqual(new, "\(name)-2")
@@ -70,7 +71,7 @@ final class VersionTests: XCTestCase {
             case "wizard":  // the same picture, not redrawn: only the 3D seed changes
                 XCTAssertEqual(plan[0], .copyPicture(from: upload, to: source))
                 XCTAssertEqual(try Engine.rgba(Engine.load(upload)), try Engine.rgba(Engine.load(picture)))
-            case "sculpted": XCTAssertEqual(plan[0], .sculptPicture(from: upload, seed: s.seed!, to: source))
+            case "sculpted", "toon": XCTAssertEqual(plan[0], .sculptPicture(from: upload, seed: s.seed!, to: source))
             default: XCTAssertEqual(plan[0], .drawCharacter(description: "an elf ranger", seed: s.seed!, to: source))
             }
             guard case .run(_, let args, _, _) = plan[1] else { return XCTFail("step 2 isn't the engine") }
