@@ -39,6 +39,18 @@ public struct Mini: Identifiable, Hashable, Sendable {
         name.split(separator: "-").map { $0.prefix(1).uppercased() + $0.dropFirst() }.joined(separator: " ")
     }
 
+    /// "30 Sep, 18:23" in this Mac's time zone, for `mimic list`; a date from another year says
+    /// which: "30 Sep 2025, 18:23". In English, like the rest of Mimic.
+    public static func listDate(_ date: Date, now: Date = Date(), timeZone: TimeZone = .current) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = timeZone
+        f.dateFormat = calendar.isDate(date, equalTo: now, toGranularity: .year) ? "d MMM, HH:mm" : "d MMM yyyy, HH:mm"
+        return f.string(from: date)
+    }
+
     private func existing(_ file: String) -> URL? {
         let u = folder.appendingPathComponent(file)
         return FileManager.default.fileExists(atPath: u.path) ? u : nil

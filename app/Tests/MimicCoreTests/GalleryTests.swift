@@ -219,4 +219,22 @@ final class SlicerTests: XCTestCase {
         XCTAssertEqual(Slicer.preferred(defaults: d, in: [apps])?.id, "bambu", "a picked slicer that's gone falls back")
         XCTAssertNil(Slicer.preferred(defaults: d, in: [apps.appendingPathComponent("none")]))
     }
+
+    /// `mimic list` printed "2026-09-30 16:23:01 +0000". Time zones are given, so this passes
+    /// wherever it runs.
+    func testListDatesAreLocalAndReadable() throws {
+        let berlin = try XCTUnwrap(TimeZone(identifier: "Europe/Berlin")), tokyo = try XCTUnwrap(TimeZone(identifier: "Asia/Tokyo"))
+        let utc = try XCTUnwrap(TimeZone(identifier: "UTC"))
+        let made = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-09-30T16:23:01Z"))
+        let soon = made.addingTimeInterval(3600)
+        XCTAssertEqual(Mini.listDate(made, now: soon, timeZone: berlin), "30 Sep, 18:23")
+        XCTAssertEqual(Mini.listDate(made, now: soon, timeZone: tokyo), "1 Oct, 01:23")
+        XCTAssertEqual(Mini.listDate(made, now: made.addingTimeInterval(200 * 86400), timeZone: berlin), "30 Sep 2026, 18:23",
+                       "another year says which")
+        // New Year's Eve in London is already New Year's Day in Berlin: the year is the local one.
+        let eve = try XCTUnwrap(ISO8601DateFormatter().date(from: "2025-12-31T23:30:00Z"))
+        let newYear = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-01-01T10:00:00Z"))
+        XCTAssertEqual(Mini.listDate(eve, now: newYear, timeZone: berlin), "1 Jan, 00:30")
+        XCTAssertEqual(Mini.listDate(eve, now: newYear, timeZone: utc), "31 Dec 2025, 23:30")
+    }
 }

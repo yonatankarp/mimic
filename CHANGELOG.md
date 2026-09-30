@@ -10,6 +10,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 ### Changed
 
 ### Fixed
+- `mimic list` shows when each mini was made in your own time, like "30 Sep, 18:23", instead of "2026-09-30 16:23:01 +0000".
 
 ## 0.7.0
 
