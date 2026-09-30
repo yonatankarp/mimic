@@ -162,7 +162,7 @@ struct TourCallout: View {
             Text(text).fixedSize(horizontal: false, vertical: true)
             // A row of its own: beside Skip and Next it was squeezed to "Use the S…".
             if offersSample {
-                Button { guide.useSample(model) } label: { Text("Use the Sample 🧙").frame(maxWidth: .infinity) }
+                Button { guide.useSample(model) } label: { Label("Use the Sample", systemImage: "photo").frame(maxWidth: .infinity) }
                     .help("Opens New Mini with a sample picture of a dwarf, ready to make.")
             }
             HStack {
@@ -196,7 +196,7 @@ struct TourCallout: View {
 
     static func title(_ stop: TourStep) -> String {
         switch stop {
-        case .welcome: "Welcome to Mimic 👋"
+        case .welcome: "Welcome to Mimic"
         case .newMini: "Start a new mini"
         case .start: "Two ways to start"
         case .size: "Size and nozzle"
@@ -244,7 +244,7 @@ struct TourHost: ViewModifier {
             .overlay {
                 if guide.step == .welcome && guide.visible && model.sheet == nil {
                     TourCallout(stop: .welcome)
-                        .glassCard(cornerRadius: 18)
+                        .glassEffect(.regular, in: .rect(cornerRadius: 18))
                         .shadow(radius: reduceMotion ? 0 : 12)
                         .transition(.opacity)
                 }

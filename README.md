@@ -47,7 +47,7 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
 
 ## 🧙 Making a mini
 
-![Mimic: your minis on the left, the finished dwarf cleric in a 3D view on the right, with its previews and print tips below](docs/images/app.jpg)
+![Mimic: your minis on the left; a finished halfling bard in a 3D view in the middle; its size, previews and print tips in a panel on the right](docs/images/app.jpg)
 
 1. Press **New Mini** (⌘N), and choose what you're making: 🧙 **A character** (a tabletop mini) or
    🏺 **Anything else** (a teapot, a car, a chess piece).
@@ -64,9 +64,9 @@ Drop several pictures on New Mini to line up a mini for each. Your Mac stays awa
 last one is done.
 
 Want a fuller description from a few words? Choose an **AI helper for descriptions** in
-Settings (Claude or another service with your own API key, or Ollama on your Mac), then press
-**✨ Improve Description**. You can edit what it writes or go back to yours. It's off unless you
-turn it on, and a cloud service only ever sees the description you typed.
+**Settings → Draw Things & AI** (Claude or another service with your own API key, or Ollama on
+your Mac), then press **✨ Improve Description**. You can edit what it writes or go back to yours.
+It's off unless you turn it on, and a cloud service only ever sees the description you typed.
 
 > [!TIP]
 > Mimic explains each choice as you make it. If something isn't set up, **Settings** (⌘,)

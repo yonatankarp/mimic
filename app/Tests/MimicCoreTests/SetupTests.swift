@@ -421,8 +421,8 @@ final class FileServer: @unchecked Sendable {
         }
         guard ok else { throw POSIXError(.EADDRINUSE) }
         port = UInt16(bigEndian: addr.sin_port)
-        var cuts = cutAfter
         Thread.detachNewThread { [self] in
+            var cuts = cutAfter  // the server thread's own: nothing else touches it
             while case let c = accept(fd, nil, nil), c >= 0 {
                 var nosig: Int32 = 1
                 setsockopt(c, SOL_SOCKET, SO_NOSIGPIPE, &nosig, socklen_t(MemoryLayout<Int32>.size))
