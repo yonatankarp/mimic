@@ -169,11 +169,19 @@ final class AppModel {
 
     func reload() {
         jobs.adoptOddFolders()  // renamed or copied in Finder
-        minis = Gallery.list(install.runs)
-        projects = Gallery.projects(install.runs)
-        selection = selection.filter { id in minis.contains { $0.id == id } }
+        let list = Gallery.list(install.runs), folders = Gallery.projects(install.runs)
+        // Only what changed, so a reload from the folder watch doesn't redraw an unchanged list.
+        if list != minis { minis = list }
+        if folders != projects { projects = folders }
+        watch.follow(install.runs, projects: folders)
+        let kept = selection.filter { id in minis.contains { $0.id == id } }
+        if kept != selection { selection = kept }
         if selection.isEmpty, let first = minis.first { selection = [first.id] }
     }
+
+    /// Reloads when a mini or project is added, removed or renamed in the minis folder by
+    /// anything else: Finder, `mimic move`, another Mimic (#81).
+    @ObservationIgnored private lazy var watch = FolderWatch { [weak self] in self?.reload() }
 
     // MARK: The queue
 
@@ -206,6 +214,7 @@ final class AppModel {
 
     /// Mimic came to the front: the mini on screen has been seen.
     func becameActive() {
+        reload()  // whatever changed in Finder meanwhile
         if !unseen.isDisjoint(with: selection) { unseen.subtract(selection); updateBadge() }
     }
 
@@ -722,3 +731,4 @@ enum MiniNotification {
         ])
     }
 }
+
