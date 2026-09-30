@@ -126,6 +126,9 @@ struct MiniCommands: Commands {
                 .disabled(model.toolbarJob == nil || !free)
             Button(model.stopCommand ?? "Stop Making…") { model.showWindow(); model.confirmingStop = true }
                 .disabled(model.stopCommand == nil || !free)
+            // Shared with every Mimic on this Mac: resuming here resumes a pause made anywhere.
+            Button(model.pauseCommand) { model.togglePause() }
+                .disabled(!model.paused && model.current == nil && model.queue.isEmpty)
             Divider()
             Button("Move to Trash") { model.askToTrash(chosen) }
                 .keyboardShortcut(.delete)
