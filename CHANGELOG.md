@@ -5,7 +5,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 ## 0.8.0
 
 ### New
-- **Print several copies of a mini at once.** Right-click a mini, or several, and choose Copies…: up to 20 of each go side by side on the plate in one print file, ready to slice.
+- **35 mm (heroic) and 75 mm scales.** Choose them under Game scale in New Mini and Resize. 54 mm minis now get a 40 mm base and 75 mm a 50 mm one, the sizes minis of those scales stand on. In Terminal: `--scale 35`.
 
 ### Changed
 
