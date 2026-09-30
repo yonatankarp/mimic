@@ -655,6 +655,7 @@ struct MainWindowChrome: ViewModifier {
                 case .newProject(let group): ProjectNameSheet(renaming: nil, moving: group)
                 case .renameProject(let p): ProjectNameSheet(renaming: p)
                 case .copies(let group): CopiesSheet(minis: group)
+                case .duplicate(let mini): DuplicateSheet(mini: mini)
                 }
             }
             .modifier(JobQuestions())

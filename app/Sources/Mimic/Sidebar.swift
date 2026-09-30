@@ -244,6 +244,7 @@ struct Sidebar: View {
         AnotherVersionButton(mini: mini)
         NewShapeButton(mini: mini)
         EditAndMakeAgainButton(mini: mini)
+        DuplicateButton(mini: mini)
         MoveToProjectMenu(minis: [mini])
         Divider()
         if model.canRetry(mini) {

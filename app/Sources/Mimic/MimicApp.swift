@@ -117,6 +117,7 @@ struct MiniCommands: Commands {
                 Button("New 3D Shape") {}.disabled(true)
                 Button("Edit & Make Again…") {}.disabled(true)
             }
+            if let mini, free { DuplicateButton(mini: mini, showsIcon: false).environment(model) } else { Button("Duplicate…") {}.disabled(true) }
             if free && !chosen.isEmpty {
                 MoveToProjectMenu(minis: chosen, showsIcon: false).environment(model)
             } else {
