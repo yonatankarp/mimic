@@ -50,7 +50,9 @@ public enum Pipeline {
     /// The steps that make (or resize) the mini in `folder`, from its saved settings. Built from
     /// settings.json alone, so Try Again rebuilds exactly the job that failed, from the step that
     /// failed: a picture already made (source.png) isn't drawn again, which with the same seed
-    /// would draw the same one, and doesn't need Draw Things. Make clears a stale one first.
+    /// would draw the same one, and doesn't need Draw Things. Make clears a stale one first. A 3D
+    /// shape already made (model.glb) isn't built again either: a make stopped by quitting in its
+    /// last step carries on there (#82). Make refuses a folder that has one.
     public static func plan(_ kind: JobKind, folder: URL, settings: MiniSettings, tools: Tools) throws -> [(number: Int, step: Step)] {
         let name = folder.lastPathComponent
         guard let model = EngineDownload.model(settings.model) else { throw RequestError.unknownModel(settings.model ?? "") }
@@ -89,6 +91,7 @@ public enum Pipeline {
                                           "--seed", String(seed), "--engine", tools.engine, "--model", model.id],
                               directory: nil, log: folder.appendingPathComponent("pixal3d.log"))
         let drawn = FileManager.default.fileExists(atPath: source.path)
-        return (drawn ? [] : [(1, picture)]) + [(2, mesh), (3, prep)]
+        let shaped = drawn && FileManager.default.fileExists(atPath: folder.appendingPathComponent("model.glb").path)
+        return (drawn ? [] : [(1, picture)]) + (shaped ? [] : [(2, mesh)]) + [(3, prep)]
     }
 }

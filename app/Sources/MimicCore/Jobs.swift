@@ -65,6 +65,9 @@ public final class JobRunner: @unchecked Sendable {
     /// Entered while this runner holds the job lock: waitUntilDone waits for it to go idle.
     private let idle = DispatchGroup()
     private var continues: @Sendable ([QueueEntry]) -> Bool = { _ in true }
+    /// The running job was stopped by quitting: it goes back to the front of the queue, keeping
+    /// what it made, instead of to the Trash.
+    private var keepWork = false
     public var onChange: (@Sendable (JobStatus) -> Void)?
 
     /// `timings`: where to record each finished job (nil records nothing, as in tests);
@@ -237,11 +240,15 @@ public final class JobRunner: @unchecked Sendable {
 
     /// Stops the running job and everything it started. False when nothing is running. The
     /// queue carries on with its next job, unless `keepGoing` says otherwise.
+    ///
+    /// `keepingWork` is for quitting (#82): the job goes back to the front of the queue instead
+    /// of to the Trash, and starts again at the first step it hadn't finished.
     @discardableResult
-    public func cancel() -> Bool {
+    public func cancel(keepingWork: Bool = false) -> Bool {
         let p: GroupProcess? = lock.withLock {
             guard current?.running == true else { return nil as GroupProcess? }
             current?.canceled = true
+            keepWork = keepingWork
             return process
         }
         guard status?.canceled == true else { return false }
@@ -334,16 +341,18 @@ public final class JobRunner: @unchecked Sendable {
         let now = Date()
         var s = JobStatus(name: entry.name, kind: entry.job, step: plan[0].number, started: now)
         s.stepStarted = now
-        lock.withLock { current = s }
+        lock.withLock { current = s; keepWork = false }
         SharedJob.write(s, runs: install.runs)
         notify()
-        Thread.detachNewThread { [self] in execute(plan, kind: entry.job, folder: folder, log: log, settings: settings) }
+        Thread.detachNewThread { [self] in execute(plan, entry: entry, folder: folder, log: log, settings: settings) }
     }
 
     // MARK: Running
 
-    private func execute(_ plan: [(number: Int, step: Step)], kind: JobKind, folder: URL, log: URL, settings: MiniSettings) {
+    private func execute(_ plan: [(number: Int, step: Step)], entry: QueueEntry, folder: URL, log: URL, settings: MiniSettings) {
+        let kind = entry.job
         var code: Int32 = 0
+        var finished: Set<Int> = []
         var problem: String?
         var took: [Int: TimeInterval] = [:]
         // prep.log is appended to on every run, so only this run's part says whether it's fragile.
@@ -364,11 +373,20 @@ public final class JobRunner: @unchecked Sendable {
             }
             took[number] = Date().timeIntervalSince(began)
             if code != 0 { break }
+            finished.insert(number)
         }
-        let canceled = status?.canceled == true
+        let (canceled, kept) = lock.withLock { (current?.canceled == true, keepWork) }
         if canceled {
             code = code == 0 ? -15 : code
-            if kind == .generate { try? trash(folder) }  // a half-made new mini is clutter, not a result
+            if kept {
+                // What the step it was on had written may be half written, and the next run
+                // skips a step whose file is there: the picture, or the 3D shape.
+                for (number, file) in [(1, "source.png"), (2, "model.glb")] where kind == .generate && plan.contains(where: { $0.number == number }) && !finished.contains(number) {
+                    try? FileManager.default.removeItem(at: folder.appendingPathComponent(file))
+                }
+            } else if kind == .generate {
+                try? trash(folder)  // a half-made new mini is clutter, not a result
+            }
         } else if code == 0, let requested = settings.requested {
             try? MiniSettings.update(folder) { $0.made = requested }  // "Now: …" shows only what a finished run made
         }
@@ -404,7 +422,7 @@ public final class JobRunner: @unchecked Sendable {
                 }
             }
         }
-        let finished: JobStatus? = lock.withLock {
+        let ended: JobStatus? = lock.withLock {
             current?.running = false
             current?.exit = code
             current?.problem = canceled ? nil : problem
@@ -413,12 +431,21 @@ public final class JobRunner: @unchecked Sendable {
             process = nil
             return current
         }
-        if let finished { timings?.append([TimingRecord(finished, settings: settings, steps: took, version: version, machine: .current)]) }
+        if let ended { timings?.append([TimingRecord(ended, settings: settings, steps: took, version: version, machine: .current)]) }
         Leftover.clear(install.runs)
         notify()
         // The next job, if any, starts before the lock is let go: no other Mimic can slip in.
         let going = keepGoing
         do {
+            // Back at the front while this runner still holds the job lock, so no other Mimic can
+            // start anything meanwhile; saved before the lock is let go (and waitUntilDone returns).
+            if canceled && kept {
+                try queue.locked { entries in
+                    if !entries.contains(where: { $0.name == entry.name }) {
+                        entries.insert(QueueEntry(name: entry.name, job: kind, added: entry.added), at: 0)
+                    }
+                }
+            }
             try queue.locked { entries in if going(entries) { startNext(&entries) } else { releaseJobLock() } }
         } catch {
             if status?.running != true { releaseJobLock() }
