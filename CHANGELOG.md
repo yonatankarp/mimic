@@ -45,6 +45,7 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 - VoiceOver names every size field and slider in New Mini and Resize.
 - Tips, notes and the tour no longer use emoji, which VoiceOver read out; a symbol sits beside a tip or warning instead.
 - Resizing a mini no longer moves it to the top of the list, and Resize All keeps a project's minis in the order you made them.
+- "How tall is the character?" understands 1,80 and feet (6'2" or 6 ft 2). A height it can't read says so under the field, instead of quietly using 1.8 m.
 
 ## 0.6.1
 

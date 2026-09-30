@@ -28,7 +28,8 @@ public struct SizeCard: Equatable, Sendable {
     public private(set) var kind: MiniKind
     public private(set) var nozzle: String
     public private(set) var scale = 32
-    /// Metres, as typed. Blank (or not a number) counts as an average human, 1.8 m.
+    /// As typed, in metres or feet (see `metres`). Blank, or what can't be read, counts as an
+    /// average human, 1.8 m.
     public private(set) var realHeight = ""
     public private(set) var height = 32.0
     public private(set) var base = 25.0
@@ -130,8 +131,24 @@ public struct SizeCard: Equatable, Sendable {
 
     /// A real height at a table scale: an average human (1.8 m) is `scale` mm tall.
     public static func gameHeight(real: String, scale: Int) -> Double {
-        let r = Double(real.trimmingCharacters(in: .whitespaces)).flatMap { $0.isFinite && $0 != 0 ? $0 : nil } ?? 1.8
-        return (r * Double(scale) / 1.8).rounded()
+        ((metres(real) ?? 1.8) * Double(scale) / 1.8).rounded()
+    }
+
+    /// A typed real height in metres: "1.8", "1,80", or feet and inches: 6'2", 6 ft 2, 5 feet 9 in.
+    /// Curly quotes too, which a Mac may type for ' and ". Nil when it can't be read, or isn't above 0.
+    public static func metres(_ text: String) -> Double? {
+        let t = text.trimmingCharacters(in: .whitespaces).lowercased().replacingOccurrences(of: ",", with: ".")
+        var m = Double(t)
+        if m == nil, let f = t.wholeMatch(of: #/(\d+(?:\.\d+)?)\s*(?:'|’|′|ft|feet|foot)\s*(?:(\d+(?:\.\d+)?)\s*(?:"|”|″|''|’’|in|inch|inches)?)?/#) {
+            m = ((Double(f.1) ?? 0) * 12 + (f.2.flatMap { Double($0) } ?? 0)) * 0.0254
+        }
+        return m.flatMap { $0.isFinite && $0 > 0 ? $0 : nil }
+    }
+
+    /// The line under the real height when what's typed can't be read, so 1.8 m isn't used unnoticed.
+    public var realHeightProblem: String? {
+        realHeight.trimmingCharacters(in: .whitespaces).isEmpty || Self.metres(realHeight) != nil ? nil
+            : "Couldn't read that, so it's using 1.8 m. Try 1.75 or 5'9\"."
     }
 
     /// The round base for a character height: 40% of it, in steps of 5, 25 to 80 mm.
