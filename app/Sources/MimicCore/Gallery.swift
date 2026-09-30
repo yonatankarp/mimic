@@ -216,24 +216,80 @@ extension Gallery {
         guard !nameInUse(runs, new), !fm.fileExists(atPath: dst.path) else { throw RequestError.nameTaken(new) }
         guard busyWith != old else { throw RequestError.busy(old) }
         try fm.moveItem(at: src, to: dst)
-        for suffix in [".stl", "_front.png", "_left.png", "_right.png", "_side.png", "_back.png"] {
-            let f = dst.appendingPathComponent(old + suffix)
-            if fm.fileExists(atPath: f.path) { try fm.moveItem(at: f, to: dst.appendingPathComponent(new + suffix)) }
-        }
+        try renameFiles(in: dst, from: old, to: new)
         // Its other versions name it as their first: they follow it.
         for m in list(runs) where MiniSettings.load(m.folder).versionOf == old {
             try? MiniSettings.update(m.folder) { $0.versionOf = new }
         }
     }
 
-    /// Moves a mini to the Trash, where it can be put back. Returns its folder and where it went
-    /// in the Trash, for Undo (`putBack`).
+    /// The files named after a mini (the print file and the previews), which is how the app
+    /// finds them, renamed from `old` to `new`. Never over a file already there.
+    static func renameFiles(in dir: URL, from old: String, to new: String) throws {
+        guard old != new else { return }
+        let fm = FileManager.default
+        for suffix in [".stl", "_front.png", "_left.png", "_right.png", "_side.png", "_back.png"] {
+            let f = dir.appendingPathComponent(old + suffix)
+            if fm.fileExists(atPath: f.path) { try fm.moveItem(at: f, to: dir.appendingPathComponent(new + suffix)) }
+        }
+    }
+
+    /// A mini renamed or copied in Finder ("Dwarf Cleric", "dwarf-cleric copy", iCloud's
+    /// "dwarf-cleric 2"), or whose print file no longer matches its folder: the name its files
+    /// have now, or nil when it's fine. That's its one print file's name (a `.part.stl` print
+    /// prep left behind aside), else the folder's.
+    static func oddFiles(_ mini: Mini) -> String? {
+        let stls = ((try? FileManager.default.contentsOfDirectory(atPath: mini.folder.path)) ?? [])
+            .filter { $0.lowercased().hasSuffix(".stl") && !$0.lowercased().hasSuffix(".part.stl") }
+        let files = stls.count == 1 ? String(stls[0].dropLast(4)) : mini.name
+        return !Rules.isValidName(mini.name) || (mini.stl == nil && files != mini.name) ? files : nil
+    }
+
+    /// Takes over the minis `oddFiles` finds, so the app can find, rename and resize them: the
+    /// folder gets a valid name no mini or project has ("Dwarf Cleric" → "dwarf-cleric", or
+    /// "dwarf-cleric-2" when that's taken) and its files follow. Nothing is ever moved over
+    /// something already there, and a mini whose folder or files are named in `busy` (being
+    /// made or waiting) is left alone. Returns the new names.
     @discardableResult
-    public static func moveToTrash(_ runs: URL, name: String, busyWith: String? = nil,
+    public static func adopt(_ runs: URL, busy: Set<String>) -> [String] {
+        let fm = FileManager.default
+        var adopted: [String] = []
+        for mini in list(runs) {
+            guard let files = oddFiles(mini), !busy.contains(mini.name), !busy.contains(files) else { continue }
+            let parent = mini.folder.deletingLastPathComponent()
+            var dst = mini.folder
+            do {
+                if !Rules.isValidName(mini.name) {
+                    var new = freeName(runs, mini.name)
+                    // Free in the gallery, but a folder that isn't a mini may still be there.
+                    while new != mini.name.lowercased() && fm.fileExists(atPath: parent.appendingPathComponent(new).path) {
+                        new = nextVersionName(runs, new)
+                    }
+                    dst = parent.appendingPathComponent(new)
+                    if new == mini.name.lowercased() {
+                        // Only the capitals change: the disk sees one name, so it goes through a third.
+                        let step = parent.appendingPathComponent("_rename-\(UUID().uuidString)")
+                        try fm.moveItem(at: mini.folder, to: step)
+                        try fm.moveItem(at: step, to: dst)
+                    } else {
+                        try fm.moveItem(at: mini.folder, to: dst)
+                    }
+                }
+                try renameFiles(in: dst, from: files, to: dst.lastPathComponent)
+                adopted.append(dst.lastPathComponent)
+            } catch { continue }  // left as it is: Trash and Show in Finder still work on it
+        }
+        return adopted
+    }
+
+    /// Moves a mini to the Trash, where it can be put back. `folder` is where the gallery found
+    /// it, so one it couldn't take over still goes. Returns its folder and where it went in the
+    /// Trash, for Undo (`putBack`).
+    @discardableResult
+    public static func moveToTrash(_ runs: URL, name: String, folder: URL? = nil, busyWith: String? = nil,
                                    trash: (URL) throws -> URL? = Gallery.trash) throws -> (folder: URL, trashed: URL?) {
-        guard Rules.isValidName(name) else { throw RequestError.badName }
         guard busyWith != name else { throw RequestError.busy(name) }
-        guard let folder = folder(runs, name) else { throw RequestError.notFound }
+        guard let folder = folder ?? Gallery.folder(runs, name) else { throw RequestError.notFound }
         return (folder, try trash(folder))
     }
 

@@ -77,7 +77,13 @@ extension Gallery {
     /// A new mini's name from its picture's file: "Dwarf Cleric.png" → "dwarf-cleric", or
     /// "dwarf-cleric-2" when that's taken; "mini" when the file name has no letters or digits.
     public static func name(forPicture url: URL, in runs: URL) -> String {
-        let slug = Rules.slug(url.deletingPathExtension().lastPathComponent)
+        freeName(runs, url.deletingPathExtension().lastPathComponent)
+    }
+
+    /// "Dwarf Cleric" → "dwarf-cleric", or "dwarf-cleric-2" when that's taken; "mini" when it has
+    /// no letters or digits.
+    static func freeName(_ runs: URL, _ text: String) -> String {
+        let slug = Rules.slug(text)
         let name = slug.isEmpty ? "mini" : slug
         return nameInUse(runs, name) ? nextVersionName(runs, name) : name
     }
