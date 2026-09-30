@@ -73,6 +73,7 @@ struct MiniViewer: View {
         }
         .task(id: [stl.path, version.description]) {
             failed = false
+            measured = nil  // at once: the page's details shouldn't show the last mini's size while it fades
             // The mini on show fades out first: loading blocks the main actor, so the fade has to
             // be over before it starts.
             if mini != nil && shown && !reduceMotion {
@@ -81,7 +82,6 @@ struct MiniViewer: View {
                 guard !Task.isCancelled else { return }
             }
             shown = false
-            measured = nil
             turn = .zero; zoom = 1; offset = .zero
             // ponytail: loads on the main actor (about 0.4 s for the biggest print file); move the
             // file reading off it if bigger minis make that noticeable.
