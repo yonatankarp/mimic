@@ -25,7 +25,7 @@ public struct Mini: Identifiable, Hashable, Sendable {
     /// What its page shows in Previews, in the order ← and → go through them: the picture it
     /// was given, then its views. Only the ones it has.
     public var previews: [MiniPreview] {
-        ((source ?? upload).map { [MiniPreview(caption: "Your picture", url: $0)] } ?? [])
+        ((source ?? upload).map { [MiniPreview(caption: "Picture", url: $0)] } ?? [])
             + renders.map { MiniPreview(caption: $0.view.capitalized, url: $0.url) }
     }
     /// The 3D model a resize starts from: without it only a full Make can finish the mini.
@@ -216,12 +216,31 @@ extension Gallery {
         }
     }
 
-    /// Moves a mini to the Trash, where it can be put back.
+    /// Moves a mini to the Trash, where it can be put back. Returns its folder and where it went
+    /// in the Trash, for Undo (`putBack`).
+    @discardableResult
     public static func moveToTrash(_ runs: URL, name: String, busyWith: String? = nil,
-                                   trash: (URL) throws -> Void = { try FileManager.default.trashItem(at: $0, resultingItemURL: nil) }) throws {
+                                   trash: (URL) throws -> URL? = Gallery.trash) throws -> (folder: URL, trashed: URL?) {
         guard Rules.isValidName(name) else { throw RequestError.badName }
         guard busyWith != name else { throw RequestError.busy(name) }
         guard let folder = folder(runs, name) else { throw RequestError.notFound }
-        try trash(folder)
+        return (folder, try trash(folder))
+    }
+
+    /// The Mac's Trash: where the item went there.
+    public static func trash(_ url: URL) throws -> URL? {
+        var out: NSURL?
+        try FileManager.default.trashItem(at: url, resultingItemURL: &out)
+        return out as URL?
+    }
+
+    /// Undo for Move to Trash: puts a mini's folder back from the Trash where it was, making its
+    /// project again if that has gone. Refused when a mini or project has taken its name since.
+    public static func putBack(_ runs: URL, from trashed: URL, to folder: URL) throws {
+        let name = folder.lastPathComponent
+        guard !nameInUse(runs, name) else { throw RequestError.nameTaken(name) }
+        let fm = FileManager.default
+        try fm.createDirectory(at: folder.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try fm.moveItem(at: trashed, to: folder)
     }
 }

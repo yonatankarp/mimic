@@ -141,13 +141,22 @@ public enum Prep {
         // character stands on its feet, which aren't a surface to level, so only objects.
         // After the turn: a turn is about the vertical, so levelling finds the same tilt either
         // way, and the figure's facing is settled before anything is measured.
+        var standsAlone = true
         if o.groundBottom {
+            let asMade = mesh.positions
             let degrees = mesh.level()
-            if degrees > 0 { log(String(format: "prep: levelled by %.1f°", degrees)) }
-            // Levelling squares up a lean; one on its side, upside down, or levelled onto the edge
-            // of its foot instead of the foot is then set on a side it can stand on (Mesh.rest).
-            let turned = mesh.rest()
-            if turned > 0 { log(String(format: "prep: set on its most stable side (turned %.0f°)", turned)) }
+            // Levelling squares up a lean; one levelled onto the edge of its foot instead of the
+            // foot is then set on a side near it that it can stand on (Mesh.rest).
+            if let turned = mesh.rest() {
+                if degrees > 0 { log(String(format: "prep: levelled by %.1f°", degrees)) }
+                if turned > 0 { log(String(format: "prep: set on its most stable side (turned %.0f°)", turned)) }
+            } else {
+                // Nothing near its bottom holds it up (a figure on small feet, a bird on a perch):
+                // it stays as the engine made it, since levelling read a raven's tail and perch
+                // as a lean and tipped it 27° onto nothing it could stand on either.
+                mesh.positions = asMade
+                standsAlone = false
+            }
         }
         let height = Float(o.height)
         let thing = o.groundBottom ? "object" : "figure"
@@ -162,6 +171,10 @@ public enum Prep {
         // so one can't count as part of its longest side. Not a percentile of the surface, like
         // the ground: that trims thin tips, and a teapot's spouts came out 90 mm long, not 80.
         let extent = o.fitLongest || o.groundBottom ? mesh.mainBounds() : nil
+        // A flat drawing can come back from the engine as a flat sheet (a cartoon gave TRELLIS.2 a
+        // square 80 x 80 x 0.1 mm), which prep would otherwise size and write like any mini.
+        let e = extent ?? mesh.mainBounds(), size = e.hi - e.lo
+        if size.min() < Prep.flat * size.max() { throw PrepError(Prep.flatProblem) }
         let span: Float
         if o.fitLongest, let e = extent { span = max(e.hi.x - e.lo.x, e.hi.y - e.lo.y, e.hi.z - ground0) } else { span = top - ground0 }
         let scale = height / span
@@ -243,6 +256,9 @@ public enum Prep {
             lines.append(String(format: "mini_prep: WARNING footprint %.1f mm is wider than the %.0f mm base; raise the base to at least %d mm",
                                 footprint, o.base, Int((footprint + 1).rounded(.up))))
         }
+        if o.noBase && !standsAlone {
+            lines.append(standWarning + "It can't stand on its own, so it was left upright as the 3D engine made it. Turn on Add a round base to stand it up.")
+        }
         if let longest = parts.map(Prep.longest).max() {
             let what = parts.count == 1 ? "A part came out separate from the \(thing) (about \(Int(longest.rounded())) mm long) and was left out."
                 : "\(parts.count) parts came out separate from the \(thing) (the largest about \(Int(longest.rounded())) mm long) and were left out."
@@ -257,6 +273,13 @@ public enum Prep {
     static let partLength: Float = 0.1
     /// Marks the warning for a part left out; what follows it is said to the person as it is.
     public static let partWarning = "mini_prep: WARNING part: "
+    /// Marks the warning for an object that can't stand without a base; said as it is, too.
+    public static let standWarning = "mini_prep: WARNING stand: "
+    /// Marks why prep failed; what follows it is said to the person as it is.
+    public static let failure = "mini_prep: FAILED: "
+    /// A model whose thinnest side is under this share of its longest is a flat sheet, not a mini.
+    static let flat: Float = 0.02
+    static let flatProblem = "The 3D model came out flat, like a sheet of paper. For a flat drawing, turn on \"Turn it into a grey sculpt first\" (--restyle) and make it again."
 
     static func longest(_ p: Mesh.Piece) -> Float {
         let e = p.hi - p.lo
