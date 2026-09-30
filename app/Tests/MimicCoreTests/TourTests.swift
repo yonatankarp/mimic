@@ -2,6 +2,13 @@ import XCTest
 @testable import MimicCore
 
 final class TourTests: XCTestCase {
+    func testAFinishedJobIsSeenOnlyInFrontAndOnceItsEndWasShown() {
+        XCTAssertTrue(JobProgress.seenEnd(active: true, busy: false, shownEnd: true))
+        XCTAssertFalse(JobProgress.seenEnd(active: false, busy: false, shownEnd: true), "closed by switching to another app")
+        XCTAssertFalse(JobProgress.seenEnd(active: true, busy: true, shownEnd: true), "the next one runs or waits")
+        XCTAssertFalse(JobProgress.seenEnd(active: true, busy: false, shownEnd: false), "closed while it ran, or never shown in front")
+    }
+
     func testStartsOnceAndOnlyWhenMimicCanMakeMinis() {
         XCTAssertTrue(Tour.shouldStart(seen: false, installed: true))
         XCTAssertFalse(Tour.shouldStart(seen: false, installed: false), "not over the setup screen")

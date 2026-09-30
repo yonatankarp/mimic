@@ -111,7 +111,7 @@ struct MakeView: View {
                     Text(timing).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("Cancel") { model.sheet = nil }.keyboardShortcut(.cancelAction)
+                Button("Cancel") { TourGuide.shared.newMiniCancelled(); model.sheet = nil }.keyboardShortcut(.cancelAction)
                 Button("Make My Mini") { make() }
                     .help("Takes \(JobProgress.about(estimate.total))\(estimate.learned ? " on this Mac" : ""). You can keep using your Mac meanwhile.")
                     .keyboardShortcut(.defaultAction)

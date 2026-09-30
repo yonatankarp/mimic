@@ -54,8 +54,8 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
 2. Drop in a picture of it, or switch to **Describe it** and write a sentence.
 3. Pick your printer's nozzle and how big to make it.
 4. Press **Make My Mini**. A mini takes about 8–15 minutes, depending on the 3D model, and New
-   Mini shows how long on your Mac. Press **Run in Background** to keep using your Mac: Mimic
-   tells you when it's ready.
+   Mini shows how long on your Mac. Keep using Mimic meanwhile: its progress is in the toolbar
+   (click it for the steps, the queue and Stop), and Mimic tells you when it's ready.
 5. Press **Open in …** to open it in your slicer, or drag one of its previews to Finder or any
    slicer, and print. Each mini's page shows the slicer settings to use.
 
