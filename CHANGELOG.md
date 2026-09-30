@@ -5,7 +5,11 @@ What's new in each version of Mimic. The release workflow publishes a version's 
 ## 0.8.0
 
 ### New
-- **A magnet hole under the base.** In New Mini or Resize, open Size & printer → Advanced and choose a 5 × 2, 6 × 2 or 8 × 3 mm magnet: a hole with a little room to spare goes up into the base, which gets a little taller to fit it. Resize, Try Again and Make Another Version keep it. In Terminal: `--magnet 5x2`.
+- **35 mm (heroic) and 75 mm scales.** Choose them under Game scale in New Mini and Resize. 54 mm minis now get a 40 mm base and 75 mm a 50 mm one, the sizes minis of those scales stand on. In Terminal: `--scale 35`.
+
+### Changed
+
+### Fixed
 
 ## 0.7.0
 

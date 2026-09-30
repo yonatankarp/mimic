@@ -180,6 +180,41 @@ final class SizeAdviceTests: XCTestCase {
         XCTAssertTrue(o.note.contains("about 80 mm on its longest side"), o.note)
     }
 
+    /// 35 mm (heroic) and 75 mm too. The bigger scales get the bases their minis come on; the
+    /// smaller ones keep 25 mm, one map square. A tall character's base still grows with it.
+    func testEveryScaleAndItsBase() {
+        XCTAssertEqual(SizeCard.scales, [28, 32, 35, 54, 75])
+        for (scale, base) in [(28, 25.0), (32, 25), (35, 25), (54, 40), (75, 50)] {
+            var c = SizeCard(purpose: .game, nozzle: "0.4")
+            c.setScale(scale)
+            XCTAssertEqual([c.height, c.base], [Double(scale), base], "\(scale) mm")
+            var loaded = SizeCard(purpose: .display, nozzle: "0.4")
+            loaded.load(Sizes(height: String(scale), base: "25", nozzle: "0.4"))
+            XCTAssertEqual(loaded.purpose, .game, "\(scale) mm")
+            XCTAssertEqual(loaded.scale, scale)
+        }
+        var ogre = SizeCard(purpose: .game, nozzle: "0.4")
+        ogre.setScale(75); ogre.setRealHeight("3")  // 125 mm
+        XCTAssertEqual(ogre.base, 50)
+        ogre.setHeight(150)
+        XCTAssertEqual(ogre.base, 60, "the base follows a taller height")
+        var display = SizeCard(purpose: .display, nozzle: "0.4")
+        display.setScale(75)
+        XCTAssertEqual(display.base, 40, "Best print's base is still by its height")
+    }
+
+    /// `--scale` in Terminal: the height and base the app's Game scale gives, for what wasn't typed.
+    func testScaleInTerminal() {
+        XCTAssertEqual(SizeCard.gameSizes(scale: 75, filling: Sizes()), Sizes(height: "75", base: "50"))
+        XCTAssertEqual(SizeCard.gameSizes(scale: 35, filling: Sizes(nozzle: "0.2")), Sizes(height: "35", base: "25", nozzle: "0.2"))
+        XCTAssertEqual(SizeCard.gameSizes(scale: 54, filling: Sizes(height: "120")), Sizes(height: "120", base: "50"),
+                       "a typed height wins; the base suits it")
+        XCTAssertEqual(SizeCard.gameSizes(scale: 54, filling: Sizes(base: "30")), Sizes(height: "54", base: "30"))
+        XCTAssertEqual(SizeCard.gameSizes(scale: 54, filling: Sizes(noBase: true)), Sizes(height: "54", noBase: true))
+        XCTAssertNil(SizeCard.gameSizes(scale: 40, filling: Sizes()))
+        XCTAssertEqual(SizeCard.scaleChoices, "28, 32, 35, 54 or 75")
+    }
+
     /// Anything else: sized by its longest side for the nozzle, no Game scale, no base unless asked.
     func testAnObjectCard() throws {
         var c = SizeCard(purpose: .game, nozzle: "0.2", kind: .object)

@@ -19,7 +19,7 @@ enum CLI {
       mimic queue remove <name>
       mimic --version                which Mimic this is (also -v)
       mimic --help                   this list (also -h)
-    options: --height MM  --base MM  --nozzle 0.2|0.4|0.6  --inflate MM  --no-base  --base-shape round|square|hex  --base-style plain|stone|wood|cobble  --magnet 5x2|6x2|8x3|none  --seed N  --model ID
+    options: --height MM  --scale 28|32|35|54|75  --base MM  --nozzle 0.2|0.4|0.6  --inflate MM  --no-base  --base-shape round|square|hex  --base-style plain|stone|wood|cobble  --magnet 5x2|6x2|8x3|none  --seed N  --model ID
     anything that isn't a character: make … --object  [--size MM (longest side)]  [--add-base]
     make … --project "<project>": into that project (made if it's new); a project is a folder in the minis folder
     make-another: the same picture or description and settings with a new seed, next to it ("<name>-2")
@@ -116,11 +116,15 @@ enum CLI {
             var sizes = Sizes(), image: String?, restyle = false, seed = 42, description: String?, improve = false
             var model = EngineDownload.selected(defaults: defaults)
             var object = false, addBase = false, wait = false, projectName: String?, seedGiven = false, shapeGiven = false, styleGiven = false, magnetGiven = false
+            var scale: Int?
             while let a = rest.first {
                 rest.removeFirst()
                 func value() -> String? { rest.isEmpty ? nil : rest.removeFirst() }
                 switch a {
                 case "--height", "--size": sizes.height = value()
+                case "--scale":
+                    guard let v = value().flatMap(Int.init), SizeCard.scales.contains(v) else { return fail("--scale needs \(SizeCard.scaleChoices)") }
+                    scale = v
                 case "--object": object = true
                 case "--add-base": addBase = true
                 case "--base": sizes.base = value()
@@ -163,6 +167,10 @@ enum CLI {
                 if !magnetGiven { sizes.magnet = was?.magnet }
             }
             if projectName != nil && args[0] != "make" { return fail("--project is for mimic make; mimic move moves a mini") }
+            if let scale {
+                if object { return fail("--scale is for characters; give an object's longest side with --size") }
+                sizes = SizeCard.gameSizes(scale: scale, filling: sizes) ?? sizes
+            }
             if object {
                 if !addBase { sizes.noBase = true }
                 // An object's base goes under its whole shadow, as in the app (SizeCard).
