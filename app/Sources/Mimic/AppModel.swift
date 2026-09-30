@@ -7,6 +7,8 @@ import UserNotifications
 /// The sheet over the main window, one at a time.
 enum AppSheet: Identifiable, Equatable {
     case make, resize(Mini), rename(Mini)
+    /// New Mini filled in from a mini: Edit & Make Again.
+    case makeAgain(Mini)
     /// Resize All on a project.
     case resizeAll(String)
     /// Resize on several minis selected together.
@@ -19,6 +21,7 @@ enum AppSheet: Identifiable, Equatable {
     var id: String {
         switch self {
         case .make: "make"
+        case .makeAgain(let m): "make-again-\(m.name)"
         case .resize(let m): "resize-\(m.name)"
         case .resizeAll(let p): "resize-all-\(p)"
         case .resizeSeveral(let m): "resize-several-\(Gallery.dragged(m.map(\.name)))"
@@ -329,9 +332,9 @@ final class AppModel {
     var cantStart: String? { requiredProblem }
 
     func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes, kind: MiniKind = .character,
-              project: String? = nil, cartoon: Bool = false, shown: String? = nil) throws {
-        let chosen = EngineDownload.forMaking(cartoon: cartoon, chosen: setup.chosen)
-        try start(name) { try $0.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, kind: kind, model: chosen, project: project, cartoon: cartoon, shown: shown) }
+              project: String? = nil, cartoon: Bool = false, shown: String? = nil, model: EngineModel? = nil, shapeSeed: Int? = nil) throws {
+        let chosen = EngineDownload.forMaking(cartoon: cartoon, chosen: model ?? setup.chosen)
+        try start(name) { try $0.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, kind: kind, model: chosen, project: project, cartoon: cartoon, shown: shown, shapeSeed: shapeSeed) }
     }
 
     /// Several pictures dropped on New Mini: a mini each, named after its file, all made the same
