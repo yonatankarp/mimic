@@ -135,6 +135,52 @@ final class QueueTests: XCTestCase {
                        String(min(20, getpriority(PRIO_PROCESS, 0) + 10)))
     }
 
+    /// Reordering the queue (#72): to the front, the end or a place, and up or down, one mini at
+    /// a time. The mini being made isn't moved, and a move never stops it.
+    func testMoveToTheFrontTheEndOrAPlace() throws {
+        let fx = try Fixture()
+        for n in ["a", "b", "c", "d", "e"] { _ = try fx.mini(n) }
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: try overlapCatcher(fx, hold: 0.5)))
+        XCTAssertNil(try jobs.resize(name: "a", sizes: sizes))
+        for n in ["b", "c", "d", "e"] { try jobs.resize(name: n, sizes: sizes) }
+        func order() -> [String] { jobs.queue.entries().map(\.name) }
+        XCTAssertTrue(try jobs.move("e", to: .front)); XCTAssertEqual(order(), ["e", "b", "c", "d"])
+        XCTAssertTrue(try jobs.move("e", to: .end)); XCTAssertEqual(order(), ["b", "c", "d", "e"])
+        XCTAssertTrue(try jobs.move("b", to: .position(3))); XCTAssertEqual(order(), ["c", "d", "b", "e"])
+        XCTAssertTrue(try jobs.move("c", to: .position(99))); XCTAssertEqual(order(), ["d", "b", "e", "c"])
+        XCTAssertTrue(try jobs.move("c", by: -1)); XCTAssertEqual(order(), ["d", "b", "c", "e"])
+        XCTAssertTrue(try jobs.move("d", by: 1)); XCTAssertEqual(order(), ["b", "d", "c", "e"])
+        XCTAssertFalse(try jobs.move("a", to: .front), "the mini being made isn't waiting")
+        XCTAssertFalse(try jobs.move("nobody", to: .end))
+        XCTAssertEqual(jobs.status?.name, "a")
+        XCTAssertEqual(jobs.status?.running, true, "a move stopped the mini being made")
+        XCTAssertEqual(QueuePlace("front"), .front)
+        XCTAssertEqual(QueuePlace("END"), .end)
+        XCTAssertEqual(QueuePlace("2"), .position(2))
+        XCTAssertNil(QueuePlace("0"))
+        XCTAssertNil(QueuePlace("soon"))
+        jobs.waitUntilDone()
+        XCTAssertEqual(ran(fx), ["a", "b", "d", "c", "e"], "made in the new order")
+    }
+
+    /// Two Mimics reordering and adding at once: every move goes through the queue's lock, so
+    /// no addition is lost to a move that read the queue before it.
+    func testMovesAndAdditionsFromTwoMimicsLoseNothing() throws {
+        let fx = try Fixture()
+        let adder = JobQueue(runs: fx.install.runs)
+        let mover = JobRunner(install: fx.install, tools: fx.tools())
+        try adder.locked { $0 = (0..<5).map { QueueEntry(name: "start\($0)", job: .prep) } }
+        DispatchQueue.concurrentPerform(iterations: 2) { i in
+            for k in 0..<150 {
+                do {
+                    if i == 0 { try adder.locked { $0.append(QueueEntry(name: "q\(k)", job: .prep)) } }
+                    else { try mover.move("start\(k % 5)", to: k % 2 == 0 ? .front : .end) }
+                } catch { XCTFail("\(error)") }
+            }
+        }
+        XCTAssertEqual(adder.entries().count, 155)
+    }
+
     /// A queued new mini is on disk at once (its picture, its settings) and shows as unfinished;
     /// taking it out of the queue sends its folder to the Trash, as stopping it would.
     func testAQueuedMiniIsWrittenAtOnceAndRemovingItTrashesIt() throws {
