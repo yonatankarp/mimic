@@ -52,7 +52,10 @@ struct Sidebar: View {
     private var shown: [Mini] { Gallery.arrange(model.minis, query: query, show: show, sort: sort) }
 
     private func deselectHidden() {
-        let kept = Gallery.visible(model.selection, in: shown)
+        let shown = self.shown
+        var kept = Gallery.visible(model.selection, in: shown)
+        // Else the next reload picks the first mini of all, which the list may not show.
+        if kept.isEmpty, let first = shown.first { kept = [first.id] }
         if kept != model.selection { model.selection = kept }
     }
 
