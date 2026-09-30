@@ -45,7 +45,7 @@ struct Fixture {
     func mini(_ name: String) throws -> URL {
         let d = install.runs.appendingPathComponent(name)
         try FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
-        for f in ["model.glb", "\(name).stl", "\(name)_front.png", "\(name)_side.png", "\(name)_back.png", "source.png"] {
+        for f in ["model.glb", "\(name).stl", "\(name)_front.png", "\(name)_left.png", "\(name)_right.png", "\(name)_back.png", "source.png"] {
             FileManager.default.createFile(atPath: d.appendingPathComponent(f).path, contents: Data(f.utf8))
         }
         return d

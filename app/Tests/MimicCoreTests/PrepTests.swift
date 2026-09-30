@@ -285,14 +285,45 @@ final class PrepTests: XCTestCase {
     func testAFootprintWiderThanTheBaseWarns() throws {
         let (result, _, stl) = try prep(["--base", "8", "--faces", "20000"])
         XCTAssertTrue(result.lines.contains { $0.hasPrefix("mini_prep: WARNING") }, "\(result.lines)")
+        let side = stl.deletingPathExtension().path + "_side.png"  // an older mini's one side view
+        FileManager.default.createFile(atPath: side, contents: Data([1]))
         try Render.views(result.mesh, besides: stl)
-        for view in ["front", "side", "back"] {
+        for view in ["front", "left", "right", "back"] {
             let png = stl.deletingPathExtension().path + "_\(view).png"
             let image = try XCTUnwrap(CGImageSourceCreateWithURL(URL(fileURLWithPath: png) as CFURL, nil)
                 .flatMap { CGImageSourceCreateImageAtIndex($0, 0, nil) })
             XCTAssertEqual([image.width, image.height], [900, 900])
             XCTAssertEqual(image.alphaInfo, .last, "transparent background")
         }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: side), "the old side view stayed beside left and right")
+    }
+
+    /// Each view is the figure's own: facing +y, its left is -x. A figure with a nose (+y) and
+    /// its left hand held out (-x): from the front the hand is on the picture's right, as when
+    /// facing someone; from its left the nose points left, from its right it points right. The
+    /// cross product rules out a mirrored picture, which the silhouettes alone can't.
+    func testViewsShowTheFiguresOwnSides() {
+        for c in Render.cameras {
+            XCTAssertEqual(simd_cross(c.right, Render.up), c.toward, "\(c.0) is mirrored")
+        }
+        var m = Mesh()
+        m.add(Self.box(half: [0.2, 0.2, 1]), at: [0, 0, 1])       // body
+        m.add(Self.box(half: [0.1, 0.3, 0.1]), at: [0, 0.5, 1.6])  // nose
+        m.add(Self.box(half: [0.3, 0.1, 0.1]), at: [-0.5, 0, 1])   // left hand
+        // Where the picture leans: the mean column of what's drawn, 0 being the body's middle.
+        func lean(_ view: String) -> Float {
+            let c = Render.cameras.first { $0.0 == view }!
+            let rgba = Render.picture(m, m.vertexNormals(), mid: [0, 0, 1], span: 3, right: c.right, up: Render.up, toward: c.toward)
+            var sum: Float = 0, count: Float = 0
+            for i in stride(from: 3, to: rgba.count, by: 4) where rgba[i] > 0 {
+                sum += Float((i / 4) % Render.size); count += 1
+            }
+            return sum / count - Float(Render.size) / 2
+        }
+        XCTAssertGreaterThan(lean("front"), 10, "the left hand isn't on the right from the front")
+        XCTAssertLessThan(lean("back"), -10, "the left hand isn't on the left from behind")
+        XCTAssertLessThan(lean("left"), -10, "the nose doesn't point left from the figure's left")
+        XCTAssertGreaterThan(lean("right"), 10, "the nose doesn't point right from the figure's right")
     }
 
     /// The generated cube table on a random field, far harder than any figure: every one of the
