@@ -163,6 +163,8 @@ struct MakeView: View {
         .fileImporter(isPresented: $choosing, allowedContentTypes: [.image]) { result in
             if case .success(let url) = result { take(url) }
         }
+        // File → Import from iPhone (Continuity Camera): a photo taken for it, or a scan.
+        .importsItemProviders([.image]) { receive($0); return true }
     }
 
     @State private var autoName = false
@@ -198,11 +200,7 @@ struct MakeView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Choose a picture")
-            .dropDestination(for: URL.self) { urls, _ in
-                guard let url = urls.first else { return false }
-                if urls.count > 1 { make(urls) } else { take(url) }
-                return true
-            } isTargeted: { dropTargeted = $0 }
+            .onDrop(of: PictureDrop.types, isTargeted: $dropTargeted) { receive($0); return true }
             ForEach(picture.map { MakeAdvice.pictureWarnings(width: $0.width, height: $0.height, kind: card.kind) } ?? [], id: \.self) {
                 Label($0, systemImage: "exclamationmark.triangle.fill").font(.callout).foregroundStyle(.orange)
             }
@@ -269,14 +267,25 @@ struct MakeView: View {
         .font(.callout)
     }
 
-    private func take(_ url: URL, pasted: Bool = false) {
+    /// `unnamed`: what to say when the picture came without a name to give the mini.
+    private func take(_ url: URL, unnamed: String? = nil) {
         guard let p = Picture(url) else { return say("That picture can't be read.", error: true) }
         picture = p
         start = .picture
         message = nil
         if name.isEmpty {
-            if pasted { say("Picture pasted. Give your mini a name."); nameFocused = true }
+            if let unnamed { say("\(unnamed) Give your mini a name."); nameFocused = true }
             else { name = Mini.displayName(Rules.slug(url.deletingPathExtension().lastPathComponent)) }
+        }
+    }
+
+    /// Pictures dropped or imported: several make a mini each, as several files dropped do.
+    private func receive(_ providers: [NSItemProvider]) {
+        Task {
+            let items = await PictureDrop.pictures(providers)
+            if items.count > 1 { make(items.map(\.url)) }
+            else if let item = items.first { take(item.url, unnamed: item.named ? nil : "Picture added.") }
+            else { say("That picture can't be read.", error: true) }
         }
     }
 
@@ -296,7 +305,7 @@ struct MakeView: View {
         if let image = NSImage(pasteboard: pb), let tiff = image.tiffRepresentation,
            let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
             let url = FileManager.default.temporaryDirectory.appendingPathComponent("Pasted picture \(UUID().uuidString.prefix(8)).png")
-            if (try? png.write(to: url)) != nil { return take(url, pasted: true) }
+            if (try? png.write(to: url)) != nil { return take(url, unnamed: "Picture pasted.") }
         }
         NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
     }

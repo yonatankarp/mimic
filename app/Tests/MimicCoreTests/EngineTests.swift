@@ -17,6 +17,18 @@ final class EngineTests: XCTestCase {
         return url
     }
 
+    /// A photo taken sideways: stored `width` wide and `height` tall, with orientation 6 (turn
+    /// it a quarter to the right).
+    func sideways(width: Int, height: Int) throws -> URL {
+        let photo = f.root.appendingPathComponent("sideways.jpg")
+        let src = CGImageSourceCreateWithURL(try picture("wide.png", width: width, height: height) { _, _ in 255 } as CFURL, nil)!
+        let dest = CGImageDestinationCreateWithURL(photo as CFURL, "public.jpeg" as CFString, 1, nil)!
+        CGImageDestinationAddImage(dest, CGImageSourceCreateImageAtIndex(src, 0, nil)!,
+                                   [kCGImagePropertyOrientation: 6] as CFDictionary)
+        XCTAssertTrue(CGImageDestinationFinalize(dest))
+        return photo
+    }
+
     /// The exact command line per model family, each the one proven end to end on this engine
     /// build (app/NOTES.md). TRELLIS.2 names its output: a lone positional after `--image` is
     /// read as a second picture.
@@ -52,16 +64,32 @@ final class EngineTests: XCTestCase {
     /// A photo taken sideways (stored 60 wide, 40 tall, orientation 6: turn it a quarter to the
     /// right) is read upright, as New Mini shows it, by the cutout and the grey sculpt alike.
     func testSidewaysPhotosAreReadUpright() throws {
-        let photo = f.root.appendingPathComponent("sideways.jpg")
-        let src = CGImageSourceCreateWithURL(try picture("wide.png", width: 60, height: 40) { _, _ in 255 } as CFURL, nil)!
-        let dest = CGImageDestinationCreateWithURL(photo as CFURL, "public.jpeg" as CFString, 1, nil)!
-        CGImageDestinationAddImage(dest, CGImageSourceCreateImageAtIndex(src, 0, nil)!,
-                                   [kCGImagePropertyOrientation: 6] as CFDictionary)
-        XCTAssertTrue(CGImageDestinationFinalize(dest))
+        let photo = try sideways(width: 60, height: 40)
         let image = try Engine.load(photo)
         XCTAssertEqual([image.width, image.height], [40, 60], "the cutout reads the photo on its side")
         let (_, w, h) = try DrawThings.fitForEdit(photo)
         XCTAssertEqual([w, h], [1024, 1536], "the grey sculpt gets the photo on its side")
+    }
+
+    /// A picture is tidied when it's added: a big sideways photo is kept upright and no longer
+    /// than 2048 on its longest side, as PNG with no orientation left to apply twice; a small
+    /// cutout keeps its size and its transparency.
+    func testAPictureIsTidiedWhenItsAdded() throws {
+        let photo = try sideways(width: 4096, height: 1024)
+        let tidied = f.root.appendingPathComponent("tidied.img")
+        try Engine.tidied(photo).write(to: tidied)
+        let src = try XCTUnwrap(CGImageSourceCreateWithURL(tidied as CFURL, nil))
+        XCTAssertEqual(CGImageSourceGetType(src) as String?, "public.png")
+        let props = try XCTUnwrap(CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any])
+        XCTAssertEqual([props[kCGImagePropertyPixelWidth] as? Int, props[kCGImagePropertyPixelHeight] as? Int], [512, 2048],
+                       "not turned upright, or not made smaller")
+        XCTAssertEqual(props[kCGImagePropertyOrientation] as? Int ?? 1, 1, "an orientation left to turn it again")
+
+        let cut = try picture("cut.png", width: 60, height: 30) { x, _ in x < 30 ? 0 : 255 }
+        try Engine.tidied(cut).write(to: tidied)
+        let image = try Engine.load(tidied)
+        XCTAssertEqual([image.width, image.height], [60, 30], "a small picture changed size")
+        XCTAssertTrue(try Engine.isCutOut(tidied), "the cutout lost its transparency")
     }
 
     /// A soft edge pixel takes the character's colour, not the backdrop's; its alpha stays.
