@@ -21,7 +21,8 @@ public struct SizeCard: Equatable, Sendable {
     // ponytail: judged, not measured on prints; measure when objects have been printed at these sizes.
     public static let objectSize: [String: Double] = ["0.2": 50, "0.4": 80, "0.6": 120]
 
-    public private(set) var purpose: Purpose
+    /// Nil when loaded sizes match neither choice: nothing is shown as chosen.
+    public private(set) var purpose: Purpose?
     /// An object is sized by its longest side and has no round base unless asked for one.
     public private(set) var kind: MiniKind
     public private(set) var nozzle: String
@@ -72,6 +73,10 @@ public struct SizeCard: Equatable, Sendable {
         inflateTouched = madeInflate != nil
         inflate = madeInflate.map { Self.clamp($0, Self.inflateRange, step: 0.01) } ?? Self.inflateFor(nozzle)
         noBase = made.noBase
+        // The choice shown is the one these sizes match, not the last New Mini's.
+        if height == Self.bestPrint[nozzle] { purpose = .display }
+        else if let s = Self.scales.first(where: { Double($0) == height }) { purpose = .game; scale = s; realHeight = "" }
+        else { purpose = nil }
         suggest()  // refreshes the note; touched values stay
     }
 
@@ -87,12 +92,12 @@ public struct SizeCard: Equatable, Sendable {
     private mutating func suggest() {
         let h: Double
         warns = false
-        switch kind == .object ? nil : purpose {
-        case nil:
+        switch (kind, purpose) {
+        case (.object, _):
             h = Self.objectSize[nozzle] ?? 80
             note = "✨ Sized so details come out clearly on a \(nozzle) mm nozzle: about \(Int(h)) mm on its longest side. Change it to the size you want."
-        case .game:
-            h = Self.gameHeight(real: realHeight, scale: scale)
+        case (_, .game), (_, nil):  // nil: loaded sizes that match neither, so the note is about their height
+            h = purpose == .game ? Self.gameHeight(real: realHeight, scale: scale) : height
             note = ""
             // The default (32 mm on a 0.4 nozzle) gets a tip, not a warning: it prints fine,
             // faces just come out a little soft. Only really small sizes, or a 0.6 nozzle under
@@ -103,7 +108,7 @@ public struct SizeCard: Equatable, Sendable {
             } else if nozzle == "0.4" && h < 50 {
                 note = "💡 At \(Int(h)) mm, a 0.4 mm nozzle softens faces a little. For sharper faces, use a 0.2 mm nozzle or choose ✨ Best print."
             }
-        case .display:
+        case (_, .display):
             h = Self.bestPrint[nozzle] ?? 100
             note = "✨ Sized so faces come out clearly on a \(nozzle) mm nozzle: about \(Int(h)) mm tall. Chunky characters also look good a bit smaller."
         }

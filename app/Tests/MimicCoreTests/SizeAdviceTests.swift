@@ -103,8 +103,27 @@ final class SizeAdviceTests: XCTestCase {
         XCTAssertEqual(c.inflate, 0.08)
         XCTAssertTrue(c.heightTouched && c.baseTouched && !c.inflateTouched)
         c.load(Sizes(height: "50", nozzle: "0.4", inflate: "0.2"))
-        // A new nozzle sizes it again first, as on the web: the base it left out is the suggestion.
-        XCTAssertEqual(c.sizes, Sizes(height: "50", base: "40", nozzle: "0.4", inflate: "0.2"))
+        // A new nozzle sizes it again first, as on the web: the base it left out is the suggestion,
+        // here for the 34 mm it was, since 34 mm matched neither choice.
+        XCTAssertEqual(c.sizes, Sizes(height: "50", base: "25", nozzle: "0.4", inflate: "0.2"))
+    }
+
+    /// Resize starts from the last New Mini's choice; a loaded mini's sizes say what it was made for.
+    func testLoadedSizesChooseWhatTheyMatch() {
+        var c = SizeCard(purpose: .display, nozzle: "0.4")
+        c.load(Sizes(height: "32", base: "25", nozzle: "0.4"))
+        XCTAssertEqual(c.purpose, .game)
+        XCTAssertEqual(c.scale, 32)
+        XCTAssertEqual(c.note, "💡 At 32 mm, a 0.4 mm nozzle softens faces a little. For sharper faces, use a 0.2 mm nozzle or choose ✨ Best print.")
+        c.load(Sizes(height: "54", base: "25", nozzle: "0.6"))
+        XCTAssertEqual(c.purpose, .game); XCTAssertEqual(c.scale, 54)
+        c.load(Sizes(height: "100", base: "40", nozzle: "0.4"))
+        XCTAssertEqual(c.purpose, .display)
+        c.load(Sizes(height: "45", base: "20", nozzle: "0.4"))
+        XCTAssertNil(c.purpose, "matches neither: neither is chosen")
+        XCTAssertTrue(c.note.hasPrefix("💡 At 45 mm"), c.note)
+        c.setPurpose(.display)
+        XCTAssertEqual(c.height, 100, "choosing one still sizes it again")
     }
 
     /// Anything else: sized by its longest side for the nozzle, no Game scale, no base unless asked.
