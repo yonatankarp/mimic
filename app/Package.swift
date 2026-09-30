@@ -1,10 +1,10 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.2
 // Mimic's native Mac app. `swift build` / `swift test` here; `./bundle.sh` assembles the .app.
 import PackageDescription
 
 let package = Package(
     name: "Mimic",
-    platforms: [.macOS(.v15)],
+    platforms: [.macOS(.v26)],
     products: [
         .executable(name: "mimic", targets: ["Mimic"]),
         .library(name: "MimicCore", targets: ["MimicCore"]),

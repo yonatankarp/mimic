@@ -39,7 +39,7 @@ public final class GroupProcess: @unchecked Sendable {
             posix_spawn_file_actions_addclose(&actions, output.fd)
             posix_spawn_file_actions_addclose(&actions, output.closeInChild)
         }
-        if let workingDirectory { posix_spawn_file_actions_addchdir_np(&actions, workingDirectory) }
+        if let workingDirectory { posix_spawn_file_actions_addchdir(&actions, workingDirectory) }
 
         let argv = ([executable] + arguments).map { strdup($0) } + [nil]
         let envp = environment.map { strdup("\($0.key)=\($0.value)") } + [nil]
