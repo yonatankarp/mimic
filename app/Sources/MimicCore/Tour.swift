@@ -1,12 +1,18 @@
 import Foundation
 
-/// The first-run tour's stops, in order. The callouts themselves are in the app (`Tour.swift`
-/// there); this is when it starts and which stop comes next, so it can be tested.
+/// The first-run tour's stops, in order: five short ones. The callouts themselves are in the app
+/// (`TourGuide.swift`); this is when it starts and which stop comes next, so it can be tested.
+/// What the tour leaves out (the gallery's shortcuts, size and nozzle) are tips shown in place
+/// the first time they're used.
 public enum TourStep: String, CaseIterable, Sendable {
-    case welcome, newMini, start, size, make, mini, gallery, settings
+    case welcome, newMini, make, mini, settings
 
-    /// Shown inside New Mini, which the tour opens itself, so they're never skipped.
-    public var inNewMini: Bool { self == .start || self == .size || self == .make }
+    /// Shown inside New Mini, which the tour opens itself, so it's never skipped.
+    public var inNewMini: Bool { self == .make }
+
+    /// A card in the middle of the window, pointing at nothing: the welcome, and Settings, which
+    /// is in the Mimic menu rather than on a control. Always shown.
+    public var centred: Bool { self == .welcome || self == .settings }
 }
 
 public enum Tour {
@@ -17,10 +23,10 @@ public enum Tour {
     /// launch that doesn't need it.
     public static func shouldStart(seen: Bool, installed: Bool) -> Bool { installed && !seen }
 
-    /// The stops that will be shown: the welcome, New Mini's own, and whichever main-window
-    /// stops are on screen (no mini yet, or the sidebar hidden, leaves theirs out).
+    /// The stops that will be shown: the centred cards, New Mini's own, and whichever
+    /// main-window stops are on screen (no mini yet leaves the mini's page out).
     public static func steps(onScreen: Set<TourStep>) -> [TourStep] {
-        TourStep.allCases.filter { $0 == .welcome || $0.inNewMini || onScreen.contains($0) }
+        TourStep.allCases.filter { $0.centred || $0.inNewMini || onScreen.contains($0) }
     }
 
     /// The stop after `step`, or nil when the tour is over.

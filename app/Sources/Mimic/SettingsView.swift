@@ -1,6 +1,7 @@
 import AppKit
 import MimicCore
 import SwiftUI
+import TipKit
 
 /// Settings' tabs. Whoever opens Settings for a reason picks the tab first (`select`), and the
 /// window, open or not, follows: the key is the tab picker's own.
@@ -72,8 +73,11 @@ struct SettingsView: View {
         }
         Section {
             ForEach(health.checks.filter { !$0.required }) { row($0) }
-            Toggle("Open Draw Things when needed", isOn: $openDrawThings)
-                .help("When a mini needs a picture drawn, Mimic opens Draw Things in the background, and quits it afterwards if Mimic was the one that opened it.")
+            Toggle(isOn: $openDrawThings) {
+                Text("Open Draw Things when needed")
+                Text("In the background, and quit afterwards if Mimic opened it.")
+            }
+                .help("Opens Draw Things in the background when a mini needs a picture")
                 .onChange(of: openDrawThings) { if !model.running { health.check(model.install) } }
             if drawThingsProblem {
                 // The steps are on their own tab now; this is the way there.
@@ -95,7 +99,7 @@ struct SettingsView: View {
                 ForEach(slicers) { Text($0.name).tag($0.id) }
                 Text("Mac's default app for 3D files").tag(Slicer.macDefault)
             }
-            .help("Where Open in … sends a finished mini. The Mac's default app is whatever opens .stl files when you double-click one.")
+            .help("Where Open in … sends a finished mini")
         } footer: {
             Text("Mimic lists the slicers it finds on this Mac. The Mac's default app works with any other slicer.")
                 .foregroundStyle(.secondary)
@@ -138,7 +142,6 @@ struct SettingsView: View {
 
     @ViewBuilder private var advanced: some View {
         TimingsSection()
-        TerminalSection()
         ResetSection()
         Section {
             // Selectable, so it can be copied into a bug report.
@@ -367,9 +370,10 @@ private struct TimingsSection: View {
     }
 }
 
-/// The command-line tool lives inside the app, and a disk image can't put it on the PATH:
-/// one command does, the same one for everyone.
-private struct TerminalSection: View {
+/// Mimic → Install Command-Line Tool…: the command-line tool lives inside the app, and a disk
+/// image can't put it on the PATH: one command does, the same one for everyone.
+@MainActor
+enum CommandLineTool {
     // /usr/local/bin is on every Mac's PATH (/etc/paths), but a new Mac doesn't have it and
     // only an administrator can make it, hence sudo; ~/.local/bin would need no password but
     // isn't on the PATH, which would take a second step. The app's own path only when it's in
@@ -378,25 +382,23 @@ private struct TerminalSection: View {
         let app = Bundle.main.bundlePath.hasPrefix("/Applications/") ? Bundle.main.bundlePath : "/Applications/Mimic.app"
         return "sudo mkdir -p /usr/local/bin && sudo ln -sf \"\(app)/Contents/MacOS/mimic\" /usr/local/bin/mimic"
     }()
-    @State private var copied = false
 
-    var body: some View {
-        Section {
-            HStack {
-                Text(Self.command).font(.system(.callout, design: .monospaced)).textSelection(.enabled)
-                Spacer()
-                Button(copied ? "Copied" : "Copy") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(Self.command, forType: .string)
-                    copied = true
-                }
-            }
-        } header: {
-            Text("Use Mimic from Terminal")
-        } footer: {
-            Text("Paste this into Terminal once, then type mimic to make minis from there. It asks for your Mac password, because it adds mimic to a folder every account on this Mac uses.")
-                .foregroundStyle(.secondary)
-        }
+    /// The command, selectable, with Copy Command (Return) and Cancel (Esc).
+    static func show() {
+        let alert = NSAlert()
+        alert.messageText = "Install Command-Line Tool"
+        alert.informativeText = "Copy this command, paste it into Terminal once, then type mimic to make minis from there. It asks for your Mac password, because it adds mimic to a folder every account on this Mac uses."
+        let text = NSTextField(wrappingLabelWithString: command)
+        text.font = .monospacedSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
+        text.isSelectable = true
+        text.preferredMaxLayoutWidth = 280
+        text.frame.size = NSSize(width: 280, height: text.fittingSize.height)
+        alert.accessoryView = text
+        alert.addButton(withTitle: "Copy Command")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(command, forType: .string)
     }
 }
 
@@ -412,7 +414,7 @@ private struct ResetSection: View {
             LabeledContent("Start over") {
                 Button("Reset Mimic…") { asking = true }
                     .disabled(model.running)
-                    .help(model.running ? "Wait for the mini being made to finish." : "Forget Mimic's settings and show the tour again. Your minis stay.")
+                    .help(model.running ? "Wait for the mini being made to finish" : "Forget Mimic's settings and show the tour again")
             }
             if let problem { Text(problem).font(.callout).foregroundStyle(.red) }
         } footer: {
@@ -421,10 +423,10 @@ private struct ResetSection: View {
         }
         .confirmationDialog("Reset Mimic?", isPresented: $asking) {
             Button("Reset") { reset(removeEngine: false) }
-            Button("Reset and Remove the 3D Engine", role: .destructive) { reset(removeEngine: true) }
+            Button("Reset All", role: .destructive) { reset(removeEngine: true) }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Mimic forgets its settings and any saved AI keys, and shows the tour again. Your minis are kept.\n\nAlso removing the 3D engine shows the first-launch setup again, and downloads the engine again (about 8 GB).")
+            Text("Mimic forgets its settings, tips and any saved AI keys, and shows the tour again. Your minis are kept.\n\nReset All also removes the 3D engine: first-launch setup shows again and downloads it again (about 8 GB).")
         }
     }
 
@@ -435,6 +437,8 @@ private struct ResetSection: View {
             problem = "Couldn't remove the 3D engine. \(model.plainWords(error, else: "Check that Mimic can write to its folder, then try again."))"
             return
         }
+        // The tips show again too: their store is cleared as the new copy starts.
+        UserDefaults.standard.set(true, forKey: Tips.resetKey)
         // Opens again as a fresh launch would: a new copy of the app, then this one quits.
         let config = NSWorkspace.OpenConfiguration()
         config.createsNewApplicationInstance = true

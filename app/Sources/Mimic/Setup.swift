@@ -250,7 +250,7 @@ struct SetupView: View {
             }
         }
         .padding(20)
-        .glassEffect(.regular, in: .rect(cornerRadius: 16))
+        .background(.quaternary, in: .rect(cornerRadius: 16))  // content, not a control: no glass
     }
 
     private var drawThingsCard: some View {
@@ -266,7 +266,7 @@ struct SetupView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassEffect(.regular, in: .rect(cornerRadius: 16))
+        .background(.quaternary, in: .rect(cornerRadius: 16))  // content, not a control: no glass
     }
 }
 
