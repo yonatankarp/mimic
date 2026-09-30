@@ -3,7 +3,8 @@ import Foundation
 /// What a request may contain. Every value here ends up as an argument to print prep or the 3D
 /// engine, so this is the trust boundary: nothing unchecked gets past it.
 public enum Rules {
-    /// A mini's folder name: "dwarf-cleric". Shown to people as "Dwarf Cleric".
+    /// A mini's folder name: "dwarf-cleric". Shown to people as the name they typed, or else
+    /// as "Dwarf Cleric" (see `folderName`).
     public static func isValidName(_ name: String) -> Bool {
         guard (1...64).contains(name.count), let first = name.unicodeScalars.first,
               CharacterSet.lowercaseLetters.union(.decimalDigits).contains(first) else { return false }
@@ -15,6 +16,73 @@ public enum Rules {
         let lowered = text.lowercased().unicodeScalars.map { ("a"..."z").contains($0) || ("0"..."9").contains($0) ? Character($0) : "-" }
         let collapsed = String(lowered).split(separator: "-", omittingEmptySubsequences: true).joined(separator: "-")
         return String(collapsed.prefix(60)).trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+    }
+
+    // MARK: Names people type (#87)
+    //
+    // A mini has two names: the one typed ("Élodie", "D&D Bard"), kept in its settings and shown
+    // everywhere, and its folder's ("elodie", "d-d-bard"), which its files, the queue and
+    // `mimic` commands go by. Everything that names a new mini, renames one or copies one gets
+    // both from here.
+
+    /// The folder name for a typed name: other alphabets and accents written in plain letters,
+    /// then `slug`. "Élodie" → "elodie", "Дракон" → "drakon", "Straße" → "strasse". Never empty:
+    /// a name with nothing to write that way (only emoji, say) is "mini".
+    public static func folderName(_ typed: String) -> String {
+        let latin = (typed.applyingTransform(.toLatin, reverse: false) ?? typed)
+            .applyingTransform(.stripDiacritics, reverse: false) ?? typed
+        let plain = latin.applyingTransform(StringTransform("Latin-ASCII"), reverse: false) ?? latin
+        let s = slug(plain)
+        return s.isEmpty ? "mini" : s
+    }
+
+    /// A typed name as it's kept: trimmed, one line, at most 64 characters; nil when nothing is left.
+    public static func shownName(_ typed: String) -> String? {
+        let one = typed.components(separatedBy: .controlCharacters).joined(separator: " ")
+            .split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        return one.isEmpty ? nil : String(one.prefix(64))
+    }
+
+    /// The name to show for a picture's file: its own, as it's spelled ("Élodie" stays "Élodie"),
+    /// dashes and underscores as spaces, and words capitalised when it has no capitals at all
+    /// ("dwarf-cleric" → "Dwarf Cleric", as before).
+    public static func shownName(fromFile base: String) -> String? {
+        let words = base.split { $0 == "-" || $0 == "_" || $0.isWhitespace }.map(String.init)
+        let spaced = words.joined(separator: " ")
+        let text = spaced == spaced.lowercased() ? words.map { $0.prefix(1).uppercased() + $0.dropFirst() }.joined(separator: " ") : spaced
+        return shownName(text)
+    }
+
+    /// The name shown for a mini whose typed name `typed` got the folder `folder`: the name
+    /// itself, or with the folder's number when it had to take one ("Élodie" in "elodie-2" is
+    /// "Élodie 2", and "Raven 2" in "raven-3" is "Raven 3"). Make Another Version and pictures
+    /// named alike take a number that way.
+    public static func shownName(_ typed: String, numberedAs folder: String) -> String {
+        func numbered(_ s: String) -> (base: String, n: Int)? {
+            guard let dash = s.lastIndex(of: "-"), let n = Int(s[s.index(after: dash)...]),
+                  String(n) == s[s.index(after: dash)...] else { return nil }
+            return (String(s[..<dash]), n)
+        }
+        let base = folderName(typed)
+        guard folder != base, let m = numbered(folder) else { return typed }
+        let (b, n) = m
+        if b == base { return "\(typed) \(n)" }
+        if numbered(base)?.base == b, let r = typed.range(of: #"\s*[0-9]+$"#, options: .regularExpression) {
+            return "\(typed[..<r.lowerBound]) \(n)"
+        }
+        return typed
+    }
+
+    /// A typed name carried to a mini that goes by `folder` now, when it still fits: a version
+    /// renamed to the plain name, or the other way, or a new version of it. "Élodie 2" to
+    /// "elodie" is "Élodie"; "Élodie" to "elodie-3" is "Élodie 3". Nil when it doesn't fit.
+    public static func shownName(carrying typed: String, to folder: String) -> String? {
+        let root = typed.replacingOccurrences(of: #"\s+[0-9]+$"#, with: "", options: .regularExpression)
+        for t in [typed, root] where !t.isEmpty {
+            let shown = shownName(t, numberedAs: folder)
+            if folderName(shown) == folder { return shown }
+        }
+        return nil
     }
 
     /// A project's folder name, as typed ("Tiefling Party"), trimmed; nil when it can't be one.

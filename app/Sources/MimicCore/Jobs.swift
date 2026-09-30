@@ -127,12 +127,13 @@ public final class JobRunner: @unchecked Sendable {
     /// checked before anything is written; then its folder, settings and picture are written and
     /// it joins the queue. Returns nil when it started at once, else how many jobs are ahead of it
     /// (the running one included). `versionOf` is the first of its versions, for Make Another Version.
-    /// `cartoon` is only recorded: `model` and `restyle` are what make it one. New 3D Shape passes
-    /// the picture step 1 made (`drawn`), so it isn't made again, and the 3D engine's own seed (`shapeSeed`).
+    /// `cartoon` is only recorded: `model` and `restyle` are what make it one.
+    /// `shown` is the name as typed ("Élodie"), shown for it; `name` is its folder's. New 3D Shape
+    /// passes the picture step 1 made (`drawn`), so it isn't made again, and the 3D engine's own seed (`shapeSeed`).
     @discardableResult
     public func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes,
                      kind: MiniKind = .character, model: EngineModel, project: String? = nil, versionOf: String? = nil,
-                     cartoon: Bool = false, shapeSeed: Int? = nil, drawn: URL? = nil) throws -> Int? {
+                     cartoon: Bool = false, shown: String? = nil, shapeSeed: Int? = nil, drawn: URL? = nil) throws -> Int? {
         guard Rules.isValidName(name) else { throw RequestError.badName }
         if let project, !Gallery.projects(install.runs).contains(project) { throw RequestError.projectNotFound }
         _ = try sizes.flags()
@@ -175,6 +176,7 @@ public final class JobRunner: @unchecked Sendable {
                     s.model = model.id
                     s.versionOf = versionOf
                     s.cartoon = cartoon ? true : nil  // always set, like kind
+                    s.name(shown, folder: name)  // always set, like kind
                     s.shapeSeed = shapeSeed  // always set, as `kind` is
                     s.created = Date()  // a failed attempt's folder made again is a new mini
                 }

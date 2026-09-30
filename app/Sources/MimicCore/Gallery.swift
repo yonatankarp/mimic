@@ -37,10 +37,21 @@ public struct Mini: Identifiable, Hashable, Sendable {
     }
     /// The 3D model a resize starts from: without it only a full Make can finish the mini.
     public var hasModel: Bool { existing("model.glb") != nil }
+    /// The name it was given ("Élodie"), from its settings as the gallery read them; a mini
+    /// without one (older minis, one renamed or copied in Finder) goes by its folder's:
     /// "dwarf-cleric" is shown as "Dwarf Cleric".
-    public var displayName: String { Mini.displayName(name) }
+    public var displayName: String { settings.shownName(folder: name) ?? Mini.displayName(name) }
     public static func displayName(_ name: String) -> String {
         name.split(separator: "-").map { $0.prefix(1).uppercased() + $0.dropFirst() }.joined(separator: " ")
+    }
+    /// What the mini called `name` is shown as, found among `minis` (the gallery's list, so a
+    /// redraw reads nothing), or its folder's name as shown when it isn't there.
+    public static func displayName(_ name: String, in minis: [Mini]) -> String {
+        minis.first { $0.name == name }?.displayName ?? displayName(name)
+    }
+    /// The same from its folder, for `mimic` in Terminal, which has no list to look in.
+    public static func displayName(_ name: String, runs: URL) -> String {
+        Gallery.folder(runs, name).flatMap { MiniSettings.load($0).shownName(folder: name) } ?? displayName(name)
     }
 
     /// "30 Sep, 18:23" in this Mac's time zone, for `mimic list`; a date from another year says
@@ -227,17 +238,27 @@ public enum Gallery {
 extension Gallery {
     /// Renames a mini: its folder and every file named after it (the print file and the
     /// previews), which is how the app finds them. It keeps its place in the gallery, which is
-    /// by when it was asked for.
-    public static func rename(_ runs: URL, from old: String, to new: String, busyWith: String? = nil) throws {
+    /// by when it was asked for. `shown` is the name as typed, kept to show ("McGregor" for
+    /// "mcgregor", which may be its folder's name already); without it, the name it had is
+    /// carried over when it still fits (`Rules.shownName(carrying:to:)`).
+    public static func rename(_ runs: URL, from old: String, to new: String, shown: String? = nil, busyWith: String? = nil) throws {
         guard Rules.isValidName(old), Rules.isValidName(new) else { throw RequestError.badName }
-        guard old != new else { return }
         let fm = FileManager.default
         guard let src = folder(runs, old) else { throw RequestError.notFound }
+        let before = MiniSettings.load(src)
+        let keep = shown ?? before.shownName(folder: old).flatMap { Rules.shownName(carrying: $0, to: new) }
+        guard old != new else {
+            guard let shown, before.shownName(folder: old) != Rules.shownName(shown) else { return }
+            guard busyWith != old else { throw RequestError.busy(old) }
+            return try MiniSettings.update(src) { $0.name(shown, folder: new) }
+        }
         let dst = src.deletingLastPathComponent().appendingPathComponent(new)  // stays in its project
         guard !nameInUse(runs, new), !fm.fileExists(atPath: dst.path) else { throw RequestError.nameTaken(new) }
         guard busyWith != old else { throw RequestError.busy(old) }
         try fm.moveItem(at: src, to: dst)
         try renameFiles(in: dst, from: old, to: new)
+        // An older mini without a name of its own gets no settings for it.
+        if keep != nil || before.name != nil { try? MiniSettings.update(dst) { $0.name(keep, folder: new) } }
         // Its other versions name it as their first: they follow it.
         for m in list(runs) where m.settings.versionOf == old {
             try? MiniSettings.update(m.folder) { $0.versionOf = new }
@@ -297,6 +318,11 @@ extension Gallery {
                     }
                 }
                 try renameFiles(in: dst, from: files, to: dst.lastPathComponent)
+                // A name typed in Finder ("Élodie la Druide", "McGregor") is kept to show, as a
+                // name typed in Mimic is; a copy's ("dwarf-cleric copy") reads as before.
+                if !Rules.isValidName(mini.name), mini.name != mini.name.lowercased() || !mini.name.allSatisfy(\.isASCII) {
+                    try? MiniSettings.update(dst) { $0.name(Rules.shownName(mini.name, numberedAs: dst.lastPathComponent), folder: dst.lastPathComponent) }
+                }
                 adopted.append(dst.lastPathComponent)
             } catch { continue }  // left as it is: Trash and Show in Finder still work on it
         }

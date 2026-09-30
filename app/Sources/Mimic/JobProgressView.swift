@@ -43,7 +43,7 @@ struct JobProgressView: View {
     }
 
     private func content(_ s: JobStatus, now: Date) -> some View {
-        let who = Mini.displayName(s.name)
+        let who = model.displayName(s.name)
         let estimate = model.estimate(s)
         return VStack(alignment: .leading, spacing: 14) {
             title(s, who: who).font(.title3.bold())
@@ -101,7 +101,7 @@ struct JobProgressView: View {
     private func elsewhere(_ s: JobStatus, now: Date) -> some View {
         let estimate = model.estimate(s)
         return VStack(alignment: .leading, spacing: 10) {
-            Label("\(s.kind == .prep ? "Resizing" : "Making") \(Mini.displayName(s.name))", systemImage: Self.symbol(s.kind))
+            Label("\(s.kind == .prep ? "Resizing" : "Making") \(model.displayName(s.name))", systemImage: Self.symbol(s.kind))
                 .font(.title3.bold())
             Text("Another Mimic is doing this one (another copy of the app, or Terminal): stop it there. Step \(s.step) of 3 · \(JobProgress.about(estimate.left(s, now: now))) left.")
                 .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -118,8 +118,8 @@ struct JobProgressView: View {
                 HStack {
                     Image(systemName: s.succeeded ? "checkmark.circle.fill" : s.canceled ? "stop.circle" : "exclamationmark.triangle.fill")
                         .foregroundStyle(s.succeeded ? .green : s.canceled ? .secondary : .orange)
-                    Text(s.succeeded ? "\(Mini.displayName(s.name)) is ready" : s.canceled ? "Stopped \(Mini.displayName(s.name))"
-                                                                            : "\(Mini.displayName(s.name)) didn't finish")
+                    Text(s.succeeded ? "\(model.displayName(s.name)) is ready" : s.canceled ? "Stopped \(model.displayName(s.name))"
+                                                                            : "\(model.displayName(s.name)) didn't finish")
                     Spacer()
                     if !s.succeeded && !s.canceled {
                         Button("Try Again") { tryAgain(s.name) }
@@ -243,7 +243,7 @@ private struct QueueRow: View {
     @Binding var target: String?
 
     var body: some View {
-        let who = Mini.displayName(entry.name)
+        let who = model.displayName(entry.name)
         HStack(spacing: 8) {
             Image(systemName: JobProgressView.symbol(entry.job)).foregroundStyle(.secondary)
                 .frame(width: 18).accessibilityHidden(true)
@@ -308,7 +308,7 @@ private struct JobQuestions: ViewModifier {
                 Text((model.job?.kind == .prep ? "It keeps its previous size." : "What's been made so far will be thrown away.")
                      + (model.queue.isEmpty ? "" : " The queue carries on with the next one."))
             }
-            .confirmationDialog(model.unqueueing.map { "Take “\(Mini.displayName($0.name))” out of the queue?" } ?? "",
+            .confirmationDialog(model.unqueueing.map { "Take “\(model.displayName($0.name))” out of the queue?" } ?? "",
                                 isPresented: unqueueing, presenting: model.unqueueing) { e in
                 Button(e.job == .prep ? "Don't Resize" : "Take Out", role: .destructive) { model.removeFromQueue(e.name) }
                 Button("Cancel", role: .cancel) {}
@@ -322,7 +322,7 @@ private struct JobQuestions: ViewModifier {
     }
 
     private func stopTitle(_ s: JobStatus) -> String {
-        s.kind == .prep ? "Stop resizing “\(Mini.displayName(s.name))”?" : "Stop making “\(Mini.displayName(s.name))”?"
+        s.kind == .prep ? "Stop resizing “\(model.displayName(s.name))”?" : "Stop making “\(model.displayName(s.name))”?"
     }
 }
 
@@ -469,7 +469,7 @@ struct JobToolbarItem: View {
     }
 
     private func label(_ s: JobStatus, now: Date) -> String {
-        let who = Mini.displayName(s.name)
+        let who = model.displayName(s.name)
         let waiting = model.queue.isEmpty ? "" : " · \(model.queue.count) waiting" + (model.paused ? ", paused" : "")
         if s.running { return "\(s.kind == .prep ? "Resizing" : "Making") \(who) · \(JobProgress.clock(now.timeIntervalSince(s.started)))\(waiting)" }
         if s.canceled { return "Stopped \(who)\(waiting)" }
@@ -732,7 +732,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // nothing is lost by not asking.
         if !Self.systemQuit {
             let alert = NSAlert()
-            let who = Mini.displayName(s.name)
+            let who = model.displayName(s.name)
             alert.messageText = s.kind == .prep ? "Mimic is still resizing “\(who)”" : "Mimic is still making “\(who)”"
             let waiting = model.queue.count
             alert.informativeText = "Quitting stops it for now. The next time you open Mimic, it carries on from the last step it finished."

@@ -51,6 +51,7 @@ extension JobRunner {
         let ahead = try make(name: new, picture: picture, restyle: restyle, seed: seed, sizes: settings.requested ?? Sizes(),
                              kind: settings.kind ?? .character, model: model, project: project,
                              versionOf: settings.versionOf ?? name, cartoon: settings.cartoon == true,
+                             shown: settings.shownName(folder: name).flatMap { Rules.shownName(carrying: $0, to: new) },
                              shapeSeed: shapeSeed, drawn: drawn)
         return (new, ahead)
     }
@@ -115,10 +116,9 @@ extension Gallery {
     }
 
     /// "Dwarf Cleric" → "dwarf-cleric", or "dwarf-cleric-2" when that's taken; "mini" when it has
-    /// no letters or digits.
-    static func freeName(_ runs: URL, _ text: String) -> String {
-        let slug = Rules.slug(text)
-        let name = slug.isEmpty ? "mini" : slug
+    /// nothing to write in plain letters or digits (see `Rules.folderName`).
+    public static func freeName(_ runs: URL, _ text: String) -> String {
+        let name = Rules.folderName(text)
         return nameInUse(runs, name) ? nextVersionName(runs, name) : name
     }
 }

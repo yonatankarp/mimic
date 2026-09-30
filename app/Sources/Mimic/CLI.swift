@@ -53,7 +53,7 @@ enum CLI {
             let minis = Gallery.list(install.runs), projects = Gallery.projects(install.runs)
             func row(_ m: Mini, _ indent: String) {
                 let state = queue.contains { $0.name == m.name } ? "waiting" : m.stl == nil ? "unfinished" : "ready"
-                print("\(indent)\(m.name)\t\(state)\t\(Mini.listDate(m.created))")
+                print("\(indent)\(m.name)\t\(state)\t\(Mini.listDate(m.created))\t\(m.displayName)")
             }
             // Without projects, the same lines as always; with them, a heading each, then Unsorted.
             guard !projects.isEmpty else { minis.forEach { row($0, "") }; return 0 }
@@ -84,7 +84,7 @@ enum CLI {
             default: return fail(usage)
             }
             do { try JobRunner(install: install).move(mini: name, toProject: target) } catch { return fail("\(error)") }
-            print("Moved \(Mini.displayName(name)) to \(target ?? "Unsorted").")
+            print("Moved \(Mini.displayName(name, runs: install.runs)) to \(target ?? "Unsorted").")
             return 0
         case "models":
             // The app's choice, marked; downloading one is the app's job, where it shows progress.
@@ -129,7 +129,7 @@ enum CLI {
                 do {
                     guard try jobs.remove(rest[1]) else { return fail("\(rest[1]) isn't waiting in the queue.") }
                 } catch { return fail("\(error)") }
-                print("Took \(Mini.displayName(rest[1])) out of the queue.")
+                print("Took \(Mini.displayName(rest[1], runs: install.runs)) out of the queue.")
                 return 0
             }
             guard rest.isEmpty else { return fail(usage) }

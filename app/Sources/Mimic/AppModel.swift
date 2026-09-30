@@ -42,6 +42,8 @@ final class AppModel {
     /// Checking for a newer Mimic, and installing it.
     let updates = Updater()
     var minis: [Mini] = []
+    /// What the mini called `name` is shown as ("Élodie"), from the list: no file is read.
+    func displayName(_ name: String) -> String { Mini.displayName(name, in: minis) }
     /// The projects (folders of minis), alphabetical, empty ones included.
     var projects: [String] = []
     /// The project New Mini starts in when asked from a project's own menu; else the selected
@@ -327,9 +329,9 @@ final class AppModel {
     var cantStart: String? { requiredProblem }
 
     func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes, kind: MiniKind = .character,
-              project: String? = nil, cartoon: Bool = false) throws {
+              project: String? = nil, cartoon: Bool = false, shown: String? = nil) throws {
         let chosen = EngineDownload.forMaking(cartoon: cartoon, chosen: setup.chosen)
-        try start(name) { try $0.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, kind: kind, model: chosen, project: project, cartoon: cartoon) }
+        try start(name) { try $0.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, kind: kind, model: chosen, project: project, cartoon: cartoon, shown: shown) }
     }
 
     /// Several pictures dropped on New Mini: a mini each, named after its file, all made the same
@@ -339,9 +341,10 @@ final class AppModel {
         var added: [String] = [], skipped: [String] = [], why = "Mimic can't read these pictures."
         for url in pictures {
             let name = Gallery.name(forPicture: url, in: install.runs)
+            let shown = Rules.shownName(fromFile: url.deletingPathExtension().lastPathComponent).map { Rules.shownName($0, numberedAs: name) }
             do {
                 guard Picture(url) != nil else { throw RequestError.noPicture }
-                try make(name: name, picture: .image(url), restyle: restyle, seed: seed, sizes: sizes, kind: kind, project: project, cartoon: cartoon)
+                try make(name: name, picture: .image(url), restyle: restyle, seed: seed, sizes: sizes, kind: kind, project: project, cartoon: cartoon, shown: shown)
                 added.append(name)
             } catch {
                 skipped.append(url.lastPathComponent)
@@ -560,7 +563,7 @@ final class AppModel {
             // Not with another app in front: it would close unseen. The toolbar item stays.
             guard sheet == nil, !jobPopover, active, NSApp.isActive else { return }
             jobPopover = true
-            if let words = queuedNote?.text ?? current.map({ "\($0.kind == .prep ? "Resizing" : "Making") \(Mini.displayName($0.name))" }) {
+            if let words = queuedNote?.text ?? current.map({ "\($0.kind == .prep ? "Resizing" : "Making") \(displayName($0.name))" }) {
                 AccessibilityNotification.Announcement(words).post()
             }
         }
@@ -666,7 +669,7 @@ final class AppModel {
     /// Open in the slicer on a ready one and Try Again on a failed one. Clicking it goes to the mini.
     private func announce(_ s: JobStatus) {
         guard !s.canceled, !(NSApp.isActive && NSApp.mainWindow != nil), Bundle.main.bundleIdentifier != nil else { return }
-        let who = Mini.displayName(s.name)
+        let who = displayName(s.name)
         let content = UNMutableNotificationContent()
         content.title = s.succeeded ? "\(who) is ready" : "\(who) didn't finish"
         content.body = s.succeeded ? "Ready to print." : "Something went wrong while \(JobRunner.label(s.step).lowercased())."

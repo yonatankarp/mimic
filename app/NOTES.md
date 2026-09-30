@@ -110,6 +110,24 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   it does for Try Again, and a new `shapeSeed` in settings.json goes to `_engine --seed` alone
   (absent, `seed` drives both). `seed` stays, so the base stones and a redrawn picture come out
   the same. Offered only when source.png is there.
+- **A mini has two names** (#87; all in `Rules.swift`, "Names people type"): the one typed,
+  kept in settings.json as `name` ("Élodie", "D&D Bard", "McGregor") and shown everywhere
+  (list, page, notifications, Open Together's objects, `mimic list`'s last column), and its
+  folder's, which its files, the queue and every `mimic` command go by. The folder's is
+  `Rules.folderName`: other alphabets and accents in plain letters (ICU's Any-Latin, then
+  strip diacritics, then Latin-ASCII for ß and æ), then the old slug, and "mini" when nothing
+  is left (only emoji), so Make is never blocked by a name. Collisions are as before: Make and
+  Rename refuse a folder name that's taken; pictures dropped together and new versions take
+  the next number, and so does their shown name ("Élodie 2"). Older minis have no `name` and
+  show their folder's as before. **When the folder and settings.json disagree, the folder
+  wins**, since renaming or copying it in Finder is what the person did last: the name is
+  kept with `nameFolder`, the folder it was given for, and shown only while the folder still
+  has that name. So a copy ("raven copy", taken over as `raven-copy`) never passes for the
+  original, a folder renamed in Finder shows its new name, and that holds for an unfinished
+  mini the takeover never touches. A folder renamed in Finder to a name with capitals or
+  accents ("Élodie la Druide") is taken over with that name kept as typed. A rename in Mimic
+  without a typed name (the kept version taking the plain name, and its Undo) carries the old
+  name along while it still fits the new folder (`Rules.shownName(carrying:to:)`).
 - **A picture is tidied once, when it's added** (`Engine.tidied`, called by `make` before
   anything is written): turned upright, no longer than 2048 on its longest side, and written as
   PNG to `upload.img` (the name is from when it was a plain copy; kept so older minis read the
