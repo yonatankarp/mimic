@@ -190,7 +190,7 @@ struct TourCallout: View {
     /// Only on New Mini's stop, and not if a Sample Dwarf is already in the gallery.
     private var offersSample: Bool {
         stop == .newMini && TourGuide.samplePicture != nil
-            && !Gallery.nameInUse(model.install.runs, Rules.slug(TourGuide.sampleName))
+            && !Gallery.nameInUse(model.install.runs, Rules.folderName(TourGuide.sampleName))
     }
 
     private var title: String { Self.title(stop) }

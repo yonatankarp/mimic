@@ -275,7 +275,7 @@ struct MakeView: View {
         message = nil
         if name.isEmpty {
             if let unnamed { say("\(unnamed) Give your mini a name."); nameFocused = true }
-            else { name = Mini.displayName(Rules.slug(url.deletingPathExtension().lastPathComponent)) }
+            else { name = Rules.shownName(fromFile: url.deletingPathExtension().lastPathComponent) ?? "" }
         }
     }
 
@@ -312,7 +312,8 @@ struct MakeView: View {
 
     // MARK: Making
 
-    private var slug: String { Rules.slug(name) }
+    /// Its folder's name ("elodie" for "Élodie"), or empty while no name is typed.
+    private var slug: String { Rules.shownName(name) == nil ? "" : Rules.folderName(name) }
 
     private var takenName: String? {
         let runs = model.install.runs
@@ -327,7 +328,7 @@ struct MakeView: View {
               Gallery.nameInUse(runs, slug) && !failedAttempt
                 || model.waiting(slug) != nil || model.current?.name == slug
         else { return nil }
-        return Mini.displayName(slug)
+        return model.displayName(slug)
     }
 
     private var estimate: Estimate {
@@ -373,7 +374,7 @@ struct MakeView: View {
         do {
             if project == Self.newProject { project = try model.createProject(newProjectName) }
             try model.make(name: slug, picture: source, restyle: start == .picture && sculpt,
-                           seed: seed, sizes: card.sizes, kind: card.kind, project: project.isEmpty ? nil : project, cartoon: cartoonOn)
+                           seed: seed, sizes: card.sizes, kind: card.kind, project: project.isEmpty ? nil : project, cartoon: cartoonOn, shown: name)
         } catch {
             say(model.plainWords(error), error: true)
             messageDetail = "\(error)"

@@ -33,6 +33,69 @@ final class GalleryTests: XCTestCase {
         XCTAssertEqual(after.first?.settings.failed, "It stopped while drawing it.")
     }
 
+    /// A mini shows the name it was given (#87), from its settings as the list read them; an
+    /// older mini without one shows its folder's as before. Planted: a name rebuilt from the
+    /// folder says "Elodie", "D D Bard" and "Mcgregor".
+    func testAMiniShowsTheNameItWasGiven() throws {
+        let fx = try Fixture(), runs = fx.install.runs
+        for (typed, folder) in [("Élodie", "elodie"), ("D&D Bard", "d-d-bard"), ("McGregor", "mcgregor"), ("Дракон", "drakon")] {
+            XCTAssertEqual(Rules.folderName(typed), folder)
+            try MiniSettings.update(try fx.mini(folder)) { $0.name(typed, folder: folder) }
+        }
+        _ = try fx.mini("tiefling-wizard")
+        let minis = Gallery.list(runs)
+        XCTAssertEqual(Mini.displayName("elodie", runs: runs), "Élodie")
+        for m in minis { try Data("{}".utf8).write(to: m.folder.appendingPathComponent("settings.json")) }
+        XCTAssertEqual(Set(minis.map(\.displayName)), ["Élodie", "D&D Bard", "McGregor", "Дракон", "Tiefling Wizard"])
+        XCTAssertEqual(Mini.displayName("mcgregor", in: minis), "McGregor")
+        XCTAssertEqual(Mini.displayName("ghost-king", in: minis), "Ghost King", "not in the list")
+    }
+
+    /// Rename keeps the name as typed, when only its capitals change too. Renamed without one
+    /// (the kept version taking the plain name, and its Undo), the name it had comes along
+    /// while it fits; an older mini gets no settings for a rename.
+    func testRenameKeepsTheTypedName() throws {
+        let fx = try Fixture(), runs = fx.install.runs
+        try MiniSettings.update(try fx.mini("mcgregor")) { $0.name("Mcgregor", folder: "mcgregor") }
+        try Gallery.rename(runs, from: "mcgregor", to: "mcgregor", shown: "McGregor")
+        XCTAssertEqual(Gallery.list(runs).map(\.displayName), ["McGregor"], "only the capitals changed")
+        try Gallery.rename(runs, from: "mcgregor", to: Rules.folderName("Élodie"), shown: "Élodie")
+        XCTAssertEqual(Gallery.list(runs).map(\.displayName), ["Élodie"])
+        try Gallery.rename(runs, from: "elodie", to: "elodie-2")
+        XCTAssertEqual(Gallery.list(runs).map(\.displayName), ["Élodie 2"])
+        try Gallery.rename(runs, from: "elodie-2", to: "elodie")
+        XCTAssertEqual(Gallery.list(runs).map(\.displayName), ["Élodie"])
+        try Gallery.rename(runs, from: "elodie", to: "orc")
+        XCTAssertEqual(Gallery.list(runs).map(\.displayName), ["Orc"], "a name that doesn't fit is let go")
+        _ = try fx.mini("tiefling")  // model.glb and no settings.json
+        try Gallery.rename(runs, from: "tiefling", to: "tiefling-wizard")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: runs.appendingPathComponent("tiefling-wizard/settings.json").path))
+        XCTAssertThrowsError(try Gallery.rename(runs, from: "orc", to: "orc", shown: "ORC", busyWith: "orc")) {
+            XCTAssertEqual($0 as? RequestError, .busy("orc"))
+        }
+    }
+
+    /// Finder wins (#87): a mini renamed there shows its folder's new name, a copy doesn't pass
+    /// for the original, and a name typed there with capitals or accents is kept as typed. An
+    /// unfinished one (no print file, so never taken over) goes by its folder too.
+    func testANameGivenInFinderWins() throws {
+        let fx = try Fixture(), fm = FileManager.default, runs = fx.install.runs
+        for (typed, folder) in [("Élodie", "elodie"), ("Raven", "raven"), ("Bard", "bard")] {
+            try MiniSettings.update(try fx.mini(folder)) { $0.name(typed, folder: folder) }
+        }
+        let gnome = runs.appendingPathComponent("gnome")
+        try fm.createDirectory(at: gnome, withIntermediateDirectories: true)
+        try MiniSettings.update(gnome) { $0.name("Gnome", folder: "gnome") }
+        try fm.moveItem(at: runs.appendingPathComponent("elodie"), to: runs.appendingPathComponent("Élodie la Druide"))
+        try fm.copyItem(at: runs.appendingPathComponent("raven"), to: runs.appendingPathComponent("raven copy"))
+        try fm.moveItem(at: runs.appendingPathComponent("bard"), to: runs.appendingPathComponent("bard-king"))
+        try fm.moveItem(at: gnome, to: runs.appendingPathComponent("gnome-king"))
+        Gallery.adopt(runs, busy: [])
+        let shown = Dictionary(uniqueKeysWithValues: Gallery.list(runs).map { ($0.name, $0.displayName) })
+        XCTAssertEqual(shown, ["elodie-la-druide": "Élodie la Druide", "raven": "Raven", "raven-copy": "Raven Copy",
+                               "bard-king": "Bard King", "gnome-king": "Gnome King"])
+    }
+
     func testRenameMovesTheFolderAndEveryFileNamedAfterIt() throws {
         let fx = try Fixture(); _ = try fx.mini("dwarf")
         try Gallery.rename(fx.install.runs, from: "dwarf", to: "dwarf-cleric")

@@ -17,6 +17,35 @@ final class RulesTests: XCTestCase {
         XCTAssertTrue(Rules.isValidName(Rules.slug("A Name From A Description, Maybe Long")))
     }
 
+    /// A typed name's folder is never empty (#87): the plain slug made "Élodie" "lodie" and
+    /// "Дракон" nothing at all, which blocked Make.
+    func testFolderNamesForTypedNames() {
+        XCTAssertEqual(Rules.folderName("Élodie"), "elodie")
+        XCTAssertEqual(Rules.folderName("Дракон"), "drakon")
+        XCTAssertEqual(Rules.folderName("Straße"), "strasse")
+        XCTAssertEqual(Rules.folderName("D&D Bard"), "d-d-bard")
+        XCTAssertEqual(Rules.folderName("🐉"), "mini", "nothing to write in plain letters")
+        for typed in ["Élodie", "Дракон", "日本", "Ελένη", "🐉", String(repeating: "Ä", count: 80)] {
+            XCTAssertTrue(Rules.isValidName(Rules.folderName(typed)), typed)
+        }
+    }
+
+    func testShownNames() {
+        XCTAssertEqual(Rules.shownName("  Élodie \n la  Druide "), "Élodie la Druide")
+        XCTAssertNil(Rules.shownName(" \n "))
+        XCTAssertEqual(Rules.shownName(String(repeating: "a", count: 80))?.count, 64)
+        XCTAssertEqual(Rules.shownName(fromFile: "dwarf-cleric"), "Dwarf Cleric", "as before")
+        XCTAssertEqual(Rules.shownName(fromFile: "Élodie"), "Élodie")
+        XCTAssertEqual(Rules.shownName(fromFile: "McGregor_final"), "McGregor final")
+        XCTAssertEqual(Rules.shownName("Élodie", numberedAs: "elodie"), "Élodie")
+        XCTAssertEqual(Rules.shownName("Élodie", numberedAs: "elodie-2"), "Élodie 2")
+        XCTAssertEqual(Rules.shownName("Raven 2", numberedAs: "raven-3"), "Raven 3")
+        XCTAssertEqual(Rules.shownName("Orc 2024", numberedAs: "orc-2024-2"), "Orc 2024 2")
+        XCTAssertEqual(Rules.shownName(carrying: "Élodie 2", to: "elodie"), "Élodie")
+        XCTAssertEqual(Rules.shownName(carrying: "Élodie", to: "elodie-3"), "Élodie 3")
+        XCTAssertNil(Rules.shownName(carrying: "Élodie", to: "orc"))
+    }
+
     func testNumbersPassThroughAsNumbers() throws {
         XCTAssertEqual(try Sizes(height: "38", base: "25", inflate: "0.08").flags(),
                        ["--height", "38.0", "--base", "25.0", "--inflate", "0.08"])
