@@ -383,6 +383,10 @@ public final class JobRunner: @unchecked Sendable {
             let note = String(w[r.upperBound...])
             if !notes.contains(note) { notes.append(note) }  // the job log and prep.log can both carry it
         }
+        // Print prep runs as its own program, so why it failed is only in its log.
+        if code != 0, problem == nil, let r = thisRun.range(of: Prep.failure, options: .backwards) {
+            problem = String(thisRun[r.upperBound...].prefix { $0 != "\n" })
+        }
         let finished: JobStatus? = lock.withLock {
             current?.running = false
             current?.exit = code

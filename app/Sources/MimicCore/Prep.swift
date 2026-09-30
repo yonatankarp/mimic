@@ -147,6 +147,10 @@ public enum Prep {
         // so one can't count as part of its longest side. Not a percentile of the surface, like
         // the ground: that trims thin tips, and a teapot's spouts came out 90 mm long, not 80.
         let extent = o.fitLongest || o.groundBottom ? mesh.mainBounds() : nil
+        // A flat drawing can come back from the engine as a flat sheet (a cartoon gave TRELLIS.2 a
+        // square 80 x 80 x 0.1 mm), which prep would otherwise size and write like any mini.
+        let e = extent ?? mesh.mainBounds(), size = e.hi - e.lo
+        if size.min() < Prep.flat * size.max() { throw PrepError(Prep.flatProblem) }
         let span: Float
         if o.fitLongest, let e = extent { span = max(e.hi.x - e.lo.x, e.hi.y - e.lo.y, e.hi.z - ground0) } else { span = top - ground0 }
         let scale = height / span
@@ -238,6 +242,11 @@ public enum Prep {
     static let partLength: Float = 0.1
     /// Marks the warning for a part left out; what follows it is said to the person as it is.
     public static let partWarning = "mini_prep: WARNING part: "
+    /// Marks why prep failed; what follows it is said to the person as it is.
+    public static let failure = "mini_prep: FAILED: "
+    /// A model whose thinnest side is under this share of its longest is a flat sheet, not a mini.
+    static let flat: Float = 0.02
+    static let flatProblem = "The 3D model came out flat, like a sheet of paper. For a flat drawing, turn on \"Turn it into a grey sculpt first\" (--restyle) and make it again."
 
     static func longest(_ p: Mesh.Piece) -> Float {
         let e = p.hi - p.lo

@@ -489,6 +489,16 @@ final class PrepTests: XCTestCase {
         XCTAssertGreaterThan(hi.y - lo.y, 2 * (hi.z - lo.z), "still lying down")
     }
 
+    /// A flat sheet from the engine (what a flat cartoon can come back as) fails, not a finished mini.
+    func testAFlatSheetFails() throws {
+        var quad = Mesh()
+        quad.positions = [[-1, 0, 0], [1, 0, 0], [1, 0, 2], [-1, 0, 2]]
+        quad.triangles = [[0, 1, 2], [0, 2, 3]]
+        XCTAssertThrowsError(try prep(["--fit", "longest", "--ground", "bottom"], mesh: quad)) {
+            XCTAssertTrue("\($0)".contains("came out flat"), "\($0)")
+        }
+    }
+
     /// Existing minis and jobs are untouched: no flags means exactly what the explicit
     /// character flags make, byte for byte.
     func testCharacterDefaultsAreTheExplicitDefaults() throws {
