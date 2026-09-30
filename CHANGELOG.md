@@ -2,6 +2,11 @@
 
 What's new in each version of Mimic. The release workflow publishes a version's section here as its release notes, so write it for people who use Mimic, not for developers.
 
+## 0.6.1
+
+### Fixed
+- **Resize and Try Again no longer turn older minis round.** A mini made before 0.4.0 (with Pixal3D, before Mimic recorded the model) came out facing backwards after a Resize in 0.6.0, and Try Again remade it with TRELLIS.2. Such minis are Pixal3D's again; Resize one that was turned to put it right.
+
 ## 0.6.0
 
 ### New
