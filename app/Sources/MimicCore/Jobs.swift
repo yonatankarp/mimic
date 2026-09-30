@@ -238,12 +238,34 @@ public final class JobRunner: @unchecked Sendable {
         return true
     }
 
-    /// Moves a waiting job `by` places, earlier (negative) or later.
-    public func move(_ name: String, by offset: Int) throws {
+    /// Moves a waiting job `by` places, earlier (negative) or later. False when it isn't waiting.
+    @discardableResult
+    public func move(_ name: String, by offset: Int) throws -> Bool {
         try queue.locked { entries in
-            guard let i = entries.firstIndex(where: { $0.name == name }) else { return }
+            guard let i = entries.firstIndex(where: { $0.name == name }) else { return false }
             let to = max(0, min(entries.count - 1, i + offset))
             entries.insert(entries.remove(at: i), at: to)
+            return true
+        }
+    }
+
+    /// Moves a waiting job to `place` in the queue (#72), under the queue's lock like every
+    /// change, so two Mimics can't fight over the order. One mini at a time, and only waiting
+    /// ones: the one being made is never stopped by a move, so the front is the next to start.
+    /// False when it isn't waiting.
+    @discardableResult
+    public func move(_ name: String, to place: QueuePlace) throws -> Bool {
+        try queue.locked { entries in
+            guard let i = entries.firstIndex(where: { $0.name == name }) else { return false }
+            let last = entries.count - 1
+            let to: Int
+            switch place {
+            case .front: to = 0
+            case .end: to = last
+            case .position(let n): to = max(0, min(last, n - 1))
+            }
+            entries.insert(entries.remove(at: i), at: to)
+            return true
         }
     }
 
