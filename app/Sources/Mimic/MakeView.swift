@@ -600,12 +600,14 @@ struct SizeSection: View {
                 Picker(selection: bind(\.scale, { $0.setScale($1) })) {
                     Text("28 mm").tag(28)
                     Text("32 mm · most common").tag(32)
+                    Text("35 mm · heroic").tag(35)
                     Text("54 mm").tag(54)
+                    Text("75 mm").tag(75)
                 } label: {
                     Text("Scale")
                     Text("Pick the scale your other minis use. At 32 mm, an average 1.8 m human stands 32 mm tall.")
                 }
-                .pickerStyle(.segmented)
+                .pickerStyle(.menu)  // five choices don't fit a segmented row in the smallest column
                 .help("How tall an average human is on the table")
             }
             if !card.note.isEmpty {
