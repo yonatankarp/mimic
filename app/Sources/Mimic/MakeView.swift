@@ -548,7 +548,8 @@ struct SizeSection: View {
                 LabeledContent {
                     HStack(spacing: 4) {
                         TextField("", text: bind(\.realHeight, { $0.setRealHeight($1) }), prompt: Text("1.80"))
-                            .labelsHidden().frame(width: 64).multilineTextAlignment(.trailing)
+                            .labelsHidden().accessibilityLabel("How tall is the character?")
+                            .frame(width: 64).multilineTextAlignment(.trailing)
                             .help("How tall the character would be in real life, in metres.")
                         Text("m")
                     }
@@ -596,6 +597,7 @@ struct SizeSection: View {
                     VStack(alignment: .leading, spacing: 4) {
                         LabeledContent("Variation number") {
                             TextField("", value: seed, format: .number.grouping(.never)).labelsHidden().frame(width: 90)
+                                .accessibilityLabel("Variation number")
                         }
                         Text("Same description + same number = same drawing. Change it for a different take.")
                             .font(.callout).foregroundStyle(.secondary)
@@ -624,14 +626,14 @@ struct SizeSection: View {
             LabeledContent {
                 HStack(spacing: 4) {
                     TextField("", value: bind(get, set), format: .number.precision(.fractionLength(0...decimals)).grouping(.never))
-                        .labelsHidden().frame(width: 56).multilineTextAlignment(.trailing)
+                        .labelsHidden().accessibilityLabel(label).frame(width: 56).multilineTextAlignment(.trailing)
                     Text(unit)
                 }
             } label: {
                 Text(label)
                 if let hint { Text(hint) }
             }
-            Slider(value: bind(get, set), in: range).labelsHidden()
+            Slider(value: bind(get, set), in: range).labelsHidden().accessibilityLabel(label)
         }
     }
 }

@@ -83,7 +83,7 @@ struct MiniCommands: Commands {
                 .keyboardShortcut("n", modifiers: [.command, .shift])
                 .disabled(!free || !model.setup.installed)
             Divider()
-            Button("Move to Trash…") { model.trashing = mini }
+            Button("Move to Trash") { if let mini { model.askToTrash(mini) } }
                 .keyboardShortcut(.delete)
                 .disabled(mini == nil || !free)
         }
@@ -114,11 +114,6 @@ struct ContentView: View {
                                            description: Text("Pick a mini on the left."))
                 }
             }
-            .overlay { EnlargedPreview() }
-            .animation(.easeOut(duration: 0.15), value: model.enlarged)
-            // Another mini, or a sheet from the toolbar or a menu, takes over from it.
-            .onChange(of: model.selection) { model.enlarged = nil }
-            .onChange(of: model.sheet) { if model.sheet != nil { model.enlarged = nil } }
         } else {
             SetupView()
         }
