@@ -73,8 +73,6 @@ struct MiniViewer: View {
             }
         }
         .animation(reduceMotion ? nil : .easeOut(duration: 0.4), value: hintSeen)
-        // View → Face Front (⌘0) calls this, whatever has the keyboard.
-        .focusedSceneValue(\.faceFront, mini == nil ? nil : FaceFront(file: "\(stl.path) \(version)", run: front))
         .overlay {
             if failed {
                 Text("Couldn't show this mini. Try Show in Finder.").foregroundStyle(.secondary)
@@ -307,21 +305,6 @@ struct MiniViewer: View {
         entity.name = "mini"
         return (entity, size)
     }
-}
-
-extension FocusedValues {
-    /// Turns the mini on show back to face you, for View → Face Front (`faceFront?()`); nil with
-    /// none on show.
-    @Entry var faceFront: FaceFront?
-}
-
-/// Face Front, for the menu. Equal for the same print file, so the menus aren't redone on every
-/// frame of a drag, which makes a new closure each time.
-struct FaceFront: Equatable {
-    let file: String
-    let run: () -> Void
-    func callAsFunction() { run() }
-    static func == (a: Self, b: Self) -> Bool { a.file == b.file }
 }
 
 /// A print file's size in millimetres, base included.
