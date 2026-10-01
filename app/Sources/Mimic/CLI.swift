@@ -28,6 +28,9 @@ enum CLI {
         let power = Power.holds(suite: defaults == .standard ? nil : "com.mimic.app")
         let timings = Timings.standard()
         var rest = Array(args.dropFirst())
+        // --json on a listing (#130): taken out first, so each listing reads its arguments as before.
+        let json = ["list", "projects", "queue", "models", "info"].contains(args.first) && rest.contains("--json")
+        rest.removeAll { $0 == "--json" && json }
         switch args.first {
         case "_names":
             // For the completion scripts (not for people, so not in the usage): a name a line.
@@ -41,6 +44,7 @@ enum CLI {
             JobRunner(install: install).cleanUpLeftovers()
             let waiting = Set(JobQueue(folder: install.queue).entries().map(\.name))
             let minis = Gallery.list(install.runs), projects = Gallery.projects(install.runs)
+            if json { return printJSON(minis.map { ListingJSON.MiniRow($0, waiting: waiting) }) }
             func row(_ m: Mini, _ indent: String) {
                 let state = MiniState(m, waiting: waiting).rawValue
                 print("\(indent)\(m.name)\t\(state)\t\(Mini.listDate(m.created))\t\(m.displayName)")
@@ -58,6 +62,7 @@ enum CLI {
         case "projects":
             guard rest.isEmpty else { return fail(usage) }
             let minis = Gallery.list(install.runs)
+            if json { return printJSON(Gallery.projects(install.runs).map { ListingJSON.Project($0, minis: minis) }) }
             for p in Gallery.projects(install.runs) {
                 let n = minis.filter { $0.project == p }.count
                 print("\(p)\t\(n) mini\(n == 1 ? "" : "s")")
@@ -88,6 +93,9 @@ enum CLI {
         case "models":
             // The app's choice, marked; downloading one is the app's job, where it shows progress.
             let selected = EngineDownload.selected(defaults: defaults)
+            if json {
+                return printJSON(EngineDownload.catalogue.map { ListingJSON.Model($0, downloaded: $0.complete(in: install), selected: $0.id == selected.id) })
+            }
             for m in EngineDownload.catalogue {
                 let state = m.complete(in: install) ? "downloaded" : "not downloaded"
                 print("\(m.id == selected.id ? "*" : " ") \(m.id)\t\(m.name)\t\(Checks.gigabytes(m.bytes)) GB\t\(state)\t\(m.described())")
@@ -133,7 +141,7 @@ enum CLI {
                 return 0
             }
             guard rest.isEmpty else { return fail(usage) }
-            return listQueue(jobs, history: timings.load())
+            return listQueue(jobs, history: timings.load(), json: json)
         case "make", "resize", "retry", "make-another", "import":
             // Resize All: `mimic resize --project <project> [options]`, every mini in it.
             let all = args[0] == "resize" && rest.first == "--project"
@@ -308,7 +316,9 @@ enum CLI {
             let minis = Gallery.list(install.runs)
             guard let m = minis.first(where: { $0.name == mini(rest[0]) }) else { return fail(notFound(rest[0])) }
             let waiting = Set(JobQueue(folder: install.queue).entries().map(\.name))
-            MiniInfo(m, in: minis, waiting: waiting).lines.forEach { print($0) }
+            let info = MiniInfo(m, in: minis, waiting: waiting)
+            if json { return printJSON(ListingJSON.Info(info, waiting: waiting)) }
+            info.lines.forEach { print($0) }
             return 0
         case "rename":
             guard rest.count == 3, !rest[0].hasPrefix("-"), rest[1] == "--to" else { return fail(usage) }
@@ -396,6 +406,11 @@ enum CLI {
     private static func find(_ text: String, _ install: Install) -> Mini? {
         let name = mini(text)
         return Gallery.list(install.runs).first { $0.name == name }
+    }
+
+    private static func printJSON<T: Encodable>(_ value: T) -> Int32 {
+        do { print(try ListingJSON.text(value)) } catch { return fail("\(error)") }
+        return 0
     }
 
     private static func notFound(_ text: String) -> String { "There's no mini called \(text). See them all: mimic list" }
@@ -547,8 +562,13 @@ enum CLI {
     }
 
     /// `mimic queue`: what's running and what's waiting, with times.
-    private static func listQueue(_ jobs: JobRunner, history: [TimingRecord]) -> Int32 {
+    private static func listQueue(_ jobs: JobRunner, history: [TimingRecord], json: Bool = false) -> Int32 {
         let running = jobs.running(), queue = jobs.queue.entries()
+        if json {
+            let left = running.map { jobs.estimate($0.name, $0.kind, history: history).left($0) } ?? 0
+            return printJSON(ListingJSON.Queue(running: running, left: left, held: jobs.hold(),
+                                               waiting: jobs.queueTimes(queue, running: running, history: history)))
+        }
         if let r = running {
             let left = jobs.estimate(r.name, r.kind, history: history).left(r)
             let importing = Gallery.folder(jobs.install.runs, r.name).map(JobRunner.importing) ?? false

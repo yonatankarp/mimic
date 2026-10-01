@@ -14,7 +14,7 @@ final class CompletionsTests: XCTestCase {
         let commands = matches(#"^\s+mimic ([a-z][a-z-]*)"#)
         let options = matches(#"(--[a-z][a-z-]*)"#)
         XCTAssertTrue(commands.isSuperset(of: ["make", "import", "stop", "queue", "project", "completions"]), "\(commands)")
-        XCTAssertTrue(options.isSuperset(of: ["--height", "--wait", "--trash-minis", "--version"]), "\(options)")
+        XCTAssertTrue(options.isSuperset(of: ["--height", "--json", "--wait", "--trash-minis", "--version"]), "\(options)")
         for shell in Completions.Shell.allCases {
             let script = Completions.script(shell)
             for c in commands { XCTAssertTrue(script.contains(c), "\(shell) leaves out \(c)") }
@@ -48,6 +48,8 @@ final class CompletionsTests: XCTestCase {
         XCTAssertEqual(option("queue move", "--to"), .choice(["front", "end"]))
         XCTAssertEqual(option("rename", "--to"), .text)
         XCTAssertEqual(option("make", "--model"), .choice(EngineDownload.catalogue.map(\.id)))
+        for c in ["list", "projects", "queue", "models", "info"] { XCTAssertEqual(option(c, "--json"), .flag, c) }
+        XCTAssertNil(option("make", "--json"), "only the listings print JSON")
         XCTAssertEqual(Completions.parse().top, ["--version", "--help"])
     }
 
