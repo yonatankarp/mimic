@@ -144,8 +144,10 @@ public enum Prep {
         public var lines: [String]
     }
 
-    /// Makes the print file and returns what it printed. Renders are separate (`Render`).
-    public static func run(_ o: PrepOptions, log: (String) -> Void = { _ in }) throws -> Result {
+    /// Makes the print file and returns what it printed. With `views`, the previews beside it
+    /// (`Render.views`) are drawn first: a resize stopped or failing while they're drawn keeps
+    /// the old print file, which its settings still give the size of (#172).
+    public static func run(_ o: PrepOptions, views: Bool = false, log: (String) -> Void = { _ in }) throws -> Result {
         var clock = Date()
         func lap(_ what: String) { log(String(format: "prep: %@ %.1f s", what, Date().timeIntervalSince(clock))); clock = Date() }
 
@@ -270,6 +272,10 @@ public enum Prep {
             lap("trimmed to \(out.triangles.count) triangles")
         }
 
+        if views {
+            try Render.views(out, besides: URL(fileURLWithPath: o.stl))
+            lap("drew the previews")
+        }
         try STL.write(out, to: URL(fileURLWithPath: o.stl))
         lap("written")
 

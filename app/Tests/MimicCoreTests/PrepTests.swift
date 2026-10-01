@@ -298,6 +298,29 @@ final class PrepTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: side), "the old side view stayed beside left and right")
     }
 
+    /// The previews are drawn before the print file is put in place (#172): when drawing them
+    /// fails, or a resize is stopped meanwhile, the old print file stays, the size its settings say.
+    func testAResizeWhosePreviewsFailKeepsTheOldPrintFile() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("prep-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let glb = dir.appendingPathComponent("fixture.glb"), stl = dir.appendingPathComponent("out.stl")
+        try Self.glb(Self.fixture(), translation: [0.8, -0.5, 0]).write(to: glb)
+        try Data("old".utf8).write(to: stl)
+        // A folder where the front view goes: it can't be written.
+        let front = dir.appendingPathComponent("out_front.png")
+        try FileManager.default.createDirectory(at: front, withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: front.appendingPathComponent("keep").path, contents: Data())
+        let options = try PrepOptions.parse([glb.path, stl.path, "--faces", "20000"])
+        XCTAssertThrowsError(try Prep.run(options, views: true))
+        XCTAssertEqual(try Data(contentsOf: stl), Data("old".utf8), "the new print file went in without its previews")
+        // Drawn, they go in with it.
+        try FileManager.default.removeItem(at: front)
+        _ = try Prep.run(options, views: true)
+        XCTAssertTrue(try Printed(stl).watertight)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: front.path))
+    }
+
     /// A square base is its size along each side; a hex is its size across the flat sides, which
     /// face the figure's front and back (±y), and 2/√3 of it across the corners (±x). Measured
     /// through the middle of the base, below the feet and the rounded top edge.
