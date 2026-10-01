@@ -88,6 +88,8 @@ final class ReportTests: XCTestCase {
         XCTAssertEqual(Report.scrub("hf_ABCDEFGHIJKLMNOPQRSTUV", home: home), "[key removed]")
         XCTAssertEqual(Report.scrub(#"{"api_key": "hunter2hunter2"}"#, home: home), #"{"api_key": "[removed]"}"#)
         XCTAssertEqual(Report.scrub("password=letmein", home: home), "password=[removed]")
+        XCTAssertEqual(Report.scrub("AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMIK7MDENG", home: home), "AWS_SECRET_ACCESS_KEY=[removed]")
+        XCTAssertEqual(Report.scrub("client_secret: abc123 refresh_token=xyz", home: home), "client_secret: [removed] refresh_token=[removed]")
         XCTAssertEqual(Report.scrub("/Users/alice/x and /Users/alice", home: home), "~/x and ~")
         XCTAssertEqual(Report.scrub(#"{"failed": "\/Users\/alice\/x"}"#, home: home), #"{"failed": "~\/x"}"#)
         XCTAssertEqual(Report.scrub("x-api-key: sk-ant-abcdefghijkl", home: home), "x-api-key: [key removed]")

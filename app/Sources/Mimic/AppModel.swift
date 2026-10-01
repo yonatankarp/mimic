@@ -775,12 +775,12 @@ final class AppModel {
     func reportProblem(_ mini: Mini? = nil) {
         let alert = NSAlert()
         alert.messageText = mini.map { "Report a problem with “\($0.displayName)”?" } ?? "Report a problem?"
-        let what = mini == nil ? "what Mimic noted while working" : "what Mimic noted while making this mini, its settings"
-        alert.informativeText = "Mimic puts \(what), and which Mac and version of Mimic this is, into one file, "
+        let what = mini == nil ? "its notes on what happened" : "its notes on making this mini, the mini's settings"
+        alert.informativeText = "Mimic puts \(what), and which Mac and version this is, into one file, "
             + "with keys and passwords taken out. Then it shows you the file and opens a form on GitHub to attach it to."
         alert.addButton(withTitle: "Make Report")
         alert.addButton(withTitle: "Cancel")
-        let hasPicture = mini.map { $0.source ?? $0.upload } != nil
+        let hasPicture = mini.flatMap { $0.source ?? $0.upload } != nil
         if hasPicture {
             alert.showsSuppressionButton = true
             alert.suppressionButton?.title = "Include the picture (the issue is public)"
