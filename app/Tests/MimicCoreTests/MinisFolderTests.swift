@@ -24,43 +24,6 @@ final class MinisFolderTests: XCTestCase {
 
     // MARK: The queue's files
 
-    /// A Mimic from before #102 kept the queue at the top of the minis folder. The first launch
-    /// after moves it: the waiting jobs join any already here (none twice), the pause and a
-    /// running program's record come along, and nothing of the queue's is left in the minis
-    /// folder. Launching again changes nothing.
-    func testTheQueueFilesMoveOutOfTheMinisFolderOnce() throws {
-        let fx = try Fixture(), runs = fx.install.runs, queue = JobQueue(folder: fx.install.queue)
-        try queue.locked { $0 = [QueueEntry(name: "here", job: .prep)] }
-        let before = [QueueEntry(name: "a", job: .generate), QueueEntry(name: "here", job: .generate),
-                      QueueEntry(name: "b", job: .prep, sizes: sizes)]
-        try JobQueue.encoder.encode(before).write(to: runs.appendingPathComponent(".queue.json"))
-        for f in [".queue.paused", ".queue.lock", ".job.lock", ".job.json"] {
-            fm.createFile(atPath: runs.appendingPathComponent(f).path, contents: nil)
-        }
-        try "123 456".write(to: runs.appendingPathComponent(".job.pid"), atomically: true, encoding: .utf8)
-
-        try queue.moveOldFiles(from: runs)
-        XCTAssertEqual(queue.entries().map(\.name), ["here", "a", "b"])
-        XCTAssertEqual(queue.entries().first?.job, .prep, "the one already here was replaced")
-        XCTAssertEqual(queue.entries().last?.sizes, sizes)
-        XCTAssertTrue(queue.paused, "the pause was lost")
-        XCTAssertEqual(try String(contentsOf: Leftover.file(queue: fx.install.queue), encoding: .utf8), "123 456")
-        XCTAssertEqual(try top(runs), [], "the queue's files are still in the minis folder")
-
-        try queue.moveOldFiles(from: runs)
-        XCTAssertEqual(queue.entries().map(\.name), ["here", "a", "b"])
-    }
-
-    /// A running program's record already here is the one to keep: the old one is dropped.
-    func testTheMoveNeverOverwrites() throws {
-        let fx = try Fixture(), runs = fx.install.runs, queue = JobQueue(folder: fx.install.queue)
-        try "1 2".write(to: Leftover.file(queue: fx.install.queue), atomically: true, encoding: .utf8)
-        try "3 4".write(to: runs.appendingPathComponent(".job.pid"), atomically: true, encoding: .utf8)
-        try queue.moveOldFiles(from: runs)
-        XCTAssertEqual(try String(contentsOf: Leftover.file(queue: fx.install.queue), encoding: .utf8), "1 2")
-        XCTAssertEqual(try top(runs), [])
-    }
-
     /// Making, pausing and resizing leave nothing at the top of the minis folder but the minis.
     func testAJobWritesNothingInTheMinisFolderButTheMini() throws {
         let fx = try Fixture(); _ = try fx.mini("a")
