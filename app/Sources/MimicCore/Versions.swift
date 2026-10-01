@@ -54,8 +54,20 @@ extension JobRunner {
                              kind: settings.kind ?? .character, model: model, project: project,
                              versionOf: settings.versionOf ?? name, cartoon: settings.cartoon == true,
                              shown: settings.shownName(folder: name).flatMap { Rules.shownName(carrying: $0, to: new) },
-                             shapeSeed: shapeSeed, drawn: drawn)
+                             shapeSeed: shapeSeed, drawn: drawn, sides: Self.sidePictures(folder, settings))
         return (new, ahead)
+    }
+
+    /// The pictures of the back and sides the mini in `folder` was given (#66), as it keeps
+    /// them, to make it again from: those still there.
+    public static func sidePictures(_ folder: URL, _ settings: MiniSettings) -> [PictureSide: URL] {
+        guard settings.source == .image else { return [:] }
+        var found: [PictureSide: URL] = [:]
+        for side in settings.sides ?? [] {
+            let url = folder.appendingPathComponent(side.upload)
+            if FileManager.default.fileExists(atPath: url.path) { found[side] = url }
+        }
+        return found
     }
 
     /// What a mini was made from, to make it again: nil-free or `nothingToRetry`. A picture mini
@@ -131,6 +143,8 @@ public struct MakeForm: Equatable, Sendable {
     /// Started from `picture`, or from a description.
     public var fromPicture: Bool
     public var picture: URL?
+    /// Pictures of the back and sides, besides `picture` (#66).
+    public var sides: [PictureSide: URL] = [:]
     /// What the person typed, and the AI helper's version of it when that was used.
     public var description = ""
     public var improved: String?
@@ -169,6 +183,7 @@ public struct MakeForm: Equatable, Sendable {
         switch source {
         case .image(let url):
             form.picture = url; form.restyle = restyle
+            form.sides = JobRunner.sidePictures(mini.folder, s)
         case .description(let text, let original):
             form.fromPicture = false; form.picture = nil
             form.description = original ?? text; form.improved = original == nil ? nil : text

@@ -32,15 +32,23 @@ public enum Engine {
     /// The picture is always cut out already, so neither pipeline removes a background.
     /// - Pixal3D: `--sv-image` (the single-view weights need it), the gauge camera and gss 10.
     /// - TRELLIS.2: the plain one-picture pipeline at its own defaults; gss 10 was tuned on
-    ///   Pixal3D only.
-    public static func arguments(model: EngineModel, image: URL, output: URL, models: URL, seed: Int) -> [String] {
+    ///   Pixal3D only. With `views`, a folder of several pictures of the character (#66), its
+    ///   multi-image mode instead, at its own defaults too: it reads them in file-name order.
+    public static func arguments(model: EngineModel, image: URL, output: URL, models: URL, seed: Int, views: URL? = nil) -> [String] {
         switch model.family {
         case .pixal3dSingleView:
             ["--sv-image", image.path, "--fov", fov, "--models", models.path, "--seed", String(seed),
              "--res", "1024", "--pixal3d-weights", "sv", "--gss", gss, output.path]
         case .trellis2:
-            ["--image", image.path, "--models", models.path, "--seed", String(seed), "--res", "1024", "--output", output.path]
+            (views.map { ["--trellis2-mv", $0.path] } ?? ["--image", image.path])
+                + ["--models", models.path, "--seed", String(seed), "--res", "1024", "--output", output.path]
         }
+    }
+
+    /// Where the pictures for the multi-image mode are put together, beside the 3D model, as
+    /// trellis-cli keeps its single-view staging in `model.svviews`.
+    static func views(_ output: URL) -> URL {
+        output.deletingLastPathComponent().appendingPathComponent("model.mvviews")
     }
 
     public static func environment(_ base: [String: String]) -> [String: String] {
@@ -157,22 +165,45 @@ public enum Engine {
     /// Cuts the picture out if it needs it, then runs trellis-cli from `engine` with `model`,
     /// writing its output (minus the noise) through `say`. Throws with a sentence for the log on
     /// failure. PIXAL3D_STEPS applies to every flow of either pipeline, so the same guard holds.
+    ///
+    /// `sides`: pictures of the back and sides besides `source`, the front (#66). Each is cut out
+    /// the same way, and the front and they go to TRELLIS.2's multi-image mode, front first.
     public static func make(source: URL, output: URL, seed: Int, engine: URL, model: EngineModel,
-                            environment: [String: String], say: (String) -> Void) throws {
+                            sides: [(PictureSide, URL)] = [], environment: [String: String], say: (String) -> Void) throws {
         let source = source.standardizedFileURL, output = output.standardizedFileURL
         let cli = engine.appendingPathComponent("trellis-cli")
-        guard FileManager.default.fileExists(atPath: source.path) else { throw Failure("The picture is missing: \(source.path)") }
+        for picture in [source] + sides.map(\.1) where !FileManager.default.fileExists(atPath: picture.path) {
+            throw Failure("The picture is missing: \(picture.path)")
+        }
         guard FileManager.default.isExecutableFile(atPath: cli.path) else {
             throw Failure("The 3D engine is missing (\(cli.path)). Open Mimic's Settings and press Repair next to the 3D engine.")
         }
-        var image = source
-        if try !isCutOut(source) {
-            say("[pixal3d] cutting the character out with Apple Vision")
-            image = try cutOut(source)
-            say("[pixal3d] cut out: \(image.path)")
+        if !sides.isEmpty && !model.multiView { throw Failure(RequestError.oneSideOnly(model.name).description) }
+        func cutOutIfNeeded(_ picture: URL) throws -> URL {
+            guard try !isCutOut(picture) else { return picture }
+            say("[pixal3d] cutting the character out of \(picture.lastPathComponent) with Apple Vision")
+            let cut = try cutOut(picture)
+            say("[pixal3d] cut out: \(cut.path)")
+            return cut
         }
-        say("[pixal3d] model=\(model.id) seed=\(seed)\(model.family == .pixal3dSingleView ? " gss=\(gss)" : "") steps=\(steps)")
+        let image = try cutOutIfNeeded(source)
         try FileManager.default.createDirectory(at: output.deletingLastPathComponent(), withIntermediateDirectories: true)
+        var views: URL?
+        if !sides.isEmpty {
+            // Numbered, since the engine reads them in name order: the front, then the sides in
+            // PictureSide's order. Made afresh, so a picture left from a run before can't join in.
+            let folder = Self.views(output)
+            try? FileManager.default.removeItem(at: folder)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            var pictures = [("front", image)]
+            for (side, picture) in sides { pictures.append((side.rawValue, try cutOutIfNeeded(picture))) }
+            for (i, (name, picture)) in pictures.enumerated() {
+                try FileManager.default.copyItem(at: picture, to: folder.appendingPathComponent("\(i + 1)-\(name).png"))
+            }
+            views = folder
+        }
+        say("[pixal3d] model=\(model.id) seed=\(seed)\(model.family == .pixal3dSingleView ? " gss=\(gss)" : "")"
+            + (views == nil ? " steps=\(steps)" : " pictures=\(sides.count + 1)"))
 
         var fds: [Int32] = [0, 0]
         guard pipe(&fds) == 0 else { throw Failure("Couldn't start the 3D engine (no pipe).") }
@@ -181,7 +212,7 @@ public enum Engine {
         do {
             process = try GroupProcess(executable: cli.path,
                                        arguments: arguments(model: model, image: image, output: output,
-                                                            models: engine.appendingPathComponent("models/\(model.id)"), seed: seed),
+                                                            models: engine.appendingPathComponent("models/\(model.id)"), seed: seed, views: views),
                                        environment: Self.environment(environment),
                                        workingDirectory: engine.path, output: (fds[1], fds[0]), newSession: false)
         } catch {

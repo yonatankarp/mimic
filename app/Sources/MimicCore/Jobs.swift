@@ -133,11 +133,14 @@ public final class JobRunner: @unchecked Sendable {
     /// (the running one included). `versionOf` is the first of its versions, for Make Another Version.
     /// `cartoon` is only recorded: `model` and `restyle` are what make it one.
     /// `shown` is the name as typed ("Élodie"), shown for it; `name` is its folder's. New 3D Shape
-    /// passes the picture step 1 made (`drawn`), so it isn't made again, and the 3D engine's own seed (`shapeSeed`).
+    /// passes the picture step 1 made (`drawn`), so it isn't made again, and the 3D engine's own seed (`shapeSeed`);
+    /// the pictures it made of `sides` beside it are kept too. `sides`: pictures of the back and
+    /// sides besides `picture`, the front (#66), for a model that can use them.
     @discardableResult
     public func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes,
                      kind: MiniKind = .character, model: EngineModel, project: String? = nil, versionOf: String? = nil,
-                     cartoon: Bool = false, shown: String? = nil, shapeSeed: Int? = nil, drawn: URL? = nil) throws -> Int? {
+                     cartoon: Bool = false, shown: String? = nil, shapeSeed: Int? = nil, drawn: URL? = nil,
+                     sides: [PictureSide: URL] = [:]) throws -> Int? {
         guard Rules.isValidName(name) else { throw RequestError.badName }
         if let project, !Gallery.projects(install.runs).contains(project) { throw RequestError.projectNotFound }
         _ = try sizes.flags()
@@ -152,8 +155,18 @@ public final class JobRunner: @unchecked Sendable {
             tidied = png
             settings.source = .image
         case .description(let text, let original):
+            if !sides.isEmpty { throw RequestError.sidesNeedAPicture }
             settings.source = .desc; settings.desc = text; settings.descOriginal = original
         }
+        if !sides.isEmpty && !model.multiView { throw RequestError.oneSideOnly(model.name) }
+        var tidiedSides: [(PictureSide, Data)] = []
+        for side in PictureSide.allCases {
+            guard let url = sides[side] else { continue }
+            guard FileManager.default.isReadableFile(atPath: url.path) else { throw RequestError.noPicture }
+            guard let png = try? Engine.tidied(url) else { throw RequestError.unreadablePicture }
+            tidiedSides.append((side, png))
+        }
+        settings.sides = tidiedSides.isEmpty ? nil : tidiedSides.map(\.0)
         settings.restyle = restyle; settings.seed = seed; settings.requested = sizes
         settings.kind = kind == .object ? .object : nil
         settings.model = model.id
@@ -183,15 +196,25 @@ public final class JobRunner: @unchecked Sendable {
                     s.name(shown, folder: name)  // always set, like kind
                     s.shapeSeed = shapeSeed  // always set, as `kind` is
                     s.created = Date()  // a failed attempt's folder made again is a new mini
+                    s.sides = settings.sides  // always set, like kind
                 }
-                // A failed attempt's picture is from what it was asked for then: made again from
-                // this one's, since the plan starts at the 3D step whenever it's there (#79).
-                for f in ["source.png", "source__matted.png"] { try? fm.removeItem(at: folder.appendingPathComponent(f)) }
+                // A failed attempt's pictures are from what it was asked for then: made again from
+                // this one's, since the plan starts at the 3D step whenever they're there (#79).
+                for f in ["source.png", "source__matted.png"] + PictureSide.allCases.flatMap({
+                    [$0.source, $0.source.replacingOccurrences(of: ".png", with: "__matted.png"), $0.upload]
+                }) { try? fm.removeItem(at: folder.appendingPathComponent(f)) }
                 // Before it joins the queue, which may start it at once: then step 1 is skipped.
-                if let drawn { try fm.copyItem(at: drawn, to: folder.appendingPathComponent("source.png")) }
+                if let drawn {
+                    try fm.copyItem(at: drawn, to: folder.appendingPathComponent("source.png"))
+                    for side in settings.sides ?? [] {
+                        let made = drawn.deletingLastPathComponent().appendingPathComponent(side.source)
+                        if fm.fileExists(atPath: made.path) { try fm.copyItem(at: made, to: folder.appendingPathComponent(side.source)) }
+                    }
+                }
                 // Upright, a sensible size and PNG, tidied above (upload.img is its name from
                 // before, when it was a copy of whatever was chosen).
                 try tidied?.write(to: folder.appendingPathComponent("upload.img"), options: .atomic)
+                for (side, png) in tidiedSides { try png.write(to: folder.appendingPathComponent(side.upload), options: .atomic) }
             } catch {
                 if created { try? fm.removeItem(at: folder) }
                 throw error
@@ -433,7 +456,7 @@ public final class JobRunner: @unchecked Sendable {
     private func execute(_ plan: [(number: Int, step: Step)], entry: QueueEntry, folder: URL, log: URL, settings: MiniSettings) {
         let kind = entry.job
         var code: Int32 = 0
-        var finished: Set<Int> = []
+        var done = 0  // runs of the plan finished
         var problem: String?
         var took: [Int: TimeInterval] = [:]
         // prep.log is appended to on every run, so only this run's part says whether it's fragile.
@@ -452,18 +475,19 @@ public final class JobRunner: @unchecked Sendable {
                 code = 1
                 problem = String(describing: error)
             }
-            took[number] = Date().timeIntervalSince(began)
+            took[number, default: 0] += Date().timeIntervalSince(began)  // step 1 is one run per picture
             if code != 0 { break }
-            finished.insert(number)
+            done += 1
         }
         let (canceled, kept) = lock.withLock { (current?.canceled == true, keepWork) }
         if canceled {
             code = code == 0 ? -15 : code
             if kept {
                 // What the step it was on had written may be half written, and the next run
-                // skips a step whose file is there: the picture, or the 3D shape.
-                for (number, file) in [(1, "source.png"), (2, "model.glb")] where kind == .generate && plan.contains(where: { $0.number == number }) && !finished.contains(number) {
-                    try? FileManager.default.removeItem(at: folder.appendingPathComponent(file))
+                // skips a step whose file is there: a picture, or the 3D shape. Step 1 is one run
+                // per picture, so the pictures it had finished are kept.
+                for (number, step) in plan.dropFirst(done) where kind == .generate {
+                    if let file = number == 2 ? folder.appendingPathComponent("model.glb") : step.makes { try? FileManager.default.removeItem(at: file) }
                 }
             } else if kind == .generate || Self.importing(folder) {
                 try? trash(folder)  // a half-made new mini (or import) is clutter, not a result

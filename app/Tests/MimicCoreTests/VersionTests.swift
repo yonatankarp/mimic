@@ -191,13 +191,15 @@ final class VersionTests: XCTestCase {
                       model: pixal, project: "Tiefling Party", shown: "Élodie")
         try jobs.make(name: "toon", picture: .image(picture), restyle: true, seed: 123, sizes: full, model: EngineDownload.cartoon, cartoon: true)
         try jobs.make(name: "plain", picture: .image(picture), restyle: false, seed: 5, sizes: full, model: EngineDownload.standard, shapeSeed: 77)
+        try jobs.make(name: "turnaround", picture: .image(picture), restyle: true, seed: 3, sizes: full, model: EngineDownload.standard,
+                      sides: [.back: picture, .right: picture])
         try jobs.make(name: "elf", picture: .description("an elf ranger with a bow", original: "elf archer"), restyle: false, seed: 9,
                       sizes: full, model: EngineDownload.standard, project: "Tiefling Party")
         try jobs.make(name: "dwarf", picture: .description("a dwarf"), restyle: false, seed: 42,
                       sizes: Sizes(height: "32", base: "25", nozzle: "0.4", noBase: true), model: EngineDownload.standard)
 
         let minis = Gallery.list(runs)
-        for name in ["elodie", "toon", "plain", "elf", "dwarf"] {
+        for name in ["elodie", "toon", "plain", "turnaround", "elf", "dwarf"] {
             let mini = try XCTUnwrap(minis.first { $0.name == name })
             let f = try XCTUnwrap(MakeForm.again(mini, install: fx.install, card: SizeCard()), name)
             let new = Rules.folderName(f.name)
@@ -207,7 +209,8 @@ final class VersionTests: XCTestCase {
                 : f.improved.map { PictureSource.description($0, original: f.description) } ?? .description(f.description)
             let model = EngineDownload.forMaking(cartoon: f.cartoon, chosen: f.model.flatMap { EngineDownload.model($0) } ?? EngineDownload.standard)
             try jobs.make(name: new, picture: source, restyle: f.fromPicture && f.restyle, seed: f.seed, sizes: f.card.sizes,
-                          kind: f.card.kind, model: model, project: f.project, cartoon: f.cartoon, shown: f.name, shapeSeed: f.shapeSeed)
+                          kind: f.card.kind, model: model, project: f.project, cartoon: f.cartoon, shown: f.name, shapeSeed: f.shapeSeed,
+                          sides: f.sides)
             let folder = try XCTUnwrap(Gallery.folder(runs, new))
             var old = mini.settings, made = MiniSettings.load(folder)
             XCTAssertNotNil(made.created)

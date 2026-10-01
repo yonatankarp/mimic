@@ -56,6 +56,8 @@ public struct TimingRecord: Codable, Equatable, Sendable {
     public var outcome: Outcome
     /// Worked out afterwards from a mini's files, not timed as it ran.
     public var imported: Bool?
+    /// How many pictures a make started from (#66); nil is one.
+    public var pictures: Int? = nil
 
     public var jobKind: JobKind { job == "resize" ? .prep : .generate }
     /// Step 1 asked Draw Things for a picture, rather than copying one.
@@ -69,9 +71,11 @@ public struct JobShape: Equatable, Sendable {
     public var drawn: Bool
     public var nozzle: String?
     public var height: Double?
+    /// The front picture and those of the back and sides (#66): step 1 makes each.
+    public var pictures: Int
 
-    public init(job: JobKind, model: String, drawn: Bool, nozzle: String? = nil, height: Double? = nil) {
-        self.job = job; self.model = model; self.drawn = drawn; self.nozzle = nozzle; self.height = height
+    public init(job: JobKind, model: String, drawn: Bool, nozzle: String? = nil, height: Double? = nil, pictures: Int = 1) {
+        self.job = job; self.model = model; self.drawn = drawn; self.nozzle = nozzle; self.height = height; self.pictures = pictures
     }
 
     /// The job `kind` for the mini whose settings are `settings`; `sizes` for a resize not yet
@@ -80,7 +84,7 @@ public struct JobShape: Equatable, Sendable {
         let s = sizes ?? settings.requested
         self.init(job: kind, model: EngineDownload.model(settings.model)?.id ?? settings.model ?? EngineDownload.standard.id,
                   drawn: settings.source == .desc || settings.restyle == true,
-                  nozzle: s?.nozzle ?? "0.4", height: s?.height.flatMap(Double.init))
+                  nozzle: s?.nozzle ?? "0.4", height: s?.height.flatMap(Double.init), pictures: settings.pictures)
     }
 }
 
@@ -115,6 +119,10 @@ public enum Estimator {
     public static let minimum = 3
     /// Only the most recent similar jobs count: a newer Mimic or engine may be faster.
     static let recent = 15
+    /// The 3D step from several pictures against one (#66): TRELLIS.2's multi-image mode runs
+    /// every flow at 12 steps, ignoring PIXAL3D_STEPS=8. Three pictures took 615 s on an M2 Max
+    /// where one takes 222 (the median of its last ten).
+    static let multiViewShape = 2.8
 
     /// Picture from Draw Things, or copied; print prep (Swift: 6–14 s measured, so this errs
     /// slow, as "about a minute" always did). The 3D step is the model's whole-mini time
@@ -123,7 +131,9 @@ public enum Estimator {
         let prep = 45.0
         if shape.job == .prep { return Estimate(steps: [3: prep], learned: false) }
         let whole = Double((EngineDownload.model(shape.model)?.minutes ?? 8) * 60)
-        return Estimate(steps: [1: shape.drawn ? 60 : 5, 2: whole - 60 - prep, 3: prep], learned: false)
+        let shapeStep = whole - 60 - prep
+        return Estimate(steps: [1: (shape.drawn ? 60 : 5) * Double(shape.pictures),
+                                2: shape.pictures > 1 ? shapeStep * multiViewShape : shapeStep, 3: prep], learned: false)
     }
 
     /// Each step is the median of that step in the most recent similar jobs that finished on
@@ -137,16 +147,24 @@ public enum Estimator {
         let usable = history.filter { $0.outcome == .finished && $0.machine.same(machine) }
         var e = fixed(shape)
         var learned = false
-        func median(_ step: Int, _ records: [TimingRecord]) -> Double? {
-            let values = records.reversed().compactMap { $0.steps[String(step)] }.prefix(recent).sorted()
+        /// `each`: step 1 as the time per picture, since a make from four pictures makes four.
+        func median(_ step: Int, _ records: [TimingRecord], each: Bool = false) -> Double? {
+            let values = records.reversed().compactMap { r in r.steps[String(step)].map { each ? $0 / Double(r.pictures ?? 1) : $0 } }
+                .prefix(recent).sorted()
             guard values.count >= minimum else { return nil }
             let mid = values.count / 2
             return values.count % 2 == 1 ? values[mid] : (values[mid - 1] + values[mid]) / 2
         }
         if shape.job == .generate {
             let makes = usable.filter { $0.jobKind == .generate }
-            if let m = median(1, makes.filter { $0.drawn == shape.drawn }) { e.steps[1] = m }
-            if let m = median(2, makes.filter { $0.model == shape.model }) { e.steps[2] = m; learned = true }
+            if let m = median(1, makes.filter { $0.drawn == shape.drawn }, each: true) { e.steps[1] = m * Double(shape.pictures) }
+            // The 3D step from several pictures runs the slower way (`multiViewShape`): those
+            // learn from each other, not from one-picture makes.
+            if let m = median(2, makes.filter { $0.model == shape.model && ($0.pictures ?? 1 > 1) == (shape.pictures > 1) }) {
+                e.steps[2] = m; learned = true
+            } else if shape.pictures > 1, let m = median(2, makes.filter { $0.model == shape.model }) {
+                e.steps[2] = m * multiViewShape; learned = true
+            }
         }
         let similar = usable.filter { r in
             guard r.nozzle == shape.nozzle else { return false }
@@ -276,7 +294,8 @@ extension TimingRecord {
                   height: sizes?.height.flatMap(Double.init), nozzle: sizes?.nozzle ?? "0.4", base: sizes?.base.flatMap(Double.init),
                   steps: Dictionary(uniqueKeysWithValues: steps.map { (String($0.key), $0.value) }),
                   total: steps.values.reduce(0, +),
-                  outcome: s.canceled ? .stopped : s.exit == 0 ? .finished : .failed, imported: nil)
+                  outcome: s.canceled ? .stopped : s.exit == 0 ? .finished : .failed, imported: nil,
+                  pictures: s.kind == .prep || settings.pictures == 1 ? nil : settings.pictures)
     }
 }
 
@@ -293,7 +312,7 @@ extension JobRunner {
         let settings = mini?.settings ?? folder.map(MiniSettings.load) ?? MiniSettings()
         var e = Estimator.estimate(JobShape(kind, settings: settings, sizes: sizes), history: history)
         if waiting, kind == .generate, let folder {
-            for step in Pipeline.skipped(folder) { e.steps[step] = nil }
+            for step in Pipeline.skipped(folder, sides: settings.source == .image ? settings.sides ?? [] : []) { e.steps[step] = nil }
         }
         return e
     }

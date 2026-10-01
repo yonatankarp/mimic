@@ -33,10 +33,17 @@ public struct Mini: Identifiable, Hashable, Sendable {
     public var renders: [(view: String, url: URL)] {
         ["front", "left", "right", "side", "back"].compactMap { v in existing("\(name)_\(v).png").map { (v, $0) } }
     }
+    /// The pictures of the back and sides it was given besides the front one (#66): as step 1
+    /// made them, else as given.
+    public var sidePictures: [(side: PictureSide, url: URL)] {
+        (settings.sides ?? []).compactMap { s in (existing(s.source) ?? existing(s.upload)).map { (s, $0) } }
+    }
     /// What its page shows in Previews, in the order ← and → go through them: the picture it
-    /// was given, then its views. Only the ones it has.
+    /// was given (and those of its back and sides), then its views. Only the ones it has.
     public var previews: [MiniPreview] {
-        ((source ?? upload).map { [MiniPreview(caption: "Picture", url: $0)] } ?? [])
+        let sides = sidePictures
+        return ((source ?? upload).map { [MiniPreview(caption: sides.isEmpty ? "Picture" : "Front picture", url: $0)] } ?? [])
+            + sides.map { MiniPreview(caption: "\($0.side.title) picture", url: $0.url) }
             + renders.map { MiniPreview(caption: $0.view.capitalized, url: $0.url) }
     }
     /// The 3D model a resize starts from: without it only a full Make can finish the mini.

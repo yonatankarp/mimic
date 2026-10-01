@@ -367,9 +367,10 @@ final class AppModel {
     func estimate(_ s: JobStatus) -> Estimate { estimate(s.name, s.kind) }
 
     /// A new mini with the model it would be made with.
-    func estimateNew(drawn: Bool, sizes: Sizes, cartoon: Bool = false) -> Estimate {
+    /// `pictures`: the front and any of the back and sides, each made in step 1.
+    func estimateNew(drawn: Bool, sizes: Sizes, cartoon: Bool = false, pictures: Int = 1) -> Estimate {
         Estimator.estimate(JobShape(job: .generate, model: EngineDownload.forMaking(cartoon: cartoon, chosen: setup.chosen).id, drawn: drawn, nozzle: sizes.nozzle ?? "0.4",
-                                    height: sizes.height.flatMap(Double.init)), history: history)
+                                    height: sizes.height.flatMap(Double.init), pictures: pictures), history: history)
     }
 
     /// Seconds until the running job is done, here or elsewhere.
@@ -406,9 +407,10 @@ final class AppModel {
     var cantStart: String? { requiredProblem }
 
     func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes, kind: MiniKind = .character,
-              project: String? = nil, cartoon: Bool = false, shown: String? = nil, model: EngineModel? = nil, shapeSeed: Int? = nil) throws {
+              project: String? = nil, cartoon: Bool = false, shown: String? = nil, model: EngineModel? = nil, shapeSeed: Int? = nil,
+              sides: [PictureSide: URL] = [:]) throws {
         let chosen = EngineDownload.forMaking(cartoon: cartoon, chosen: model ?? setup.chosen)
-        try start(name) { try $0.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, kind: kind, model: chosen, project: project, cartoon: cartoon, shown: shown, shapeSeed: shapeSeed) }
+        try start(name) { try $0.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, kind: kind, model: chosen, project: project, cartoon: cartoon, shown: shown, shapeSeed: shapeSeed, sides: sides) }
     }
 
     /// Several pictures dropped on New Mini: a mini each, named after its file, all made the same

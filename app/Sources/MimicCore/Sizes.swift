@@ -190,6 +190,9 @@ public struct MiniSettings: Codable, Equatable, Sendable {
     /// one Mimic made: it has no picture or description, so only print prep can run on it. A
     /// field of its own rather than a `source`, which an older Mimic would fail to read.
     public var imported: String?
+    /// The extra pictures it was given besides the front one (#66), in `PictureSide` order;
+    /// absent (older minis, and most) is the front one alone.
+    public var sides: [PictureSide]?
 
     public init() {}
 
@@ -209,6 +212,8 @@ public struct MiniSettings: Codable, Equatable, Sendable {
     }
 
     public var isObject: Bool { kind == .object }
+    /// How many pictures it's made from: the front, and those of the back and sides (#66).
+    public var pictures: Int { source == .image ? 1 + (sides?.count ?? 0) : 1 }
     public var isImported: Bool { imported != nil }
 
     static func file(_ folder: URL) -> URL { folder.appendingPathComponent("settings.json") }
