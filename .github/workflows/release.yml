@@ -41,7 +41,22 @@ jobs:
         working-directory: app
         env:
           MIMIC_CHECK_DOWNLOADS: "1"  # every pinned download is still there
-        run: swift test --force-resolved-versions
+        run: swift test --force-resolved-versions --enable-code-coverage
+      - name: Coverage
+        # MimicCore's line coverage, on the run's summary page. Only a report: it never fails the
+        # build. Rough, since MimicCore is optimised in debug builds too (Package.swift).
+        working-directory: app
+        continue-on-error: true
+        run: |
+          bin="$(swift build --show-bin-path)"
+          tests=("$bin"/*.xctest/Contents/MacOS/*)
+          {
+            echo '### MimicCore test coverage'
+            echo '```text'
+            xcrun llvm-cov report "${tests[0]}" -instr-profile "$bin/codecov/default.profdata" \
+              -ignore-filename-regex '(Tests|\.build)/' Sources/MimicCore
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Set up signing
         # Mimic's own certificate (made by the maintainer, not Apple's): every release is signed
         # by the same signer, so macOS treats an update as the same app. Pull requests from forks
