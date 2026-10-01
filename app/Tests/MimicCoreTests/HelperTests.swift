@@ -174,6 +174,68 @@ final class HelperTests: XCTestCase {
         XCTAssertNil(Keychain.read(account: "anthropic", service: service))
     }
 
+    /// A saved key goes only to the host it was saved for: rewriting the address in the settings
+    /// (as anything running as you can) doesn't send it anywhere new.
+    func testTheKeyStaysWithItsAddress() throws {
+        let service = "com.mimic.app.tests.\(UUID().uuidString)"
+        defer { Keychain.deleteAll(service: service) }
+        let suite = "mimic-test-\(UUID().uuidString)", d = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { d.removePersistentDomain(forName: suite) }
+        func key() -> String? { DescriptionHelper.configured(defaults: d, service: service)?.key }
+
+        // Saved before keys were kept per address: still read for the provider's own address.
+        try Keychain.save("old-openai", account: "openai", service: service)
+        try Keychain.save("old-anthropic", account: "anthropic", service: service)
+        d.set("openai", forKey: HelperConfig.providerKey)
+        XCTAssertEqual(key(), "old-openai", "no address is the default one")
+        for same in ["https://api.openai.com/v1", "https://API.openai.com:443/v1/", " https://api.openai.com/v1 "] {
+            d.set(same, forKey: HelperConfig.urlKey)
+            XCTAssertEqual(key(), "old-openai", same)
+        }
+
+        for elsewhere in ["https://attacker.example", "https://api.openai.com@attacker.example/v1", "https://api.openai.com:8443/v1",
+                          "http://127.0.0.1:8080/v1", "https://api.openai.com.attacker.example/v1"] {
+            d.set(elsewhere, forKey: HelperConfig.urlKey)
+            let h = try XCTUnwrap(DescriptionHelper.configured(defaults: d, service: service))
+            XCTAssertNil(h.key, elsewhere)
+            XCTAssertThrowsError(try h.request(system: "", user: "", maxTokens: 1), elsewhere)
+        }
+        d.set("anthropic", forKey: HelperConfig.providerKey)
+        d.set("https://attacker.example", forKey: HelperConfig.urlKey)
+        XCTAssertNil(key(), "Claude's address can be rewritten too, though Settings doesn't show it")
+
+        // A key saved for another address is that address's alone.
+        d.set("openai", forKey: HelperConfig.providerKey)
+        d.set("https://llm.example.com/v1", forKey: HelperConfig.urlKey)
+        let account = try XCTUnwrap(HelperConfig.load(d).keyAccount)
+        XCTAssertEqual(account, "openai@llm.example.com")
+        try Keychain.save("new", account: account, service: service)
+        XCTAssertEqual(key(), "new")
+        d.set("http://127.0.0.1:1234/v1", forKey: HelperConfig.urlKey)
+        XCTAssertNil(key(), "the local server has its own key, not the other address's")
+        d.removeObject(forKey: HelperConfig.urlKey)
+        XCTAssertEqual(key(), "old-openai")
+        XCTAssertNil(HelperConfig(provider: .ollama).keyAccount, "Ollama has no key")
+        XCTAssertNil(HelperConfig(provider: .openai, baseURL: "not a url").keyAccount)
+    }
+
+    /// Cloud keys only travel over https; http is fine for a server on this Mac.
+    func testCloudNeedsHttps() throws {
+        for p in [HelperProvider.anthropic, .openai] {
+            XCTAssertThrowsError(try helper(p, base: "http://api.example.com", model: "m").request(system: "", user: "", maxTokens: 1)) {
+                XCTAssertEqual($0 as? HelperError, .badURL, "\(p)")
+            }
+            XCTAssertThrowsError(try helper(p, base: "http://api.example.com", model: "m", key: nil).request(system: "", user: "", maxTokens: 1)) {
+                XCTAssertEqual($0 as? HelperError, .badURL, "\(p): the address is the problem, not the missing key")
+            }
+            for local in ["http://localhost:1234", "http://127.0.0.1:1234", "http://[::1]:1234", "HTTPS://example.com"] {
+                XCTAssertNoThrow(try helper(p, base: local, model: "m").request(system: "", user: "", maxTokens: 1), "\(p) \(local)")
+            }
+        }
+        XCTAssertNoThrow(try helper(.ollama, base: "http://192.168.1.5:11434", model: "m", key: nil).request(system: "", user: "", maxTokens: 1),
+                         "Ollama sends no key, so any address will do")
+    }
+
     func testOffUnlessChosen() throws {
         let suite = "mimic-test-\(UUID().uuidString)", d = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { d.removePersistentDomain(forName: suite) }

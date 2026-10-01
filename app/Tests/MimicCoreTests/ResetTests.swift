@@ -16,11 +16,13 @@ final class ResetTests: XCTestCase {
         UserDefaults.standard.setPersistentDomain(["installDir": root.path, MinisFolder.key: install.runs.path, "tourSeen": true, "nozzle": "0.2",
                                                    "model": "trellis2-q8"], forName: domain)
         try Keychain.save("sk-test", account: HelperProvider.anthropic.rawValue, service: service)
-        defer { Keychain.delete(account: HelperProvider.anthropic.rawValue, service: service) }
+        try Keychain.save("sk-test", account: "openai@llm.example.com", service: service)
+        defer { Keychain.deleteAll(service: service) }
 
         try Reset.run(install: install, domain: domain, removeEngine: false, keychainService: service)
         XCTAssertEqual(UserDefaults.standard.persistentDomain(forName: domain)?.keys.sorted(), ["installDir", MinisFolder.key].sorted(), "only where the minis are is kept")
         XCTAssertFalse(Keychain.has(account: HelperProvider.anthropic.rawValue, service: service), "saved keys are forgotten")
+        XCTAssertFalse(Keychain.has(account: "openai@llm.example.com", service: service), "so are keys saved for another address")
         XCTAssertTrue(FileManager.default.fileExists(atPath: install.engine.path), "the engine stays unless asked")
 
         try Reset.run(install: install, domain: domain, removeEngine: true, keychainService: service)

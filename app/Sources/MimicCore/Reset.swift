@@ -11,9 +11,7 @@ public enum Reset {
         let defaults = UserDefaults.standard
         let kept = (defaults.persistentDomain(forName: domain) ?? [:]).filter { ["installDir", MinisFolder.key].contains($0.key) }
         defaults.setPersistentDomain(kept, forName: domain)
-        for provider in HelperProvider.allCases where provider.isCloud {
-            Keychain.delete(account: provider.rawValue, service: keychainService)
-        }
+        Keychain.deleteAll(service: keychainService)
         if removeEngine, FileManager.default.fileExists(atPath: install.engine.path) {
             try FileManager.default.removeItem(at: install.engine)
         }

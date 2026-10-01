@@ -43,10 +43,42 @@ public struct HelperConfig: Equatable, Sendable {
         func text(_ k: String) -> String? { d.string(forKey: k).flatMap { $0.isEmpty ? nil : $0 } }
         return HelperConfig(provider: p, model: text(modelKey), baseURL: text(urlKey))
     }
+
+    /// The address as requests use it, trimmed and without a closing slash; nil when it has no host.
+    public var url: URL? {
+        let base = baseURL.trimmingCharacters(in: .whitespaces)
+        guard let url = URL(string: base.hasSuffix("/") ? String(base.dropLast()) : base), url.host != nil else { return nil }
+        return url
+    }
+
+    /// The host a request goes to, lowercased, with its port unless it's the scheme's usual one.
+    public var host: String? {
+        guard let url, let host = url.host?.lowercased() else { return nil }
+        let usual = url.scheme?.lowercased() == "https" ? 443 : 80
+        return url.port.map { $0 == usual ? host : "\(host):\($0)" } ?? host
+    }
+
+    /// Whether the address is this provider's own; Settings says so when it isn't.
+    public var isDefaultHost: Bool { host != nil && host == HelperConfig(provider: provider).host }
+
+    /// A cloud key travels only over https, or to this Mac (a local OpenAI-compatible server).
+    public var isSecure: Bool {
+        guard let url, let host = url.host?.lowercased() else { return false }
+        return url.scheme?.lowercased() == "https" || host == "localhost" || host == "::1" || host.hasPrefix("127.")
+    }
+
+    /// The Keychain account of the key for this address: a key is only ever sent to the host it
+    /// was saved for, so a changed address never takes a saved key somewhere new. The provider's
+    /// own address keeps the plain provider name keys were always saved under; any other has its
+    /// own, like "openai@example.com". nil for a local provider or an address without a host.
+    public var keyAccount: String? {
+        guard provider.isCloud, let host else { return nil }
+        return isDefaultHost ? provider.rawValue : "\(provider.rawValue)@\(host)"
+    }
 }
 
 /// API keys live in the login Keychain as generic passwords: service "com.mimic.app", one account
-/// per provider. Never in UserDefaults, settings.json or a log.
+/// per provider and address (HelperConfig.keyAccount). Never in UserDefaults, settings.json or a log.
 public enum Keychain {
     public static let service = "com.mimic.app"
 
@@ -83,6 +115,14 @@ public enum Keychain {
     public static func delete(account: String, service: String = service) {
         SecItemDelete(query(account, service) as CFDictionary)
     }
+
+    /// Every key saved under the service, for any provider and address. One at a time, since
+    /// the Mac's Keychain may delete only the first match; capped so it can't spin.
+    public static func deleteAll(service: String = service) {
+        let q = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service] as CFDictionary
+        var left = 100
+        while left > 0, SecItemDelete(q) == errSecSuccess { left -= 1 }
+    }
 }
 
 public struct DescriptionHelper: Sendable {
@@ -91,11 +131,11 @@ public struct DescriptionHelper: Sendable {
 
     public init(config: HelperConfig, key: String?) { self.config = config; self.key = key }
 
-    /// The helper Settings chose, with its key from the Keychain; nil when it's off.
+    /// The helper Settings chose, with the key saved for its address; nil when it's off.
     public static func configured(defaults: UserDefaults, service: String = Keychain.service) -> DescriptionHelper? {
         let c = HelperConfig.load(defaults)
         guard c.provider != .off else { return nil }
-        return DescriptionHelper(config: c, key: c.provider.isCloud ? Keychain.read(account: c.provider.rawValue, service: service) : nil)
+        return DescriptionHelper(config: c, key: c.keyAccount.flatMap { Keychain.read(account: $0, service: service) })
     }
 
     /// What the model is told. A character's answer is dropped into DrawThings.characterPrompt
@@ -157,13 +197,12 @@ public struct DescriptionHelper: Sendable {
         guard config.provider != .off else { throw HelperError.off }
         let model = config.model.trimmingCharacters(in: .whitespaces)
         guard !model.isEmpty else { throw HelperError.noModel(config.provider) }
-        let key = key?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if config.provider.isCloud && key.isEmpty { throw HelperError.noKey }
         let path = switch config.provider { case .anthropic: "/v1/messages"; case .openai: "/chat/completions"; default: "/api/chat" }
-        let base = config.baseURL.trimmingCharacters(in: .whitespaces)
-        guard let url = URL(string: (base.hasSuffix("/") ? String(base.dropLast()) : base) + path), url.host != nil else {
+        guard let base = config.url, let url = URL(string: base.absoluteString + path), !config.provider.isCloud || config.isSecure else {
             throw HelperError.badURL
         }
+        let key = key?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if config.provider.isCloud && key.isEmpty { throw HelperError.noKey }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -335,7 +374,7 @@ public enum HelperError: Error, CustomStringConvertible, Equatable {
     public var description: String {
         switch self {
         case .off: "No AI helper is set up. Choose one in Settings → Draw Things & AI."
-        case .noKey: "No API key saved. Paste yours in Settings → Draw Things & AI."
+        case .noKey: "No API key saved for this address. Paste yours in Settings → Draw Things & AI."
         case .noModel(.ollama): "Pick one of your Ollama models in Settings."
         case .noModel: "Type the model's name in Settings."
         case .badURL: "That service address doesn't look right. It should start with https://."
