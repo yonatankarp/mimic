@@ -49,8 +49,9 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
     length; the tieflings' up to 234 mm³ and 29% of the height). A solid dropped piece is
     either a speck or a held thing the generator didn't join to the hands, and a solid piece
     whose longest side is at least 10% of the height is the second: it's still left out, but
-    prep prints `mini_prep: WARNING part: <what to tell the person>`, which the mini's page,
-    the progress window and `mimic make` show as it is. Measured on the seven minis in the
+    prep prints `mini_prep: WARNING part: <what to tell the person>` in prep.log and puts the
+    same words in its report to the job (prep-result.json), which the mini's page, the
+    progress window and `mimic make` show as it is. Measured on the seven minis in the
     gallery at their own sizes: the Pixal3D elf's bow was 30 mm long (93% of 32 mm) and
     54 mm³; the largest solid speck on any of them was 0.93 mm (0.93% of 100 mm) and 0.001
     mm³. The 10% leaves an order of magnitude either side. `testRealMinisWarnOnlyOfARealPart`

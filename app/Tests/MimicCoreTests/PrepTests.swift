@@ -248,6 +248,27 @@ final class PrepTests: XCTestCase {
         let above = out.positions.filter { $0.z > out.bounds.lo.z + 5 }  // above the base
         XCTAssertGreaterThan(above.map(\.y).min()!, -6, "the bar (at y ≈ -6.6 mm) is out of the print file")
         XCTAssertEqual(result.lines.count, 2, "the fixture's speck said nothing")
+        XCTAssertEqual(result.warnings.map(\.kind), [.part], "the job is told it too")
+        XCTAssertEqual(result.warnings.map { Prep.partWarning + $0.text }, parts)
+    }
+
+    /// The report beside the print file reads back as written, and what it says comes to: the
+    /// part and stand warnings said once each, and fragile from any other.
+    func testThePrepReportBesideThePrintFile() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("prep-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let stl = dir.appendingPathComponent("elf.stl")
+        XCTAssertEqual(PrepReport.file(beside: stl), dir.appendingPathComponent("prep-result.json"))
+        XCTAssertNil(PrepReport.read(dir))
+        let report = PrepReport(warnings: [.init(.footprint, "wide"), .init(.part, "A part."), .init(.stand, "Stand."), .init(.part, "A part.")])
+        try report.write(beside: stl)
+        XCTAssertEqual(PrepReport.read(dir), report)
+        XCTAssertEqual(report.notes, ["A part.", "Stand."])
+        XCTAssertTrue(report.fragile)
+        XCTAssertFalse(PrepReport(warnings: [.init(.part, "A part."), .init(.stand, "Stand.")]).fragile)
+        try PrepReport(failure: "flat").write(beside: stl)
+        XCTAssertEqual(PrepReport.read(dir)?.failure, "flat")
     }
 
     /// The generator's figures are often hollow, and the solid's wall round the hollow is a
@@ -283,10 +304,11 @@ final class PrepTests: XCTestCase {
         }
     }
 
-    /// JobRunner marks a mini fragile when it reads this marker.
+    /// JobRunner marks a mini fragile when its report has this warning.
     func testAFootprintWiderThanTheBaseWarns() throws {
         let (result, _, stl) = try prep(["--base", "8", "--faces", "20000"])
         XCTAssertTrue(result.lines.contains { $0.hasPrefix("mini_prep: WARNING") }, "\(result.lines)")
+        XCTAssertEqual(result.warnings.map(\.kind), [.footprint])
         let side = stl.deletingPathExtension().path + "_side.png"  // an older mini's one side view
         FileManager.default.createFile(atPath: side, contents: Data([1]))
         try Render.views(result.mesh, besides: stl)
@@ -558,6 +580,7 @@ final class PrepTests: XCTestCase {
     func prepObject(_ m: Mesh) throws -> (Printed, Bool) {
         let (result, out, _) = try prep(["--fit", "longest", "--ground", "bottom", "--height", "60", "--no-base", "--faces", "20000"], mesh: m)
         said = result.lines.filter { $0.hasPrefix(Prep.standWarning) }
+        XCTAssertEqual(result.warnings.filter { $0.kind == .stand }.map { Prep.standWarning + $0.text }, said, "the job is told what the log says")
         return (out, logged.contains { $0.hasPrefix("prep: set on its most stable side") })
     }
 
