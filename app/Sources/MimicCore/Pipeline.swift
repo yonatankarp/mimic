@@ -134,8 +134,24 @@ public enum Pipeline {
         // A picture already made isn't made again, each on its own: a make stopped while
         // sculpting the back keeps the front.
         let fm = FileManager.default
-        return pictures.filter { !fm.fileExists(atPath: $0.makes?.path ?? "") }.map { (.picture, $0) }
-            + (skip.contains(.shape) ? [] : [(.shape, mesh)]) + [(.print, prep)]
+        let drawing = pictures.filter { !fm.fileExists(atPath: $0.makes?.path ?? "") }.map { (number: JobStep.picture, step: $0) }
+        // Stops there for the person to check them (#156); made already, Build Shape carries on.
+        if pausesAfterPicture(folder, settings: settings) { return drawing }
+        return drawing + (skip.contains(.shape) ? [] : [(.shape, mesh)]) + [(.print, prep)]
+    }
+
+    /// Whether a make of the mini in `folder` stops once its pictures are made, for the person
+    /// to check them (#156): it asked to, and they aren't all made yet.
+    public static func pausesAfterPicture(_ folder: URL, settings: MiniSettings) -> Bool {
+        settings.checkPicture == true && !skipped(folder, sides: settings.source == .image ? settings.sides ?? [] : []).contains(.picture)
+    }
+
+    /// Whether the mini in `folder` is waiting for the person to check its picture (#156): it
+    /// asked to, its pictures are made, and its 3D shape isn't, nor did its last run fail.
+    /// Whether it's queued or being made is the caller's to know.
+    public static func pictureToCheck(_ folder: URL, settings: MiniSettings) -> Bool {
+        settings.checkPicture == true && settings.failed == nil
+            && skipped(folder, sides: settings.source == .image ? settings.sides ?? [] : []) == [.picture]
     }
 
     /// The steps a make of the mini in `folder` skips because what they make is there already:

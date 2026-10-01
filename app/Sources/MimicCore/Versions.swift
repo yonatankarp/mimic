@@ -38,7 +38,7 @@ extension JobRunner {
     }
 
     /// `given`, or a random seed (1-999,999) that isn't `old`.
-    private static func newSeed(_ given: Int?, not old: Int) -> Int {
+    static func newSeed(_ given: Int?, not old: Int) -> Int {
         if let given { return given }
         var s = Int.random(in: 1...999_999)
         while s == old { s = Int.random(in: 1...999_999) }

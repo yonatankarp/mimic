@@ -323,6 +323,10 @@ extension JobRunner {
         if waiting, kind == .generate, let folder {
             for step in Pipeline.skipped(folder, sides: settings.source == .image ? settings.sides ?? [] : []) { e.steps[step] = nil }
         }
+        // One that stops for its picture to be checked (#156) is done once it's made.
+        if kind == .generate, let folder, Pipeline.pausesAfterPicture(folder, settings: settings) {
+            e.steps[.shape] = nil; e.steps[.print] = nil
+        }
         return e
     }
 

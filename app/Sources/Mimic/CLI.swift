@@ -526,6 +526,11 @@ enum CLI {
         }
         let folder = Gallery.folder(jobs.install.runs, s.name) ?? jobs.install.runs.appendingPathComponent(s.name)
         if s.canceled { print("Stopped."); return 130 }
+        if s.outcome == .pictureReady {
+            print("Its picture is ready to check: \(folder.appendingPathComponent("source.png").path)")
+            print("To build its 3D shape: mimic retry \(s.name)")
+            return 0
+        }
         if s.succeeded {
             print("Done: \(folder.appendingPathComponent("\(s.name).stl").path)")
             for note in s.notes { print("Heads up: \(note)") }

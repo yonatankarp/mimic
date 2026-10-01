@@ -55,6 +55,11 @@ final class Notifier: NSObject {
                 model.problem = model.plainWords(error, else: "Couldn't try again. Open the mini and try again from there.")
                 model.go(to: name)
             }
+        case MiniNotification.buildShape:
+            do { try model.buildShape(name) } catch {
+                model.problem = model.plainWords(error, else: "Couldn't build its shape. Open the mini and try from there.")
+                model.go(to: name)
+            }
         case MiniNotification.open:
             model.reload()
             if let stl = model.minis.first(where: { $0.name == name })?.stl { model.openInSlicer(stl) } else { model.go(to: name) }
@@ -84,6 +89,8 @@ extension MiniNotification {
             UNNotificationCategory(identifier: ready, actions: [UNNotificationAction(identifier: open, title: openTitle(slicer: slicer))],
                                    intentIdentifiers: []),
             UNNotificationCategory(identifier: failed, actions: [UNNotificationAction(identifier: retry, title: retryTitle)],
+                                   intentIdentifiers: []),
+            UNNotificationCategory(identifier: picture, actions: [UNNotificationAction(identifier: buildShape, title: buildShapeTitle)],
                                    intentIdentifiers: []),
         ])
     }
