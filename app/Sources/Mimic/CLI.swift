@@ -328,12 +328,12 @@ enum CLI {
             }
             guard !rest[0].hasPrefix("-") else { return fail(usage) }
             guard let m = find(rest[0], install) else { return fail(notFound(rest[0])) }
-            guard let stl = m.stl else { return fail("\(m.displayName) isn't made yet.") }
+            guard m.stl != nil else { return fail("\(m.displayName) isn't made yet.") }
             let out = URL(fileURLWithPath: "\(m.name).glb")
             do {
-                let made = try Tabletop.export(stl, to: out, triangles: triangles)
+                let made = try Tabletop.export(m, to: out, triangles: triangles)
                 let size = ByteCountFormatter.string(fromByteCount: Int64(made.bytes), countStyle: .file)
-                print("Exported \(m.displayName) for a virtual tabletop: \(out.path), \(made.triangles) triangles, \(size).")
+                print("Exported \(m.displayName) for a virtual tabletop: \(out.path), \(made.triangles) triangles, \(made.colour ? "in colour" : "grey"), \(size).")
             } catch { return fail("Couldn't export \(m.displayName): \(error)") }
             return 0
         case "info":

@@ -87,8 +87,10 @@ the mini's page shows them side by side, and **Keep This One** moves the others 
 Want the same mini at two sizes, say one for the table and one for the shelf? Right-click it →
 **Duplicate…**, name the copy, and choose its size. Only the size is made again: about a minute.
 
-Playing online? Right-click a mini → **Export for Virtual Tabletop…** saves a low-poly grey
-`.glb` of it (about 5,000 triangles, under 100 KB) to drag into a virtual tabletop.
+Playing online? Right-click a mini → **Export for Virtual Tabletop…** saves a low-poly `.glb`
+of it (about 5,000 triangles) to drag into a virtual tabletop. A mini made from a colour
+picture with the grey sculpt off comes out in the 3D engine's colours (about 1.5 MB); any
+other mini comes out grey (under 100 KB).
 
 Have a 3D model already, from another generator or HeroForge? **File → Import Model…**, pick the
 GLB or STL file, and choose its sizes and base as for a new mini. Mimic makes it print-ready in

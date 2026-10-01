@@ -60,14 +60,9 @@ extension Step {
 public enum JobKind: String, Codable, Sendable { case generate, prep }
 
 public enum Pipeline {
-    /// The steps that make (or resize) the mini in `folder`, from its saved settings. Built from
-    /// settings.json alone, so Try Again rebuilds exactly the job that failed, from the step that
-    /// failed: a picture already made (source.png) isn't drawn again, which with the same seed
-    /// would draw the same one, and doesn't need Draw Things. Make clears a stale one first. A 3D
-    /// shape already made (model.glb) isn't built again either: a make stopped by quitting in its
-    /// last step carries on there (#82). Make refuses a folder that has one.
-    public static func plan(_ kind: JobKind, folder: URL, settings: MiniSettings, tools: Tools) throws -> [(number: Int, step: Step)] {
-        let name = folder.lastPathComponent
+    /// Print prep's flags for a mini: what places its 3D model on the base, which Export for
+    /// Virtual Tabletop places it by again to colour it (#158).
+    public static func prepFlags(_ settings: MiniSettings) throws -> [String] {
         // An imported model (#96) wasn't made by any 3D model here, so it's never turned: it
         // faces whichever way its own file has it.
         let turn: Int
@@ -79,12 +74,23 @@ public enum Pipeline {
         }
         // An object is sized by its longest side and stood on its whole bottom, not its feet;
         // a TRELLIS.2 model is turned round to face the front first (Prep turns before it levels).
-        let flags = try (settings.requested ?? Sizes()).flags()
+        return try (settings.requested ?? Sizes()).flags()
             + (settings.isObject ? ["--fit", "longest", "--ground", "bottom"] : [])
             + (turn == 0 ? [] : ["--turn", String(turn)])
             // The stones are laid out by the mini's own number: Try Again lays them the same way,
             // another version differently.
             + (settings.requested?.flags().contains("--base-style") == true ? ["--base-seed", String(settings.seed ?? 42)] : [])
+    }
+
+    /// The steps that make (or resize) the mini in `folder`, from its saved settings. Built from
+    /// settings.json alone, so Try Again rebuilds exactly the job that failed, from the step that
+    /// failed: a picture already made (source.png) isn't drawn again, which with the same seed
+    /// would draw the same one, and doesn't need Draw Things. Make clears a stale one first. A 3D
+    /// shape already made (model.glb) isn't built again either: a make stopped by quitting in its
+    /// last step carries on there (#82). Make refuses a folder that has one.
+    public static func plan(_ kind: JobKind, folder: URL, settings: MiniSettings, tools: Tools) throws -> [(number: Int, step: Step)] {
+        let name = folder.lastPathComponent
+        let flags = try prepFlags(settings)
         let prep: Step = .run(executable: tools.mimic,
                               arguments: ["_prep", folder.appendingPathComponent("model.glb").path,
                                           folder.appendingPathComponent("\(name).stl").path] + flags,

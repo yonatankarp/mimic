@@ -151,89 +151,10 @@ public enum Prep {
 
         var mesh = try GLB.read(URL(fileURLWithPath: o.glb))
         lap("read \(mesh.triangles.count) triangles")
-        if o.turn != 0 {
-            // A rotation, not a mirror, so the triangles keep their winding.
-            let a = Float(o.turn * .pi / 180), c = cos(a), s = sin(a)
-            for n in mesh.positions.indices {
-                let p = mesh.positions[n]
-                mesh.positions[n] = SIMD3(c * p.x - s * p.y, s * p.x + c * p.y, p.z)
-            }
-        }
-        // The 3D engine can leave an object leaning a few degrees (a teapot came out at 5, one
-        // drawn from above at 20), and a leaning object prints on the edge of its bottom. A
-        // character stands on its feet, which aren't a surface to level, so only objects.
-        // After the turn: a turn is about the vertical, so levelling finds the same tilt either
-        // way, and the figure's facing is settled before anything is measured.
-        var standsAlone = true
-        if o.groundBottom {
-            let asMade = mesh.positions
-            let degrees = mesh.level()
-            // Levelling squares up a lean; one levelled onto the edge of its foot instead of the
-            // foot is then set on a side near it that it can stand on (Mesh.rest).
-            if let turned = mesh.rest() {
-                if degrees > 0 { log(String(format: "prep: levelled by %.1f°", degrees)) }
-                if turned > 0 { log(String(format: "prep: set on its most stable side (turned %.0f°)", turned)) }
-            } else {
-                // Nothing near its bottom holds it up (a figure on small feet, a bird on a perch):
-                // it stays as the engine made it, since levelling read a raven's tail and perch
-                // as a lean and tipped it 27° onto nothing it could stand on either.
-                mesh.positions = asMade
-                standsAlone = false
-            }
-        }
-        let height = Float(o.height)
+        let placed = try place(&mesh, o, log: log)
+        let standsAlone = placed.standsAlone, footprint = placed.footprint
+        let height = Float(o.height), baseHeight = o.effectiveBaseHeight
         let thing = o.groundBottom ? "object" : "figure"
-
-        // Ground is where most of the bottom is, not the lowest vertex: a trailing wisp or
-        // hanging tassel is a sliver of the surface below the 0.5th percentile, and ends up
-        // sunk into the base instead of holding the figure up on a pin.
-        let top = mesh.bounds.hi.z
-        var samples = mesh.surfaceSamples()
-        let ground0 = Mesh.percentileZ(samples, 0.005)
-        // An object's extents leave out the floating specks the generator left (dropped later),
-        // so one can't count as part of its longest side. Not a percentile of the surface, like
-        // the ground: that trims thin tips, and a teapot's spouts came out 90 mm long, not 80.
-        let extent = o.fitLongest || o.groundBottom ? mesh.mainBounds() : nil
-        // A flat drawing can come back from the engine as a flat sheet (a cartoon gave TRELLIS.2 a
-        // square 80 x 80 x 0.1 mm), which prep would otherwise size and write like any mini.
-        let e = extent ?? mesh.mainBounds(), size = e.hi - e.lo
-        if size.min() < Prep.flat * size.max() { throw PrepError(Prep.flatProblem) }
-        let span: Float
-        if o.fitLongest, let e = extent { span = max(e.hi.x - e.lo.x, e.hi.y - e.lo.y, e.hi.z - ground0) } else { span = top - ground0 }
-        let scale = height / span
-        for n in mesh.positions.indices { mesh.positions[n] *= scale }
-        for n in samples.indices { samples[n] *= SIMD4(scale, scale, scale, scale * scale) }
-        let ground = ground0 * scale
-
-        let centre: SIMD2<Float>
-        var reach: Float = 0
-        if o.groundBottom, let e = extent {
-            // An object lies on its whole bottom, so it's centred on its shadow on the bed: a
-            // teapot's spout counts, where a character's raised weapon mustn't.
-            centre = scale * (SIMD2(e.lo.x, e.lo.y) + SIMD2(e.hi.x, e.hi.y)) / 2
-            for p in samples { reach = max(reach, simd_length(SIMD2(p.x, p.y) - centre)) }
-        } else {
-            // Centre on what the figure stands on: the solid cross-sections through its lower body.
-            // Not a box, which a raised weapon or a trailing wisp stretches by its whole length, and
-            // not the surface vertices, which count a thin wisp's skin as heavily as a leg's: on the
-            // test fixture those were off by 2.0 mm (box) and 0.65 mm (vertex mean).
-            var total: Float = 0, sum = SIMD2<Float>()
-            for f: Float in [0.03, 0.06, 0.09, 0.12] {
-                let s = mesh.section(ground + f * height)
-                total += s.area; sum += s.area * s.centroid
-            }
-            centre = total > 0 ? sum / total : .zero
-            for p in samples where p.z >= ground && p.z <= ground + 0.15 * height {
-                reach = max(reach, simd_length(SIMD2(p.x, p.y) - centre))
-            }
-        }
-        let footprint = 2 * Double(reach)
-
-        // Sink the feet 0.6 mm into the base so the two are one solid.
-        let baseHeight = o.effectiveBaseHeight
-        let feet: Float = o.noBase ? 0 : Float(baseHeight) - 0.6
-        let shift = SIMD3(centre.x, centre.y, ground - feet)
-        for n in mesh.positions.indices { mesh.positions[n] -= shift }
         lap("placed")
 
         // One watertight solid: the inflated figure fused to a base with a rounded top edge
@@ -295,6 +216,95 @@ public enum Prep {
             lines.append(partWarning + what + " Try Make Another Version. If you use Pixal3D, TRELLIS.2 (Settings → 3D Model) joins held things more reliably.")
         }
         return Result(mesh: out, dropped: dropped, footprint: footprint, lines: lines)
+    }
+
+    /// Where print prep puts the 3D engine's model, in place: turned to face the front, levelled
+    /// (an object), sized, and centred on the base with its feet sunk into it. Also what Export
+    /// for Virtual Tabletop places the textured model by, to colour the print file from it.
+    static func place(_ mesh: inout Mesh, _ o: PrepOptions, log: (String) -> Void = { _ in }) throws -> (standsAlone: Bool, footprint: Double) {
+        if o.turn != 0 {
+            // A rotation, not a mirror, so the triangles keep their winding.
+            let a = Float(o.turn * .pi / 180), c = cos(a), s = sin(a)
+            for n in mesh.positions.indices {
+                let p = mesh.positions[n]
+                mesh.positions[n] = SIMD3(c * p.x - s * p.y, s * p.x + c * p.y, p.z)
+            }
+        }
+        // The 3D engine can leave an object leaning a few degrees (a teapot came out at 5, one
+        // drawn from above at 20), and a leaning object prints on the edge of its bottom. A
+        // character stands on its feet, which aren't a surface to level, so only objects.
+        // After the turn: a turn is about the vertical, so levelling finds the same tilt either
+        // way, and the figure's facing is settled before anything is measured.
+        var standsAlone = true
+        if o.groundBottom {
+            let asMade = mesh.positions
+            let degrees = mesh.level()
+            // Levelling squares up a lean; one levelled onto the edge of its foot instead of the
+            // foot is then set on a side near it that it can stand on (Mesh.rest).
+            if let turned = mesh.rest() {
+                if degrees > 0 { log(String(format: "prep: levelled by %.1f°", degrees)) }
+                if turned > 0 { log(String(format: "prep: set on its most stable side (turned %.0f°)", turned)) }
+            } else {
+                // Nothing near its bottom holds it up (a figure on small feet, a bird on a perch):
+                // it stays as the engine made it, since levelling read a raven's tail and perch
+                // as a lean and tipped it 27° onto nothing it could stand on either.
+                mesh.positions = asMade
+                standsAlone = false
+            }
+        }
+        let height = Float(o.height)
+
+        // Ground is where most of the bottom is, not the lowest vertex: a trailing wisp or
+        // hanging tassel is a sliver of the surface below the 0.5th percentile, and ends up
+        // sunk into the base instead of holding the figure up on a pin.
+        let top = mesh.bounds.hi.z
+        var samples = mesh.surfaceSamples()
+        let ground0 = Mesh.percentileZ(samples, 0.005)
+        // An object's extents leave out the floating specks the generator left (dropped later),
+        // so one can't count as part of its longest side. Not a percentile of the surface, like
+        // the ground: that trims thin tips, and a teapot's spouts came out 90 mm long, not 80.
+        let extent = o.fitLongest || o.groundBottom ? mesh.mainBounds() : nil
+        // A flat drawing can come back from the engine as a flat sheet (a cartoon gave TRELLIS.2 a
+        // square 80 x 80 x 0.1 mm), which prep would otherwise size and write like any mini.
+        let e = extent ?? mesh.mainBounds(), size = e.hi - e.lo
+        if size.min() < Prep.flat * size.max() { throw PrepError(Prep.flatProblem) }
+        let span: Float
+        if o.fitLongest, let e = extent { span = max(e.hi.x - e.lo.x, e.hi.y - e.lo.y, e.hi.z - ground0) } else { span = top - ground0 }
+        let scale = height / span
+        for n in mesh.positions.indices { mesh.positions[n] *= scale }
+        for n in samples.indices { samples[n] *= SIMD4(scale, scale, scale, scale * scale) }
+        let ground = ground0 * scale
+
+        let centre: SIMD2<Float>
+        var reach: Float = 0
+        if o.groundBottom, let e = extent {
+            // An object lies on its whole bottom, so it's centred on its shadow on the bed: a
+            // teapot's spout counts, where a character's raised weapon mustn't.
+            centre = scale * (SIMD2(e.lo.x, e.lo.y) + SIMD2(e.hi.x, e.hi.y)) / 2
+            for p in samples { reach = max(reach, simd_length(SIMD2(p.x, p.y) - centre)) }
+        } else {
+            // Centre on what the figure stands on: the solid cross-sections through its lower body.
+            // Not a box, which a raised weapon or a trailing wisp stretches by its whole length, and
+            // not the surface vertices, which count a thin wisp's skin as heavily as a leg's: on the
+            // test fixture those were off by 2.0 mm (box) and 0.65 mm (vertex mean).
+            var total: Float = 0, sum = SIMD2<Float>()
+            for f: Float in [0.03, 0.06, 0.09, 0.12] {
+                let s = mesh.section(ground + f * height)
+                total += s.area; sum += s.area * s.centroid
+            }
+            centre = total > 0 ? sum / total : .zero
+            for p in samples where p.z >= ground && p.z <= ground + 0.15 * height {
+                reach = max(reach, simd_length(SIMD2(p.x, p.y) - centre))
+            }
+        }
+        let footprint = 2 * Double(reach)
+
+        // Sink the feet 0.6 mm into the base so the two are one solid.
+        let baseHeight = o.effectiveBaseHeight
+        let feet: Float = o.noBase ? 0 : Float(baseHeight) - 0.6
+        let shift = SIMD3(centre.x, centre.y, ground - feet)
+        for n in mesh.positions.indices { mesh.positions[n] -= shift }
+        return (standsAlone, footprint)
     }
 
     /// A dropped piece whose longest side is at least this share of the height is a part, not a

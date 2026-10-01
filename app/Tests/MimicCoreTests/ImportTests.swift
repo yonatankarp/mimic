@@ -1,5 +1,7 @@
 import Foundation
+import ImageIO
 import simd
+import UniformTypeIdentifiers
 import XCTest
 @testable import MimicCore
 
@@ -61,6 +63,43 @@ final class ImportTests: XCTestCase {
         XCTAssertEqual(back.bounds.hi.y, 0.010, accuracy: 1e-3)
         XCTAssertEqual(back.bounds.lo.z, 0, accuracy: 1e-4, "stands on the ground")
         XCTAssertEqual(back.bounds.hi.z, 0.020, accuracy: 1e-3)
+    }
+
+    /// The colours come from the nearest point of the engine's model (#256): a sphere painted red
+    /// above its middle and blue below comes out so on the triangles that cover it, through the
+    /// .glb's own places on its picture, which a .glb written with them reads back.
+    func testTheTabletopColoursComeFromTheNearestPointOfTheModel() throws {
+        let sphere = PrepTests.sphere(radius: 10)
+        // Each corner's place on a 1 × 2 picture: red on top, blue below.
+        let uv = sphere.positions.map { SIMD2<Float>(0.5, $0.z > 0 ? 0.25 : 0.75) }
+        let pixels: [UInt8] = [255, 0, 0, 255, 0, 0, 255, 255]
+        let png = NSMutableData()
+        let image = CGImage(width: 1, height: 2, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: 4,
+                            space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
+                            provider: CGDataProvider(data: Data(pixels) as CFData)!, decode: nil, shouldInterpolate: false, intent: .defaultIntent)!
+        let dest = CGImageDestinationCreateWithData(png, UTType.png.identifier as CFString, 1, nil)!
+        CGImageDestinationAddImage(dest, image, nil)
+        XCTAssertTrue(CGImageDestinationFinalize(dest))
+        let read = try GLB.parse(GLB.encode(sphere, paint: (uv, png as Data)), painted: true)
+        let paint = try XCTUnwrap(read.paint, "a .glb written with a picture reads back with it")
+        XCTAssertEqual(paint.uv, uv)
+
+        let low = Decimate.run(sphere, target: 100)
+        let size = 256
+        let baked = try Tabletop.bake(low, from: read.mesh, paint, size: size)
+        XCTAssertEqual(baked.mesh.triangles.count, low.triangles.count)
+        var checked = 0
+        for t in baked.mesh.triangles {
+            let corners = [t.x, t.y, t.z].map { Int($0) }
+            let z = corners.map { baked.mesh.positions[$0].z }.reduce(0, +) / 3
+            guard abs(z) > 3 else { continue }  // clear of the middle
+            let at = corners.map { baked.uv[$0] }.reduce(.zero, +) / 3 * Float(size)
+            let o = 4 * (Int(at.y) * size + Int(at.x))
+            let rgb = Array(baked.pixels[o..<o + 3])
+            XCTAssertEqual(rgb, z > 0 ? [255, 0, 0] : [0, 0, 255], "at z \(z)")
+            checked += 1
+        }
+        XCTAssertGreaterThan(checked, 50)
     }
 
     func testATextSTLReads() throws {
