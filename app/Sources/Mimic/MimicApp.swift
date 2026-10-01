@@ -229,11 +229,12 @@ extension FocusedValues {
 
 struct ContentView: View {
     @Environment(AppModel.self) private var model
+    @FocusState private var listFocused: Bool
 
     var body: some View {
         if model.setup.installed {
             NavigationSplitView {
-                Sidebar()
+                Sidebar(listFocused: $listFocused)
             } detail: {
                 if let mini = model.selected {
                     MiniDetail(mini: mini)
@@ -259,6 +260,8 @@ struct ContentView: View {
                                            description: Text("Pick a mini on the left."))
                 }
             }
+            // As in Finder and Mail, the keyboard starts on the list (the 3D view takes it when clicked).
+            .defaultFocus($listFocused, true)
         } else {
             SetupView()
         }
