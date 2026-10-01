@@ -647,7 +647,7 @@ struct MainWindowChrome: ViewModifier {
             }
             // [room]: read here, so a new window size reaches the sheets (read only inside the
             // closure, the sheet kept getting the starting 640).
-            .sheet(item: $model.sheet) { [room] sheet in
+            .sheet(item: $model.sheet, onDismiss: { model.askToKeep = model.keepWhenClosed; model.keepWhenClosed = nil }) { [room] sheet in
                 switch sheet {
                 case .make: MakeView(room: room)
                 case .makeAgain(let mini): MakeView(room: room, form: MakeForm.again(mini, install: model.install, card: .remembered()), again: mini)
@@ -663,6 +663,7 @@ struct MainWindowChrome: ViewModifier {
                 case .copies(let group): CopiesSheet(minis: group)
                 case .duplicate(let mini): DuplicateSheet(mini: mini)
                 case .importModel(let file): ImportSheet(file: file, room: room)
+                case .compare(let a, let b): CompareSheet(names: [a, b], room: room)
                 }
             }
             .modifier(JobQuestions())
@@ -789,7 +790,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidBecomeActive(_ notification: Notification) { model.becameActive() }
 
-    /// New Mini, and the job's progress and Stop while one runs, from the Dock icon.
+    /// New Mini, the job's progress and Stop while one runs, and pausing the queue while
+    /// minis wait, from the Dock icon.
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
         let menu = NSMenu()
         let free = model.sheet == nil
@@ -801,6 +803,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if model.setup.installed && free { add("New Mini…", #selector(newMini)) }
         if model.toolbarJob != nil && free { add("Show Progress", #selector(showProgress)) }
         if let title = model.stopCommand, free { add(title, #selector(stopJob)) }
+        if !model.queue.isEmpty && free { add(model.pauseCommand, #selector(togglePause)) }
         return menu
     }
 
@@ -808,6 +811,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // mini is made), then act: the job's popover keeps track of whether it is.
     @objc private func newMini() { model.showWindow(); Task { model.sheet = .make } }
     @objc private func showProgress() { model.showWindow(); Task { model.jobPopover = true } }
+    @objc private func togglePause() { model.togglePause() }
     @objc private func stopJob() { model.showWindow(); Task { model.confirmingStop = true } }
 }
 

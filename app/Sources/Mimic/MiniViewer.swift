@@ -38,14 +38,19 @@ struct MiniViewer: View {
     /// except while zoomed in or out, so a zoom isn't undone. Face Front fits it again.
     @State private var camera = ViewerCamera()
     private var unzoomed: Bool { zoom == 1 && offset == .zero }
-    @State private var turn = SIMD2<Float>.zero  // yaw, pitch
+    /// Another viewer's pose, so the two turn and zoom together (Compare Side by Side, #99);
+    /// nil for a pose of its own.
+    var shared: Binding<ViewerPose>? = nil
+    @State private var own = ViewerPose()
+    private var pose: ViewerPose {
+        get { shared?.wrappedValue ?? own }
+        nonmutating set { if let shared { shared.wrappedValue = newValue } else { own = newValue } }
+    }
+    private var turn: SIMD2<Float> { get { pose.turn } nonmutating set { pose.turn = newValue } }
     @State private var turnStart: SIMD2<Float>?
-    @State private var zoom: Float = 1
-    /// Where zooming toward the pointer has moved the mini, in the scene's metres.
-    @State private var offset = SIMD2<Float>.zero
-    /// How long the view takes to glide to its next pose (Face Front, the grow-in on load);
-    /// zero the rest of the time, when turning and zooming follow your hand.
-    @State private var glide: Double = 0
+    private var zoom: Float { get { pose.zoom } nonmutating set { pose.zoom = newValue } }
+    private var offset: SIMD2<Float> { get { pose.offset } nonmutating set { pose.offset = newValue } }
+    private var glide: Double { get { pose.glide } nonmutating set { pose.glide = newValue } }
     private var gliding: Bool { glide > 0 }
     /// The mini fades in once loaded, and out while the next one (or a resized one) loads, so
     /// a new print file crossfades rather than popping.
@@ -401,6 +406,17 @@ struct Measured: Equatable, Sendable {
     var footprint: String { "\(wide) × \(deep) mm" }
     /// "34 mm tall · 26 × 25 mm", on its glass badge.
     var caption: String { "\(tall) mm tall · \(footprint)" }
+}
+
+/// How the mini is turned and zoomed: a viewer's own, or shared by the two in Compare Side by Side.
+struct ViewerPose: Equatable {
+    var turn = SIMD2<Float>.zero  // yaw, pitch
+    var zoom: Float = 1
+    /// Where zooming toward the pointer has moved the mini, in the scene's metres.
+    var offset = SIMD2<Float>.zero
+    /// How long the view takes to glide to its next pose (Face Front, the grow-in on load);
+    /// zero the rest of the time, when turning and zooming follow your hand.
+    var glide: Double = 0
 }
 
 /// The 3D scene, drawn by RealityKit's renderer into a Metal view that redraws only when asked:
