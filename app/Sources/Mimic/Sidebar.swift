@@ -252,6 +252,9 @@ struct Sidebar: View {
         .disabled(mini.stl == nil)  // not made yet: nothing to print
         CopiesButton(minis: [mini])
         Button("Show in Finder", systemImage: "folder") { model.showInFinder([mini]) }
+        Button("Export for Virtual Tabletop…", systemImage: "square.and.arrow.up") { model.exportForTabletop(mini) }
+            .disabled(mini.stl == nil)
+            .help("A low-poly .glb to drag into a virtual tabletop")
         Button("Resize This Mini…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resize(mini) }
             .disabled(!mini.hasModel || model.requiredProblem != nil || model.waiting(mini.name) != nil)
         Divider()

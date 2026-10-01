@@ -285,12 +285,13 @@ public final class JobRunner: @unchecked Sendable {
         _ = try Pipeline.plan(kind, folder: folder, settings: settings, tools: tools)
         return try queue.locked { entries in
             try checkFree(name, entries)
-            return enqueue(QueueEntry(name: name, job: kind), &entries)
+            return enqueue(QueueEntry(name: name, job: kind, again: true), &entries)
         }
     }
 
     /// Takes a waiting job out of the queue. A new mini's folder goes to the Trash, as a stopped
-    /// one's does, and so does an import's whose print file isn't made yet (#96). False when it
+    /// one's does, and so does an import's whose print file isn't made yet (#96); a failed one
+    /// waiting for Try Again stays as it was (#178). False when it
     /// isn't waiting (it may have just started). Trashed under the queue's lock, so a make with
     /// the same name (from another Mimic, say) can't take the folder over first.
     @discardableResult
@@ -298,7 +299,7 @@ public final class JobRunner: @unchecked Sendable {
         try queue.locked { entries in
             guard let i = entries.firstIndex(where: { $0.name == name }) else { return false }
             let removed = entries.remove(at: i)
-            if let folder = Gallery.folder(install.runs, name), removed.job == .generate || Self.importing(folder) { try? trash(folder) }
+            if let folder = Gallery.folder(install.runs, name), removed.again != true, removed.job == .generate || Self.importing(folder) { try? trash(folder) }
             return true
         }
     }
@@ -530,7 +531,7 @@ public final class JobRunner: @unchecked Sendable {
         let reportFile = folder.appendingPathComponent("prep-result.json")
         try? FileManager.default.removeItem(at: reportFile)
         var ran = runPlan(plan, log: log)
-        let ending = settle(&ran, plan: plan, kind: entry.job, folder: folder, reportFile: reportFile, settings: settings)
+        let ending = settle(&ran, plan: plan, entry: entry, folder: folder, reportFile: reportFile, settings: settings)
         finish(ran, ending, entry: entry, settings: settings)
     }
 
@@ -561,13 +562,16 @@ public final class JobRunner: @unchecked Sendable {
     }
 
     /// The mini's folder after its job: a stopped job's work cleared away (or kept, when it was
-    /// stopped by quitting), a finished one's sizes recorded, and how it went kept with the mini.
-    private func settle(_ ran: inout PlanRun, plan: [(number: JobStep, step: Step)], kind: JobKind, folder: URL,
+    /// stopped by quitting or was a Try Again), a finished one's sizes recorded, and how it went
+    /// kept with the mini.
+    private func settle(_ ran: inout PlanRun, plan: [(number: JobStep, step: Step)], entry: QueueEntry, folder: URL,
                         reportFile: URL, settings: MiniSettings) -> Ending {
+        let kind = entry.job
         let (canceled, kept) = lock.withLock { (current?.canceled == true, keepWork) }
         if canceled {
             ran.code = ran.code == 0 ? -15 : ran.code
-            if kept {
+            // A stopped Try Again goes back to how it failed, with what it had before (#178).
+            if kept || entry.again == true {
                 // What the step it was on had written may be half written, and the next run
                 // skips a step whose file is there: a picture, or the 3D shape. Step 1 is one run
                 // per picture, so the pictures it had finished are kept.
@@ -628,7 +632,7 @@ public final class JobRunner: @unchecked Sendable {
             if canceled && kept {
                 try queue.locked { entries in
                     if !entries.contains(where: { $0.name == entry.name }) {
-                        entries.insert(QueueEntry(name: entry.name, job: kind, added: entry.added), at: 0)
+                        entries.insert(QueueEntry(name: entry.name, job: kind, added: entry.added, again: entry.again), at: 0)
                     }
                 }
             }

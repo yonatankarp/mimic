@@ -329,6 +329,53 @@ final class JobTests: XCTestCase {
         XCTAssertEqual(spy.trashed.map(\.lastPathComponent), ["mini"])
     }
 
+    /// Stopping Try Again of a mini that failed in the 3D step (#178): it goes back to how it
+    /// failed, with its picture and settings, instead of to the Trash as a new mini does (above).
+    /// The shape it was half way through goes, so the next Try Again builds it again. Taken out
+    /// of the queue while it waits, it stays too.
+    func testStoppingTryAgainKeepsTheFailedMini() throws {
+        let fx = try Fixture()
+        let started = fx.root.appendingPathComponent("started").path
+        let failing = try fx.script("failing-mimic", "if [ \"$1\" = _engine ]; then exit 1; fi")
+        let picture = try fx.picture()
+        try fx.modelFiles()
+        let first = JobRunner(install: fx.install, tools: fx.tools(mimic: failing), trash: { _ in })
+        try first.make(name: "mini", picture: .image(picture), restyle: false, seed: 7, sizes: sizes, model: EngineDownload.standard)
+        first.waitUntilDone()
+        let d = fx.install.runs.appendingPathComponent("mini")
+        let failed = MiniSettings.load(d)
+        XCTAssertNotNil(failed.failed)
+        XCTAssertEqual(failed.failedStep, JobStep.shape.rawValue)
+
+        // Step 2 writes part of its 3D shape and waits to be stopped.
+        let fake = try fx.script("fake-mimic", """
+            if [ "$1" = _engine ]; then echo half > "$3"; touch \(started); sleep 60 & wait; fi
+            """)
+        let spy = TrashSpy()
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: fake), trash: { spy($0) })
+        try jobs.retry(name: "mini")
+        for _ in 0..<100 where !FileManager.default.fileExists(atPath: started) { usleep(50_000) }
+        XCTAssertEqual(jobs.status?.step, .shape)
+        XCTAssertTrue(jobs.cancel())
+        jobs.waitUntilDone()
+        XCTAssertEqual(jobs.status?.canceled, true)
+        XCTAssertEqual(spy.trashed, [], "stopping Try Again threw the mini away")
+        let after = MiniSettings.load(d)
+        XCTAssertEqual(after.failed, failed.failed, "it isn't failed any more")
+        XCTAssertEqual(after.failedStep, failed.failedStep)
+        XCTAssertEqual(after.seed, 7); XCTAssertEqual(after.requested, sizes); XCTAssertEqual(after.model, failed.model)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: d.appendingPathComponent("upload.img").path), "its picture went")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: d.appendingPathComponent("model.glb").path), "a half-built shape was kept")
+        XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: after, tools: fx.tools()).map(\.number), [.shape, .print])
+        XCTAssertEqual(jobs.queue.entries(), [], "a stopped Try Again starts again by itself")
+
+        try jobs.setPaused(true)
+        try jobs.retry(name: "mini")
+        XCTAssertTrue(try jobs.remove("mini"))
+        XCTAssertEqual(spy.trashed, [], "taking Try Again out of the queue threw the mini away")
+        XCTAssertNotNil(Gallery.folder(fx.install.runs, "mini"))
+    }
+
     /// Stop ends the job only once everything it started has ended too (#174): a program slow
     /// to die on SIGTERM can't hold memory into the next job, or outlive Mimic quitting with
     /// no record left to stop it by.
