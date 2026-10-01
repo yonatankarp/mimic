@@ -90,7 +90,8 @@ struct JobProgressView: View {
                         Button("Try Again") { tryAgain(s.name) }
                             .buttonStyle(.glassProminent)
                             .keyboardShortcut(.defaultAction)
-                            .disabled(model.cantStart != nil || model.waiting(s.name) != nil)
+                            .disabled(model.cantStart != nil || model.waiting(s.name) != nil || model.isImported(s.name))
+                            .help(model.isImported(s.name) ? RequestError.imported(s.name).description : "")
                     }
                 }
             }
@@ -101,7 +102,7 @@ struct JobProgressView: View {
     private func elsewhere(_ s: JobStatus, now: Date) -> some View {
         let estimate = model.estimate(s)
         return VStack(alignment: .leading, spacing: 10) {
-            Label("\(s.kind == .prep ? "Resizing" : "Making") \(model.displayName(s.name))", systemImage: Self.symbol(s.kind))
+            Label("\(model.doing(s)) \(model.displayName(s.name))", systemImage: Self.symbol(s.kind))
                 .font(.title3.bold())
             Text("Another Mimic is doing this one (another copy of the app, or Terminal): stop it there. Step \(s.step) of 3 · \(JobProgress.about(estimate.left(s, now: now))) left.")
                 .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -123,8 +124,8 @@ struct JobProgressView: View {
                     Spacer()
                     if !s.succeeded && !s.canceled {
                         Button("Try Again") { tryAgain(s.name) }
-                            .disabled(model.cantStart != nil || model.waiting(s.name) != nil)
-                            .help(s.problem ?? "")
+                            .disabled(model.cantStart != nil || model.waiting(s.name) != nil || model.isImported(s.name))
+                            .help(model.isImported(s.name) ? RequestError.imported(s.name).description : s.problem ?? "")
                     }
                 }
             }
@@ -140,7 +141,7 @@ struct JobProgressView: View {
                     .contentTransition(.numericText())
                     .animation(reduceMotion ? nil : .default, value: Int(now.timeIntervalSince(s.started)))
             } else if s.canceled {
-                Text(s.kind == .prep ? "It keeps its previous size." : "Nothing was kept. It's in the Trash if you want the pieces.")
+                Text(s.kind == .prep && !s.importing ? "It keeps its previous size." : "Nothing was kept. It's in the Trash if you want the pieces.")
                     .foregroundStyle(.secondary)
             } else if s.succeeded {
                 ForEach(s.notes, id: \.self) { Label($0, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange) }
@@ -151,7 +152,8 @@ struct JobProgressView: View {
             } else {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(JobProgress.drawThingsCaused(s) ? "Draw Things didn't answer. Check the setup steps, then try again."
-                                                         : "Try again, or use a clearer, full-body picture.")
+                         : model.isImported(s.name) ? "Try Resize This Mini with other sizes, or check the model in the app it came from."
+                         : "Try again, or use a clearer, full-body picture.")
                     if let why = retryProblem ?? model.cantStart ?? s.problem {
                         Text(why).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
                             .help(retryProblem != nil ? retryDetail ?? "" : "")
@@ -168,11 +170,10 @@ struct JobProgressView: View {
     }
 
     @ViewBuilder private func title(_ s: JobStatus, who: String) -> some View {
-        let prep = s.kind == .prep
         if s.running {
-            Label(prep ? "Resizing \(who)" : "Making \(who)", systemImage: Self.symbol(s.kind))
+            Label("\(model.doing(s)) \(who)", systemImage: Self.symbol(s.kind))
         } else if s.canceled {
-            Label(prep ? "Stopped resizing \(who)" : "Stopped making \(who)", systemImage: "stop.circle")
+            Label("Stopped \(model.doing(s).lowercased()) \(who)", systemImage: "stop.circle")
         } else if s.succeeded {
             Label { Text("\(who) is ready") } icon: { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green) }
         } else {
@@ -289,7 +290,7 @@ private struct QueueRow: View {
     /// "Make · takes about 9 minutes · ready in about 20 minutes", without when it's ready while
     /// the queue is held.
     private var times: String {
-        let takes = "\(entry.job == .prep ? "Resize" : "Make") · takes \(JobProgress.about(estimate.total))"
+        let takes = "\(entry.job == .generate ? "Make" : model.importing(entry.name) ? "Import" : "Resize") · takes \(JobProgress.about(estimate.total))"
         return model.hold == nil ? "\(takes) · ready in \(JobProgress.about(ready))" : takes
     }
 }
@@ -305,15 +306,17 @@ private struct JobQuestions: ViewModifier {
                 Button("Cancel", role: .cancel) {}
                 Button("Stop", role: .destructive) { model.stop() }
             } message: {
-                Text((model.job?.kind == .prep ? "It keeps its previous size." : "What's been made so far will be thrown away.")
+                Text((model.job.map { $0.kind == .prep && !$0.importing } == true ? "It keeps its previous size." : "What's been made so far will be thrown away.")
                      + (model.queue.isEmpty ? "" : " The queue carries on with the next one."))
             }
             .confirmationDialog(model.unqueueing.map { "Take “\(model.displayName($0.name))” out of the queue?" } ?? "",
                                 isPresented: unqueueing, presenting: model.unqueueing) { e in
-                Button(e.job == .prep ? "Don't Resize" : "Take Out", role: .destructive) { model.removeFromQueue(e.name) }
+                Button(e.job == .prep && !model.importing(e.name) ? "Don't Resize" : "Take Out", role: .destructive) { model.removeFromQueue(e.name) }
                 Button("Cancel", role: .cancel) {}
             } message: { e in
-                Text(e.job == .prep ? "It keeps its current size." : "It hasn't been made yet, so its picture and settings go to the Trash, where you can get them back.")
+                Text(e.job == .generate ? "It hasn't been made yet, so its picture and settings go to the Trash, where you can get them back."
+                     : model.importing(e.name) ? "It hasn't been made yet, so it goes to the Trash, where you can get it back."
+                     : "It keeps its current size.")
             }
     }
 
@@ -322,7 +325,7 @@ private struct JobQuestions: ViewModifier {
     }
 
     private func stopTitle(_ s: JobStatus) -> String {
-        s.kind == .prep ? "Stop resizing “\(model.displayName(s.name))”?" : "Stop making “\(model.displayName(s.name))”?"
+        "Stop \(model.doing(s).lowercased()) “\(model.displayName(s.name))”?"
     }
 }
 
@@ -471,7 +474,7 @@ struct JobToolbarItem: View {
     private func label(_ s: JobStatus, now: Date) -> String {
         let who = model.displayName(s.name)
         let waiting = model.queue.isEmpty ? "" : " · \(model.queue.count) waiting" + (model.paused ? ", paused" : "")
-        if s.running { return "\(s.kind == .prep ? "Resizing" : "Making") \(who) · \(JobProgress.clock(now.timeIntervalSince(s.started)))\(waiting)" }
+        if s.running { return "\(model.doing(s)) \(who) · \(JobProgress.clock(now.timeIntervalSince(s.started)))\(waiting)" }
         if s.canceled { return "Stopped \(who)\(waiting)" }
         return (s.succeeded ? "\(who) is ready" : "\(who) didn't finish") + waiting
     }
@@ -656,6 +659,7 @@ struct MainWindowChrome: ViewModifier {
                 case .renameProject(let p): ProjectNameSheet(renaming: p)
                 case .copies(let group): CopiesSheet(minis: group)
                 case .duplicate(let mini): DuplicateSheet(mini: mini)
+                case .importModel(let file): ImportSheet(file: file, room: room)
                 }
             }
             .modifier(JobQuestions())

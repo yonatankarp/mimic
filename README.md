@@ -87,6 +87,10 @@ the mini's page shows them side by side, and **Keep This One** moves the others 
 Want the same mini at two sizes, say one for the table and one for the shelf? Right-click it →
 **Duplicate…**, name the copy, and choose its size. Only the size is made again: about a minute.
 
+Have a 3D model already, from another generator or HeroForge? **File → Import Model…**, pick the
+GLB or STL file, and choose its sizes and base as for a new mini. Mimic makes it print-ready in
+about a minute. It has no picture, so it can be resized and duplicated but not made again.
+
 ---
 
 ## 🛠️ For developers
@@ -132,6 +136,7 @@ mimic make teapot "a round teapot with a curved spout" --object --size 80
 mimic retry tiefling
 mimic make-another tiefling                        # the same, with a new seed: "tiefling-2"
 mimic duplicate tiefling --as "Tiefling Display"   # the same shape, to resize without losing the first
+mimic import "Ogre Chief.stl" --height 32          # print prep for a model made elsewhere (GLB or STL)
 mimic make raven --image raven.png --project "Tiefling Party"
 mimic move tiefling --project "Tiefling Party"     # or --unsorted
 mimic projects

@@ -35,6 +35,10 @@ struct MimicApp: App {
                 Button("New Mini…") { model.showWindow(); model.sheet = .make }
                     .keyboardShortcut("n")
                     .disabled(!model.setup.installed)
+                // A model made elsewhere, print prep only (#96).
+                Button("Import Model…") { ImportModel.choose(model) }
+                    .keyboardShortcut("i", modifiers: [.command, .shift])
+                    .disabled(!model.setup.installed || model.sheet != nil)
             }
             SidebarCommands()
             ImportFromDevicesCommands()  // File → Import from iPhone, for New Mini's picture
