@@ -1,0 +1,22 @@
+# Keeps the pinned actions and Swift packages up to date. The prefixes make the pull request
+# titles pass the title check (`ci: bump ...`, `chore: bump ...`), and both kinds stay out of the
+# release notes.
+# Two pins Dependabot can't see, to review on each release: the Sparkle tools in release.yml
+# (they follow Sparkle in app/Package.resolved) and draw-things-cli in EngineDownload.swift.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+  - package-ecosystem: swift
+    directory: /app
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
