@@ -232,6 +232,17 @@ final class GalleryTests: XCTestCase {
         XCTAssertTrue(fm.fileExists(atPath: runs.appendingPathComponent("dwarf-king/dwarf-king.stl").path))
     }
 
+    /// The list just read is looked at for minis to take over, not the folder read again.
+    func testTakingOverLooksAtTheListGiven() throws {
+        let fx = try Fixture(), fm = FileManager.default, runs = fx.install.runs
+        try fm.moveItem(at: try fx.mini("dwarf"), to: runs.appendingPathComponent("dwarf-king"))
+        let jobs = JobRunner(install: fx.install, tools: fx.tools())
+        XCTAssertEqual(jobs.adoptOddFolders(listed: []), [], "nothing listed to take over")
+        XCTAssertTrue(fm.fileExists(atPath: runs.appendingPathComponent("dwarf-king/dwarf.stl").path))
+        XCTAssertEqual(jobs.adoptOddFolders(listed: Gallery.list(runs)), ["dwarf-king"])
+        XCTAssertTrue(fm.fileExists(atPath: runs.appendingPathComponent("dwarf-king/dwarf-king.stl").path))
+    }
+
     /// Undo for Move to Trash, with a folder standing in for the Trash.
     func testPutBackFromTheTrash() throws {
         let fx = try Fixture(), fm = FileManager.default, runs = fx.install.runs
