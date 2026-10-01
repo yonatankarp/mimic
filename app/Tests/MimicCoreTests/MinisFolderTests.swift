@@ -163,7 +163,10 @@ final class MinisFolderTests: XCTestCase {
             do { try mover.changeMinisFolder(to: new, moving: true) } catch { XCTFail("\(error)") }
             moved.fulfill()
         }
-        for _ in 0..<5000 where ((try? self.fm.contentsOfDirectory(atPath: new.path)) ?? []).isEmpty { usleep(1000) }
+        // Until the first mini has gone: `for … where` would keep listing the folder after that.
+        let deadline = Date().addingTimeInterval(30)
+        while ((try? fm.contentsOfDirectory(atPath: new.path)) ?? []).isEmpty, Date() < deadline { usleep(1000) }
+        XCTAssertFalse(try top(runs).count < count / 2, "the move was over before the Make was asked for")
         var made = false
         do {
             try jobs.make(name: "late", picture: .image(picture), restyle: false, seed: 1, sizes: sizes, model: EngineDownload.standard)
