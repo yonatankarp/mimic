@@ -84,6 +84,19 @@ final class SearchTests: XCTestCase {
         XCTAssertFalse(Gallery.narrowed(list, query: "dwarf", show: .all), "the query is ignored at six or fewer")
     }
 
+    /// With nothing selected the list picks its first mini as shown, never one the filter or a
+    /// search hides (#128). Planted: the gallery's first mini of all is "dwarf", which
+    /// Unfinished hides.
+    func testNothingHiddenIsPicked() {
+        let list = [mini("dwarf"), mini("teapot", hoursAgo: 1, object: true), mini("waiting", hoursAgo: 2, finished: false)]
+        let unfinished = Gallery.arrange(list, query: "", show: .unfinished, sort: .made)
+        XCTAssertEqual(Gallery.keeping([], in: unfinished), ["waiting"])
+        XCTAssertEqual(Gallery.keeping(["dwarf"], in: unfinished), ["waiting"], "a hidden pick gives way")
+        XCTAssertEqual(Gallery.keeping(["teapot", "dwarf"], in: Gallery.arrange(list, query: "", show: .objects, sort: .made)), ["teapot"])
+        XCTAssertEqual(Gallery.keeping([], in: Gallery.arrange(list, query: "", show: .all, sort: .name)), ["dwarf"])
+        XCTAssertEqual(Gallery.keeping(["dwarf"], in: []), [], "nothing shown, nothing picked")
+    }
+
     func testArrangeSearchesFiltersAndSorts() {
         let list = (1...8).map { mini("dwarf-\($0)", hoursAgo: Double($0), object: $0 % 2 == 0, height: "\($0 * 10)") } + [mini("elf")]
         XCTAssertEqual(Gallery.arrange(list, query: "dwarf", show: .objects, sort: .size).map(\.name), ["dwarf-8", "dwarf-6", "dwarf-4", "dwarf-2"])

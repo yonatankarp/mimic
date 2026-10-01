@@ -231,7 +231,7 @@ enum CLI {
             jobs.heldForPower = power
             // This terminal runs the queue only until its own mini is made; the app runs the rest.
             jobs.keepGoing = { $0.contains { $0.name == name } }
-            let mine = Mine(name: name)
+            let mine = Mine(name: name, runs: install.runs)
             jobs.onChange = { mine.saw($0) }
             let added = Date()
             let ahead: Int?
@@ -319,12 +319,12 @@ enum CLI {
 
     /// The latest status of this command's own mini, as the runner reports it.
     final class Mine: @unchecked Sendable {
-        let name: String
+        let name: String, runs: URL
         private let lock = NSLock()
         private var last: JobStatus?
         private var shown: (String, Int)?
         private var openingSaid = false
-        init(name: String) { self.name = name }
+        init(name: String, runs: URL) { self.name = name; self.runs = runs }
         var status: JobStatus? { lock.withLock { last } }
 
         /// Prints each step as it starts, naming the mini when it isn't this one.
@@ -333,7 +333,7 @@ enum CLI {
                 if s.name == name { last = s }
                 guard s.running, shown.map({ $0 != (s.name, s.step) }) ?? true else { return nil }
                 shown = (s.name, s.step)
-                let who = s.name == name ? "" : "\(Mini.displayName(s.name)) (waiting before yours): "
+                let who = s.name == name ? "" : "\(Mini.displayName(s.name, runs: runs)) (waiting before yours): "
                 return "[\(s.step)/3] \(who)\(JobRunner.label(s.step))"
             }
             if let line { print(line) }
@@ -354,7 +354,7 @@ enum CLI {
         jobs.waitUntilDone()
         guard let s = mine.status else {
             // Stopped (Ctrl-C) before its turn came: it's still waiting.
-            print("Stopped. \(Mini.displayName(mine.name)) is still in the queue (mimic queue remove \(mine.name) takes it out).")
+            print("Stopped. \(Mini.displayName(mine.name, runs: mine.runs)) is still in the queue (mimic queue remove \(mine.name) takes it out).")
             return 130
         }
         let folder = Gallery.folder(jobs.install.runs, s.name) ?? jobs.install.runs.appendingPathComponent(s.name)

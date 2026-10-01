@@ -102,8 +102,16 @@ public enum Pipeline {
                               arguments: ["_engine", source.path, folder.appendingPathComponent("model.glb").path,
                                           "--seed", String(settings.shapeSeed ?? seed), "--engine", tools.engine, "--model", model.id],
                               directory: nil, log: folder.appendingPathComponent("pixal3d.log"))
-        let drawn = FileManager.default.fileExists(atPath: source.path)
-        let shaped = drawn && FileManager.default.fileExists(atPath: folder.appendingPathComponent("model.glb").path)
-        return (drawn ? [] : [(1, picture)]) + (shaped ? [] : [(2, mesh)]) + [(3, prep)]
+        let skip = skipped(folder)
+        return (skip.contains(1) ? [] : [(1, picture)]) + (skip.contains(2) ? [] : [(2, mesh)]) + [(3, prep)]
+    }
+
+    /// The steps a make of the mini in `folder` skips because what they make is there already:
+    /// the picture (source.png: Try Again, a new 3D shape), and the 3D shape too when it has
+    /// model.glb as well (a make stopped in its last step).
+    public static func skipped(_ folder: URL) -> Set<Int> {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: folder.appendingPathComponent("source.png").path) else { return [] }
+        return fm.fileExists(atPath: folder.appendingPathComponent("model.glb").path) ? [1, 2] : [1]
     }
 }

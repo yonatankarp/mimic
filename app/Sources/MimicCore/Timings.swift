@@ -283,11 +283,19 @@ extension TimingRecord {
 extension JobRunner {
     /// How long the job `kind` on the mini `name` should take here; `sizes` for a resize still
     /// waiting to write them. Its settings come from `minis` (the gallery as last read) when it's
-    /// there, so a progress tick doesn't read its file; else from its folder.
-    public func estimate(_ name: String, _ kind: JobKind, sizes: Sizes? = nil, history: [TimingRecord], minis: [Mini] = []) -> Estimate {
-        let settings = minis.first { $0.name == name }?.settings
-            ?? Gallery.folder(install.runs, name).map(MiniSettings.load) ?? MiniSettings()
-        return Estimator.estimate(JobShape(kind, settings: settings, sizes: sizes), history: history)
+    /// there, so a progress tick doesn't read its file; else from its folder. A make still
+    /// `waiting` takes nothing for the steps it will skip (`Pipeline.skipped`). Not the running
+    /// one's: a make writes its picture as it goes, and its progress would jump back.
+    public func estimate(_ name: String, _ kind: JobKind, sizes: Sizes? = nil, history: [TimingRecord], minis: [Mini] = [],
+                         waiting: Bool = false) -> Estimate {
+        let mini = minis.first { $0.name == name }
+        let folder = mini?.folder ?? Gallery.folder(install.runs, name)
+        let settings = mini?.settings ?? folder.map(MiniSettings.load) ?? MiniSettings()
+        var e = Estimator.estimate(JobShape(kind, settings: settings, sizes: sizes), history: history)
+        if waiting, kind == .generate, let folder {
+            for step in Pipeline.skipped(folder) { e.steps[step] = nil }
+        }
+        return e
     }
 
     /// Each waiting job with its estimate and the seconds until it should be ready: the running
@@ -296,7 +304,7 @@ extension JobRunner {
         -> [(entry: QueueEntry, estimate: Estimate, ready: TimeInterval)] {
         var t = running.map { estimate($0.name, $0.kind, history: history, minis: minis).left($0, now: now) } ?? 0
         return queue.map { e in
-            let est = estimate(e.name, e.job, sizes: e.sizes, history: history, minis: minis)
+            let est = estimate(e.name, e.job, sizes: e.sizes, history: history, minis: minis, waiting: true)
             t += est.total
             return (e, est, t)
         }
