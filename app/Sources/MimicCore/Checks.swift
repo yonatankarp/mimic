@@ -128,8 +128,9 @@ public struct Checks: Sendable {
     }
 
     /// Runs a program with the environment jobs get, and returns its exit status and output.
-    /// nil if it can't start or outlives `timeout` (then it's killed: a hung program must not
-    /// hang Settings).
+    /// nil if it can't start or is still running after `timeout` (then it's killed: a hung
+    /// program must not hang Settings). Output stops being read at `timeout` too, so something
+    /// the program left running with the pipe open can't hang Settings either.
     public static let execute: Runner = { executable, arguments, timeout in
         let p = Process()
         p.executableURL = URL(fileURLWithPath: executable)
@@ -139,12 +140,33 @@ public struct Checks: Sendable {
         p.standardOutput = out
         p.standardError = FileHandle.nullDevice
         do { try p.run() } catch { return nil }
-        let timer = DispatchWorkItem { p.terminate() }
-        DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: timer)
+        defer { try? out.fileHandleForReading.close() }
+        let deadline = Date().addingTimeInterval(timeout)
         // Read to the end first: waiting first can deadlock on a full pipe.
-        let data = out.fileHandleForReading.readDataToEndOfFile()
+        let fd = out.fileHandleForReading.fileDescriptor
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 65536)
+        while deadline.timeIntervalSinceNow > 0 {
+            var ready = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
+            let n = poll(&ready, 1, Int32(deadline.timeIntervalSinceNow * 1000) + 1)
+            if n < 0 && errno != EINTR { break }
+            if n <= 0 { continue }
+            let read = Darwin.read(fd, &buffer, buffer.count)
+            if read < 0 && errno == EINTR { continue }
+            if read <= 0 { break }
+            data.append(contentsOf: buffer[0..<read])
+        }
+        while p.isRunning && deadline.timeIntervalSinceNow > 0 { usleep(10_000) }
+        if p.isRunning {
+            // SIGTERM first, then SIGKILL for a program that ignores it.
+            p.terminate()
+            let grace = Date().addingTimeInterval(1)
+            while p.isRunning && grace.timeIntervalSinceNow > 0 { usleep(10_000) }
+            if p.isRunning { kill(p.processIdentifier, SIGKILL) }
+            p.waitUntilExit()
+            return nil
+        }
         p.waitUntilExit()
-        timer.cancel()
         if p.terminationReason == .uncaughtSignal { return nil }
         return (p.terminationStatus, String(decoding: data, as: UTF8.self))
     }
