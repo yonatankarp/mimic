@@ -36,6 +36,10 @@ public enum Rules {
         return s.isEmpty ? "mini" : s
     }
 
+    /// A mini named on the command line: its folder's name, as `mimic list` shows it, or its name
+    /// as typed in Mimic ("Élodie" is elodie).
+    public static func miniName(_ text: String) -> String { isValidName(text) ? text : folderName(text) }
+
     /// A typed name as it's kept: trimmed, one line, at most 64 characters; nil when nothing is left.
     public static func shownName(_ typed: String) -> String? {
         let one = typed.components(separatedBy: .controlCharacters).joined(separator: " ")

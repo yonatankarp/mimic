@@ -25,395 +25,378 @@ enum CLI {
         let install = Install.locate(defaults: defaults)
         // The queue's files from before they moved out of the minis folder, as the app does.
         try? JobQueue(folder: install.queue).moveOldFiles(from: install.runs)
-        let power = Power.holds(suite: defaults == .standard ? nil : "com.mimic.app")
-        let timings = Timings.standard()
+        let cli = Context(defaults: defaults, install: install, power: Power.holds(suite: defaults == .standard ? nil : "com.mimic.app"),
+                          timings: Timings.standard())
         var rest = Array(args.dropFirst())
         // --json on a listing (#130): taken out first, so each listing reads its arguments as before.
         let json = ["list", "projects", "queue", "models", "info"].contains(args.first) && rest.contains("--json")
         rest.removeAll { $0 == "--json" && json }
         switch args.first {
-        case "_names":
-            // For the completion scripts (not for people, so not in the usage): a name a line.
-            switch rest {
-            case ["minis"]: Gallery.list(install.runs).forEach { print($0.name) }
-            case ["projects"]: Gallery.projects(install.runs).forEach { print($0) }
-            default: return fail("usage: mimic _names minis|projects")
-            }
-            return 0
-        case "list":
-            JobRunner(install: install).cleanUpLeftovers()
-            let waiting = Set(JobQueue(folder: install.queue).entries().map(\.name))
-            let minis = Gallery.list(install.runs), projects = Gallery.projects(install.runs)
-            if json { return printJSON(minis.map { ListingJSON.MiniRow($0, waiting: waiting) }) }
-            func row(_ m: Mini, _ indent: String) {
-                let state = MiniState(m, waiting: waiting).rawValue
-                print("\(indent)\(m.name)\t\(state)\t\(Mini.listDate(m.created))\t\(m.displayName)")
-            }
-            // Without projects, the same lines as always; with them, a heading each, then Unsorted.
-            guard !projects.isEmpty else { minis.forEach { row($0, "") }; return 0 }
-            for p in projects + [nil] as [String?] {
-                let inside = minis.filter { $0.project == p }
-                if p == nil && inside.isEmpty { continue }
-                print("\(p ?? "Unsorted"):")
-                inside.forEach { row($0, "  ") }
-                if inside.isEmpty { print("  (empty)") }
-            }
-            return 0
-        case "projects":
-            guard rest.isEmpty else { return fail(usage) }
-            let minis = Gallery.list(install.runs)
-            if json { return printJSON(Gallery.projects(install.runs).map { ListingJSON.Project($0, minis: minis) }) }
-            for p in Gallery.projects(install.runs) {
-                let n = minis.filter { $0.project == p }.count
-                print("\(p)\t\(n) mini\(n == 1 ? "" : "s")")
-            }
-            return 0
-        case "move":
-            guard rest.count >= 2, !rest[0].hasPrefix("-") else { return fail(usage) }
-            let name = mini(rest[0])
-            let target: String?
-            switch Array(rest.dropFirst()) {
-            case ["--unsorted"]: target = nil
-            case let a where a.count == 2 && a[0] == "--project": 
-                do { target = try project(a[1], install) } catch { return fail("\(error)") }
-            default: return fail(usage)
-            }
-            do { try JobRunner(install: install).move(mini: name, toProject: target) } catch { return fail("\(error)") }
-            print("Moved \(Mini.displayName(name, runs: install.runs)) to \(target ?? "Unsorted").")
-            return 0
-        case "duplicate":
-            guard rest.count == 3, !rest[0].hasPrefix("-"), rest[1] == "--as" else { return fail(usage) }
-            // As typed, like a name in the app: "Raven Display" is the folder raven-display.
-            guard let given = Rules.typedName(rest[2]) else { return fail("Give the copy a name.") }
-            let new = given.folder, of = mini(rest[0])
-            do { try JobRunner(install: install).duplicate(of, as: new, shown: given.shown) }
-            catch { return fail("\(error)") }
-            print(JobRunner(install: install).duplicatedSaying(of, as: new))
-            return 0
-        case "models":
-            // The app's choice, marked; downloading one is the app's job, where it shows progress.
-            let selected = EngineDownload.selected(defaults: defaults)
-            if json {
-                return printJSON(EngineDownload.catalogue.map { ListingJSON.Model($0, downloaded: $0.complete(in: install), selected: $0.id == selected.id) })
-            }
-            for m in EngineDownload.catalogue {
-                let state = m.complete(in: install) ? "downloaded" : "not downloaded"
-                print("\(m.id == selected.id ? "*" : " ") \(m.id)\t\(m.name)\t\(Checks.gigabytes(m.bytes)) GB\t\(state)\t\(m.described())")
-            }
-            print("* = the one Mimic uses. Choose or download one in the Mimic app: Settings → 3D Model.")
-            return 0
-        case "queue":
-            let jobs = JobRunner(install: install)
-            jobs.heldForPower = power
-            jobs.cleanUpLeftovers()
-            if rest == ["pause"] || rest == ["resume"] {
-                // Started by the app, not here: this command ends at once, and a job needs its runner.
-                do { try jobs.setPaused(rest == ["pause"], start: false) } catch { return fail("\(error)") }
-                print(rest == ["pause"] ? "Paused the queue: a mini being made finishes, and no new one starts until you resume it (mimic queue resume, or in Mimic)."
-                                        : "Resumed the queue. Mimic carries on with it, or the next time you open it.")
-                return 0
-            }
-            if rest.first == "move" {
-                let how = "usage: mimic queue move <name> --to front|end|<place> | --up | --down"
-                guard rest.count >= 3 else { return fail(how) }
-                let name = mini(rest[1])
-                let moved: Bool
-                do {
-                    switch Array(rest.dropFirst(2)) {
-                    case ["--up"]: moved = try jobs.move(name, by: -1)
-                    case ["--down"]: moved = try jobs.move(name, by: 1)
-                    case let a where a.count == 2 && a[0] == "--to":
-                        guard let place = QueuePlace(a[1]) else { return fail(how) }
-                        moved = try jobs.move(name, to: place)
-                    default: return fail(how)
-                    }
-                } catch { return fail("\(error)") }
-                guard moved else { return fail("\(name) isn't waiting in the queue.") }
-                return listQueue(jobs, history: timings.load())
-            }
-            if rest.first == "remove" {
-                guard rest.count == 2 else { return fail("usage: mimic queue remove <name>") }
-                let name = mini(rest[1])
-                do {
-                    guard let said = try jobs.removeSaying(name) else { return fail("\(rest[1]) isn't waiting in the queue.") }
-                    print(said)
-                } catch { return fail("\(error)") }
-                return 0
-            }
-            guard rest.isEmpty else { return fail(usage) }
-            return listQueue(jobs, history: timings.load(), json: json)
-        case "make", "resize", "retry", "make-another", "import":
-            // Resize All: `mimic resize --project <project> [options]`, every mini in it.
-            let all = args[0] == "resize" && rest.first == "--project"
-            guard all || rest.first.map({ !$0.hasPrefix("-") }) == true else { return fail(usage) }
-            // A mini that's there goes by its name in mimic list, or as it was typed in Mimic.
-            let of = all ? "" : ["make", "import"].contains(args[0]) ? rest[0] : mini(rest[0])
-            // make-another makes a new mini, next to `of`; import names it after its file, `of`.
-            let imported = args[0] == "import" ? ModelImport.names(for: URL(fileURLWithPath: of), in: install.runs) : nil
-            // make takes a name as the app does: "Élodie" is the folder elodie, shown as typed.
-            let given = args[0] == "make" ? Rules.typedName(of) : nil
-            if args[0] == "make" && given == nil { return fail("Give the mini a name.") }
-            var name = args[0] == "make-another" ? Gallery.nextVersionName(install.runs, of) : imported?.folder ?? given?.folder ?? of
-            // Setup downloads the engine in the app, where it can show its progress. Resize and
-            // import only run print prep.
-            guard args[0] == "resize" || args[0] == "import" || FileManager.default.isExecutableFile(atPath: install.trellisCLI.path) else {
-                return fail("Mimic needs to finish setting up. Open the Mimic app: it downloads what's missing.")
-            }
-            if !all { rest.removeFirst() }
-            var sizes = Sizes(), image: String?, restyle = false, seed = 42, description: String?, improve = false
-            var model = EngineDownload.selected(defaults: defaults)
-            var object = false, addBase = false, wait = false, newShape = false, projectName: String?, seedGiven = false, shapeGiven = false, styleGiven = false, magnetGiven = false
-            var scale: Int?, modelGiven = false, sides: [PictureSide: URL] = [:]
-            while let a = rest.first {
-                rest.removeFirst()
-                func value() -> String? { rest.isEmpty ? nil : rest.removeFirst() }
-                switch a {
-                case "--height", "--size": sizes.height = value()
-                case "--scale":
-                    guard let v = value().flatMap(Int.init), SizeCard.scales.contains(v) else { return fail("--scale needs \(SizeCard.scaleChoices)") }
-                    scale = v
-                case "--object": object = true
-                case "--add-base": addBase = true
-                case "--base": sizes.base = value()
-                case "--nozzle": sizes.nozzle = value()
-                case "--inflate": sizes.inflate = value()
-                case "--no-base": sizes.noBase = true
-                case "--base-shape":
-                    guard let v = value().flatMap(BaseShape.init) else { return fail("--base-shape needs round, square or hex") }
-                    sizes.shape = v; shapeGiven = true
-                case "--base-style":
-                    guard let v = value().flatMap(BaseStyle.init) else { return fail("--base-style needs plain, stone, wood or cobble") }
-                    sizes.style = v; styleGiven = true
-                case "--magnet":
-                    let v = value()
-                    guard v == "none" || v.flatMap(Magnet.init) != nil else { return fail("--magnet needs 5x2, 6x2, 8x3 or none") }
-                    sizes.magnet = v.flatMap(Magnet.init); magnetGiven = true
-                case "--image": image = value()
-                case "--back", "--left", "--right":
-                    guard let v = value() else { return fail("\(a) needs a picture") }
-                    sides[PictureSide(rawValue: String(a.dropFirst(2)))!] = URL(fileURLWithPath: v)
-                case "--restyle": restyle = true
-                case "--improve": improve = true
-                case "--wait": wait = true
-                case "--new-shape": newShape = true
-                case "--seed": guard let v = value().flatMap(Int.init) else { return fail("--seed needs a number") }; seed = v; seedGiven = true
-                case "--project": guard let v = value() else { return fail("--project needs a project's name") }; projectName = v
-                case "--model":
-                    guard let v = value().flatMap(EngineDownload.model) else {
-                        return fail("--model needs one of: \(EngineDownload.catalogue.map(\.id).joined(separator: ", ")) (see mimic models)")
-                    }
-                    model = v; modelGiven = true
-                default:
-                    guard description == nil, !a.hasPrefix("-") else { return fail("unknown option: \(a)\n\(usage)") }
-                    description = a
-                }
-            }
-            // Resize All starts from the first mini that can be resized, as the app's card does.
-            var group: [Mini] = []
-            if all {
-                guard let p = projectName.flatMap({ Gallery.project(install.runs, named: $0) }) else {
-                    return fail("There's no project called \(projectName ?? ""). See them all: mimic projects")
-                }
-                group = Gallery.list(install.runs).filter { $0.project == p }
-                guard let first = group.first(where: \.hasModel) else { return fail("None of the minis in \(p) is made yet.") }
-                projectName = nil
-                name = first.name
-            }
-            // An object has no round base unless asked for one; a resize keeps what the mini is.
-            if args[0] == "resize", let saved = Gallery.folder(install.runs, name).map(MiniSettings.load) {
-                object = saved.isObject
-                sizes = sizes.resizing(saved.made ?? saved.requested, shapeGiven: shapeGiven, styleGiven: styleGiven, magnetGiven: magnetGiven)
-            }
-            if projectName != nil && !["make", "import"].contains(args[0]) && !all { return fail("--project is for mimic make, import and resize --project; mimic move moves a mini") }
-            if args[0] == "import" && (image != nil || restyle || improve || seedGiven || modelGiven || newShape || description != nil) {
-                return fail("mimic import takes the model as it is: only size options, --object, --add-base and --project")
-            }
-            if newShape && args[0] != "make-another" { return fail("--new-shape is for mimic make-another") }
-            if !sides.isEmpty && (args[0] != "make" || image == nil) { return fail("--back, --left and --right go with mimic make … --image <front picture>") }
-            if let scale {
-                if object { return fail("--scale is for characters; give an object's longest side with --size") }
-                sizes = SizeCard.gameSizes(scale: scale, filling: sizes) ?? sizes
-            }
-            if object {
-                if !addBase { sizes.noBase = true }
-                // An object's base goes under its whole shadow, as in the app (SizeCard).
-                else if sizes.base == nil, let h = sizes.height.flatMap(Double.init) ?? SizeCard.objectSize[sizes.nozzle ?? "0.4"] {
-                    sizes.base = SizeCard.text(min(80, max(25, (h * 0.8 / 5).rounded() * 5)))
-                }
-                if sizes.height == nil { sizes.height = SizeCard.text(SizeCard.objectSize[sizes.nozzle ?? "0.4"] ?? 80) }
-            }
-            timings.seedIfNeeded(runs: install.runs)  // before the first record marks it done
-            let jobs = JobRunner(install: install, timings: timings, version: BuildInfo.version)
-            jobs.heldForPower = power
-            // This terminal runs the queue only until its own mini is made; the app runs the rest.
-            jobs.keepGoing = { [name] in $0.contains { $0.name == name } }
-            let mine = Mine(name: name, runs: install.runs)
-            jobs.onChange = { mine.saw($0) }
-            let added = Date()
-            if all {
-                // This terminal runs the queue until the last of them is made, and follows that one.
-                let resized = Names()
-                jobs.keepGoing = { $0.contains { resized.has($0.name) } }
-                let done = jobs.resizeAll(group, to: sizes) { m, s in
-                    try jobs.resize(name: m.name, sizes: s)
-                    resized.add(m.name)
-                    mine.name = m.name
-                }
-                if let why = done.nothingAdded(done.failure.map { "\($0)" }) { return fail(why) }
-                print("\(done.added.count) \(done.added.count == 1 ? "mini" : "minis") added to the queue.\(done.sameNote)\(done.skippedNote)")
-                return see(jobs, mine, wait: wait, added: added)
-            }
-            let ahead: Int?
-            do {
-                switch args[0] {
-                case "make":
-                    let picture: PictureSource
-                    if improve && image != nil { return fail("--improve works on a description, not --image") }
-                    if let image { picture = .image(URL(fileURLWithPath: image)) }
-                    else if let description { picture = improve ? improved(description, defaults, kind: object ? .object : .character) : .description(description) }
-                    else { return fail(usage) }
-                    let into = try projectName.map { try project($0, install) }
-                    ahead = try jobs.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes,
-                                          kind: object ? .object : .character, model: model, project: into, shown: given?.shown,
-                                          sides: sides)
-                case "make-another":
-                    if newShape {
-                        ahead = try jobs.makeNewShape(of: of, as: name, seed: seedGiven ? seed : nil).ahead
-                        print("Making \(name), a new 3D shape of \(of).")
-                    } else {
-                        ahead = try jobs.makeAnotherVersion(of: of, as: name, seed: seedGiven ? seed : nil).ahead
-                        print("Making \(name), another version of \(of).")
-                    }
-                case "import":
-                    let into = try projectName.map { try project($0, install) }
-                    ahead = try jobs.importModel(URL(fileURLWithPath: of), name: name, shown: imported?.shown, sizes: sizes,
-                                                 kind: object ? .object : .character, project: into)
-                    print("Importing it as \(imported?.shown ?? name).")
-                case "resize": ahead = try jobs.resize(name: name, sizes: sizes)
-                default: ahead = try jobs.retry(name: name)
-                }
-            } catch {
-                return fail("\(error)")
-            }
-            if ahead != nil, jobs.hold() != nil {
-                print("Added to the queue.")
-            } else if let ahead {
-                let ready = jobs.queueTimes(jobs.queue.entries(), running: jobs.running(), history: timings.load())
-                    .first { $0.entry.name == name }?.ready ?? 0
-                print("Added to the queue — \(ahead) ahead of it, ready in \(JobProgress.about(ready)).")
-            }
-            return see(jobs, mine, wait: wait, added: added)
-        case "open":
-            guard rest.count == 1 else { return fail(usage) }
-            guard let m = find(rest[0], install) else { return fail(notFound(rest[0])) }
-            guard let stl = m.stl else { return fail("\(m.displayName) isn't made yet.") }
-            // The slicer picked in the app's Settings: `defaults` are the app's, through the symlink too.
-            let slicer = Slicer.preferred(defaults: defaults)
-            let done = DispatchSemaphore(value: 0)
-            nonisolated(unsafe) var failed: Error?
-            Slicer.open(stl, in: slicer) { failed = $0; done.signal() }
-            _ = done.wait(timeout: .now() + 30)
-            if let failed { return fail("Couldn't open it in \(slicer?.name ?? "your slicer"): \(failed.localizedDescription)") }
-            print("Opened \(m.displayName) in \(slicer?.name ?? "your Mac's app for print files").")
-            return 0
-        case "info":
-            guard rest.count == 1 else { return fail(usage) }
-            let minis = Gallery.list(install.runs)
-            guard let m = minis.first(where: { $0.name == mini(rest[0]) }) else { return fail(notFound(rest[0])) }
-            let waiting = Set(JobQueue(folder: install.queue).entries().map(\.name))
-            let info = MiniInfo(m, in: minis, waiting: waiting)
-            if json { return printJSON(ListingJSON.Info(info, waiting: waiting)) }
-            info.lines.forEach { print($0) }
-            return 0
-        case "rename":
-            guard rest.count == 3, !rest[0].hasPrefix("-"), rest[1] == "--to" else { return fail(usage) }
-            let old = mini(rest[0]), before = Mini.displayName(old, runs: install.runs)
-            do {
-                let new = try JobRunner(install: install).rename(old, typed: rest[2])
-                print("Renamed \(before) to \(Mini.displayName(new, runs: install.runs)) (\(new)).")
-            } catch { return fail("\(error)") }
-            return 0
-        case "trash":
-            guard !rest.isEmpty, !rest.contains(where: { $0.hasPrefix("-") }) else { return fail(usage) }
-            let jobs = JobRunner(install: install)
-            var code: Int32 = 0
-            for text in rest {
-                guard let m = find(text, install) else { code = fail(notFound(text)); continue }
-                do { try jobs.moveToTrash(m); print("Moved \(m.displayName) to the Trash.") } catch { code = fail("\(error)") }
-            }
-            return code
-        case "keep":
-            guard rest.count == 1, !rest[0].hasPrefix("-") else { return fail(usage) }
-            let jobs = JobRunner(install: install)
-            let minis = Gallery.list(install.runs)
-            guard let m = minis.first(where: { $0.name == mini(rest[0]) }) else { return fail(notFound(rest[0])) }
-            let picked = Gallery.toKeep(m, in: minis, busyWith: jobs.running()?.name)
-            guard !picked.trash.isEmpty || picked.staying != nil else { print("\(m.displayName) has no other versions."); return 0 }
-            var code: Int32 = 0
-            for v in picked.trash {
-                do { try jobs.moveToTrash(v); print("Moved \(v.displayName) to the Trash.") } catch { code = fail("\(error)") }
-            }
-            if let s = picked.staying { code = fail("\(s.displayName) is being made, so it wasn't moved to the Trash. Move it there once it's done.") }
-            // As the app offers after Keep This One: the plain name, now that it's free.
-            let root = m.settings.versionOf ?? m.name
-            if code == 0, root != m.name, !Gallery.nameInUse(install.runs, root) {
-                let plain = Rules.shownName(carrying: m.displayName, to: root) ?? root
-                print("Its plain name is free now: mimic rename \(m.name) --to \"\(plain)\"")
-            }
-            return code
-        case "stop":
-            guard rest.isEmpty else { return fail(usage) }
-            let jobs = JobRunner(install: install)
-            jobs.cleanUpLeftovers()
-            switch jobs.stopElsewhere() {
-            case .nothing:
-                print("Nothing is being made.")
-            case .stopped(let s):
-                let who = s.displayName(runs: install.runs)
-                print(s.kind == .prep ? "Stopped resizing \(who). It keeps its previous size."
-                                      : "Stopped making \(who). Nothing was kept. It's in the Trash if you want the pieces.")
-            case .ended(let s):
-                let who = s.displayName(runs: install.runs)
-                print(s.kind == .prep ? "Resizing \(who) had already ended, so it wasn't stopped."
-                                      : "Making \(who) had already ended, so it wasn't stopped.")
-            case .noAnswer(let s):
-                return fail("\(s.displayName(runs: install.runs)) didn't stop. Stop it where it's being made: in Mimic, or with Ctrl-C in the Terminal window making it.")
-            }
-            return 0
-        case "project":
-            let jobs = JobRunner(install: install)
-            func existing(_ text: String) throws -> String {
-                guard let p = Gallery.project(install.runs, named: text) else { throw Refusal("There's no project called \(text). See them all: mimic projects") }
-                return p
-            }
-            do {
-                switch rest.first {
-                case "create" where rest.count == 2:
-                    print("Made a new project, \(try Gallery.createProject(install.runs, rest[1])).")
-                case "rename" where rest.count == 4 && rest[2] == "--to":
-                    let old = try existing(rest[1])
-                    print("Renamed the project \(old) to \(try jobs.renameProject(old, to: rest[3])).")
-                case "delete" where rest.count == 2 || (rest.count == 3 && rest[2] == "--trash-minis"):
-                    let p = try existing(rest[1]), keep = rest.count == 2
-                    try jobs.deleteProject(p, keepMinis: keep)
-                    print(keep ? "Deleted the project \(p): its minis are in Unsorted now, and its folder is in the Trash."
-                               : "Deleted the project \(p): it's in the Trash with its minis.")
-                default:
-                    return fail(usage)
-                }
-            } catch { return fail("\(error)") }
-            return 0
-        default:
-            return fail(usage)
+        case "_names": return names(rest, cli)
+        case "list": return list(cli, json: json)
+        case "projects": return projects(rest, cli, json: json)
+        case "move": return move(rest, cli)
+        case "duplicate": return duplicate(rest, cli)
+        case "models": return models(cli, json: json)
+        case "queue": return queue(rest, cli, json: json)
+        case "make", "resize", "retry", "make-another", "import": return make(args, cli)
+        case "open": return open(rest, cli)
+        case "info": return info(rest, cli, json: json)
+        case "rename": return rename(rest, cli)
+        case "trash": return trash(rest, cli)
+        case "keep": return keep(rest, cli)
+        case "stop": return stop(rest, cli)
+        case "project": return manageProject(rest, cli)
+        default: return fail(usage)
         }
     }
 
-    /// A mini named on the command line: its folder's name, as `mimic list` shows it, or its name
-    /// as typed in Mimic ("Élodie" is elodie).
-    private static func mini(_ text: String) -> String { Rules.isValidName(text) ? text : Rules.folderName(text) }
+    /// What every command finds out first: the app's settings and the minis folder.
+    private struct Context {
+        let defaults: UserDefaults
+        let install: Install
+        let power: @Sendable () -> Bool
+        let timings: Timings
+    }
+
+    /// For the completion scripts (not for people, so not in the usage): a name a line.
+    private static func names(_ rest: [String], _ cli: Context) -> Int32 {
+        switch rest {
+        case ["minis"]: Gallery.list(cli.install.runs).forEach { print($0.name) }
+        case ["projects"]: Gallery.projects(cli.install.runs).forEach { print($0) }
+        default: return fail("usage: mimic _names minis|projects")
+        }
+        return 0
+    }
+
+    private static func list(_ cli: Context, json: Bool) -> Int32 {
+        let install = cli.install
+        JobRunner(install: install).cleanUpLeftovers()
+        let waiting = Set(JobQueue(folder: install.queue).entries().map(\.name))
+        let minis = Gallery.list(install.runs), projects = Gallery.projects(install.runs)
+        if json { return printJSON(minis.map { ListingJSON.MiniRow($0, waiting: waiting) }) }
+        func row(_ m: Mini, _ indent: String) {
+            let state = MiniState(m, waiting: waiting).rawValue
+            print("\(indent)\(m.name)\t\(state)\t\(Mini.listDate(m.created))\t\(m.displayName)")
+        }
+        // Without projects, the same lines as always; with them, a heading each, then Unsorted.
+        guard !projects.isEmpty else { minis.forEach { row($0, "") }; return 0 }
+        for p in projects + [nil] as [String?] {
+            let inside = minis.filter { $0.project == p }
+            if p == nil && inside.isEmpty { continue }
+            print("\(p ?? "Unsorted"):")
+            inside.forEach { row($0, "  ") }
+            if inside.isEmpty { print("  (empty)") }
+        }
+        return 0
+    }
+
+    private static func projects(_ rest: [String], _ cli: Context, json: Bool) -> Int32 {
+        guard rest.isEmpty else { return fail(usage) }
+        let install = cli.install
+        let minis = Gallery.list(install.runs)
+        if json { return printJSON(Gallery.projects(install.runs).map { ListingJSON.Project($0, minis: minis) }) }
+        for p in Gallery.projects(install.runs) {
+            let n = minis.filter { $0.project == p }.count
+            print("\(p)\t\(n) mini\(n == 1 ? "" : "s")")
+        }
+        return 0
+    }
+
+    private static func move(_ rest: [String], _ cli: Context) -> Int32 {
+        let install = cli.install
+        guard rest.count >= 2, !rest[0].hasPrefix("-") else { return fail(usage) }
+        let name = Rules.miniName(rest[0])
+        let target: String?
+        switch Array(rest.dropFirst()) {
+        case ["--unsorted"]: target = nil
+        case let a where a.count == 2 && a[0] == "--project":
+            do { target = try project(a[1], install) } catch { return fail("\(error)") }
+        default: return fail(usage)
+        }
+        do { try JobRunner(install: install).move(mini: name, toProject: target) } catch { return fail("\(error)") }
+        print("Moved \(Mini.displayName(name, runs: install.runs)) to \(target ?? "Unsorted").")
+        return 0
+    }
+
+    private static func duplicate(_ rest: [String], _ cli: Context) -> Int32 {
+        let install = cli.install
+        guard rest.count == 3, !rest[0].hasPrefix("-"), rest[1] == "--as" else { return fail(usage) }
+        // As typed, like a name in the app: "Raven Display" is the folder raven-display.
+        guard let given = Rules.typedName(rest[2]) else { return fail("Give the copy a name.") }
+        let new = given.folder, of = Rules.miniName(rest[0])
+        do { try JobRunner(install: install).duplicate(of, as: new, shown: given.shown) }
+        catch { return fail("\(error)") }
+        print(JobRunner(install: install).duplicatedSaying(of, as: new))
+        return 0
+    }
+
+    /// The app's choice, marked; downloading one is the app's job, where it shows progress.
+    private static func models(_ cli: Context, json: Bool) -> Int32 {
+        let install = cli.install
+        let selected = EngineDownload.selected(defaults: cli.defaults)
+        if json {
+            return printJSON(EngineDownload.catalogue.map { ListingJSON.Model($0, downloaded: $0.complete(in: install), selected: $0.id == selected.id) })
+        }
+        for m in EngineDownload.catalogue {
+            let state = m.complete(in: install) ? "downloaded" : "not downloaded"
+            print("\(m.id == selected.id ? "*" : " ") \(m.id)\t\(m.name)\t\(Checks.gigabytes(m.bytes)) GB\t\(state)\t\(m.described())")
+        }
+        print("* = the one Mimic uses. Choose or download one in the Mimic app: Settings → 3D Model.")
+        return 0
+    }
+
+    private static func queue(_ rest: [String], _ cli: Context, json: Bool) -> Int32 {
+        let jobs = JobRunner(install: cli.install)
+        jobs.heldForPower = cli.power
+        jobs.cleanUpLeftovers()
+        let command: QueueCommand
+        do { command = try QueueCommand.parse(rest) } catch { return fail("\(error)") }
+        switch command {
+        case .pause, .resume:
+            // Started by the app, not here: this command ends at once, and a job needs its runner.
+            do { try jobs.setPaused(command == .pause, start: false) } catch { return fail("\(error)") }
+            print(command == .pause ? "Paused the queue: a mini being made finishes, and no new one starts until you resume it (mimic queue resume, or in Mimic)."
+                                    : "Resumed the queue. Mimic carries on with it, or the next time you open it.")
+            return 0
+        case .move(let name, let how):
+            let moved: Bool
+            do {
+                switch how {
+                case .by(let step): moved = try jobs.move(name, by: step)
+                case .to(let place): moved = try jobs.move(name, to: place)
+                }
+            } catch { return fail("\(error)") }
+            guard moved else { return fail("\(name) isn't waiting in the queue.") }
+            return listQueue(jobs, history: cli.timings.load())
+        case .remove(let name, let typed):
+            do {
+                guard let said = try jobs.removeSaying(name) else { return fail("\(typed) isn't waiting in the queue.") }
+                print(said)
+            } catch { return fail("\(error)") }
+            return 0
+        case .list:
+            return listQueue(jobs, history: cli.timings.load(), json: json)
+        }
+    }
+
+    /// `mimic make`, `resize`, `retry`, `make-another` and `import`; `args` from the command's name on.
+    private static func make(_ args: [String], _ cli: Context) -> Int32 {
+        let install = cli.install, timings = cli.timings
+        let request: MakeRequest
+        do { request = try MakeRequest.parse(args, engineReady: FileManager.default.isExecutableFile(atPath: install.trellisCLI.path)) }
+        catch { return fail("\(error)") }
+        let of = request.of
+        // make-another makes a new mini, next to `of`; import names it after its file, `of`.
+        let imported = request.command == .import ? ModelImport.names(for: URL(fileURLWithPath: of), in: install.runs) : nil
+        var name = request.command == .makeAnother ? Gallery.nextVersionName(install.runs, of) : imported?.folder ?? of
+        var sizes = request.sizes, object = request.object
+        // Resize All starts from the first mini that can be resized, as the app's card does.
+        var group: [Mini] = []
+        var all = false
+        if case .resizeAll(let project) = request.command {
+            guard let p = Gallery.project(install.runs, named: project) else {
+                return fail("There's no project called \(project). See them all: mimic projects")
+            }
+            group = Gallery.list(install.runs).filter { $0.project == p }
+            guard let first = group.first(where: \.hasModel) else { return fail("None of the minis in \(p) is made yet.") }
+            all = true
+            name = first.name
+        }
+        // An object has no round base unless asked for one; a resize keeps what the mini is.
+        if request.command == .resize || all, let saved = Gallery.folder(install.runs, name).map(MiniSettings.load) {
+            object = saved.isObject
+            sizes = sizes.resizing(saved.made ?? saved.requested, shapeGiven: request.shapeGiven, styleGiven: request.styleGiven,
+                                   magnetGiven: request.magnetGiven)
+        }
+        do { sizes = try request.checkedSizes(sizes, object: object) } catch { return fail("\(error)") }
+        timings.seedIfNeeded(runs: install.runs)  // before the first record marks it done
+        let jobs = JobRunner(install: install, timings: timings, version: BuildInfo.version)
+        jobs.heldForPower = cli.power
+        // This terminal runs the queue only until its own mini is made; the app runs the rest.
+        jobs.keepGoing = { [name] in $0.contains { $0.name == name } }
+        let mine = Mine(name: name, runs: install.runs)
+        jobs.onChange = { mine.saw($0) }
+        let added = Date()
+        if all {
+            // This terminal runs the queue until the last of them is made, and follows that one.
+            let resized = Names()
+            jobs.keepGoing = { $0.contains { resized.has($0.name) } }
+            let done = jobs.resizeAll(group, to: sizes) { m, s in
+                try jobs.resize(name: m.name, sizes: s)
+                resized.add(m.name)
+                mine.name = m.name
+            }
+            if let why = done.nothingAdded(done.failure.map { "\($0)" }) { return fail(why) }
+            print("\(done.added.count) \(done.added.count == 1 ? "mini" : "minis") added to the queue.\(done.sameNote)\(done.skippedNote)")
+            return see(jobs, mine, wait: request.wait, added: added)
+        }
+        let kind: MiniKind = object ? .object : .character
+        let ahead: Int?
+        do {
+            switch request.command {
+            case .make:
+                let picture: PictureSource
+                if let image = request.image { picture = .image(URL(fileURLWithPath: image)) }
+                else if let description = request.description {
+                    picture = request.improve ? improved(description, cli.defaults, kind: kind) : .description(description)
+                }
+                else { return fail(usage) }
+                let into = try request.project.map { try project($0, install) }
+                ahead = try jobs.make(name: name, picture: picture, restyle: request.restyle, seed: request.seed ?? 42, sizes: sizes,
+                                      kind: kind, model: request.model ?? EngineDownload.selected(defaults: cli.defaults), project: into,
+                                      shown: request.shown, sides: request.sides)
+            case .makeAnother:
+                if request.newShape {
+                    ahead = try jobs.makeNewShape(of: of, as: name, seed: request.seed).ahead
+                    print("Making \(name), a new 3D shape of \(of).")
+                } else {
+                    ahead = try jobs.makeAnotherVersion(of: of, as: name, seed: request.seed).ahead
+                    print("Making \(name), another version of \(of).")
+                }
+            case .import:
+                let into = try request.project.map { try project($0, install) }
+                ahead = try jobs.importModel(URL(fileURLWithPath: of), name: name, shown: imported?.shown, sizes: sizes,
+                                             kind: kind, project: into)
+                print("Importing it as \(imported?.shown ?? name).")
+            case .resize, .resizeAll: ahead = try jobs.resize(name: name, sizes: sizes)
+            case .retry: ahead = try jobs.retry(name: name)
+            }
+        } catch {
+            return fail("\(error)")
+        }
+        if ahead != nil, jobs.hold() != nil {
+            print("Added to the queue.")
+        } else if let ahead {
+            let ready = jobs.queueTimes(jobs.queue.entries(), running: jobs.running(), history: timings.load())
+                .first { $0.entry.name == name }?.ready ?? 0
+            print("Added to the queue — \(ahead) ahead of it, ready in \(JobProgress.about(ready)).")
+        }
+        return see(jobs, mine, wait: request.wait, added: added)
+    }
+
+    private static func open(_ rest: [String], _ cli: Context) -> Int32 {
+        guard rest.count == 1 else { return fail(usage) }
+        guard let m = find(rest[0], cli.install) else { return fail(notFound(rest[0])) }
+        guard let stl = m.stl else { return fail("\(m.displayName) isn't made yet.") }
+        // The slicer picked in the app's Settings: `defaults` are the app's, through the symlink too.
+        let slicer = Slicer.preferred(defaults: cli.defaults)
+        let done = DispatchSemaphore(value: 0)
+        nonisolated(unsafe) var failed: Error?
+        Slicer.open(stl, in: slicer) { failed = $0; done.signal() }
+        _ = done.wait(timeout: .now() + 30)
+        if let failed { return fail("Couldn't open it in \(slicer?.name ?? "your slicer"): \(failed.localizedDescription)") }
+        print("Opened \(m.displayName) in \(slicer?.name ?? "your Mac's app for print files").")
+        return 0
+    }
+
+    private static func info(_ rest: [String], _ cli: Context, json: Bool) -> Int32 {
+        guard rest.count == 1 else { return fail(usage) }
+        let install = cli.install
+        let minis = Gallery.list(install.runs)
+        guard let m = minis.first(where: { $0.name == Rules.miniName(rest[0]) }) else { return fail(notFound(rest[0])) }
+        let waiting = Set(JobQueue(folder: install.queue).entries().map(\.name))
+        let info = MiniInfo(m, in: minis, waiting: waiting)
+        if json { return printJSON(ListingJSON.Info(info, waiting: waiting)) }
+        info.lines.forEach { print($0) }
+        return 0
+    }
+
+    private static func rename(_ rest: [String], _ cli: Context) -> Int32 {
+        let install = cli.install
+        guard rest.count == 3, !rest[0].hasPrefix("-"), rest[1] == "--to" else { return fail(usage) }
+        let old = Rules.miniName(rest[0]), before = Mini.displayName(old, runs: install.runs)
+        do {
+            let new = try JobRunner(install: install).rename(old, typed: rest[2])
+            print("Renamed \(before) to \(Mini.displayName(new, runs: install.runs)) (\(new)).")
+        } catch { return fail("\(error)") }
+        return 0
+    }
+
+    private static func trash(_ rest: [String], _ cli: Context) -> Int32 {
+        guard !rest.isEmpty, !rest.contains(where: { $0.hasPrefix("-") }) else { return fail(usage) }
+        let jobs = JobRunner(install: cli.install)
+        var code: Int32 = 0
+        for text in rest {
+            guard let m = find(text, cli.install) else { code = fail(notFound(text)); continue }
+            do { try jobs.moveToTrash(m); print("Moved \(m.displayName) to the Trash.") } catch { code = fail("\(error)") }
+        }
+        return code
+    }
+
+    private static func keep(_ rest: [String], _ cli: Context) -> Int32 {
+        let install = cli.install
+        guard rest.count == 1, !rest[0].hasPrefix("-") else { return fail(usage) }
+        let jobs = JobRunner(install: install)
+        let minis = Gallery.list(install.runs)
+        guard let m = minis.first(where: { $0.name == Rules.miniName(rest[0]) }) else { return fail(notFound(rest[0])) }
+        let picked = Gallery.toKeep(m, in: minis, busyWith: jobs.running()?.name)
+        guard !picked.trash.isEmpty || picked.staying != nil else { print("\(m.displayName) has no other versions."); return 0 }
+        var code: Int32 = 0
+        for v in picked.trash {
+            do { try jobs.moveToTrash(v); print("Moved \(v.displayName) to the Trash.") } catch { code = fail("\(error)") }
+        }
+        if let s = picked.staying { code = fail("\(s.displayName) is being made, so it wasn't moved to the Trash. Move it there once it's done.") }
+        // As the app offers after Keep This One: the plain name, now that it's free.
+        let root = m.settings.versionOf ?? m.name
+        if code == 0, root != m.name, !Gallery.nameInUse(install.runs, root) {
+            let plain = Rules.shownName(carrying: m.displayName, to: root) ?? root
+            print("Its plain name is free now: mimic rename \(m.name) --to \"\(plain)\"")
+        }
+        return code
+    }
+
+    private static func stop(_ rest: [String], _ cli: Context) -> Int32 {
+        let install = cli.install
+        guard rest.isEmpty else { return fail(usage) }
+        let jobs = JobRunner(install: install)
+        jobs.cleanUpLeftovers()
+        switch jobs.stopElsewhere() {
+        case .nothing:
+            print("Nothing is being made.")
+        case .stopped(let s):
+            let who = s.displayName(runs: install.runs)
+            print(s.kind == .prep ? "Stopped resizing \(who). It keeps its previous size."
+                                  : "Stopped making \(who). Nothing was kept. It's in the Trash if you want the pieces.")
+        case .ended(let s):
+            let who = s.displayName(runs: install.runs)
+            print(s.kind == .prep ? "Resizing \(who) had already ended, so it wasn't stopped."
+                                  : "Making \(who) had already ended, so it wasn't stopped.")
+        case .noAnswer(let s):
+            return fail("\(s.displayName(runs: install.runs)) didn't stop. Stop it where it's being made: in Mimic, or with Ctrl-C in the Terminal window making it.")
+        }
+        return 0
+    }
+
+    /// `mimic project create|rename|delete`.
+    private static func manageProject(_ rest: [String], _ cli: Context) -> Int32 {
+        let install = cli.install
+        let jobs = JobRunner(install: install)
+        func existing(_ text: String) throws -> String {
+            guard let p = Gallery.project(install.runs, named: text) else { throw Refusal("There's no project called \(text). See them all: mimic projects") }
+            return p
+        }
+        do {
+            switch rest.first {
+            case "create" where rest.count == 2:
+                print("Made a new project, \(try Gallery.createProject(install.runs, rest[1])).")
+            case "rename" where rest.count == 4 && rest[2] == "--to":
+                let old = try existing(rest[1])
+                print("Renamed the project \(old) to \(try jobs.renameProject(old, to: rest[3])).")
+            case "delete" where rest.count == 2 || (rest.count == 3 && rest[2] == "--trash-minis"):
+                let p = try existing(rest[1]), keep = rest.count == 2
+                try jobs.deleteProject(p, keepMinis: keep)
+                print(keep ? "Deleted the project \(p): its minis are in Unsorted now, and its folder is in the Trash."
+                           : "Deleted the project \(p): it's in the Trash with its minis.")
+            default:
+                return fail(usage)
+            }
+        } catch { return fail("\(error)") }
+        return 0
+    }
 
     private static func find(_ text: String, _ install: Install) -> Mini? {
-        let name = mini(text)
+        let name = Rules.miniName(text)
         return Gallery.list(install.runs).first { $0.name == name }
     }
 
