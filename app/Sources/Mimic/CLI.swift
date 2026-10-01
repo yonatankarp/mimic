@@ -369,11 +369,11 @@ enum CLI {
             case .nothing:
                 print("Nothing is being made.")
             case .stopped(let s):
-                let who = Mini.displayName(s.name, runs: install.runs)
+                let who = s.displayName(runs: install.runs)
                 print(s.kind == .prep ? "Stopped resizing \(who). It keeps its previous size."
                                       : "Stopped making \(who). Nothing was kept. It's in the Trash if you want the pieces.")
             case .noAnswer(let s):
-                return fail("\(Mini.displayName(s.name, runs: install.runs)) didn't stop. Stop it where it's being made: in Mimic, or with Ctrl-C in the Terminal window making it.")
+                return fail("\(s.displayName(runs: install.runs)) didn't stop. Stop it where it's being made: in Mimic, or with Ctrl-C in the Terminal window making it.")
             }
             return 0
         case "project":
@@ -501,7 +501,7 @@ enum CLI {
                 if s.name == mine { last = s }
                 guard s.running, shown.map({ $0 != (s.name, s.step) }) ?? true else { return nil }
                 shown = (s.name, s.step)
-                let who = s.name == mine ? "" : "\(Mini.displayName(s.name, runs: runs)) (waiting before yours): "
+                let who = s.name == mine ? "" : "\(s.displayName(runs: runs)) (waiting before yours): "
                 return "[\(s.step)/3] \(who)\(JobRunner.label(s.step))"
             }
             if let line { print(line) }

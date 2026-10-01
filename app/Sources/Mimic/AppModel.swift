@@ -58,6 +58,8 @@ final class AppModel {
     var minis: [Mini] = []
     /// What the mini called `name` is shown as ("Élodie"), from the list: no file is read.
     func displayName(_ name: String) -> String { Mini.displayName(name, in: minis) }
+    /// A job's mini, by the name it started with: a stopped one's folder is in the Trash (#166).
+    func displayName(_ s: JobStatus) -> String { s.shown ?? displayName(s.name) }
     /// The projects (folders of minis), alphabetical, empty ones included.
     var projects: [String] = []
     /// The project New Mini starts in when asked from a project's own menu; else the selected
@@ -646,7 +648,7 @@ final class AppModel {
             // Not with another app in front: it would close unseen. The toolbar item stays.
             guard sheet == nil, !jobPopover, active, NSApp.isActive else { return }
             jobPopover = true
-            if let words = queuedNote?.text ?? current.map({ "\(doing($0)) \(displayName($0.name))" }) {
+            if let words = queuedNote?.text ?? current.map({ "\(doing($0)) \(displayName($0))" }) {
                 AccessibilityNotification.Announcement(words).post()
             }
         }
@@ -752,7 +754,7 @@ final class AppModel {
     /// Open in the slicer on a ready one and Try Again on a failed one. Clicking it goes to the mini.
     private func announce(_ s: JobStatus) {
         guard !s.canceled, !(NSApp.isActive && NSApp.mainWindow != nil), Bundle.main.bundleIdentifier != nil else { return }
-        let who = displayName(s.name)
+        let who = displayName(s)
         let content = UNMutableNotificationContent()
         content.title = s.succeeded ? "\(who) is ready" : "\(who) didn't finish"
         content.body = s.succeeded ? "Ready to print." : "Something went wrong while \(JobRunner.label(s.step).lowercased())."
