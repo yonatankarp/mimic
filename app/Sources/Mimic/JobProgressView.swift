@@ -644,7 +644,7 @@ struct MainWindowChrome: ViewModifier {
             }
             // [room]: read here, so a new window size reaches the sheets (read only inside the
             // closure, the sheet kept getting the starting 640).
-            .sheet(item: $model.sheet) { [room] sheet in
+            .sheet(item: $model.sheet, onDismiss: { model.askToKeep = model.keepWhenClosed; model.keepWhenClosed = nil }) { [room] sheet in
                 switch sheet {
                 case .make: MakeView(room: room)
                 case .makeAgain(let mini): MakeView(room: room, form: MakeForm.again(mini, install: model.install, card: .remembered()), again: mini)
@@ -660,6 +660,7 @@ struct MainWindowChrome: ViewModifier {
                 case .copies(let group): CopiesSheet(minis: group)
                 case .duplicate(let mini): DuplicateSheet(mini: mini)
                 case .importModel(let file): ImportSheet(file: file, room: room)
+                case .compare(let a, let b): CompareSheet(names: [a, b], room: room)
                 }
             }
             .modifier(JobQuestions())
