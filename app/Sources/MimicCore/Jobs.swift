@@ -350,13 +350,15 @@ public final class JobRunner: @unchecked Sendable {
     /// queue carries on with its next job, unless `keepGoing` says otherwise.
     ///
     /// `keepingWork` is for quitting (#82): the job goes back to the front of the queue instead
-    /// of to the Trash, and starts again at the first step it hadn't finished.
+    /// of to the Trash, and starts again at the first step it hadn't finished. The first ask
+    /// decides: a Stop then a quit while it ends still throws it away, and a quit then a Stop
+    /// still keeps it (#171).
     @discardableResult
     public func cancel(keepingWork: Bool = false) -> Bool {
         let p: GroupProcess? = lock.withLock {
             guard current?.running == true else { return nil as GroupProcess? }
+            if current?.canceled != true { keepWork = keepingWork }
             current?.canceled = true
-            keepWork = keepingWork
             return process
         }
         guard status?.canceled == true else { return false }

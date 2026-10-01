@@ -375,6 +375,37 @@ final class JobTests: XCTestCase {
         XCTAssertEqual(next.queue.entries(), [])
     }
 
+    /// Stop then quit while the job is still ending (#171): the stopped mini goes to the Trash
+    /// and doesn't start again next launch. Quit then Stop keeps it, as quitting promised.
+    func testTheFirstStopOrQuitDecidesWhatIsKept() throws {
+        for (first, then) in [(false, true), (true, false)] {
+            let fx = try Fixture()
+            let started = fx.root.appendingPathComponent("started").path
+            // Takes a second to end once stopped: the window the second ask lands in.
+            let fake = try fx.script("fake-mimic", """
+                trap 'sleep 1; exit 143' TERM; touch \(started); sleep 60 & wait
+                """)
+            let picture = try fx.picture()
+            let spy = TrashSpy()
+            let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: fake), trash: { spy($0) })
+            try fx.modelFiles()
+            try jobs.make(name: "mini", picture: .image(picture), restyle: false, seed: 1, sizes: sizes, model: EngineDownload.standard)
+            for _ in 0..<100 where !FileManager.default.fileExists(atPath: started) { usleep(50_000) }
+            jobs.keepGoing = { _ in false }
+            XCTAssertTrue(jobs.cancel(keepingWork: first))
+            XCTAssertEqual(jobs.status?.running, true, "it ended before the second ask")
+            XCTAssertTrue(jobs.cancel(keepingWork: then))
+            jobs.waitUntilDone()
+            if first {
+                XCTAssertEqual(spy.trashed, [], "a Stop after quitting threw the mini away")
+                XCTAssertEqual(jobs.queue.entries().map(\.name), ["mini"])
+            } else {
+                XCTAssertEqual(spy.trashed.map(\.lastPathComponent), ["mini"], "quitting after Stop kept the stopped mini")
+                XCTAssertEqual(jobs.queue.entries(), [], "the stopped mini would start again next launch")
+            }
+        }
+    }
+
     /// A second job while one runs waits its turn instead of being refused, then runs.
     func testOneJobAtATime() throws {
         let fx = try Fixture(); _ = try fx.mini("a"); _ = try fx.mini("b")
