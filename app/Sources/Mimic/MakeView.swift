@@ -484,7 +484,7 @@ struct ResizeView: View {
         var c = SizeCard.remembered()
         let saved = mini.settings
         c.setKind(saved.kind ?? .character)  // before the sizes: choosing a kind suggests sizes afresh
-        if let sizes = saved.made ?? saved.requested { c.load(sizes) }
+        if let sizes = saved.made ?? saved.requested { c.load(sizes.asMade) }
         _card = State(initialValue: c)
     }
 
