@@ -135,6 +135,7 @@ mimic resize tiefling --height 32 --base 25
 mimic make teapot "a round teapot with a curved spout" --object --size 80
 mimic retry tiefling
 mimic make-another tiefling                        # the same, with a new seed: "tiefling-2"
+mimic make-another tiefling --new-shape            # keeps its picture, makes only the 3D shape again
 mimic duplicate tiefling --as "Tiefling Display"   # the same shape, to resize without losing the first
 mimic import "Ogre Chief.stl" --height 32          # print prep for a model made elsewhere (GLB or STL)
 mimic make raven --image raven.png --project "Tiefling Party"
@@ -151,7 +152,15 @@ mimic project rename "Orc Warband" --to "Orc Horde"
 mimic project delete "Orc Horde"                   # its minis go to Unsorted; --trash-minis trashes them too
 mimic projects
 mimic list
+mimic models                                       # the 3D models, and which one Mimic uses
+mimic queue                                        # the mini being made and the ones waiting
+mimic queue move raven --to front                  # or --to end, --to 3, --up, --down
+mimic queue remove raven
+mimic queue pause                                  # no new mini starts until: mimic queue resume
+mimic --version
 ```
+
+`mimic --help` lists every command and option.
 
 A mini goes by its name in `mimic list`, or by the name you gave it in Mimic: `mimic info "Élodie"`.
 
@@ -171,6 +180,9 @@ A mini goes by its name in `mimic list`, or by the name you gave it in Mimic: `m
 | `--inflate MM` | Extra thickness for thin parts (set from the nozzle unless you give it) |
 | `--no-base` | Keep the character's own base instead of adding one |
 | `--seed N` | Try a different version of the same character |
+| `--model ID` | Make it with this 3D model instead of the one chosen in Settings (`mimic models` lists them) |
+| `--new-shape` | With `make-another`, keep the picture it made and make only the 3D shape again |
+| `--wait` | While another mini is being made, `make`, `resize` and `retry` join the queue and return; with this they stay until it's made |
 | `--project NAME` | Put it in that project (a new one is made if needed); with `resize`, resize every mini in it |
 | `--to NAME` | The new name, for `rename` and `project rename` |
 | `--trash-minis` | With `project delete`, move the project's minis to the Trash too, instead of to Unsorted |
@@ -223,7 +235,13 @@ Want to change Mimic itself? See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Licences
 
-- **Mimic:** MIT (see [LICENSE](LICENSE)).
+- **Mimic:** MIT (see [LICENSE](LICENSE)). The app carries this licence and Sparkle's in
+  `Mimic.app/Contents/Resources/Acknowledgements.txt`.
+- **Sparkle:** MIT, with the notices of the code it includes. It's built into the app, for updates.
+- **pixal3d.cpp and ggml:** MIT. The 3D engine, built from them; Mimic hosts the build that
+  setup downloads, with both licences in it.
+- **draw-things-cli:** GPL-3.0. Setup downloads it from Draw Things' own releases, and Mimic runs
+  it as a separate program.
 - **TRELLIS.2 and Pixal3D:** MIT, except the image encoder their models include, which uses
   Meta's DINOv3 licence.
 - **FLUX.2 Klein:** Black Forest Labs' licence. Check it before selling prints of generated
