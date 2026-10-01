@@ -176,8 +176,32 @@ A mini goes by its name in `mimic list`, or by the name you gave it in Mimic: `m
 | `--object` | Make anything that isn't a character: no base, sized by its longest side, set on its flat bottom |
 | `--size MM` | How big it is: for an object, its longest side (set from the nozzle unless you give it); for a character, the same as `--height` |
 | `--add-base` | Give an object a base too (sized to its shadow unless you give `--base`) |
+| `--json` | With `list`, `queue`, `models` or `info`: print it as JSON, for scripts (below) |
 
 Ctrl-C stops a mini and everything it started.
+
+#### JSON for scripts
+
+`mimic list --json`, `queue --json`, `models --json` and `info <name> --json` print JSON. These
+field names stay as they are: new ones may be added, but none is renamed or removed. Dates are
+ISO 8601 (`2026-09-21T14:13:20Z`), sizes are millimetres and times are seconds. A field with no
+value is left out.
+
+- `list`: an array of minis, every project's, newest first. Each has `name` (what `mimic`
+  commands take), `shown` (the name it's shown as), `project` (left out when unsorted), `state`
+  (`ready`, `unfinished` or `waiting`), `kind` (`character` or `object`), `created`, `file` (its
+  print file, once made) and `folder`.
+- `queue`: `running` (`name`, `job` of `make` or `resize`, `step` 1 to 3, `started`,
+  `secondsLeft`), `held` (`paused` or `battery`, when the next one waits for that) and `waiting`,
+  an array of `place` (from 1), `name`, `job`, `added`, `seconds` (how long it takes) and
+  `readyIn`.
+- `models`: an array of `id`, `name`, `bytes`, `downloaded`, `selected` (the one Mimic uses) and
+  `about`.
+- `info`: `mini` (as in `list`), `made` (`height`, `base`, `nozzle`, `inflate`, `noBase`, `shape`,
+  `style`, `magnet`), `measured` (`height` with its base, `width`, `depth`, `filamentGrams`,
+  `filamentMetres`), `madeFrom` (`source` of `picture` or `description`, `description`, `typed`,
+  `seed`, `shapeSeed`, `model`, `greySculpt`, `cartoon`), `versions` (names, itself included) and
+  `failed` (why its last run didn't finish).
 
 Want to change Mimic itself? See [CONTRIBUTING.md](CONTRIBUTING.md).
 

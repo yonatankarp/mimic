@@ -305,12 +305,15 @@ public enum Filament {
 
     public static func grams(_ mm3: Double) -> Double { mm3 / 1000 * density }
 
+    /// Metres of 1.75 mm filament.
+    public static func metres(_ mm3: Double) -> Double { mm3 / area / 1000 }
+
     /// "up to 4 g", "up to 1 g" for less: whole grams.
     public static func short(_ mm3: Double) -> String { "up to \(max(1, Int(grams(mm3).rounded()))) g" }
 
     /// "Up to 4 g · 1.3 m": grams of PLA, metres of 1.75 mm filament.
     public static func words(_ mm3: Double) -> String {
-        let metres = max(0.1, mm3 / area / 1000)
+        let metres = max(0.1, metres(mm3))
         return short(mm3).capitalizedFirst + String(format: " · %.1f m", metres)
     }
 }
