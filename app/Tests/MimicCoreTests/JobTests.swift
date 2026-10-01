@@ -82,6 +82,31 @@ final class JobTests: XCTestCase {
         XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: settings, tools: tools).map(\.number), [2, 3], "not drawn again")
     }
 
+    /// A job with the fixture's tools never reaches the real Draw Things (#140): on a Mac that
+    /// has it, the test above drew a real picture for minutes and then saw the wrong plan.
+    func testTheFixtureNeverReachesTheRealDrawThings() throws {
+        let fx = try Fixture()
+        let dt = JobRunner(install: fx.install, tools: fx.tools()).drawThings
+        XCTAssertNil(dt.cli, "would run Mimic's own draw-things-cli")
+        XCTAssertEqual(dt.base.port, 9, "would ask the real Draw Things")
+        XCTAssertFalse(dt.app.enabled(), "could open the real Draw Things")
+        XCTAssertNil(dt.app.open())
+    }
+
+    /// Every job in the tests takes the fixture's tools or names its own Draw Things: one made
+    /// without either reaches the real one.
+    func testNoTestJobReachesTheRealDrawThings() throws {
+        let dir = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        var leaks: [String] = []
+        for file in try FileManager.default.contentsOfDirectory(atPath: dir.path) where file.hasSuffix(".swift") {
+            let lines = try String(contentsOf: dir.appendingPathComponent(file), encoding: .utf8).components(separatedBy: .newlines)
+            for (i, line) in lines.enumerated() where line.contains("JobRunner(") && !line.contains(".tools(") && !line.contains("drawThings:") {
+                leaks.append("\(file):\(i + 1)")
+            }
+        }
+        XCTAssertEqual(leaks, [], "give these jobs the fixture's tools")
+    }
+
     /// A new mini records the model it's made with, so Try Again uses that one and not whatever
     /// is in use by then; a model that isn't downloaded is refused before anything is written.
     func testTheModelIsRecordedAndMustBeDownloaded() throws {
