@@ -144,7 +144,8 @@ public enum GLB {
     }
 
     /// A .glb of `mesh` that `parse` reads back exactly: y up, as glTF is, so the turn `parse`
-    /// makes undoes this one. Shape only, one mesh, for an imported STL (#96).
+    /// makes undoes this one. One mesh in matte grey (glTF's default material is metal, which
+    /// most viewers draw near black), for an imported STL (#96) and Export for Virtual Tabletop.
     public static func encode(_ mesh: Mesh) -> Data {
         var bin = Data(capacity: 12 * mesh.positions.count + 12 * mesh.triangles.count)
         func f32(_ v: Float) { withUnsafeBytes(of: v.bitPattern.littleEndian) { bin.append(contentsOf: $0) } }
@@ -154,7 +155,9 @@ public enum GLB {
         let json: [String: Any] = [
             "asset": ["version": "2.0", "generator": "Mimic"], "scene": 0, "scenes": [["nodes": [0]]],
             "nodes": [["mesh": 0]],
-            "meshes": [["primitives": [["attributes": ["POSITION": 0], "indices": 1]]]],
+            "meshes": [["primitives": [["attributes": ["POSITION": 0], "indices": 1, "material": 0]]]],
+            "materials": [["name": "Grey", "pbrMetallicRoughness": ["baseColorFactor": [0.6, 0.6, 0.6, 1],
+                                                                   "metallicFactor": 0, "roughnessFactor": 0.8]]],
             "accessors": [["bufferView": 0, "componentType": 5126, "count": mesh.positions.count, "type": "VEC3"],
                           ["bufferView": 1, "componentType": 5125, "count": mesh.triangles.count * 3, "type": "SCALAR"]],
             "bufferViews": [["buffer": 0, "byteOffset": 0, "byteLength": indexStart],
@@ -169,6 +172,29 @@ public enum GLB {
         u32(text.count); u32(0x4E4F_534A); out.append(text)
         u32(bin.count); u32(0x004E_4942); out.append(bin)
         return out
+    }
+}
+
+/// Export for Virtual Tabletop (#158): a mini's print file as a small grey .glb that a virtual
+/// tabletop loads, at its true size in metres, facing glTF's front.
+public enum Tabletop {
+    /// ponytail: one budget, a guess at "low poly"; Low / Medium choices once tabletops say what they take.
+    public static let triangles = 5_000
+
+    /// Writes the .glb of `stl` to `url`, and says how many triangles and bytes it came to: the
+    /// trim can stop short of `triangles` where a collapse would tear the surface.
+    @discardableResult
+    public static func export(_ stl: URL, to url: URL, triangles: Int = triangles) throws -> (triangles: Int, bytes: Int) {
+        let solid = ModelImport.weld(try STL.read(stl))
+        guard !solid.triangles.isEmpty else { throw PrepError("the print file has no triangles") }
+        // Trimmed in millimetres: Decimate's thresholds are.
+        var mesh = solid.triangles.count > triangles ? Decimate.run(solid, target: triangles) : solid
+        // Print files face +y, which `encode` writes as glTF's back (-z): half a turn about the
+        // vertical first. Both axes, as one alone would mirror it.
+        mesh.positions = mesh.positions.map { SIMD3(-$0.x, -$0.y, $0.z) / 1000 }
+        let data = GLB.encode(mesh)
+        try data.write(to: url, options: .atomic)
+        return (mesh.triangles.count, data.count)
     }
 }
 

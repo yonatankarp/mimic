@@ -3,6 +3,7 @@ import MimicCore
 import Observation
 import OSLog
 import SwiftUI
+import UniformTypeIdentifiers
 import UserNotifications
 
 /// The sheet over the main window, one at a time.
@@ -832,6 +833,25 @@ final class AppModel {
             packing = false
             if let failed { problem = plainWords(failed, else: "Couldn't put them in one print file. Open them one at a time instead.") }
             else { openInSlicer(url) }
+        }
+    }
+
+    /// Export for Virtual Tabletop (#158): asks where, then writes a low-poly grey .glb of the
+    /// print file there, off the main thread (a second or so), and shows it in Finder.
+    func exportForTabletop(_ mini: Mini) {
+        guard let stl = mini.stl else { return }
+        let panel = NSSavePanel()
+        panel.title = "Export for Virtual Tabletop"
+        panel.message = "A low-poly model of \(mini.displayName) that a virtual tabletop can load."
+        panel.nameFieldStringValue = "\(mini.displayName).glb"
+        panel.allowedContentTypes = [UTType(filenameExtension: "glb") ?? .data]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        Task {
+            let failed: Error? = await Task.detached {
+                do { try Tabletop.export(stl, to: url); return nil } catch { return error }
+            }.value
+            if let failed { problem = plainWords(failed, else: "Couldn't export \(mini.displayName).") }
+            else { NSWorkspace.shared.activateFileViewerSelecting([url]) }
         }
     }
 

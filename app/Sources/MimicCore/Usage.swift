@@ -14,6 +14,7 @@ public enum Usage {
       mimic resize --project "<project>" [options]   Resize All: every mini in the project
       mimic retry <name>
       mimic open <name>              opens its print file in your slicer
+      mimic export <name> --vtt [--triangles N]   a low-poly .glb for a virtual tabletop, here in this folder
       mimic info <name> [--json]     its size, filament, how it was made and its versions
       mimic rename <name> --to "<new name>"
       mimic trash <name>…            moves it to the Trash, where you can put it back

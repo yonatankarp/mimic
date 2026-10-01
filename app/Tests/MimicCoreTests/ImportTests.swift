@@ -44,6 +44,25 @@ final class ImportTests: XCTestCase {
         XCTAssertEqual(back.triangles, mesh.triangles)
     }
 
+    /// Export for Virtual Tabletop (#158): in metres, within its budget, and facing glTF's front
+    /// (+z), which `parse` reads back as -y: the print file's front (+y) half a turn round.
+    func testATabletopExportIsInMetresFacingFront() throws {
+        let d = try temporary()
+        var mesh = Mesh()
+        mesh.add(PrepTests.sphere(radius: 10), at: [0, 0, 10])
+        mesh.add(PrepTests.box(half: [2, 5, 2]), at: [0, 15, 10])  // a nose, out the front
+        try STL.write(mesh, to: d.appendingPathComponent("m.stl"))
+        let glb = d.appendingPathComponent("m.glb")
+        let made = try Tabletop.export(d.appendingPathComponent("m.stl"), to: glb, triangles: 100)
+        let back = try GLB.read(glb)
+        XCTAssertLessThanOrEqual(made.triangles, 100)
+        XCTAssertEqual(back.triangles.count, made.triangles)
+        XCTAssertEqual(back.bounds.lo.y, -0.020, accuracy: 1e-4, "the nose faces glTF's front")
+        XCTAssertEqual(back.bounds.hi.y, 0.010, accuracy: 1e-3)
+        XCTAssertEqual(back.bounds.lo.z, 0, accuracy: 1e-4, "stands on the ground")
+        XCTAssertEqual(back.bounds.hi.z, 0.020, accuracy: 1e-3)
+    }
+
     func testATextSTLReads() throws {
         let dir = try temporary()
         let cube = PrepTests.box(half: [5, 10, 20])

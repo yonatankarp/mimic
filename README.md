@@ -87,6 +87,9 @@ the mini's page shows them side by side, and **Keep This One** moves the others 
 Want the same mini at two sizes, say one for the table and one for the shelf? Right-click it →
 **Duplicate…**, name the copy, and choose its size. Only the size is made again: about a minute.
 
+Playing online? Right-click a mini → **Export for Virtual Tabletop…** saves a low-poly grey
+`.glb` of it (about 5,000 triangles, under 100 KB) to drag into a virtual tabletop.
+
 Have a 3D model already, from another generator or HeroForge? **File → Import Model…**, pick the
 GLB or STL file, and choose its sizes and base as for a new mini. Mimic makes it print-ready in
 about a minute. It has no picture, so it can be resized and duplicated but not made again.
@@ -141,6 +144,7 @@ mimic make raven --image raven.png --project "Tiefling Party"
 mimic move tiefling --project "Tiefling Party"     # or --unsorted
 mimic resize --project "Tiefling Party" --height 32 # Resize All: every mini in the project
 mimic open tiefling                                # in your slicer
+mimic export tiefling --vtt                        # a low-poly .glb for a virtual tabletop, in this folder
 mimic info tiefling                                # its size, filament, how it was made and its versions
 mimic rename tiefling --to "Tiefling Warlock"
 mimic keep tiefling-2                              # keeps this version, moves the others to the Trash
