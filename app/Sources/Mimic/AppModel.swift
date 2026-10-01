@@ -23,6 +23,8 @@ enum AppSheet: Identifiable, Equatable {
     case duplicate(Mini)
     /// Import Model: a 3D model file, to name and size.
     case importModel(URL)
+    /// Compare Side by Side: two versions of a mini, by name.
+    case compare(String, String)
     var id: String {
         switch self {
         case .make: "make"
@@ -36,6 +38,7 @@ enum AppSheet: Identifiable, Equatable {
         case .copies(let m): "copies-\(Gallery.dragged(m.map(\.name)))"
         case .duplicate(let m): "duplicate-\(m.name)"
         case .importModel(let u): "import-\(u.path)"
+        case .compare(let a, let b): "compare-\(a)-\(b)"
         }
     }
 }
@@ -114,6 +117,10 @@ final class AppModel {
     var faceFrontRequests = 0
     /// Edit → Find: bumped for the sidebar to put the cursor in its search field.
     var findRequests = 0
+    /// Keep This One from Compare Side by Side: the version to ask about once the sheet has
+    /// gone (`keepWhenClosed`), then on its page (`askToKeep`), whose dialog does the keeping.
+    var keepWhenClosed: String?
+    var askToKeep: String?
     /// The waiting job on "Take it out of the queue?", asked from the job's popover.
     var unqueueing: QueueEntry?
     /// Minis on "Move to Trash?", when one of them waits in the queue: Undo can't put it back

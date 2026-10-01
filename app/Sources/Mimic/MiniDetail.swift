@@ -65,6 +65,10 @@ struct MiniDetail: View {
             // Another mini, or a sheet from the toolbar or a menu, takes over from it.
             .onChange(of: mini.name) { looking = nil }
             .onChange(of: model.sheet) { if model.sheet != nil { looking = nil } }
+            // Keep This One in Compare Side by Side (#99) asks here, once that sheet has gone.
+            .onChange(of: model.askToKeep == mini.name, initial: true) { _, asked in
+                if asked { model.askToKeep = nil; confirmKeep = true }
+            }
     }
 
     /// The 3D view, edge to edge; or why there isn't one yet.
@@ -280,6 +284,13 @@ struct MiniDetail: View {
             Button("Keep This One…") { confirmKeep = true }
                 .help("Keeps this version and moves the others to the Trash.")
                 .disabled(!canKeep)
+            let finished = versions.filter { $0.stl != nil }
+            Button("Compare Side by Side…") {
+                let i = finished.firstIndex { $0.name == mini.name } ?? 0
+                model.sheet = .compare(finished[i].name, finished[(i + 1) % finished.count].name)
+            }
+            .help("Shows two versions in 3D next to each other, turning and zooming together.")
+            .disabled(finished.count < 2 || model.sheet != nil)
         } header: {
             Label("Versions", systemImage: "square.on.square")
         }
