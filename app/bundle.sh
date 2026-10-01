@@ -32,6 +32,12 @@ sparkle="$app/Contents/Frameworks/Sparkle.framework"
 ditto "$(dirname "$bin")/Sparkle.framework" "$sparkle"
 rm -rf "$sparkle/XPCServices" "$sparkle/Versions/B/XPCServices"
 cp Mimic.icns "$app/Contents/Resources/Mimic.icns"
+# The licences that must travel with copies: Mimic's, and Sparkle's (with the notices of the code
+# it includes) from the version swift build resolved.
+{
+  printf 'Mimic\n=====\n\n'; cat ../LICENSE
+  printf '\n\nSparkle\n=======\n\n'; cat .build/checkouts/Sparkle/LICENSE
+} > "$app/Contents/Resources/Acknowledgements.txt"
 # SwiftPM's resource bundle (the tour's sample picture); Bundle.main.resourceURL is where the app looks.
 cp -R "$(dirname "$bin")/Mimic_Mimic.bundle" "$app/Contents/Resources/"
 cat > "$app/Contents/Info.plist" <<PLIST
