@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import OSLog
 
 /// Where a job is, for the progress window and `mimic make`.
 public struct JobStatus: Equatable, Sendable {
@@ -19,6 +20,8 @@ public struct JobStatus: Equatable, Sendable {
     public var stepStarted: Date?
     /// Step 1 is waiting for Draw Things to open.
     public var openingDrawThings = false
+    /// A print prep that is an import's first (#96), not a resize: said as "Importing".
+    public var importing = false
     public var succeeded: Bool { !running && !canceled && exit == 0 }
 }
 
@@ -110,6 +113,7 @@ public final class JobRunner: @unchecked Sendable {
     /// Pauses the queue for every Mimic on this Mac, or resumes it and, with `start`, starts its
     /// next job here if none is running. Pausing lets the running job finish: "Pause after this one".
     public func setPaused(_ paused: Bool, start: Bool = true) throws {
+        Log.queue.notice("\(paused ? "Paused" : "Resumed", privacy: .public) the queue")
         try queue.locked { entries in
             let fm = FileManager.default
             if paused {
@@ -220,6 +224,8 @@ public final class JobRunner: @unchecked Sendable {
         guard Rules.isValidName(name) else { throw RequestError.badName }
         guard let folder = Gallery.folder(install.runs, name) else { throw RequestError.notFound }
         let settings = MiniSettings.load(folder)
+        // An imported model has nothing of its own to make again; Resize remakes its print file.
+        if settings.isImported { throw RequestError.imported(name) }
         guard settings.requested != nil else { throw RequestError.nothingToRetry }
         let hasModel = FileManager.default.fileExists(atPath: folder.appendingPathComponent("model.glb").path)
         if !hasModel {
@@ -236,7 +242,8 @@ public final class JobRunner: @unchecked Sendable {
     }
 
     /// Takes a waiting job out of the queue. A new mini's folder goes to the Trash, as a stopped
-    /// one's does. False when it isn't waiting (it may have just started).
+    /// one's does, and so does an import's whose print file isn't made yet (#96). False when it
+    /// isn't waiting (it may have just started).
     @discardableResult
     public func remove(_ name: String) throws -> Bool {
         let removed = try queue.locked { entries -> QueueEntry? in
@@ -244,7 +251,7 @@ public final class JobRunner: @unchecked Sendable {
             return entries.remove(at: i)
         }
         guard let removed else { return false }
-        if removed.job == .generate, let folder = Gallery.folder(install.runs, name) { try? trash(folder) }
+        if let folder = Gallery.folder(install.runs, name), removed.job == .generate || Self.importing(folder) { try? trash(folder) }
         return true
     }
 
@@ -313,6 +320,7 @@ public final class JobRunner: @unchecked Sendable {
             return process
         }
         guard status?.canceled == true else { return false }
+        Log.queue.notice("Stop asked for\(keepingWork ? ", to carry on next launch" : "", privacy: .public)")
         drawThings.cancel()
         if let p { DispatchQueue.global().async { p.terminateGroup() } }
         return true
@@ -331,7 +339,7 @@ public final class JobRunner: @unchecked Sendable {
         if let r = running(), r.name == name { throw RequestError.busy(name, r.kind) }
     }
 
-    private func enqueue(_ entry: QueueEntry, _ entries: inout [QueueEntry]) -> Int? {
+    func enqueue(_ entry: QueueEntry, _ entries: inout [QueueEntry]) -> Int? {
         entries.append(entry)
         pumpLocked(&entries)
         // Still waiting: one is running (ours, or another Mimic's), or the queue is held.
@@ -404,9 +412,11 @@ public final class JobRunner: @unchecked Sendable {
         let now = Date()
         var s = JobStatus(name: entry.name, kind: entry.job, step: plan[0].number, started: now)
         s.stepStarted = now
+        s.importing = entry.job == .prep && Self.importing(folder)
         lock.withLock { current = s; keepWork = false }
         SharedJob.write(s, queue: install.queue)
         notify()
+        Log.queue.notice("Started \(entry.job.rawValue, privacy: .public) of \(entry.name, privacy: .public) at step \(plan[0].number)")
         Thread.detachNewThread { [self] in execute(plan, entry: entry, folder: folder, log: log, settings: settings) }
     }
 
@@ -447,8 +457,8 @@ public final class JobRunner: @unchecked Sendable {
                 for (number, file) in [(1, "source.png"), (2, "model.glb")] where kind == .generate && plan.contains(where: { $0.number == number }) && !finished.contains(number) {
                     try? FileManager.default.removeItem(at: folder.appendingPathComponent(file))
                 }
-            } else if kind == .generate {
-                try? trash(folder)  // a half-made new mini is clutter, not a result
+            } else if kind == .generate || Self.importing(folder) {
+                try? trash(folder)  // a half-made new mini (or import) is clutter, not a result
             }
         } else if code == 0, let requested = settings.requested {
             try? MiniSettings.update(folder) { $0.made = requested }  // "Now: …" shows only what a finished run made
@@ -494,6 +504,8 @@ public final class JobRunner: @unchecked Sendable {
             process = nil
             return current
         }
+        let outcome = canceled ? "stopped" : code == 0 ? "finished" : "failed (exit \(code)): \(problem ?? "no reason given")"
+        Log.queue.notice("\(kind.rawValue, privacy: .public) of \(entry.name, privacy: .public) \(outcome, privacy: .public)")
         if let ended { timings?.append([TimingRecord(ended, settings: settings, steps: took, version: version, machine: .current)]) }
         Leftover.clear(queue: install.queue)
         notify()

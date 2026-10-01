@@ -1,6 +1,7 @@
 import AppKit
 import MimicCore
 import Observation
+import OSLog
 import SwiftUI
 
 /// Getting the 3D engine onto this Mac: first launch, or Repair in Settings. Runs in the app,
@@ -63,6 +64,7 @@ final class SetupModel {
     func start(_ model: EngineModel? = nil) {
         guard !running else { return }
         target = model ?? chosen
+        Log.setup.notice("Setup started for \(self.target.id, privacy: .public)")
         running = true
         problem = nil
         progress = nil
@@ -104,6 +106,8 @@ final class SetupModel {
     /// in its place. A Repair from Settings just ends.
     private func finish(downloaded: Bool, demo: Bool = false) async {
         running = false
+        if let problem { Log.setup.error("Setup stopped: \(problem, privacy: .public)") }
+        else { Log.setup.notice("Setup finished, \(downloaded ? "ready" : "not complete", privacy: .public)") }
         if downloaded && !demo && target != chosen {
             UserDefaults.standard.set(target.id, forKey: "model")
             chosen = target

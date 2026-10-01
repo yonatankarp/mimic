@@ -1,6 +1,7 @@
 import AppKit
 import MimicCore
 import Observation
+import OSLog
 import SwiftUI
 import UserNotifications
 
@@ -20,6 +21,8 @@ enum AppSheet: Identifiable, Equatable {
     case copies([Mini])
     /// Duplicate: the copy's name, then Resize for it.
     case duplicate(Mini)
+    /// Import Model: a 3D model file, to name and size.
+    case importModel(URL)
     var id: String {
         switch self {
         case .make: "make"
@@ -32,6 +35,7 @@ enum AppSheet: Identifiable, Equatable {
         case .renameProject(let p): "rename-project-\(p)"
         case .copies(let m): "copies-\(Gallery.dragged(m.map(\.name)))"
         case .duplicate(let m): "duplicate-\(m.name)"
+        case .importModel(let u): "import-\(u.path)"
         }
     }
 }
@@ -116,7 +120,9 @@ final class AppModel {
     /// The main window's, for Undo Move to Trash; set by the window.
     @ObservationIgnored weak var undo: UndoManager?
     /// A rename or trash that was refused, shown as an alert.
-    var problem: String?
+    var problem: String? {
+        didSet { if let problem, problem != oldValue { Log.shown.error("\(problem, privacy: .public)") } }
+    }
 
     /// Every job this Mac has finished, which the time estimates come from. On this Mac only.
     let timings: Timings
@@ -461,6 +467,23 @@ final class AppModel {
 
 
 
+    /// Import Model: a new mini from a 3D model file, print prep only.
+    func importModel(_ file: URL, name: String, shown: String?, sizes: Sizes, kind: MiniKind, project: String?) throws {
+        try start(name) { try $0.importModel(file, name: name, shown: shown, sizes: sizes, kind: kind, project: project) }
+        reload()
+        selection = [name]
+    }
+
+    /// "Making", "Resizing" or "Importing": what the job `s` is doing, in the progress window,
+    /// the toolbar and the list. From the list, so a redraw reads no file.
+    func doing(_ s: JobStatus) -> String { JobRunner.doing(s.kind, importing: s.importing || importing(s.name)) }
+
+    /// An imported mini whose print file isn't made yet: its print prep is its import.
+    func importing(_ name: String) -> Bool { minis.first { $0.name == name }.map { $0.settings.isImported && !$0.finished } ?? false }
+
+    /// A mini imported from a 3D model file, which has nothing of its own to make again.
+    func isImported(_ name: String) -> Bool { minis.first { $0.name == name }?.settings.isImported == true }
+
     func resize(_ mini: Mini, sizes: Sizes) throws {
         try start(mini.name) { try $0.resize(name: mini.name, sizes: sizes) }
     }
@@ -496,7 +519,7 @@ final class AppModel {
     /// A mini that didn't finish and can be tried again: no print file, not waiting or being
     /// made, and it kept what it was asked for.
     func canRetry(_ mini: Mini) -> Bool {
-        mini.stl == nil && waiting(mini.name) == nil && current?.name != mini.name && mini.settings.requested != nil
+        mini.stl == nil && waiting(mini.name) == nil && current?.name != mini.name && mini.settings.requested != nil && !mini.settings.isImported
     }
 
     /// Try Again from a failed mini's page or menus; a refusal is said as an alert.
@@ -609,7 +632,7 @@ final class AppModel {
             // Not with another app in front: it would close unseen. The toolbar item stays.
             guard sheet == nil, !jobPopover, active, NSApp.isActive else { return }
             jobPopover = true
-            if let words = queuedNote?.text ?? current.map({ "\($0.kind == .prep ? "Resizing" : "Making") \(displayName($0.name))" }) {
+            if let words = queuedNote?.text ?? current.map({ "\(doing($0)) \(displayName($0.name))" }) {
                 AccessibilityNotification.Announcement(words).post()
             }
         }
@@ -804,6 +827,39 @@ final class AppModel {
 
     /// The print file selected in Finder, or the folder when there's no print file yet.
     func showInFinder(_ minis: [Mini]) { NSWorkspace.shared.activateFileViewerSelecting(minis.map { $0.stl ?? $0.folder }) }
+
+    /// Help → Report a Problem…, or a failed mini's (#100): asks about the picture, makes the
+    /// report, shows it in Finder and opens GitHub's bug form to drag it into. Reports are kept
+    /// in the minis folder's `_reports`, which Mimic can already write to (Downloads or the
+    /// Desktop would ask for permission first) and the gallery never lists.
+    func reportProblem(_ mini: Mini? = nil) {
+        let alert = NSAlert()
+        alert.messageText = mini.map { "Report a problem with “\($0.displayName)”?" } ?? "Report a problem?"
+        let what = mini == nil ? "its notes on what happened" : "its notes on making this mini, the mini's settings"
+        alert.informativeText = "Mimic puts \(what), and which Mac and version this is, into one file, "
+            + "with keys and passwords taken out. Then it shows you the file and opens a form on GitHub to attach it to."
+        alert.addButton(withTitle: "Make Report")
+        alert.addButton(withTitle: "Cancel")
+        let hasPicture = mini.flatMap { $0.source ?? $0.upload } != nil
+        if hasPicture {
+            alert.showsSuppressionButton = true
+            alert.suppressionButton?.title = "Include the picture (the issue is public)"
+            alert.suppressionButton?.state = .off
+        }
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let picture = hasPicture && alert.suppressionButton?.state == .on
+        let folder = install.runs.appendingPathComponent("_reports"), build = BuildInfo.line, mac = Report.mac
+        let failure = mini.map { $0.settings.failed ?? "It stopped before it was done." }
+        Task {
+            let made: URL? = await Task.detached {
+                let log = Log.recent(since: Date().addingTimeInterval(-3600))
+                return try? Report.write(to: folder, mini: mini, picture: picture, build: build, mac: mac, appLog: log)
+            }.value
+            guard let made else { problem = "Couldn't make the report. Check that Mimic's folder is still there, then try again."; return }
+            NSWorkspace.shared.activateFileViewerSelecting([made])
+            NSWorkspace.shared.open(Report.issueURL(build: build, mac: mac, failure: failure))
+        }
+    }
 }
 
 /// A job refused before it started, in words for people.

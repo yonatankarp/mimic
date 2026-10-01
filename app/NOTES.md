@@ -128,6 +128,24 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   would count it twice in the estimates) and a half-written print file. It isn't one of the
   original's versions (Keep This One would trash it) and is asked for now. The name offered is
   the next number, as for versions ("Raven 2"), not a size: the size is chosen after, in Resize.
+- **Import Model** (#96, `MimicCore/Import.swift`): a GLB or STL made elsewhere becomes a mini
+  that only print prep runs on. The file is read and checked before anything is written; the
+  new folder gets settings.json (`imported`, the file's name, a field of its own: a new
+  `source` value would make an older Mimic read the whole file as empty) and `model.glb`, then
+  a print prep job joins the queue. With model.glb there, the gallery, Resize and Duplicate
+  treat it as any mini, and no 3D engine is needed. A GLB is y up by its spec; an STL is taken
+  as z up, as slicers take it. Both are written again as a GLB with their triangles joined
+  where their corners meet (to a millionth of its size): an STL keeps no corner shared and many
+  GLBs split them at seams, and print prep finds a model's main pieces (`Mesh.mainBounds`, what
+  an object is sized by, and `Mesh.rest`'s hull) by shared corners. There's no cheap,
+  reliable way to tell an STL's up from its shape, so a wrong one shows in Previews and the 3D
+  view (an object may still be stood on a steadier side by `Mesh.rest`). An STL is taken as
+  millimetres; one under 5 mm or over 500 mm on its longest side gets a line in prep.log saying
+  which unit it was probably in, though sizing rescales it anyway. It's never turned (`--turn`
+  is for what TRELLIS.2 made). With no picture or description, Try Again, Make Another Version,
+  New 3D Shape and Edit & Make Again are off and say why; Resize makes its print file again.
+  Until its first print file is made, its print prep is "Importing", not "Resizing", and taking
+  it out of the queue or stopping it sends it to the Trash, as for a new mini.
 - **A mini has two names** (#87; all in `Rules.swift`, "Names people type"): the one typed,
   kept in settings.json as `name` ("Élodie", "D&D Bard", "McGregor") and shown everywhere
   (list, page, notifications, Open Together's objects, `mimic list`'s last column), and its
@@ -406,6 +424,24 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   took up to about a minute, so the limit is 300 s. Cloud providers are proven against a local
   fake server only. Key reads happen off the main thread: an ad-hoc-signed update is a new
   identity to the Keychain, so macOS may ask once to let Mimic use the saved key.
+- **Report a Problem makes a zip and opens a filled-in issue** (`MimicCore/Report.swift`, `Log.swift`;
+  #100). A link can't attach a file, so Help → Report a Problem… (or the action on a mini that
+  didn't finish) writes `runs/_reports/mimic-report-….zip`, shows it in Finder, and opens
+  bug.yml's form with `version`, `mac`, `logs` (drag it in) and, for a mini, `what` filled in
+  through the form's field ids. The zip always has the build line, the Mac (`hw.model`, the chip,
+  memory, macOS), the app's own log and, for a mini, every `*.log` in its folder (the last 2 MB of
+  each) and settings.json; the picture only when the alert's "Include the picture (the issue is
+  public)" is ticked, off by default. Renders and the 3D files never. Every text file is scrubbed
+  before it's zipped: API key and token patterns (`sk-ant-`, `sk-`, `hf_`, `gsk_`, GitHub, Slack,
+  AWS, `Bearer …`, `api_key=…`-style values) and the home folder as `~`, also as JSON writes it
+  (`\/Users\/…`). The saved helper key itself isn't read to scrub by: no job log contains it (it's
+  only ever sent in a request header), and reading it may show a Keychain prompt. Reports go in
+  the minis folder because Mimic can already write there; Downloads or the Desktop would ask for
+  permission first. The app's own log is `Logger` (subsystem the bundle id; categories setup,
+  download, queue, shown) at notice and up with `.public` values, since a default-private value
+  reads back as `<private>`. `OSLogStore(scope: .currentProcessIdentifier)` reads it with no
+  permission (checked on this Mac, and by a test); the whole Mac's store needs an administrator.
+  So a report has this launch's last hour only, never an earlier launch or `mimic` in Terminal.
 - **One job at a time, and a queue shared by every Mimic** (`MimicCore/Queue.swift`, `Jobs.swift`;
   0.5.0). A job asked for while one runs, in this Mimic or another (the installed app, a dev
   build, `mimic` in Terminal), joins the queue's `queue.json` (on this Mac, see #102 below): an array of `{name, job, added, sizes?}`,
@@ -518,6 +554,13 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   and a signature that verifies. Not yet seen: a real update from one release to the next.
 
 ## Not yet seen working
+
+- Import Model in the app (File → Import Model…, its sheet, and an imported mini's page and
+  menus): the import itself, an STL through real print prep, and its refusals are tested; the
+  windows weren't looked at, and no real HeroForge STL or other generator's GLB was tried.
+
+- Report a Problem in the app: the alert and its picture box, Finder showing the zip, and the
+  filled-in GitHub form. The zip, the scrubbing, the link and reading the app's log back are tested.
 
 - Dragging a mini onto a project in the sidebar, and the right-click menus on a mini and a
   project's header: seen in the test build were the sections (Unsorted last, an empty project's
