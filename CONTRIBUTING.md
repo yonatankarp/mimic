@@ -34,8 +34,10 @@ the problem matters more than a specific solution.
    they guard against first (see `app/NOTES.md`); keep that habit.
 4. Text people see is plain English, for people who aren't technical. No jargon, no file names.
 5. Open a pull request that says what changed and why, and how you checked it. Its title starts
-   with the kind of change: `feat:` (new), `fix:` or `change:` for what people will notice,
-   `docs:`, `chore:`, `ci:`, `test:` or `refactor:` otherwise.
+   with the kind of change: `feat:` (a new feature), `change:` (an improvement) or `fix:` (a bug
+   fix) for what people will notice, `docs:`, `chore:`, `ci:`, `test:` or `refactor:` otherwise.
+   Add `(cli)` for a change only `mimic` in Terminal has (`fix(cli): ...`): it goes under In
+   Terminal in the release notes.
 6. The release notes are made from pull requests, so there's no need to edit `CHANGELOG.md`. A
    `feat`, `fix` or `change` shows its title there, or the first paragraph under a `## Release note`
    section in the description when it has one: one line for people who use Mimic, like the bullets
@@ -87,7 +89,8 @@ downloads the real engine and the small model files, never the 8 GB of weights.
 ## Releasing
 
 1. Check the notes it will publish: `tools/release_notes.py 0.3.0 origin/main` lists the pull
-   requests merged since the last version under New, Changed and Fixed. Fix a note by editing that
+   requests merged since the last version under New features, Improvements, Bug fixes and In
+   Terminal, with a line on top that counts them. Fix a note by editing that
    pull request's `## Release note`. A version with no `feat`, `fix` or `change` fails before
    anything is published.
 2. Push a version tag:
