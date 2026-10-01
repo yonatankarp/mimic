@@ -86,7 +86,7 @@ public struct ReferenceLayout: Equatable, Sendable {
     public var perMillimetre: Float { 1 / height }
     public var floor: Float { -mini.y / 2 }
     /// The inside of the ring, which a 25 mm base fills exactly: its band is drawn outside it.
-    public var ringRadius: Float { SizeReference.baseDiameter * perMillimetre }
+    public var ringRadius: Float { SizeReference.baseDiameter / 2 * perMillimetre }
     public var personHeight: Float { SizeReference.personHeight * perMillimetre }
     /// A grid square's side in millimetres: 1 mm, or 2, 5 or 10 when a millimetre would be too
     /// small to see (a mini over 40 mm tall).
