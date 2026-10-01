@@ -46,7 +46,7 @@ final class ImportTests: XCTestCase {
 
     func testATextSTLReads() throws {
         let dir = try temporary()
-        let cube = PrepTests.box(half: [10, 10, 10])
+        let cube = PrepTests.box(half: [5, 10, 20])
         var text = "solid cube\n"
         for t in cube.triangles {
             text += "  facet normal 0 0 0\n    outer loop\n"
@@ -59,14 +59,16 @@ final class ImportTests: XCTestCase {
         let mesh = try GLB.parse(ModelImport.read(url).glb)
         XCTAssertEqual(mesh.positions.count, 8)
         XCTAssertEqual(mesh.triangles.count, 12)
-        XCTAssertEqual(mesh.bounds.hi.z - mesh.bounds.lo.z, 20, accuracy: 1e-5, "z up, as slicers take an STL")
+        XCTAssertEqual(mesh.bounds.hi.z - mesh.bounds.lo.z, 40, accuracy: 1e-5, "z up, as slicers take an STL")
+        XCTAssertEqual(mesh.bounds.hi.y - mesh.bounds.lo.y, 20, accuracy: 1e-5)
     }
 
-    /// The point of joining the corners: print prep keeps the largest connected piece, which of
-    /// separate triangles is a single triangle.
+    /// The point of joining the corners: print prep finds a model's main pieces (what an object
+    /// is sized by and stands on) by shared corners, and of separate triangles finds none.
     func testAnImportedSTLComesOutPrintable() throws {
         let dir = try temporary()
         let read = try ModelImport.read(stl(PrepTests.fixture(), in: dir))
+        XCTAssertTrue(try GLB.parse(read.glb).mainTriangles().contains(true), "no main piece: the corners weren't joined")
         let glb = dir.appendingPathComponent("model.glb"), out = dir.appendingPathComponent("out.stl")
         try read.glb.write(to: glb)
         let result = try Prep.run(PrepOptions.parse([glb.path, out.path])) { _ in }
@@ -137,15 +139,23 @@ final class ImportTests: XCTestCase {
         XCTAssertThrowsError(try Pipeline.plan(.generate, folder: fx.install.runs.appendingPathComponent("dragon"), settings: s, tools: fx.tools()))
     }
 
-    func testAGLBIsKeptAsItIs() throws {
+    /// A GLB keeps its shape and its place, and is joined at its corners too: this one has every
+    /// triangle's corners apart, as a GLB with no index list or split at every face has.
+    func testAGLBKeepsItsShapeAndIsJoined() throws {
         let fx = try Fixture()
-        let glb = PrepTests.glb(PrepTests.fixture(), translation: [0.8, -0.5, 0])
+        let cube = PrepTests.box(half: [5, 10, 20])
+        let apart = Mesh(positions: cube.triangles.flatMap { [cube.positions[Int($0.x)], cube.positions[Int($0.y)], cube.positions[Int($0.z)]] },
+                         triangles: (0..<UInt32(cube.triangles.count)).map { SIMD3($0 * 3, $0 * 3 + 1, $0 * 3 + 2) })
         let file = fx.root.appendingPathComponent("dwarf.glb")
-        try glb.write(to: file)
+        try PrepTests.glb(apart, translation: [0.8, -0.5, 0]).write(to: file)
         let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/true"))
         try jobs.importModel(file, name: "dwarf", sizes: sizes)
         jobs.waitUntilDone()
-        XCTAssertEqual(try Data(contentsOf: fx.install.runs.appendingPathComponent("dwarf/model.glb")), glb)
+        let kept = try GLB.read(fx.install.runs.appendingPathComponent("dwarf/model.glb"))
+        XCTAssertEqual(kept.positions.count, 8)
+        XCTAssertEqual(kept.triangles.count, 12)
+        XCTAssertEqual(kept.bounds.lo.x, -5 + 0.8, accuracy: 1e-5, "moved by its node, as it was")
+        XCTAssertEqual(kept.bounds.hi.z, 20, accuracy: 1e-5, "z up after the GLB's y up, as the 3D engine's are read")
     }
 
     func testAFileThatIsntAModelWritesNothing() throws {

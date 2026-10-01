@@ -23,22 +23,26 @@ public enum ModelImport {
         public let note: String?
     }
 
-    /// Reads `url` and checks there's a shape in it, before anything is written. A GLB is kept as
-    /// it is (glTF is y up by its spec). An STL is taken as z up, as slicers take it, in
-    /// millimetres, its separate triangles joined at their corners: print prep keeps only the
-    /// largest connected piece, which of unjoined triangles is one triangle.
+    /// Reads `url` and checks there's a shape in it, before anything is written. A GLB is y up
+    /// by glTF's spec; an STL is taken as z up, as slicers take it, and in millimetres. Either way
+    /// its triangles are joined where their corners meet: an STL keeps no corner shared, and many
+    /// GLBs split them at every seam or face. Print prep finds a model's main pieces (what an
+    /// object is sized by and stands on) by shared corners, and of unjoined triangles finds none.
     public static func read(_ url: URL) throws -> Read {
         let ext = url.pathExtension.lowercased()
-        guard extensions.contains(ext) else { throw RequestError.unreadableModel("it isn't one") }
+        guard extensions.contains(ext) else { throw RequestError.unreadableModel("it's another kind of file") }
         guard let data = try? Data(contentsOf: url) else { throw RequestError.unreadableModel("it can't be opened") }
+        let corners: [SIMD3<Float>]
         if ext == "glb" {
-            do { _ = try GLB.parse(data) } catch { throw RequestError.unreadableModel("its shape is stored in a way Mimic can't read") }
-            return Read(glb: data, note: nil)
+            guard let mesh = try? GLB.parse(data) else { throw RequestError.unreadableModel("its shape is stored in a way Mimic can't read") }
+            corners = mesh.triangles.flatMap { [mesh.positions[Int($0.x)], mesh.positions[Int($0.y)], mesh.positions[Int($0.z)]] }
+        } else {
+            corners = try stlCorners(data)
         }
-        let corners = try stlCorners(data)
         let mesh = weld(corners)
         guard !mesh.triangles.isEmpty else { throw RequestError.unreadableModel("it has no shape in it") }
-        return Read(glb: GLB.encode(mesh), note: unitsNote(mesh))
+        // A GLB's units are metres by its spec, and generators' sizes vary: only an STL's are a hint.
+        return Read(glb: GLB.encode(mesh), note: ext == "stl" ? unitsNote(mesh) : nil)
     }
 
     /// Every triangle's three corners, in order, from a binary STL or a text one. Binary when its

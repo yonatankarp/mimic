@@ -133,10 +133,11 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   new folder gets settings.json (`imported`, the file's name, a field of its own: a new
   `source` value would make an older Mimic read the whole file as empty) and `model.glb`, then
   a print prep job joins the queue. With model.glb there, the gallery, Resize and Duplicate
-  treat it as any mini, and no 3D engine is needed. A GLB is kept as it is (glTF is y up by
-  its spec). An STL becomes a GLB: taken as z up, as slicers take it, and its separate
-  triangles joined where their corners meet (to a millionth of its size), since print prep
-  keeps only the largest connected piece and unjoined that is one triangle. There's no cheap,
+  treat it as any mini, and no 3D engine is needed. A GLB is y up by its spec; an STL is taken
+  as z up, as slicers take it. Both are written again as a GLB with their triangles joined
+  where their corners meet (to a millionth of its size): an STL keeps no corner shared and many
+  GLBs split them at seams, and print prep finds a model's main pieces (`Mesh.mainBounds`, what
+  an object is sized by, and `Mesh.rest`'s hull) by shared corners. There's no cheap,
   reliable way to tell an STL's up from its shape, so a wrong one shows in Previews and the 3D
   view (an object may still be stood on a steadier side by `Mesh.rest`). An STL is taken as
   millimetres; one under 5 mm or over 500 mm on its longest side gets a line in prep.log saying

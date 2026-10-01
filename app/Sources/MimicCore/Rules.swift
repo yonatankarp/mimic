@@ -128,7 +128,7 @@ public enum RequestError: Error, Equatable, CustomStringConvertible {
         case .noDrawing(let n): "Mimic can't make a new 3D shape of \(Mini.displayName(n)): its picture isn't made yet. Try Make Another Version instead."
         case .cantDuplicate(let n): "\(Mini.displayName(n)) is being made, resized or waiting in the queue. Duplicate it once that's done."
         case .imported(let n): "\(Mini.displayName(n)) was imported from a 3D model, so there's no picture or description to make it again from. Resize This Mini makes its print file again."
-        case .unreadableModel(let why): "Mimic can't use that 3D model: \(why). It needs a GLB or STL file."
+        case .unreadableModel(let why): "Mimic can't use that file: \(why). It needs a 3D model saved as GLB or STL."
         case .unknownModel(let id): "This Mimic doesn't know a 3D model called \(id). Update Mimic, or make it again with another model."
         }
     }
