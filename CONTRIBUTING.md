@@ -58,8 +58,9 @@ By contributing, you agree that your contribution is licensed under Mimic's
 | `app/` | The Mac app, a Swift package. `MimicCore` is everything but the windows (jobs, Draw Things, checks, the gallery on disk); `Mimic` is one binary that is the app, or the `mimic` command with arguments. `app/NOTES.md` has the design decisions and why. Print prep is `MimicCore/Prep.swift`; its header lists every tuning option (`mimic _prep in.glb out.stl …` runs it by hand). |
 | `tools/package_dmg.sh` | Builds `Mimic.app` into the disk image a release publishes. |
 | `tools/release_notes.py` | Writes a release's notes from the pull requests merged since the last one. |
-| `tools/package_pixal3d.sh`, `tools/pixal3d-steps.patch` | Package the Pixal3D build the app downloads on first launch. |
+| `tools/package_pixal3d.sh`, `tools/pixal3d-steps.patch`, `tools/LICENSE-image-to-3dlab` | Build and package the Pixal3D engine the app downloads on first launch. |
 | `.github/workflows/release.yml` | Tests every change, builds the disk image, and publishes a release from a version tag. |
+| `.github/workflows/engine.yml` | Builds that engine twice, run by hand, and checks both builds are the same. |
 | `runs/`, `engine/`, `queue/` | The dev build's minis, 3D engine (`trellis-cli`, each model set in `engine/models/<id>/`) and queue, when this checkout is its Mimic folder. All are git-ignored. An installed Mimic keeps them in `~/Documents/Mimic` (or the folder chosen in Settings) and `~/Library/Application Support/Mimic` instead; `app/NOTES.md` says how it chooses. |
 
 ## Building and testing
@@ -132,15 +133,21 @@ app and doesn't ask again for saved AI keys.
 
 The app downloads a pre-built Pixal3D so that nobody needs Xcode.
 
-1. Build it as the header of `tools/package_pixal3d.sh` describes. It has to target macOS 14,
-   and it has to map the source path away so your home folder doesn't end up in the files.
-   It also has to honour `PIXAL3D_STEPS` (its log says "PIXAL3D_STEPS=8 overrides 12 steps"):
-   stock pixal3d.cpp ignores it, and Mimic stops any run whose engine does. Apply
-   `tools/pixal3d-steps.patch` to the pixal3d.cpp checkout first (`git apply`); it's the change
-   image-to-3dlab's `scripts/patch_pixal3d_steps.py` made (Apache-2.0), kept here since Mimic
-   no longer uses image-to-3dlab.
-2. Run the script to package it.
-3. Upload the tarball to a GitHub release.
-4. Update `EngineDownload.version` and `EngineDownload.engine` (URL, size, sha256) in
+1. Run the **Engine** workflow (Actions → Engine → Run workflow) with the pixal3d.cpp commit to
+   build. It runs `tools/package_pixal3d.sh` twice on a macOS runner, in two different folders,
+   and fails unless both tarballs are byte for byte the same; the tarball and its sha256 are the
+   run's artifact. The script applies `tools/pixal3d-steps.patch`, builds for macOS 14 with the
+   source and build paths mapped away, and writes `VERSION`: the commit, the patch's sha256 and
+   the Xcode, SDK, clang and cmake that built it. On a Mac with Xcode, cmake and ninja, the same
+   script gives the same tarball for the same Xcode (its header says how).
+   The patch makes pixal3d.cpp honour `PIXAL3D_STEPS` (its log says "PIXAL3D_STEPS=8 overrides
+   12 steps"): stock pixal3d.cpp ignores it, and Mimic stops any run whose engine does. It isn't
+   Mimic's own code: it's the change `scripts/patch_pixal3d_steps.py` in
+   [image-to-3dlab](https://github.com/Bingeljell/image-to-3dlab) (Bingeljell, Apache-2.0)
+   makes, as a diff. Its header says where from, and `tools/LICENSE-image-to-3dlab` (that
+   licence and image-to-3dlab's NOTICE) ships in the tarball.
+2. Check the artifact, then upload the tarball to a GitHub release by hand. The workflow never
+   publishes anything.
+3. Update `EngineDownload.version` and `EngineDownload.engine` (URL, size, sha256) in
    `app/Sources/MimicCore/EngineDownload.swift`. Installed copies replace an engine whose
    `VERSION` doesn't match the next time setup runs (Settings → General → Repair).
