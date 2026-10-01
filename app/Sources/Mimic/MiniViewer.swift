@@ -101,8 +101,7 @@ struct MiniViewer: View {
         .task(id: [stl.path, version.description]) {
             failed = false
             measured = nil  // at once: the page's details shouldn't show the last mini's size while it fades
-            // The mini on show fades out first: loading blocks the main actor, so the fade has to
-            // be over before it starts.
+            // The mini on show fades out first, before it leaves the stage.
             if mini != nil && shown && !reduceMotion {
                 withAnimation(.easeIn(duration: 0.2)) { shown = false }
                 try? await Task.sleep(for: .seconds(0.2))
@@ -110,9 +109,15 @@ struct MiniViewer: View {
             }
             shown = false
             turn = .zero; zoom = 1; offset = .zero
-            // ponytail: loads on the main actor (about 0.4 s for the biggest print file); move the
-            // file reading off it if bigger minis make that noticeable.
-            guard let (entity, mm) = try? Self.load(stl) else { mini = nil; failed = true; return }
+            // Off the stage while the next one loads (#141), so the view says it's loading rather
+            // than showing the last mini under the new one's name.
+            mini = nil
+            // The file is read off the main actor, so the view can say so meanwhile; a big print
+            // file takes seconds.
+            let read = await Task.detached(priority: .userInitiated) { [stl] in Result { try Self.read(stl) } }.value
+            // Another mini was picked meanwhile: its own load shows it, not this one.
+            guard !Task.isCancelled else { return }
+            guard let (entity, mm) = try? Self.entity(read.get()) else { failed = true; return }
             if !reduceMotion {
                 entity.scale = SIMD3(repeating: 0.94)
                 glide = 0.5  // the stage adds it and grows it into place
@@ -334,7 +339,8 @@ struct MiniViewer: View {
 
     /// Print files are Z-up millimetres; the scene is Y-up metres. The mini is centred and
     /// scaled to 1 m tall, which the camera fits to the view. Also returns its size in millimetres.
-    static func load(_ url: URL) throws -> (Entity, Measured) {
+    /// Off the main actor; `entity` then makes the mini on it.
+    nonisolated static func read(_ url: URL) throws -> Read {
         let asset = MDLAsset(url: url)
         guard let mesh = asset.childObjects(of: MDLMesh.self).first as? MDLMesh else { throw CocoaError(.fileReadCorruptFile) }
         let desc = mesh.vertexDescriptor
@@ -364,19 +370,29 @@ struct MiniViewer: View {
             let n = simd_normalize(simd_cross(points[t + 1] - points[t], points[t + 2] - points[t]))
             normals[t] = n; normals[t + 1] = n; normals[t + 2] = n
         }
+        return Read(points: points, normals: normals, measured: size)
+    }
+
+    struct Read: Sendable {
+        let points: [SIMD3<Float>], normals: [SIMD3<Float>]
+        let measured: Measured
+    }
+
+    /// The mini's entity, from what `read` got out of its print file.
+    static func entity(_ r: Read) throws -> (Entity, Measured) {
         var d = MeshDescriptor(name: "mini")
-        d.positions = MeshBuffers.Positions(points)
-        d.normals = MeshBuffers.Normals(normals)
-        d.primitives = .triangles((0..<UInt32(points.count)).map { $0 })
+        d.positions = MeshBuffers.Positions(r.points)
+        d.normals = MeshBuffers.Normals(r.normals)
+        d.primitives = .triangles((0..<UInt32(r.points.count)).map { $0 })
         let material = SimpleMaterial(color: .init(white: 0.66, alpha: 1), roughness: 0.75, isMetallic: false)
         let entity = ModelEntity(mesh: try MeshResource.generate(from: [d]), materials: [material])
         entity.name = "mini"
-        return (entity, size)
+        return (entity, r.measured)
     }
 }
 
 /// A print file's size in millimetres, base included, and its volume in mm³.
-struct Measured: Equatable {
+struct Measured: Equatable, Sendable {
     let tall: Int, wide: Int, deep: Int
     var volume = 0.0
     /// Width, height and depth unrounded, and where the print file's origin (under the base's

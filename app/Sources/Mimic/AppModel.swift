@@ -96,7 +96,13 @@ final class AppModel {
     /// starts with Mimic in front. Closing it (a click outside, Esc, the item) may count a
     /// finished job as seen; see `jobSeen`.
     var jobPopover = false {
-        didSet { if oldValue && !jobPopover { jobSeen() } }
+        didSet {
+            guard oldValue && !jobPopover else { return }
+            // Seen once is enough: its "ready in" time doesn't change, while the queue's below it
+            // do (#141). Not when switching away closed it, though, as then it wasn't read.
+            if active { queuedNote = nil }
+            jobSeen()
+        }
     }
     /// The popover has shown how the job ended, with Mimic in front. Only then can closing it
     /// clear the toolbar item.
@@ -148,7 +154,8 @@ final class AppModel {
     /// Jobs that ended since the job's popover was last seen, the latest last: the queue can
     /// start the next straight away, so the popover lists these under the one it shows.
     var ended: [JobStatus] = []
-    /// "Added to the queue — …", at the top of the job's popover until that mini starts.
+    /// "Added to the queue — …", at the top of the job's popover until that mini starts or the
+    /// popover is closed.
     var queuedNote: (name: String, text: String)?
 
     init() {

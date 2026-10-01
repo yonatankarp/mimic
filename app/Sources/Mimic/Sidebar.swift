@@ -300,7 +300,7 @@ struct CopiesButton: View {
     @Environment(AppModel.self) private var model
     var body: some View {
         Button { model.sheet = .copies(minis) } label: {
-            if showsIcon { Label("Copies…", systemImage: "square.on.square") } else { Text("Copies…") }
+            if showsIcon { Label("Copies…", systemImage: "square.grid.2x2") } else { Text("Copies…") }
         }
         .help(minis.count == 1 ? "Several of this mini on the plate, in one print file" : "Several of each on the plate, in one print file")
         .disabled(!minis.contains { $0.stl != nil } || model.packing || model.sheet != nil)
