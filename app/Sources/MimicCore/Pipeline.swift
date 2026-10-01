@@ -46,6 +46,17 @@ public enum Step: Equatable, Sendable {
     case run(executable: String, arguments: [String], directory: String?, log: URL)
 }
 
+extension Step {
+    /// The picture step 1 writes.
+    var makes: URL? {
+        switch self {
+        case let .copyPicture(_, to), let .drawCharacter(_, _, to), let .sculptPicture(_, _, to),
+             let .drawObject(_, _, to), let .sculptObject(_, _, to): to
+        case .run: nil
+        }
+    }
+}
+
 public enum JobKind: String, Codable, Sendable { case generate, prep }
 
 public enum Pipeline {
@@ -84,34 +95,58 @@ public enum Pipeline {
 
         let seed = settings.seed ?? 42
         let source = folder.appendingPathComponent("source.png")
-        let picture: Step
+        // Each picture is made its own way, the extra ones exactly as the front one (#66), so
+        // all of them look alike to the 3D engine.
+        let pictures: [Step]
         switch settings.source {
         case .image:
-            let upload = folder.appendingPathComponent("upload.img")
-            picture = settings.restyle != true ? .copyPicture(from: upload, to: source)
-                : settings.isObject ? .sculptObject(from: upload, seed: seed, to: source)
-                : .sculptPicture(from: upload, seed: seed, to: source)
+            func made(_ upload: String, _ to: URL) -> Step {
+                let from = folder.appendingPathComponent(upload)
+                return settings.restyle != true ? .copyPicture(from: from, to: to)
+                    : settings.isObject ? .sculptObject(from: from, seed: seed, to: to)
+                    : .sculptPicture(from: from, seed: seed, to: to)
+            }
+            pictures = [made("upload.img", source)]
+                + (settings.sides ?? []).map { made($0.upload, folder.appendingPathComponent($0.source)) }
         case .desc:
             guard let desc = settings.desc, !desc.isEmpty else { throw RequestError.nothingToRetry }
-            picture = settings.isObject ? .drawObject(description: desc, seed: seed, to: source)
-                                        : .drawCharacter(description: desc, seed: seed, to: source)
+            pictures = [settings.isObject ? .drawObject(description: desc, seed: seed, to: source)
+                                          : .drawCharacter(description: desc, seed: seed, to: source)]
         case nil:
             throw RequestError.nothingToRetry
         }
+        let sides = settings.source == .image ? settings.sides ?? [] : []
         let mesh: Step = .run(executable: tools.mimic,
                               arguments: ["_engine", source.path, folder.appendingPathComponent("model.glb").path,
-                                          "--seed", String(settings.shapeSeed ?? seed), "--engine", tools.engine, "--model", model.id],
+                                          "--seed", String(settings.shapeSeed ?? seed), "--engine", tools.engine, "--model", model.id]
+                                  + sides.flatMap { ["--\($0.rawValue)", folder.appendingPathComponent($0.source).path] },
                               directory: nil, log: folder.appendingPathComponent("pixal3d.log"))
-        let skip = skipped(folder)
-        return (skip.contains(1) ? [] : [(1, picture)]) + (skip.contains(2) ? [] : [(2, mesh)]) + [(3, prep)]
+        let skip = skipped(folder, sides: sides)
+        // A picture already made isn't made again, each on its own: a make stopped while
+        // sculpting the back keeps the front.
+        let fm = FileManager.default
+        return pictures.filter { !fm.fileExists(atPath: $0.makes?.path ?? "") }.map { (1, $0) }
+            + (skip.contains(2) ? [] : [(2, mesh)]) + [(3, prep)]
     }
 
     /// The steps a make of the mini in `folder` skips because what they make is there already:
-    /// the picture (source.png: Try Again, a new 3D shape), and the 3D shape too when it has
-    /// model.glb as well (a make stopped in its last step).
-    public static func skipped(_ folder: URL) -> Set<Int> {
+    /// the picture (source.png and one for each of its `sides`: Try Again, a new 3D shape), and
+    /// the 3D shape too when it has model.glb as well (a make stopped in its last step).
+    public static func skipped(_ folder: URL, sides: [PictureSide] = []) -> Set<Int> {
         let fm = FileManager.default
-        guard fm.fileExists(atPath: folder.appendingPathComponent("source.png").path) else { return [] }
+        guard (["source.png"] + sides.map(\.source)).allSatisfy({ fm.fileExists(atPath: folder.appendingPathComponent($0).path) }) else { return [] }
         return fm.fileExists(atPath: folder.appendingPathComponent("model.glb").path) ? [1, 2] : [1]
     }
+}
+
+/// The pictures a mini can have besides its front one (#66), each of the character seen from
+/// that side. Only TRELLIS.2 can use them (`EngineModel.multiView`). Kept in the mini's folder
+/// as given (`upload`) and as step 1 made it (`source`), like the front's upload.img and
+/// source.png; the order here is the order the 3D engine is given them, after the front.
+public enum PictureSide: String, Codable, CaseIterable, Sendable {
+    case back, left, right
+    /// "Back", as New Mini labels its place.
+    public var title: String { rawValue.capitalized }
+    public var upload: String { "upload-\(rawValue).img" }
+    public var source: String { "source-\(rawValue).png" }
 }

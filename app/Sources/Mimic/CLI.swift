@@ -163,7 +163,7 @@ enum CLI {
             var sizes = Sizes(), image: String?, restyle = false, seed = 42, description: String?, improve = false
             var model = EngineDownload.selected(defaults: defaults)
             var object = false, addBase = false, wait = false, newShape = false, projectName: String?, seedGiven = false, shapeGiven = false, styleGiven = false, magnetGiven = false
-            var scale: Int?, modelGiven = false
+            var scale: Int?, modelGiven = false, sides: [PictureSide: URL] = [:]
             while let a = rest.first {
                 rest.removeFirst()
                 func value() -> String? { rest.isEmpty ? nil : rest.removeFirst() }
@@ -189,6 +189,9 @@ enum CLI {
                     guard v == "none" || v.flatMap(Magnet.init) != nil else { return fail("--magnet needs 5x2, 6x2, 8x3 or none") }
                     sizes.magnet = v.flatMap(Magnet.init); magnetGiven = true
                 case "--image": image = value()
+                case "--back", "--left", "--right":
+                    guard let v = value() else { return fail("\(a) needs a picture") }
+                    sides[PictureSide(rawValue: String(a.dropFirst(2)))!] = URL(fileURLWithPath: v)
                 case "--restyle": restyle = true
                 case "--improve": improve = true
                 case "--wait": wait = true
@@ -226,6 +229,7 @@ enum CLI {
                 return fail("mimic import takes the model as it is: only size options, --object, --add-base and --project")
             }
             if newShape && args[0] != "make-another" { return fail("--new-shape is for mimic make-another") }
+            if !sides.isEmpty && (args[0] != "make" || image == nil) { return fail("--back, --left and --right go with mimic make … --image <front picture>") }
             if let scale {
                 if object { return fail("--scale is for characters; give an object's longest side with --size") }
                 sizes = SizeCard.gameSizes(scale: scale, filling: sizes) ?? sizes
@@ -270,7 +274,8 @@ enum CLI {
                     else { return fail(usage) }
                     let into = try projectName.map { try project($0, install) }
                     ahead = try jobs.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes,
-                                          kind: object ? .object : .character, model: model, project: into, shown: given?.shown)
+                                          kind: object ? .object : .character, model: model, project: into, shown: given?.shown,
+                                          sides: sides)
                 case "make-another":
                     if newShape {
                         ahead = try jobs.makeNewShape(of: of, as: name, seed: seedGiven ? seed : nil).ahead
@@ -585,11 +590,17 @@ enum CLI {
     }
 
     /// Step 2 of a job, run by the job itself (not for people, so not in the usage):
-    /// `mimic _engine <source.png> <model.glb> --seed N --engine <dir> [--model ID]`.
+    /// `mimic _engine <source.png> <model.glb> --seed N --engine <dir> [--model ID] [--back|--left|--right <picture>]…`.
     private static func engine(_ args: [String]) -> Int32 {
         var rest = args, seed = 42, engine: String?, files: [String] = [], model = EngineDownload.standard
+        var sides: [(PictureSide, URL)] = []
         while let a = rest.first {
             rest.removeFirst()
+            if a.hasPrefix("--"), let side = PictureSide(rawValue: String(a.dropFirst(2))) {
+                guard let v = rest.first else { return fail("\(a) needs a picture") }
+                sides.append((side, URL(fileURLWithPath: v))); rest.removeFirst()
+                continue
+            }
             switch a {
             case "--seed": guard let v = rest.first.flatMap(Int.init) else { return fail("--seed needs a number") }; seed = v; rest.removeFirst()
             case "--engine": guard let v = rest.first else { return fail("--engine needs a folder") }; engine = v; rest.removeFirst()
@@ -603,7 +614,7 @@ enum CLI {
         let out = FileHandle.standardOutput
         do {
             try Engine.make(source: URL(fileURLWithPath: files[0]), output: URL(fileURLWithPath: files[1]), seed: seed,
-                            engine: URL(fileURLWithPath: engine), model: model, environment: ProcessInfo.processInfo.environment) {
+                            engine: URL(fileURLWithPath: engine), model: model, sides: sides, environment: ProcessInfo.processInfo.environment) {
                 out.write(Data(($0 + "\n").utf8))
             }
             return 0

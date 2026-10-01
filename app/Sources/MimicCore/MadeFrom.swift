@@ -21,7 +21,9 @@ public struct MadeFrom: Equatable, Sendable {
         if s.isImported { add("Source", "A 3D model you imported") }
         switch s.source {
         case .image:
-            add("Source", "A picture")
+            let sides = s.sides ?? []
+            add("Source", sides.isEmpty ? "A picture"
+                : "Pictures of the " + (["front"] + sides.dropLast().map(\.rawValue)).joined(separator: ", ") + " and \(sides.last!.rawValue)")
         case .desc:
             add("Source", "A description")
             add("You typed", s.descOriginal.flatMap { $0.isEmpty || $0 == s.desc ? nil : $0 })

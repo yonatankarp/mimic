@@ -6,7 +6,7 @@ public enum Usage {
     public static let text = """
     usage:
       mimic make "<name>" "<description>" [--improve] [options]
-      mimic make "<name>" --image <picture> [--restyle] [options]
+      mimic make "<name>" --image <picture> [--back <picture>] [--left <picture>] [--right <picture>] [--restyle] [options]
       mimic make-another <name> [--new-shape] [--seed N]
       mimic duplicate <name> --as "<new name>"
       mimic resize <name> [options]
@@ -38,6 +38,7 @@ public enum Usage {
     options: --height MM  --scale 28|32|35|54|75  --base MM  --nozzle 0.2|0.4|0.6  --inflate MM  --no-base  --base-shape round|square|hex  --base-style plain|stone|wood|cobble  --magnet 5x2|6x2|8x3|none  --seed N  --model ID
     anything that isn't a character: make … --object  [--size MM (longest side)]  [--add-base]
     make … --project "<project>": into that project (made if it's new); a project is a folder in the minis folder
+    make … --image front.png --back b.png --left l.png --right r.png: pictures of the same character from other sides too, any of them (TRELLIS.2 only)
     make-another: the same picture or description and settings with a new seed, next to it ("<name>-2")
     make-another --new-shape: keeps the picture it made and makes only the 3D shape again, with a new seed
     duplicate: a copy with the same shape, next to it, to resize without changing the first

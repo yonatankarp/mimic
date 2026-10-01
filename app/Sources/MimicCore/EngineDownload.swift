@@ -32,6 +32,9 @@ public struct EngineModel: Sendable, Equatable, Identifiable {
     /// Degrees print prep turns the engine's model so the figure faces the front render: the
     /// TRELLIS.2 pipeline writes it facing away (seen on every TRELLIS.2 run of the dwarf).
     public var turn: Int { family == .trellis2 ? 180 : 0 }
+    /// It can make a mini from pictures of the back and sides too (#66): TRELLIS.2's
+    /// multi-image mode takes 2–8. Pixal3D's single-view set takes one.
+    public var multiView: Bool { family == .trellis2 }
 
     public init(id: String, name: String, summary: String, minutes: Int = 8, family: Family, files: [EngineFile]) {
         self.id = id; self.name = name; self.summary = summary; self.minutes = minutes; self.family = family; self.files = files

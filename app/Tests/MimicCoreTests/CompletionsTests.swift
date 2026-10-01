@@ -41,6 +41,7 @@ final class CompletionsTests: XCTestCase {
         XCTAssertEqual(option("resize", "--base-shape"), .choice(["round", "square", "hex"]))
         XCTAssertEqual(option("resize", "--project"), .project)
         XCTAssertEqual(option("make", "--image"), .file)
+        for side in ["--back", "--left", "--right"] { XCTAssertEqual(option("make", side), .file, side) }
         XCTAssertEqual(option("make", "--project"), .project, "from the note under the commands")
         XCTAssertEqual(option("make", "--no-base"), .flag)
         XCTAssertEqual(option("make", "--height"), .text)

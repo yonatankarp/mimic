@@ -111,7 +111,7 @@ public enum RequestError: Error, Equatable, CustomStringConvertible {
          badProjectName, projectTaken(String), projectNotFound, cantMove(String), projectBusy(String, String), noSource(String), noDrawing(String), cantDuplicate(String),
          minisFolderBusy, sameMinisFolder, minisFolderNested, minisFolderClash([String]), movingMinis,
          imported(String), unreadableModel(String),
-         noName, renameWaiting(String)
+         noName, renameWaiting(String), sidesNeedAPicture, oneSideOnly(String)
     public var description: String {
         switch self {
         case .badName: "Names can only use lowercase letters, numbers and dashes."
@@ -149,6 +149,8 @@ public enum RequestError: Error, Equatable, CustomStringConvertible {
         case .minisFolderNested: "Choose a folder that isn't inside the one your minis are in now, and doesn't hold it."
         case .minisFolderClash(let names):
             "That folder already has minis or projects called \(ListFormatter.localizedString(byJoining: names)). Rename yours first, or use the folder without moving your minis."
+        case .sidesNeedAPicture: "Pictures of the back and sides go with a picture of the front, not a description."
+        case .oneSideOnly(let model): "\(model) makes a mini from one picture. Choose TRELLIS.2 in Settings → 3D Model to use pictures of the back and sides too."
         }
     }
 }

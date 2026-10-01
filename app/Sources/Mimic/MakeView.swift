@@ -16,6 +16,11 @@ struct MakeView: View {
     @State private var picture: Picture?
     @State private var choosing = false
     @State private var dropTargeted = false
+    /// Pictures of the back and sides besides `picture`, the front (#66), and the place a
+    /// picture is being chosen for or dragged over.
+    @State private var sides: [PictureSide: Picture] = [:]
+    @State private var choosingSide: PictureSide?
+    @State private var sideTargeted: PictureSide?
     @State private var restyle = true
     @State private var cartoon = false
     @State private var description = ""
@@ -48,6 +53,7 @@ struct MakeView: View {
         _start = State(initialValue: form.fromPicture ? .picture : .description)
         _picture = State(initialValue: form.picture.flatMap { url in
             Picture(url, caption: again.map { "The picture \($0.displayName) was made from" }) })
+        _sides = State(initialValue: form.sides.compactMapValues { Picture($0) })
         _restyle = State(initialValue: form.restyle)
         _cartoon = State(initialValue: form.cartoon)
         _description = State(initialValue: form.description)
@@ -195,8 +201,11 @@ struct MakeView: View {
         // ⌘V: a picture on the clipboard becomes the picture; anything else pastes as usual, and
         // so does text while a field is being typed in (see paste()).
         .background { Button("") { paste() }.keyboardShortcut("v").hidden() }
-        .fileImporter(isPresented: $choosing, allowedContentTypes: [.image]) { result in
-            if case .success(let url) = result { take(url) }
+        // One importer for every place: a second one on the same sheet would never open.
+        .fileImporter(isPresented: Binding(get: { choosing || choosingSide != nil }, set: { if !$0 { choosing = false; choosingSide = nil } }),
+                      allowedContentTypes: [.image]) { result in
+            guard case .success(let url) = result else { return }
+            if let side = choosingSide { takeSide(side, url) } else { take(url) }
         }
         // File → Import from iPhone (Continuity Camera): a photo taken for it, or a scan.
         .importsItemProviders([.image]) { receive($0); return true }
@@ -239,6 +248,7 @@ struct MakeView: View {
             ForEach(picture.map { MakeAdvice.pictureWarnings(width: $0.width, height: $0.height, kind: card.kind) } ?? [], id: \.self) {
                 Label($0, systemImage: "exclamationmark.triangle.fill").font(.callout).foregroundStyle(.orange)
             }
+            sidesRow
             if !object {
                 Toggle(isOn: $cartoon) {
                     Text("It's a cartoon")
@@ -264,6 +274,85 @@ struct MakeView: View {
             .help("Redraws your picture as a grey statue with the same pose")
             if !health.drawThingsReady { needsDrawThings("The grey sculpt needs Draw Things.") } else { opensWhenNeeded }
         }
+    }
+
+    // MARK: Pictures of the back and sides (#66)
+
+    /// The 3D model it would be made with, which decides whether it can use them.
+    private var makingWith: EngineModel {
+        EngineDownload.forMaking(cartoon: cartoonOn, chosen: madeWith.flatMap { EngineDownload.model($0) } ?? model.setup.chosen)
+    }
+
+    /// What Make Mini sends of them: nothing when the model uses one picture.
+    private var sidesUsed: [PictureSide: URL] {
+        start == .picture && makingWith.multiView ? sides.mapValues(\.url) : [:]
+    }
+
+    private var sidesRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("More pictures of the same \(thing) (optional)")
+            Text("Its back and sides, so the 3D model doesn't have to guess them. Drop each on its place, or click to choose.")
+                .font(.callout).foregroundStyle(.secondary)
+            HStack(spacing: 8) { ForEach(PictureSide.allCases, id: \.self) { sideSlot($0) } }
+                .disabled(!makingWith.multiView)
+                .opacity(makingWith.multiView ? 1 : 0.5)
+            if !makingWith.multiView {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(cartoonOn ? "Cartoons are made with Pixal3D, which uses only the front picture."
+                                   : "\(makingWith.name) uses only the front picture. TRELLIS.2 can use these too.")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if !cartoonOn && madeWith == nil { OpenSettingsButton(tab: .model) { Text("Open Settings") } }
+                }
+                .font(.callout)
+            }
+        }
+    }
+
+    private func sideSlot(_ side: PictureSide) -> some View {
+        let words = side == .back ? "back" : "\(side.rawValue) side"
+        return Button { choosingSide = side } label: {
+            VStack(spacing: 4) {
+                if let p = sides[side] {
+                    Image(nsImage: p.image).resizable().scaledToFit().frame(height: 60)
+                } else {
+                    Image(systemName: "plus").font(.title3).foregroundStyle(.secondary).frame(height: 60)
+                }
+                Text(side.title).font(.caption)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(6)
+            .contentShape(Rectangle())
+            .background(RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [5, 3]))
+                .foregroundStyle(sideTargeted == side ? Color.accentColor : .secondary.opacity(0.5)))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(sides[side] == nil ? "Add a picture of the \(words)" : "Change the picture of the \(words)")
+        .help("A picture of the \(words) of the same \(thing). Drop it here or click to choose.")
+        .overlay(alignment: .topTrailing) {
+            if sides[side] != nil {
+                Button { sides[side] = nil } label: { Image(systemName: "xmark.circle.fill") }
+                    .buttonStyle(.plain).foregroundStyle(.secondary).padding(4)
+                    .accessibilityLabel("Remove the picture of the \(words)")
+                    .help("Remove this picture")
+            }
+        }
+        .onDrop(of: PictureDrop.types, isTargeted: Binding(get: { sideTargeted == side },
+                                                           set: { sideTargeted = $0 ? side : sideTargeted == side ? nil : sideTargeted })) { providers in
+            guard makingWith.multiView else { return false }
+            Task {
+                if let item = await PictureDrop.pictures(Array(providers.prefix(1))).first { takeSide(side, item.url) }
+                else { say("That picture can't be read.", error: true) }
+            }
+            return true
+        }
+    }
+
+    private func takeSide(_ side: PictureSide, _ url: URL) {
+        guard let p = Picture(url) else { return say("That picture can't be read.", error: true) }
+        sides[side] = p
+        message = nil
     }
 
     private var descriptionPane: some View {
@@ -367,7 +456,7 @@ struct MakeView: View {
     }
 
     private var estimate: Estimate {
-        model.estimateNew(drawn: start == .description || sculpt, sizes: card.sizes, cartoon: cartoonOn)
+        model.estimateNew(drawn: start == .description || sculpt, sizes: card.sizes, cartoon: cartoonOn, pictures: 1 + sidesUsed.count)
     }
 
     /// "About 8 minutes on this Mac", or when it would wait: how long until it's ready.
@@ -410,7 +499,7 @@ struct MakeView: View {
             if project == Self.newProject { project = try model.createProject(newProjectName) }
             try model.make(name: slug, picture: source, restyle: start == .picture && sculpt,
                            seed: seed, sizes: card.sizes, kind: card.kind, project: project.isEmpty ? nil : project, cartoon: cartoonOn, shown: name,
-                           model: madeWith.flatMap { EngineDownload.model($0) }, shapeSeed: shapeSeed)
+                           model: madeWith.flatMap { EngineDownload.model($0) }, shapeSeed: shapeSeed, sides: sidesUsed)
         } catch {
             say(model.plainWords(error), error: true)
             messageDetail = "\(error)"

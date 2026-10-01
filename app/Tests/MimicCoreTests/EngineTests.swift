@@ -112,7 +112,7 @@ final class EngineTests: XCTestCase {
 
     /// Runs `mimic _engine` on a cut-out picture with `body` as trellis-cli, in a session of its
     /// own like a job step. Returns the process and its log.
-    func engine(_ body: String, model: EngineModel? = nil) throws -> (GroupProcess, URL, URL) {
+    func engine(_ body: String, model: EngineModel? = nil, extra: [String] = []) throws -> (GroupProcess, URL, URL) {
         try FileManager.default.createDirectory(at: f.install.engine, withIntermediateDirectories: true)
         let cli = f.install.trellisCLI
         try "#!/bin/bash\n\(body)\n".write(to: cli, atomically: true, encoding: .utf8)
@@ -121,7 +121,7 @@ final class EngineTests: XCTestCase {
         let glb = f.install.runs.appendingPathComponent("mini/model.glb"), log = f.root.appendingPathComponent("pixal3d.log")
         let p = try GroupProcess(executable: mimic,
                                  arguments: ["_engine", source.path, glb.path, "--seed", "5", "--engine", f.install.engine.path]
-                                    + (model.map { ["--model", $0.id] } ?? []),
+                                    + (model.map { ["--model", $0.id] } ?? []) + extra,
                                  environment: ["PATH": "/usr/bin:/bin"], log: log.path)
         return (p, glb, log)
     }
@@ -183,6 +183,29 @@ final class EngineTests: XCTestCase {
                        Engine.arguments(model: m, image: f.root.appendingPathComponent("source.png"), output: glb,
                                         models: m.folder(in: f.install), seed: 5))
         XCTAssertTrue(text(log).contains("model=\(m.id)"), "the log doesn't say which model made it")
+    }
+
+    /// Pictures of the back and sides too (#66): each cut out like the front, put together front
+    /// first in the order the engine reads them (by name), and given to the multi-image mode.
+    /// Its flows print no progress bar and don't take the fast setting (the real engine says
+    /// "[flow-mv] 12 steps"), so the guard below must let it run.
+    func testSeveralPicturesGoToTheMultiImageMode() throws {
+        let back = try picture("back.png") { x, _ in x < 30 ? 0 : 255 }
+        let left = try picture("left.png") { x, _ in x < 70 ? 0 : 255 }
+        let seen = f.root.appendingPathComponent("seen").path
+        let m = EngineDownload.standard
+        let (p, glb, log) = try engine("""
+            { printf '%s\\n' "$@"; ls "$2"; } > \(seen)
+            echo "      [flow-mv] 12 steps, 3 views, 22 forwards, mode=stochastic, 93.5s"
+            echo glb > "${@: -1}"
+            """, model: m, extra: ["--back", back.path, "--left", left.path])
+        XCTAssertEqual(p.wait(), 0, text(log))
+        let want = Engine.arguments(model: m, image: f.root.appendingPathComponent("source.png"), output: glb,
+                                    models: m.folder(in: f.install), seed: 5, views: Engine.views(glb))
+        let lines = text(URL(fileURLWithPath: seen)).split(separator: "\n").map(String.init)
+        XCTAssertEqual(Array(lines.prefix(want.count)), want)
+        XCTAssertEqual(Array(lines.dropFirst(want.count)), ["1-front.png", "2-back.png", "3-left.png"])
+        XCTAssertTrue(text(log).contains("pictures=3"), text(log))
     }
 
     func testAnEngineThatIgnoresTheFastSettingIsStopped() throws {

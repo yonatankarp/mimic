@@ -159,6 +159,7 @@ A mini goes by its name in `mimic list`, or by the name you gave it in Mimic: `m
 |---|---|
 | `--image FILE` | Start from your own picture instead of a description |
 | `--restyle` | Redraw that picture as a grey sculpt first |
+| `--back FILE` / `--left FILE` / `--right FILE` | Pictures of the same character from the back and sides, besides `--image` (the front), so the 3D model doesn't guess them. Any of them; TRELLIS.2 only |
 | `--improve` | Let the AI helper chosen in Settings write a fuller description first |
 | `--height MM` | How tall the character is, feet to top; the base adds about 2 mm |
 | `--scale 28` / `32` / `35` / `54` / `75` | Match the scale your other minis use: sets the height and base for an average human (`--height` and `--base` still win) |

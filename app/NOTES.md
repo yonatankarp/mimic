@@ -316,6 +316,27 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   fails whenever the prompt text changes, to remind whoever changed it.
 - **Model files come straight from Hugging Face,** pinned to a revision, each file checked
   against its sha256; the app's check compares every file's size.
+- **Pictures of the back and sides** (0.9.0, [#66](https://github.com/yonatankarp/mimic/issues/66);
+  `PictureSide`). New Mini takes optional Back, Left and Right pictures besides the front one;
+  each goes through the same step 1 (copied, or redrawn as a grey sculpt) so all of them look
+  alike to the engine, and the 3D step hands them to TRELLIS.2's multi-image mode
+  (`--trellis2-mv DIR`, 2–8 pictures, read in file-name order, "pose-free fusion": no cameras,
+  so the labels only order them). Mimic cuts each out and puts them in `model.mvviews/` as
+  `1-front.png`, `2-back.png`, … (front first). Kept as `upload-<side>.img` and
+  `source-<side>.png` beside upload.img and source.png, listed in settings.json's `sides`
+  (absent: one picture, so older minis read unchanged); step 1 skips each picture already made
+  on its own. Checked by hand on this engine build (M2 Max, 2026-10-01): the elf's front, side
+  and back renders gave a whole figure in 615 s against about 222 for one picture, every flow
+  printing `[flow-mv] 12 steps`: the multi-image flows ignore `PIXAL3D_STEPS` and show no
+  progress bar, so the steps guard never fires and the estimate counts the 3D step 2.8 times
+  as long (`Estimator.multiViewShape`). The figure faces away as from one picture, so the same
+  `--turn 180` faces it front. The sculpt prompt names no view, and a sculpt of the back
+  render stayed a back view (its shoes came out pointing at the camera, the one slip), so side
+  pictures share the front's prompt. Step 1 is one run per picture but timed as one step, so
+  its time left doesn't start over for each. Pixal3D's single-view set takes one picture, so New Mini shows
+  the slots switched off with the reason (and a cartoon is always Pixal3D); its four-picture
+  multiview set is still not offered. Left out for now: Draw Things drawing the missing views
+  from the front, and lining the pictures up (same height, feet on one line) before the engine.
 - **Children get an explicit environment,** never the app's own: launched from the Dock, the
   app has launchd's bare PATH (`/usr/bin:/bin:/usr/sbin:/sbin`), which lost Blender once.
 - **Where things live (the disk image has no Mimic folder):** minis in `~/Documents/Mimic`,
