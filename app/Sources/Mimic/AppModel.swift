@@ -194,7 +194,7 @@ final class AppModel {
         }
         Task { [weak self] in
             while let self {
-                self.watchQueue()
+                await self.watchQueue()
                 try? await Task.sleep(for: .seconds(3))
             }
         }
@@ -248,8 +248,10 @@ final class AppModel {
     var running: Bool { job?.running == true }
 
     func reload() {
-        jobs.adoptOddFolders()  // renamed or copied in Finder
-        let list = Gallery.list(install.runs), folders = Gallery.projects(install.runs)
+        // One scan of the minis folder, and another only when one renamed or copied in Finder was taken over.
+        var list = Gallery.list(install.runs)
+        if !jobs.adoptOddFolders(listed: list).isEmpty { list = Gallery.list(install.runs) }
+        let folders = Gallery.projects(install.runs)
         // Only what changed, so a reload from the folder watch doesn't redraw an unchanged list.
         if list != minis { minis = list }
         if folders != projects { projects = folders }
@@ -274,27 +276,38 @@ final class AppModel {
 
     // MARK: The queue
 
-    private func watchQueue() {
-        // A crashed Mimic's job may still be running with nothing watching it: stopped as soon
-        // as no live Mimic holds the job lock, queue or no queue.
-        if !running && Leftover.recorded(queue: install.queue) { jobs.cleanUpLeftovers() }
-        // Not while a required part is broken (the engine needs Repair): each job would fail in
-        // turn, so the queue waits until it's fixed.
-        if !running && requiredProblem == nil && setup.installed && !jobs.queue.entries().isEmpty { jobs.pump() }
+    /// Off the main thread: stopping a leftover job waits for it to end (up to 5 s), and the
+    /// queue's lock waits while another Mimic holds it, which would freeze the window meanwhile.
+    private func watchQueue() async {
+        let jobs = self.jobs, queueFolder = install.queue
+        let idle = !running, canStart = !running && requiredProblem == nil && setup.installed
+        await Task.detached {
+            // A crashed Mimic's job may still be running with nothing watching it: stopped as soon
+            // as no live Mimic holds the job lock, queue or no queue.
+            if idle && Leftover.recorded(queue: queueFolder) { jobs.cleanUpLeftovers() }
+            // Not while a required part is broken (the engine needs Repair): each job would fail in
+            // turn, so the queue waits until it's fixed.
+            if canStart && !jobs.queue.entries().isEmpty { jobs.pump() }
+        }.value
         refreshQueue()
         updates.tick()
     }
 
-    func refreshQueue() {
+    /// Returns whether it reloaded the list, so a caller about to reload too can skip its own.
+    @discardableResult
+    func refreshQueue() -> Bool {
         let q = jobs.queue.entries()
-        if q != queue { queue = q; reload() }
+        var changed = false
+        if q != queue { queue = q; changed = true }
         let other = running ? nil : SharedJob.read(queue: install.queue)?.status
-        if other?.name != elsewhere?.name { reload() }  // another Mimic started, or finished, a mini
+        if other?.name != elsewhere?.name { changed = true }  // another Mimic started, or finished, a mini
         if other != elsewhere { elsewhere = other }
         let h = jobs.hold(), p = jobs.queue.paused
         if h != hold { hold = h }
         if p != paused { paused = p }
+        if changed { reload() }
         updateBadge()
+        return changed
     }
 
     /// How many minis are ready and not yet seen, on the Dock icon; nothing when none are. The
@@ -330,8 +343,7 @@ final class AppModel {
 
     func removeFromQueue(_ name: String) {
         do { try jobs.remove(name) } catch { problem = plainWords(error, else: "Couldn't take it out of the queue. Try again.") }
-        refreshQueue()
-        reload()
+        if !refreshQueue() { reload() }
     }
 
     /// Pause After This One, Pause Queue or Resume Queue, in the job's popover and the Mini menu.
@@ -564,19 +576,24 @@ final class AppModel {
     /// made stays, and says so.
     func trash(_ group: [Mini]) {
         let picked = Gallery.toTrash(group, busyWith: busyWith)
-        for mini in picked.trash { trash(mini) }
+        trashEach(picked.trash)
         if let s = picked.staying { problem = "“\(s.displayName)” is being made, so it stayed. Move it to the Trash once it's done." }
     }
 
-    func trash(_ mini: Mini) {
-        do {
-            // Waiting to be made: out of the queue, and a new mini's folder goes to the Trash with it.
-            if let moved = try jobs.moveToTrash(mini), let trashed = moved.trashed { undoable(moved.folder, trashed) }
-        } catch {
-            problem = plainWords(error, else: "Couldn't move it to the Trash. Try Show in Finder and delete it there.")
+    func trash(_ mini: Mini) { trashEach([mini]) }
+
+    /// Moves each to the Trash, then updates the queue and the list once for all of them.
+    private func trashEach(_ group: [Mini]) {
+        guard !group.isEmpty else { return }
+        for mini in group {
+            do {
+                // Waiting to be made: out of the queue, and a new mini's folder goes to the Trash with it.
+                if let moved = try jobs.moveToTrash(mini), let trashed = moved.trashed { undoable(moved.folder, trashed) }
+            } catch {
+                problem = plainWords(error, else: "Couldn't move it to the Trash. Try Show in Finder and delete it there.")
+            }
         }
-        refreshQueue()
-        reload()  // picks the newest mini if this one was selected
+        if !refreshQueue() { reload() }  // picks the newest mini if one of these was selected
     }
 
     /// Undo puts it back from the Trash and shows it; Redo moves it there again. Several moved at
@@ -601,7 +618,7 @@ final class AppModel {
     @discardableResult
     func keep(_ mini: Mini) -> Bool {
         let picked = Gallery.toKeep(mini, in: minis, busyWith: busyWith)
-        for v in picked.trash { trash(v) }
+        trashEach(picked.trash)
         if let v = picked.staying {
             problem = (problem.map { $0 + " " } ?? "") + "“\(v.displayName)” is being made, so it wasn't moved to the Trash. Move it there once it's done."
             return false

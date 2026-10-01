@@ -47,11 +47,12 @@ extension JobRunner {
 
     /// Takes over minis renamed or copied in Finder (`Gallery.adopt`), leaving alone any being
     /// made or waiting. Under the queue's lock, where a job finds its folder as it starts; only
-    /// taken when there's one to take over. Returns the new names.
+    /// taken when there's one to take over. `listed` is the minis folder's list when the caller
+    /// has just read it, so it isn't read twice. Returns the new names.
     @discardableResult
-    public func adoptOddFolders() -> [String] {
+    public func adoptOddFolders(listed: [Mini]? = nil) -> [String] {
         let runs = install.runs
-        guard Gallery.list(runs).contains(where: { Gallery.oddFiles($0) != nil }) else { return [] }
+        guard (listed ?? Gallery.list(runs)).contains(where: { Gallery.oddFiles($0) != nil }) else { return [] }
         return (try? queue.locked { entries in
             try refuseWhileMoving()
             return Gallery.adopt(runs, busy: Set(entries.map(\.name) + [running()?.name].compactMap { $0 }))
