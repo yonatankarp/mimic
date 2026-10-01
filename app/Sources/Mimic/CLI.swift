@@ -98,7 +98,7 @@ enum CLI {
             let typed = Rules.shownName(rest[2]), new = Rules.folderName(rest[2])
             do { try JobRunner(install: install).duplicate(rest[0], as: new, shown: Rules.isValidName(rest[2]) ? nil : typed) }
             catch { return fail("\(error)") }
-            print("Duplicated \(Mini.displayName(rest[0], runs: install.runs)) as \(new). Choose its size: mimic resize \(new) --height MM")
+            print(JobRunner(install: install).duplicatedSaying(rest[0], as: new))
             return 0
         case "models":
             // The app's choice, marked; downloading one is the app's job, where it shows progress.
@@ -141,9 +141,9 @@ enum CLI {
             if rest.first == "remove" {
                 guard rest.count == 2 else { return fail("usage: mimic queue remove <name>") }
                 do {
-                    guard try jobs.remove(rest[1]) else { return fail("\(rest[1]) isn't waiting in the queue.") }
+                    guard let said = try jobs.removeSaying(rest[1]) else { return fail("\(rest[1]) isn't waiting in the queue.") }
+                    print(said)
                 } catch { return fail("\(error)") }
-                print("Took \(Mini.displayName(rest[1], runs: install.runs)) out of the queue.")
                 return 0
             }
             guard rest.isEmpty else { return fail(usage) }
@@ -207,11 +207,7 @@ enum CLI {
             // An object has no round base unless asked for one; a resize keeps what the mini is.
             if args[0] == "resize", let saved = Gallery.folder(install.runs, name).map(MiniSettings.load) {
                 object = saved.isObject
-                // A hex mini on a stone floor resized stays that, as in the app.
-                let was = saved.made ?? saved.requested
-                if !shapeGiven, let s = was?.shape { sizes.shape = s }
-                if !styleGiven, let s = was?.style { sizes.style = s }
-                if !magnetGiven { sizes.magnet = was?.magnet }
+                sizes = sizes.resizing(saved.made ?? saved.requested, shapeGiven: shapeGiven, styleGiven: styleGiven, magnetGiven: magnetGiven)
             }
             if projectName != nil && !["make", "import"].contains(args[0]) { return fail("--project is for mimic make and import; mimic move moves a mini") }
             if args[0] == "import" && (image != nil || restyle || improve || seedGiven || modelGiven || newShape || description != nil) {

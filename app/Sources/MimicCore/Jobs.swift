@@ -97,7 +97,7 @@ public final class JobRunner: @unchecked Sendable {
         set { lock.withLock { continues = newValue } }
     }
 
-    /// The Mac is on battery with Don't start minis on battery on (`Power.holds`): the queue's
+    /// The Mac is on battery with Start minis only when plugged in on (`Power.holds`): the queue's
     /// next job waits. Asked each time one could start.
     public var heldForPower: @Sendable () -> Bool {
         get { lock.withLock { power } }
@@ -253,6 +253,14 @@ public final class JobRunner: @unchecked Sendable {
         guard let removed else { return false }
         if let folder = Gallery.folder(install.runs, name), removed.job == .generate || Self.importing(folder) { try? trash(folder) }
         return true
+    }
+
+    /// `remove`, for `mimic queue remove`: what it says, by the mini's name as shown. That's read
+    /// first, since a new mini's folder, which keeps the name, goes to the Trash. Nil when it
+    /// isn't waiting.
+    public func removeSaying(_ name: String) throws -> String? {
+        let shown = Mini.displayName(name, runs: install.runs)
+        return try remove(name) ? "Took \(shown) out of the queue." : nil
     }
 
     /// Moves a waiting job `by` places, earlier (negative) or later. False when it isn't waiting.

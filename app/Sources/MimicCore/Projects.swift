@@ -70,7 +70,7 @@ extension JobRunner {
             guard old != new else { return new }
             guard !Gallery.projectOrMiniExists(runs, new, except: old) else { throw RequestError.projectTaken(new) }
             if let r = running(), Gallery.folder(runs, r.name)?.deletingLastPathComponent().lastPathComponent == old {
-                throw RequestError.projectBusy(old, r.name)
+                throw RequestError.projectBusy(old, Mini.displayName(r.name, runs: runs))
             }
             let from = runs.appendingPathComponent(old), to = runs.appendingPathComponent(new)
             if old.lowercased() == new.lowercased() {
@@ -96,7 +96,7 @@ extension JobRunner {
             guard Gallery.projects(runs).contains(name) else { throw RequestError.projectNotFound }
             let minis = Gallery.list(runs).filter { $0.project == name }
             let busy = Set(entries.map(\.name) + [running()?.name].compactMap { $0 })
-            if let m = minis.first(where: { busy.contains($0.name) }) { throw RequestError.projectBusy(name, m.name) }
+            if let m = minis.first(where: { busy.contains($0.name) }) { throw RequestError.projectBusy(name, m.displayName) }
             if keepMinis {
                 for m in minis {
                     let to = runs.appendingPathComponent(m.name)

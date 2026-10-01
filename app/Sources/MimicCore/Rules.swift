@@ -124,7 +124,8 @@ public enum RequestError: Error, Equatable, CustomStringConvertible {
         case .projectTaken(let n): "You already have a project or a mini called \(n)."
         case .projectNotFound: "That project doesn't exist."
         case .cantMove(let n): "\(Mini.displayName(n)) is being made or waiting in the queue. Move it once it's made."
-        case .projectBusy(let p, let n): "\(Mini.displayName(n)) in \(p) is being made or waiting in the queue. Wait for it, or take it out of the queue first."
+        // With the mini's name as shown, read where it was found: an error has no folder to read it from.
+        case .projectBusy(let p, let shown): "\(shown) in \(p) is being made or waiting in the queue. Wait for it, or take it out of the queue first."
         case .noSource(let n): "Mimic can't make another version of \(Mini.displayName(n)): the picture or description it was made from wasn't saved."
         case .noDrawing(let n): "Mimic can't make a new 3D shape of \(Mini.displayName(n)): its picture isn't made yet. Try Make Another Version instead."
         case .cantDuplicate(let n): "\(Mini.displayName(n)) is being made, resized or waiting in the queue. Duplicate it once that's done."
