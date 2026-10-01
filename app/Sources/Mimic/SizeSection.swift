@@ -26,132 +26,11 @@ struct SizeSection: View {
 
     var body: some View {
         Section {
-            if !object {  // an object is sized by its longest side: no scale to match
-                Picker(selection: bind(\.purpose, { if let p = $1 { $0.setPurpose(p) } })) {
-                    Text("Game scale").tag(SizeCard.Purpose.game as SizeCard.Purpose?)
-                    Text("Best print").tag(SizeCard.Purpose.display as SizeCard.Purpose?)
-                } label: {
-                    // Each note is its control's subtitle, not a row of its own: the column fits unscrolled.
-                    Label {
-                        Text("Size for")
-                        if gameScale { Text("Matches the other minis on your table.") }  // Best print explains itself in its note below
-                    } icon: { Image(systemName: card.purpose == .display ? "sparkles" : "dice") }
-                }
-                .pickerStyle(.segmented)
-                .help("Match your other minis, or go big enough for clear faces")
-            }
-            Picker(selection: bind(\.nozzle, { $0.setNozzle($1) })) {
-                Text("0.2 mm · fine").tag("0.2")
-                Text("0.4 mm · standard").tag("0.4")
-                Text("0.6 mm · fast").tag("0.6")
-            } label: {
-                Label {
-                    Text("Nozzle")
-                    Text("Not sure? Most printers come with 0.4 mm. Choose the same nozzle in your slicer.")
-                } icon: { Image(systemName: "printer") }
-            }
-            .pickerStyle(.segmented)
-            .help("The tip your printer prints through; finer keeps more detail")
-            .popoverTip(Tips.unlessTouring(SizeTip()), arrowEdge: .top)
-            if gameScale {
-                LabeledContent {
-                    HStack(spacing: 4) {
-                        TextField("", text: bind(\.realHeight, { $0.setRealHeight($1) }), prompt: Text("1.80"))
-                            .labelsHidden().accessibilityLabel("How tall is the character?")
-                            .frame(width: 64).multilineTextAlignment(.trailing)
-                            .help("How tall the character would be in real life, in metres or feet.")
-                        Text("m")
-                    }
-                    .fixedSize()  // the label's long hint wraps instead of squeezing "1.80" (#167)
-                } label: {
-                    Text("How tall is the character?")
-                    // SizeCard.gameHeight: blank, or what can't be read, counts as 1.8 m; the problem says so.
-                    if let problem = card.realHeightProblem {
-                        Text(problem).foregroundStyle(.orange)
-                    } else {
-                        Text("In metres or feet: 1.75, or 5'9\". A halfling ≈ 1 m. Leave blank for an average human (1.8 m).")
-                    }
-                }
-                Picker(selection: bind(\.scale, { $0.setScale($1) })) {
-                    Text("28 mm").tag(28)
-                    Text("32 mm · most common").tag(32)
-                    Text("35 mm · heroic").tag(35)
-                    Text("54 mm").tag(54)
-                    Text("75 mm").tag(75)
-                } label: {
-                    Text("Scale")
-                    Text("Pick the scale your other minis use. At 32 mm, an average 1.8 m human stands 32 mm tall.")
-                }
-                .pickerStyle(.menu)  // five choices don't fit a segmented row in the smallest column
-                .help("How tall an average human is on the table")
-            }
-            if !card.note.isEmpty {
-                Label(card.note, systemImage: card.warns ? "exclamationmark.triangle.fill" : "lightbulb")
-                    .font(.callout).foregroundStyle(card.warns ? .orange : .secondary)
-            }
-            if object {
-                slider("Longest side", \.height, { $0.setHeight($1) }, SizeCard.heightRange, unit: "mm",
-                       hint: "Its biggest size, whichever way that is: height, width or depth. Set for your nozzle; type a value or drag to change it.")
-                Toggle("Add a base", isOn: Binding(get: { !card.noBase }, set: { card.noBase = !$0 }))
-                    .help("Off: it stands on its own flat bottom")
-            } else {
-                slider("Character height", \.height, { $0.setHeight($1) }, SizeCard.heightRange, unit: "mm",
-                       hint: "Set for you by the choices above; type a value or drag to change it. The base adds about 2 mm.")
-            }
-            if !object || !card.noBase {
-                // Shape and top on one row, so the column still fits unscrolled.
-                LabeledContent("Base") {
-                    HStack {
-                        Picker("Shape", selection: $card.shape) {
-                            Text("Round").tag(BaseShape.round)
-                            Text("Square").tag(BaseShape.square)
-                            Text("Hex").tag(BaseShape.hex)
-                        }
-                        .pickerStyle(.segmented).fixedSize()
-                        .help("Square and hex bases fit grid and hex maps; the figure faces a flat side")
-                        Picker("Base style", selection: $card.style) {
-                            ForEach(BaseStyle.allCases, id: \.self) { Text($0.words.capitalizedFirst).tag($0) }
-                        }
-                        .fixedSize()
-                        .help("Plain, or a floor pressed into the top of the base: flagstones, planks or cobblestones")
-                    }
-                    .labelsHidden()
-                }
-                slider("Base size", \.base, { $0.setBase($1) }, SizeCard.baseRange, unit: "mm",
-                       hint: card.shape == .hex ? "Across the flat sides." : nil, ticks: [25, 32, 40, 50])
-                    .help(baseHelp)
-            }
-            // A plain button as the label, so a click or VoiceOver's press on the words opens it too.
-            DisclosureGroup(isExpanded: $advanced) {
-                slider("Extra thickness for thin parts", \.inflate, { $0.setInflate($1) }, SizeCard.inflateRange, unit: "mm",
-                       hint: "Set by your nozzle. More keeps swords and capes in one piece, but softens faces.", decimals: 2)
-                if !card.noBase {
-                    Picker(selection: $card.magnet) {
-                        Text("None").tag(Magnet?.none)
-                        ForEach(Magnet.allCases, id: \.self) { Text($0.words).tag(Magnet?.some($0)) }
-                    } label: {
-                        Text("Magnet hole")
-                        Text("A hole under the base to glue a magnet into, with a little room to spare. The base gets a little taller to fit it.")
-                    }
-                    .help("For round magnets, sized across by tall")
-                }
-                if !object {
-                    Toggle("Use the character's own base instead of adding one", isOn: $card.noBase)
-                        .help("For a character already on a base or a rock: Mimic flattens that")
-                }
-                if let seed {
-                    VStack(alignment: .leading, spacing: 4) {
-                        LabeledContent("Variation number") {
-                            TextField("", value: seed, format: .number.grouping(.never)).labelsHidden().frame(width: 90)
-                                .accessibilityLabel("Variation number")
-                        }
-                        Text("Same description + same number = same drawing. Change it for a different take.")
-                            .font(.callout).foregroundStyle(.secondary)
-                    }
-                }
-            } label: {
-                Button("Advanced") { withAnimation { advanced.toggle() } }.buttonStyle(.plain)
-            }
+            printerRows
+            gameScaleRows
+            heightRows
+            baseRows
+            advancedRows
         } header: {
             Label("Size & printer", systemImage: "ruler")
         }
@@ -160,6 +39,152 @@ struct SizeSection: View {
         .onChange(of: card.shape) { _, s in UserDefaults.standard.set(s.rawValue, forKey: "baseShape") }
         .onChange(of: card.style) { _, s in UserDefaults.standard.set(s.rawValue, forKey: "baseStyle") }
         .onChange(of: card.magnet) { _, m in UserDefaults.standard.set(m?.rawValue ?? "", forKey: "magnet") }
+    }
+
+    /// What the size is for, and the nozzle it prints with.
+    @ViewBuilder private var printerRows: some View {
+        if !object {  // an object is sized by its longest side: no scale to match
+            Picker(selection: bind(\.purpose, { if let p = $1 { $0.setPurpose(p) } })) {
+                Text("Game scale").tag(SizeCard.Purpose.game as SizeCard.Purpose?)
+                Text("Best print").tag(SizeCard.Purpose.display as SizeCard.Purpose?)
+            } label: {
+                // Each note is its control's subtitle, not a row of its own: the column fits unscrolled.
+                Label {
+                    Text("Size for")
+                    if gameScale { Text("Matches the other minis on your table.") }  // Best print explains itself in its note below
+                } icon: { Image(systemName: card.purpose == .display ? "sparkles" : "dice") }
+            }
+            .pickerStyle(.segmented)
+            .help("Match your other minis, or go big enough for clear faces")
+        }
+        Picker(selection: bind(\.nozzle, { $0.setNozzle($1) })) {
+            Text("0.2 mm · fine").tag("0.2")
+            Text("0.4 mm · standard").tag("0.4")
+            Text("0.6 mm · fast").tag("0.6")
+        } label: {
+            Label {
+                Text("Nozzle")
+                Text("Not sure? Most printers come with 0.4 mm. Choose the same nozzle in your slicer.")
+            } icon: { Image(systemName: "printer") }
+        }
+        .pickerStyle(.segmented)
+        .help("The tip your printer prints through; finer keeps more detail")
+        .popoverTip(Tips.unlessTouring(SizeTip()), arrowEdge: .top)
+    }
+
+    /// At game scale: the character's real height and the table's scale.
+    @ViewBuilder private var gameScaleRows: some View {
+        if gameScale {
+            LabeledContent {
+                HStack(spacing: 4) {
+                    TextField("", text: bind(\.realHeight, { $0.setRealHeight($1) }), prompt: Text("1.80"))
+                        .labelsHidden().accessibilityLabel("How tall is the character?")
+                        .frame(width: 64).multilineTextAlignment(.trailing)
+                        .help("How tall the character would be in real life, in metres or feet.")
+                    Text("m")
+                }
+                .fixedSize()  // the label's long hint wraps instead of squeezing "1.80" (#167)
+            } label: {
+                Text("How tall is the character?")
+                // SizeCard.gameHeight: blank, or what can't be read, counts as 1.8 m; the problem says so.
+                if let problem = card.realHeightProblem {
+                    Text(problem).foregroundStyle(.orange)
+                } else {
+                    Text("In metres or feet: 1.75, or 5'9\". A halfling ≈ 1 m. Leave blank for an average human (1.8 m).")
+                }
+            }
+            Picker(selection: bind(\.scale, { $0.setScale($1) })) {
+                Text("28 mm").tag(28)
+                Text("32 mm · most common").tag(32)
+                Text("35 mm · heroic").tag(35)
+                Text("54 mm").tag(54)
+                Text("75 mm").tag(75)
+            } label: {
+                Text("Scale")
+                Text("Pick the scale your other minis use. At 32 mm, an average 1.8 m human stands 32 mm tall.")
+            }
+            .pickerStyle(.menu)  // five choices don't fit a segmented row in the smallest column
+            .help("How tall an average human is on the table")
+        }
+    }
+
+    /// The card's note, and how tall it is.
+    @ViewBuilder private var heightRows: some View {
+        if !card.note.isEmpty {
+            Label(card.note, systemImage: card.warns ? "exclamationmark.triangle.fill" : "lightbulb")
+                .font(.callout).foregroundStyle(card.warns ? .orange : .secondary)
+        }
+        if object {
+            slider("Longest side", \.height, { $0.setHeight($1) }, SizeCard.heightRange, unit: "mm",
+                   hint: "Its biggest size, whichever way that is: height, width or depth. Set for your nozzle; type a value or drag to change it.")
+            Toggle("Add a base", isOn: Binding(get: { !card.noBase }, set: { card.noBase = !$0 }))
+                .help("Off: it stands on its own flat bottom")
+        } else {
+            slider("Character height", \.height, { $0.setHeight($1) }, SizeCard.heightRange, unit: "mm",
+                   hint: "Set for you by the choices above; type a value or drag to change it. The base adds about 2 mm.")
+        }
+    }
+
+    /// The base's shape, top and size, when it has one.
+    @ViewBuilder private var baseRows: some View {
+        if !object || !card.noBase {
+            // Shape and top on one row, so the column still fits unscrolled.
+            LabeledContent("Base") {
+                HStack {
+                    Picker("Shape", selection: $card.shape) {
+                        Text("Round").tag(BaseShape.round)
+                        Text("Square").tag(BaseShape.square)
+                        Text("Hex").tag(BaseShape.hex)
+                    }
+                    .pickerStyle(.segmented).fixedSize()
+                    .help("Square and hex bases fit grid and hex maps; the figure faces a flat side")
+                    Picker("Base style", selection: $card.style) {
+                        ForEach(BaseStyle.allCases, id: \.self) { Text($0.words.capitalizedFirst).tag($0) }
+                    }
+                    .fixedSize()
+                    .help("Plain, or a floor pressed into the top of the base: flagstones, planks or cobblestones")
+                }
+                .labelsHidden()
+            }
+            slider("Base size", \.base, { $0.setBase($1) }, SizeCard.baseRange, unit: "mm",
+                   hint: card.shape == .hex ? "Across the flat sides." : nil, ticks: [25, 32, 40, 50])
+                .help(baseHelp)
+        }
+    }
+
+    /// Advanced: thin parts, a magnet hole, the own base and the variation number.
+    @ViewBuilder private var advancedRows: some View {
+        // A plain button as the label, so a click or VoiceOver's press on the words opens it too.
+        DisclosureGroup(isExpanded: $advanced) {
+            slider("Extra thickness for thin parts", \.inflate, { $0.setInflate($1) }, SizeCard.inflateRange, unit: "mm",
+                   hint: "Set by your nozzle. More keeps swords and capes in one piece, but softens faces.", decimals: 2)
+            if !card.noBase {
+                Picker(selection: $card.magnet) {
+                    Text("None").tag(Magnet?.none)
+                    ForEach(Magnet.allCases, id: \.self) { Text($0.words).tag(Magnet?.some($0)) }
+                } label: {
+                    Text("Magnet hole")
+                    Text("A hole under the base to glue a magnet into, with a little room to spare. The base gets a little taller to fit it.")
+                }
+                .help("For round magnets, sized across by tall")
+            }
+            if !object {
+                Toggle("Use the character's own base instead of adding one", isOn: $card.noBase)
+                    .help("For a character already on a base or a rock: Mimic flattens that")
+            }
+            if let seed {
+                VStack(alignment: .leading, spacing: 4) {
+                    LabeledContent("Variation number") {
+                        TextField("", value: seed, format: .number.grouping(.never)).labelsHidden().frame(width: 90)
+                            .accessibilityLabel("Variation number")
+                    }
+                    Text("Same description + same number = same drawing. Change it for a different take.")
+                        .font(.callout).foregroundStyle(.secondary)
+                }
+            }
+        } label: {
+            Button("Advanced") { withAnimation { advanced.toggle() } }.buttonStyle(.plain)
+        }
     }
 
     private var object: Bool { card.kind == .object }

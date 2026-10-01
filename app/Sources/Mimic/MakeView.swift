@@ -100,65 +100,8 @@ struct MakeView: View {
             // Each column scrolls on its own if it outgrows the sheet (Advanced open, say).
             HStack(spacing: 0) {
             Form {
-                Section {
-                    // A segmented control shows words only (SwiftUI drops a segment's symbol on
-                    // the Mac), so the symbol for the choice sits on the row's label.
-                    Picker(selection: Binding(get: { card.kind }, set: { card.setKind($0) })) {
-                        Text("A character (a mini)").tag(MiniKind.character)
-                        Text("Anything else").tag(MiniKind.object)
-                    } label: { Label("What are you making?", systemImage: object ? "cube" : "person.fill") }
-                    .pickerStyle(.segmented)
-                    // One help for the whole control: a segment of a Mac segmented picker takes no help of its own.
-                    .help("A character stands on a base; anything else is sized by its longest side")
-                }
-                Section {
-                    Picker(selection: $start) {
-                        Text("From a picture").tag(Start.picture)
-                        Text("Description").tag(Start.description)
-                    } label: { Label("Start from", systemImage: start == .picture ? "photo" : "text.cursor") }
-                    .pickerStyle(.segmented)
-                    .help("Start from a picture of your \(thing), or from a description")
-                    if start == .picture { picturePane } else { descriptionPane }
-                    if let again, let used = madeWith.flatMap({ EngineDownload.model($0) }), used != model.setup.chosen, !cartoonOn {
-                        HStack(alignment: .firstTextBaseline) {
-                            Text("Made with \(used.name), as \(again.displayName) was.").foregroundStyle(.secondary)
-                            Spacer()
-                            Button("Use \(model.setup.chosen.name)") { madeWith = nil }
-                                .help("Make it with the 3D model chosen in Settings instead")
-                        }
-                        .font(.callout)
-                    }
-                    TextField("Name", text: $name, prompt: Text(object ? "e.g. Teapot" : "e.g. Dwarf Cleric"))
-                        .help("How it's listed, and what its print file is called")
-                        .focused($nameFocused)
-                        .onChange(of: name) { _, new in
-                            if new != MakeAdvice.name(fromDescription: description) { autoName = false }
-                        }
-                    Picker("Project", selection: $project) {
-                        Text("Unsorted").tag(ProjectChoice.unsorted)
-                        ForEach(model.projects, id: \.self) { Text($0).tag(ProjectChoice.existing($0)) }
-                        Divider()
-                        Text("New Project…").tag(ProjectChoice.new)
-                    }
-                    .help("The folder it's kept in, and where it's listed on the left.")
-                    if project == .new {
-                        TextField("New project's name", text: $newProjectName, prompt: Text("e.g. Tiefling Party"))
-                    }
-                    if let taken = takenName {
-                        Text(model.waiting(slug) != nil || model.current?.name == slug
-                             ? "\(taken) is already being made or waiting in the queue. Pick a new name."
-                             : "You already have a mini called \(taken). Pick a new name, or use Resize This Mini to change its size.")
-                            .font(.callout).foregroundStyle(.red)
-                    }
-                } header: {
-                    Label(object ? "Object" : "Character", systemImage: object ? "cube" : "person.fill")
-                } footer: {
-                    Label(object ? "Solid objects with bold shapes work best. Thin handles, wires and fine texture may come out soft."
-                                 : "Chunky characters with bold shapes work best. Small details, like a pet on a shoulder, may come out soft.",
-                          systemImage: "lightbulb")
-                        .font(.callout).foregroundStyle(.secondary)
-                        .multilineTextAlignment(.leading).frame(maxWidth: .infinity, alignment: .leading)
-                }
+                kindSection
+                characterSection
             }
             .formStyle(.grouped)
             .reportsHeight(0, into: $forms)
@@ -168,28 +111,7 @@ struct MakeView: View {
             }
 
             Divider()
-            HStack(alignment: .firstTextBaseline) {
-                if let reason = model.requiredProblem {
-                    CantStart(reason: reason)
-                } else if let message, messageIsError {
-                    Text(message).foregroundStyle(.red).help(messageDetail ?? "")
-                } else if let missing {
-                    Text(missing).foregroundStyle(.secondary)
-                } else if let message {
-                    Text(message).foregroundStyle(.secondary)
-                } else {
-                    Label(timing, systemImage: "timer").foregroundStyle(.secondary)
-                }
-                Spacer()
-                Button("Cancel") { TourGuide.shared.newMiniCancelled(); model.sheet = nil }.keyboardShortcut(.cancelAction)
-                Button("Make Mini") { make() }
-                    .help("Takes \(JobProgress.about(estimate.total))\(estimate.learned ? " on this Mac" : ""); keep using your Mac meanwhile")
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(model.requiredProblem != nil || takenName != nil || missing != nil)
-                    .tourCallout(.make, arrow: .top)
-            }
-            .padding(16)
-            .fixedSize(horizontal: false, vertical: true)
+            makeBar
         }
         .onAppear {
             // The project you're looking at: the one New Mini was asked from, else the selected
@@ -224,6 +146,109 @@ struct MakeView: View {
         }
         // File → Import from iPhone (Continuity Camera): a photo taken for it, or a scan.
         .importsItemProviders([.image]) { receive($0); return true }
+    }
+
+    /// What it is: a character or anything else.
+    private var kindSection: some View {
+        Section {
+            // A segmented control shows words only (SwiftUI drops a segment's symbol on
+            // the Mac), so the symbol for the choice sits on the row's label.
+            Picker(selection: Binding(get: { card.kind }, set: { card.setKind($0) })) {
+                Text("A character (a mini)").tag(MiniKind.character)
+                Text("Anything else").tag(MiniKind.object)
+            } label: { Label("What are you making?", systemImage: object ? "cube" : "person.fill") }
+            .pickerStyle(.segmented)
+            // One help for the whole control: a segment of a Mac segmented picker takes no help of its own.
+            .help("A character stands on a base; anything else is sized by its longest side")
+        }
+    }
+
+    /// Where it starts from, what it's called and where it's kept.
+    private var characterSection: some View {
+        Section {
+            startRows
+            nameRows
+        } header: {
+            Label(object ? "Object" : "Character", systemImage: object ? "cube" : "person.fill")
+        } footer: {
+            Label(object ? "Solid objects with bold shapes work best. Thin handles, wires and fine texture may come out soft."
+                         : "Chunky characters with bold shapes work best. Small details, like a pet on a shoulder, may come out soft.",
+                  systemImage: "lightbulb")
+                .font(.callout).foregroundStyle(.secondary)
+                .multilineTextAlignment(.leading).frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    /// A picture or a description, and the 3D model a remade mini keeps.
+    @ViewBuilder private var startRows: some View {
+        Picker(selection: $start) {
+            Text("From a picture").tag(Start.picture)
+            Text("Description").tag(Start.description)
+        } label: { Label("Start from", systemImage: start == .picture ? "photo" : "text.cursor") }
+        .pickerStyle(.segmented)
+        .help("Start from a picture of your \(thing), or from a description")
+        if start == .picture { picturePane } else { descriptionPane }
+        if let again, let used = madeWith.flatMap({ EngineDownload.model($0) }), used != model.setup.chosen, !cartoonOn {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Made with \(used.name), as \(again.displayName) was.").foregroundStyle(.secondary)
+                Spacer()
+                Button("Use \(model.setup.chosen.name)") { madeWith = nil }
+                    .help("Make it with the 3D model chosen in Settings instead")
+            }
+            .font(.callout)
+        }
+    }
+
+    /// Its name and project, and why the name can't be used.
+    @ViewBuilder private var nameRows: some View {
+        TextField("Name", text: $name, prompt: Text(object ? "e.g. Teapot" : "e.g. Dwarf Cleric"))
+            .help("How it's listed, and what its print file is called")
+            .focused($nameFocused)
+            .onChange(of: name) { _, new in
+                if new != MakeAdvice.name(fromDescription: description) { autoName = false }
+            }
+        Picker("Project", selection: $project) {
+            Text("Unsorted").tag(ProjectChoice.unsorted)
+            ForEach(model.projects, id: \.self) { Text($0).tag(ProjectChoice.existing($0)) }
+            Divider()
+            Text("New Project…").tag(ProjectChoice.new)
+        }
+        .help("The folder it's kept in, and where it's listed on the left.")
+        if project == .new {
+            TextField("New project's name", text: $newProjectName, prompt: Text("e.g. Tiefling Party"))
+        }
+        if let taken = takenName {
+            Text(model.waiting(slug) != nil || model.current?.name == slug
+                 ? "\(taken) is already being made or waiting in the queue. Pick a new name."
+                 : "You already have a mini called \(taken). Pick a new name, or use Resize This Mini to change its size.")
+                .font(.callout).foregroundStyle(.red)
+        }
+    }
+
+    /// Why it can't be made yet, or how long it takes, and Cancel and Make Mini.
+    private var makeBar: some View {
+        HStack(alignment: .firstTextBaseline) {
+            if let reason = model.requiredProblem {
+                CantStart(reason: reason)
+            } else if let message, messageIsError {
+                Text(message).foregroundStyle(.red).help(messageDetail ?? "")
+            } else if let missing {
+                Text(missing).foregroundStyle(.secondary)
+            } else if let message {
+                Text(message).foregroundStyle(.secondary)
+            } else {
+                Label(timing, systemImage: "timer").foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("Cancel") { TourGuide.shared.newMiniCancelled(); model.sheet = nil }.keyboardShortcut(.cancelAction)
+            Button("Make Mini") { make() }
+                .help("Takes \(JobProgress.about(estimate.total))\(estimate.learned ? " on this Mac" : ""); keep using your Mac meanwhile")
+                .keyboardShortcut(.defaultAction)
+                .disabled(model.requiredProblem != nil || takenName != nil || missing != nil)
+                .tourCallout(.make, arrow: .top)
+        }
+        .padding(16)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     @State private var autoName = false
