@@ -19,6 +19,8 @@ public struct JobStatus: Equatable, Sendable {
     public var stepStarted: Date?
     /// Step 1 is waiting for Draw Things to open.
     public var openingDrawThings = false
+    /// A print prep that is an import's first (#96), not a resize: said as "Importing".
+    public var importing = false
     public var succeeded: Bool { !running && !canceled && exit == 0 }
 }
 
@@ -238,7 +240,8 @@ public final class JobRunner: @unchecked Sendable {
     }
 
     /// Takes a waiting job out of the queue. A new mini's folder goes to the Trash, as a stopped
-    /// one's does. False when it isn't waiting (it may have just started).
+    /// one's does, and so does an import's whose print file isn't made yet (#96). False when it
+    /// isn't waiting (it may have just started).
     @discardableResult
     public func remove(_ name: String) throws -> Bool {
         let removed = try queue.locked { entries -> QueueEntry? in
@@ -246,7 +249,7 @@ public final class JobRunner: @unchecked Sendable {
             return entries.remove(at: i)
         }
         guard let removed else { return false }
-        if removed.job == .generate, let folder = Gallery.folder(install.runs, name) { try? trash(folder) }
+        if let folder = Gallery.folder(install.runs, name), removed.job == .generate || Self.importing(folder) { try? trash(folder) }
         return true
     }
 
@@ -405,6 +408,7 @@ public final class JobRunner: @unchecked Sendable {
         let now = Date()
         var s = JobStatus(name: entry.name, kind: entry.job, step: plan[0].number, started: now)
         s.stepStarted = now
+        s.importing = entry.job == .prep && Self.importing(folder)
         lock.withLock { current = s; keepWork = false }
         SharedJob.write(s, runs: install.runs)
         notify()
@@ -448,8 +452,8 @@ public final class JobRunner: @unchecked Sendable {
                 for (number, file) in [(1, "source.png"), (2, "model.glb")] where kind == .generate && plan.contains(where: { $0.number == number }) && !finished.contains(number) {
                     try? FileManager.default.removeItem(at: folder.appendingPathComponent(file))
                 }
-            } else if kind == .generate {
-                try? trash(folder)  // a half-made new mini is clutter, not a result
+            } else if kind == .generate || Self.importing(folder) {
+                try? trash(folder)  // a half-made new mini (or import) is clutter, not a result
             }
         } else if code == 0, let requested = settings.requested {
             try? MiniSettings.update(folder) { $0.made = requested }  // "Now: …" shows only what a finished run made

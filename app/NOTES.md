@@ -144,6 +144,8 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   which unit it was probably in, though sizing rescales it anyway. It's never turned (`--turn`
   is for what TRELLIS.2 made). With no picture or description, Try Again, Make Another Version,
   New 3D Shape and Edit & Make Again are off and say why; Resize makes its print file again.
+  Until its first print file is made, its print prep is "Importing", not "Resizing", and taking
+  it out of the queue or stopping it sends it to the Trash, as for a new mini.
 - **A mini has two names** (#87; all in `Rules.swift`, "Names people type"): the one typed,
   kept in settings.json as `name` ("Élodie", "D&D Bard", "McGregor") and shown everywhere
   (list, page, notifications, Open Together's objects, `mimic list`'s last column), and its

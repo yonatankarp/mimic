@@ -431,6 +431,13 @@ final class AppModel {
         selection = [name]
     }
 
+    /// "Making", "Resizing" or "Importing": what the job `s` is doing, in the progress window,
+    /// the toolbar and the list. From the list, so a redraw reads no file.
+    func doing(_ s: JobStatus) -> String { JobRunner.doing(s.kind, importing: s.importing || importing(s.name)) }
+
+    /// An imported mini whose print file isn't made yet: its print prep is its import.
+    func importing(_ name: String) -> Bool { minis.first { $0.name == name }.map { $0.settings.isImported && !$0.finished } ?? false }
+
     /// A mini imported from a 3D model file, which has nothing of its own to make again.
     func isImported(_ name: String) -> Bool { minis.first { $0.name == name }?.settings.isImported == true }
 
@@ -582,7 +589,7 @@ final class AppModel {
             // Not with another app in front: it would close unseen. The toolbar item stays.
             guard sheet == nil, !jobPopover, active, NSApp.isActive else { return }
             jobPopover = true
-            if let words = queuedNote?.text ?? current.map({ "\($0.kind == .prep ? "Resizing" : "Making") \(displayName($0.name))" }) {
+            if let words = queuedNote?.text ?? current.map({ "\(doing($0)) \(displayName($0.name))" }) {
                 AccessibilityNotification.Announcement(words).post()
             }
         }

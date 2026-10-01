@@ -131,6 +131,18 @@ public enum ModelImport {
 }
 
 extension JobRunner {
+    /// An imported mini whose print file isn't made yet: its print prep is its import, not a resize.
+    public static func importing(_ folder: URL) -> Bool {
+        MiniSettings.load(folder).isImported
+            && !FileManager.default.fileExists(atPath: folder.appendingPathComponent("\(folder.lastPathComponent).stl").path)
+    }
+
+    /// What a job of `kind` is doing, for the progress window and the list: "Making", "Resizing",
+    /// or "Importing" for an import's first print prep.
+    public static func doing(_ kind: JobKind, importing: Bool) -> String {
+        kind == .generate ? "Making" : importing ? "Importing" : "Resizing"
+    }
+
     /// Imports the 3D model at `file` as a new mini called `name` (`shown` as typed), of `kind`,
     /// in `project`, and queues its print prep at `sizes`. Like `make`, everything is checked and
     /// the file read before anything is written; then its folder, settings and model.glb are

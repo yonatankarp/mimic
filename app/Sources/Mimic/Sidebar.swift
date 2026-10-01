@@ -220,7 +220,7 @@ struct Sidebar: View {
     /// "Waiting (2nd)" for a mini in the queue, "Being made…" for the one running.
     private func rowStatus(_ mini: Mini) -> String? {
         if let n = model.waiting(mini.name) { return "Waiting (\(AppModel.ordinal(n)))" }
-        if let s = model.current, s.name == mini.name { return s.kind == .prep ? "Resizing…" : "Being made…" }
+        if let s = model.current, s.name == mini.name { return s.kind == .generate ? "Being made…" : "\(model.doing(s))…" }
         return nil
     }
 

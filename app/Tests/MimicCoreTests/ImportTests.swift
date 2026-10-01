@@ -199,6 +199,37 @@ final class ImportTests: XCTestCase {
         jobs.waitUntilDone()
     }
 
+    /// Stopped before its print file is made, an import goes to the Trash as a new mini does.
+    func testStoppingAnImportTrashesIt() throws {
+        let fx = try Fixture()
+        let spy = TrashSpy()
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("slow", "sleep 5")), trash: { spy($0) })
+        XCTAssertNil(try jobs.importModel(try stl(PrepTests.box(half: [8, 8, 16]), in: fx.root), name: "ogre", sizes: sizes))
+        Thread.sleep(forTimeInterval: 0.3)
+        XCTAssertTrue(jobs.cancel())
+        jobs.waitUntilDone()
+        XCTAssertEqual(spy.trashed.map(\.lastPathComponent), ["ogre"])
+    }
+
+    func testAnImportsFirstPrintPrepIsCalledImporting() throws {
+        let fx = try Fixture()
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/true"))
+        try jobs.importModel(try stl(PrepTests.box(half: [8, 8, 16]), in: fx.root), name: "ogre", sizes: sizes)
+        jobs.waitUntilDone()
+        let d = fx.install.runs.appendingPathComponent("ogre")
+        XCTAssertEqual(jobs.status?.importing, true)
+        XCTAssertTrue(JobRunner.importing(d))
+        XCTAssertEqual(JobRunner.doing(.prep, importing: JobRunner.importing(d)), "Importing")
+        fm.createFile(atPath: d.appendingPathComponent("ogre.stl").path, contents: Data("stl".utf8))
+        XCTAssertFalse(JobRunner.importing(d), "once made, its print prep is a resize")
+        try jobs.resize(name: "ogre", sizes: Sizes(height: "60", nozzle: "0.4"))
+        jobs.waitUntilDone()
+        XCTAssertEqual(jobs.status?.importing, false)
+        XCTAssertEqual(JobRunner.doing(.prep, importing: false), "Resizing")
+        XCTAssertEqual(JobRunner.doing(.generate, importing: false), "Making")
+        XCTAssertFalse(JobRunner.importing(try fx.mini("dwarf")))
+    }
+
     func testANameInUseIsRefused() throws {
         let fx = try Fixture()
         _ = try fx.mini("ogre")

@@ -405,7 +405,8 @@ enum CLI {
         let running = jobs.running(), queue = jobs.queue.entries()
         if let r = running {
             let left = jobs.estimate(r.name, r.kind, history: history).left(r)
-            print("Now: \(r.kind == .prep ? "resizing" : "making") \(r.name), step \(r.step) of 3, \(JobProgress.about(left)) left")
+            let importing = Gallery.folder(jobs.install.runs, r.name).map(JobRunner.importing) ?? false
+            print("Now: \(JobRunner.doing(r.kind, importing: importing).lowercased()) \(r.name), step \(r.step) of 3, \(JobProgress.about(left)) left")
         } else {
             print(queue.isEmpty ? "Nothing is being made." : jobs.hold() != nil ? "Nothing is being made right now."
                   : "Nothing is being made right now: the queue starts when you open Mimic.")
