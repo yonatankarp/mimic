@@ -21,8 +21,6 @@ enum CLI {
         // its app, so it would read its own empty settings rather than the app's.
         let defaults = Bundle.main.bundleIdentifier == nil ? UserDefaults(suiteName: "com.mimic.app") ?? .standard : .standard
         let install = Install.locate(defaults: defaults)
-        // The queue's files from before they moved out of the minis folder, as the app does.
-        try? JobQueue(folder: install.queue).moveOldFiles(from: install.runs)
         let cli = Context(defaults: defaults, install: install, power: Power.holds(suite: defaults == .standard ? nil : "com.mimic.app"),
                           timings: Timings.standard())
         var rest = Array(args.dropFirst())

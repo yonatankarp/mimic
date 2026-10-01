@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- The app's only exception to the hardened runtime (bundle.sh). The runtime loads only libraries
+     signed by Apple or by the app's own Apple team, and neither Mimic's certificate nor an ad hoc
+     signature has a team, so without this Mimic couldn't load its own Sparkle.framework. It does
+     not let DYLD_INSERT_LIBRARIES back in: the runtime still ignores that. -->
+<plist version="1.0"><dict>
+  <key>com.apple.security.cs.disable-library-validation</key><true/>
+</dict></plist>

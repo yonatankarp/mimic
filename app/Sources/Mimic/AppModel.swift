@@ -164,8 +164,6 @@ final class AppModel {
     init() {
         let install = Install.locate()
         self.install = install
-        // The queue's files from before they moved out of the minis folder (#102), once.
-        try? JobQueue(folder: install.queue).moveOldFiles(from: install.runs)
         timings = Timings.standard()
         jobs = JobRunner(install: install, timings: timings, version: BuildInfo.version)
         setup = SetupModel(install: install)
@@ -174,8 +172,6 @@ final class AppModel {
         reload()
         // Run the checks at launch, so Make is blocked (and Settings flagged) before anyone opens Settings.
         Health.shared.check(install)
-        // An old install's engine is only moved, which needs no asking.
-        if setup.hasOldInstall { setup.start() }
         // Past minis seed the time estimates, once; off the main thread, it reads every folder.
         let timings = timings, runs = install.runs
         Task.detached {
@@ -227,7 +223,6 @@ final class AppModel {
             try jobs.changeMinisFolder(to: folder, moving: moving) { UserDefaults.standard.set(folder.path, forKey: MinisFolder.key) }
         }.value
         let install = Install.locate()
-        try? JobQueue(folder: install.queue).moveOldFiles(from: install.runs)
         self.install = install
         self.jobs = JobRunner(install: install, timings: timings, version: BuildInfo.version)
         wire(self.jobs)

@@ -1,3 +1,14 @@
+Let pixal3d.cpp run fewer sampling steps: PIXAL3D_STEPS=N (a whole number 1..50) overrides
+every flow stage's hard-coded step count, and the log says so.
+
+Not Mimic's own code. It is the change that scripts/patch_pixal3d_steps.py in image-to-3dlab
+makes to src/flow_runner.cpp, written as a diff against pixal3d.cpp d1b4926:
+  https://github.com/Bingeljell/image-to-3dlab/blob/ab288c29435bced492313c9e229d99babbf5e5d4/scripts/patch_pixal3d_steps.py
+  Copyright 2026 Bingeljell and image-to-3dlab contributors
+  Licensed under the Apache License, Version 2.0 (tools/LICENSE-image-to-3dlab, which also
+  carries image-to-3dlab's NOTICE).
+tools/package_pixal3d.sh applies it; everything above the first diff line is ignored.
+
 diff --git a/src/flow_runner.cpp b/src/flow_runner.cpp
 index 6399e69..a286991 100644
 --- a/src/flow_runner.cpp

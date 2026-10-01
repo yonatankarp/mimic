@@ -60,14 +60,12 @@ final class SetupTests: XCTestCase {
         XCTAssertEqual(i.runs, dir.appendingPathComponent("runs").standardizedFileURL)
         XCTAssertEqual(EngineDownload.standard.folder(in: i), dir.appendingPathComponent("engine/models/trellis2-q8").standardizedFileURL)
         XCTAssertEqual(EngineDownload.model("pixal3d-sv")!.folder(in: i), dir.appendingPathComponent("engine/models/pixal3d-sv").standardizedFileURL)
-        XCTAssertEqual(i.legacyLab, dir.appendingPathComponent("image-to-3dlab").standardizedFileURL)
     }
 
     func testANewMacKeepsMinisInDocumentsAndTheEngineInApplicationSupport() {
         let i = Install.standard(home: dir)
         XCTAssertEqual(i.runs.path, dir.appendingPathComponent("Documents/Mimic").path)
         XCTAssertEqual(i.engine.path, dir.appendingPathComponent("Library/Application Support/Mimic/engine").path)
-        XCTAssertNil(i.legacyLab)
     }
 
     func testLocateOrder() throws {
@@ -81,7 +79,7 @@ final class SetupTests: XCTestCase {
         XCTAssertEqual(locate([:]), .standard(home: home), "nothing set: the standard layout")
         defaults.set(old.path, forKey: "installDir")
         let inOld = locate([:]), oldFolder = Install(root: old)
-        XCTAssertEqual([inOld.runs, inOld.engine, inOld.legacyLab], [oldFolder.runs, oldFolder.engine, oldFolder.legacyLab],
+        XCTAssertEqual([inOld.runs, inOld.engine], [oldFolder.runs, oldFolder.engine],
                        "the old installer's folder is still used")
         XCTAssertEqual(inOld.queue, Install.queueFolder(oldFolder.runs, home: home), "but its queue is on this Mac, not in that folder")
         XCTAssertEqual(locate(["MIMIC_HOME": dev.path]), Install(root: dev), "MIMIC_HOME wins")
@@ -337,56 +335,6 @@ final class SetupTests: XCTestCase {
             guard case .diskFull? = error as? SetupError else { return XCTFail("\(error)") }
         }
         XCTAssertEqual(server.log.count, 0)
-    }
-
-    /// An old install moves its engine out of image-to-3dlab without downloading anything, then
-    /// checks every moved file: a damaged one, and only that, is downloaded again.
-    func testAnOldInstallIsMovedNotDownloaded() async throws {
-        let (tarball, models) = try fakeEngine()
-        let server = try FileServer(["/engine.tar.gz": tarball, "/a.gguf": models[0], "/b.json": models[1]])
-        defer { server.stop() }
-        let root = dir.appendingPathComponent("Mimic")
-        let install = Install(root: root)
-        let old = root.appendingPathComponent("image-to-3dlab/vendor/pixal3d-cpp")
-        let build = old.appendingPathComponent("build"), oldModels = old.appendingPathComponent("models/pixal3d-sv")
-        for d in [build, oldModels] { try FileManager.default.createDirectory(at: d, withIntermediateDirectories: true) }
-        try Self.script(build.appendingPathComponent("trellis-cli"))
-        try "pixal3d.cpp test1 (abc), Metal\n".write(to: build.appendingPathComponent("VERSION"), atomically: true, encoding: .utf8)
-        FileManager.default.createFile(atPath: build.appendingPathComponent("libggml.0.dylib").path, contents: Data("lib".utf8))
-        try FileManager.default.createSymbolicLink(atPath: build.appendingPathComponent("libggml.dylib").path, withDestinationPath: "libggml.0.dylib")
-        FileManager.default.createFile(atPath: build.appendingPathComponent("CMakeCache.txt").path, contents: Data())
-        try models[0].write(to: oldModels.appendingPathComponent("a.gguf"))
-        try Data("damaged".utf8).write(to: oldModels.appendingPathComponent("b.json"))
-
-        var setup = setup(install)
-        setup.engineFile = server.file("/engine.tar.gz", tarball)
-        setup.model.files = [server.file("/a.gguf", models[0]), server.file("/b.json", models[1])]
-        try await setup.run { _ in }
-
-        XCTAssertEqual(server.log.map(\.path), ["/b.json"], "only the damaged file should be downloaded")
-        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("image-to-3dlab").path), "image-to-3dlab is still there")
-        XCTAssertTrue(setup.engineReady())
-        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: install.engine.appendingPathComponent("libggml.dylib").path),
-                       "libggml.0.dylib")
-        XCTAssertEqual(try Data(contentsOf: EngineDownload.standard.folder(in: install).appendingPathComponent("a.gguf")), models[0])
-        XCTAssertEqual(try Data(contentsOf: EngineDownload.standard.folder(in: install).appendingPathComponent("b.json")), models[1])
-    }
-
-    func testAnOldEngineOfAnotherBuildIsDownloadedFresh() async throws {
-        let (tarball, models) = try fakeEngine()
-        let server = try FileServer(["/engine.tar.gz": tarball, "/a.gguf": models[0]])
-        defer { server.stop() }
-        let root = dir.appendingPathComponent("Mimic")
-        let build = root.appendingPathComponent("image-to-3dlab/vendor/pixal3d-cpp/build")
-        try FileManager.default.createDirectory(at: build, withIntermediateDirectories: true)
-        try Self.script(build.appendingPathComponent("trellis-cli"))
-        try "pixal3d.cpp old999 (abc)\n".write(to: build.appendingPathComponent("VERSION"), atomically: true, encoding: .utf8)
-        var setup = setup(Install(root: root))
-        setup.engineFile = server.file("/engine.tar.gz", tarball)
-        setup.model.files = [server.file("/a.gguf", models[0])]
-        try await setup.run { _ in }
-        XCTAssertEqual(server.log.map(\.path), ["/engine.tar.gz", "/a.gguf"])
-        XCTAssertTrue(setup.engineReady())
     }
 
     /// The real downloads, but only the small ones: the engine and the licences, never the

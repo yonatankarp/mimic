@@ -359,10 +359,10 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   name never resolves in the wrong folder. The path is hashed as given, with links unresolved,
   since a folder that doesn't exist yet resolves differently once it does; the app and `mimic`
   read the same settings, so they agree. A Mimic folder (`MIMIC_HOME`, tests) keeps its queue in
-  `queue/` inside it (git-ignored), and `MIMIC_FAKE_HOME` inside the fake home. The files kept
-  in the minis folder before are moved at launch, by the app and `mimic` alike
-  (`JobQueue.moveOldFiles`): no compatibility with 0.8.0 or an old `mimic` sharing the queue,
-  since nobody else used it yet. Settings → General → Change… picks another folder (`minisFolder`
+  `queue/` inside it (git-ignored), and `MIMIC_FAKE_HOME` inside the fake home. No
+  compatibility with 0.8.0 or an old `mimic` sharing the queue, since nobody else used it yet.
+  0.9.0 moved the queue files 0.8.0 kept in the minis folder at every launch; 0.10.0 dropped
+  that move (#222), so a queue left by 0.8.0 is no longer picked up. Settings → General → Change… picks another folder (`minisFolder`
   in the app's settings, kept by Reset like `installDir`, and ignored under `MIMIC_HOME` and
   `MIMIC_FAKE_HOME`, where the button is off). The minis either move there or stay put (for a
   folder that already has minis). Refused while a mini is being made or waits, in any Mimic using
@@ -384,10 +384,9 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   against a local server that logs the Range asked for and the bytes served: a re-download
   would end with the same sha256); a finished file with the wrong sha256 is deleted so Try
   Again starts it afresh; files already right are hashed and kept. It runs in the app, so
-  closing the window doesn't stop it (the app stays open while it runs). An old install's
-  `image-to-3dlab/vendor/pixal3d-cpp` is moved, never downloaded again, starts automatically at
-  launch, and image-to-3dlab is removed only after every move succeeded; the pass after it
-  checks every moved file's sha256. Settings offers Download / Repair on the two engine checks;
+  closing the window doesn't stop it (the app stays open while it runs). Until 0.10.0 it also
+  moved the engine out of an install from before 0.2.0 (`image-to-3dlab/vendor/pixal3d-cpp`);
+  that move is gone (#222), and such an install downloads the engine again. Settings offers Download / Repair on the two engine checks;
   the engine check also wants the pinned `VERSION`, so a new engine pin shows up as Repair.
   `MIMIC_FAKE_HOME` (a new Mac's home folder, `installDir` ignored) and `MIMIC_DOWNLOAD_MIRROR`
   (a local server instead of the internet) are for trying it.

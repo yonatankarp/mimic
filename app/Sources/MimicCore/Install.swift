@@ -21,9 +21,6 @@ public struct Install: Sendable, Equatable {
     public let engine: URL
     /// The queue and the running job's files, on this Mac only (`JobQueue`).
     public let queue: URL
-    /// Where installs before the Swift engine kept it: `image-to-3dlab` in the Mimic folder.
-    /// Setup moves it out. nil for the default layout, which never had one.
-    public let legacyLab: URL?
     public var trellisCLI: URL { engine.appendingPathComponent("trellis-cli") }
     /// Draw Things' command line tool, which setup downloads beside the engine.
     public var drawThingsCLI: URL { engine.appendingPathComponent("draw-things-cli") }
@@ -32,14 +29,13 @@ public struct Install: Sendable, Equatable {
     public init(root: URL) {
         let root = root.standardizedFileURL
         self.init(runs: root.appendingPathComponent("runs"), engine: root.appendingPathComponent("engine"),
-                  queue: root.appendingPathComponent("queue"), legacyLab: root.appendingPathComponent("image-to-3dlab"))
+                  queue: root.appendingPathComponent("queue"))
     }
 
-    public init(runs: URL, engine: URL, queue: URL, legacyLab: URL? = nil) {
+    public init(runs: URL, engine: URL, queue: URL) {
         self.runs = runs.standardizedFileURL
         self.engine = engine.standardizedFileURL
         self.queue = queue.standardizedFileURL
-        self.legacyLab = legacyLab?.standardizedFileURL
     }
 
     /// The layout for an app installed from the disk image, with the minis in `runs` when a
@@ -74,7 +70,7 @@ public struct Install: Sendable, Equatable {
         let chosen = folder(defaults.string(forKey: MinisFolder.key))
         if let root = folder(defaults.string(forKey: SettingsKey.installDir)) {
             let old = Install(root: root), runs = chosen ?? old.runs
-            return Install(runs: runs, engine: old.engine, queue: queueFolder(runs, home: home), legacyLab: old.legacyLab)
+            return Install(runs: runs, engine: old.engine, queue: queueFolder(runs, home: home))
         }
         return standard(home: home, runs: chosen)
     }

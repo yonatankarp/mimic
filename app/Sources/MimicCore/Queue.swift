@@ -96,33 +96,6 @@ public struct JobQueue: Sendable {
 
     func clearMoving() { try? FileManager.default.removeItem(at: movingFile) }
 
-    /// Moves the queue's files from where Mimic kept them before #102, at the top of the minis
-    /// folder, into the queue's own folder. Once, at launch (the app and `mimic` both): nothing
-    /// to do when none is there. Never overwrites: waiting jobs already here stay, and those
-    /// there join them at the end; a running job's record goes only where there's none. The old
-    /// lock files are removed: new ones are made here when needed.
-    public func moveOldFiles(from runs: URL) throws {
-        let fm = FileManager.default
-        func old(_ name: String) -> URL { runs.appendingPathComponent(name) }
-        let names = [".queue.json", ".queue.paused", ".job.json", ".job.pid", ".queue.lock", ".job.lock"]
-        guard names.contains(where: { fm.fileExists(atPath: old($0).path) }) else { return }
-        try locked { entries in
-            if let data = try? Data(contentsOf: old(".queue.json")),
-               let waiting = try? Self.decoder.decode([QueueEntry].self, from: data) {
-                for e in waiting where !entries.contains(where: { $0.name == e.name }) { entries.append(e) }
-            }
-            if fm.fileExists(atPath: old(".queue.paused").path), !paused {
-                guard fm.createFile(atPath: pausedFile.path, contents: nil) else { throw POSIXError(.EIO) }
-            }
-            for (from, to) in [(".job.json", SharedJob.file(queue: folder)), (".job.pid", Leftover.file(queue: folder))]
-            where fm.fileExists(atPath: old(from).path) && !fm.fileExists(atPath: to.path) {
-                try fm.moveItem(at: old(from), to: to)
-            }
-        }
-        // Only once everything is safely here: a failure above leaves the old files to try again.
-        for n in names { try? fm.removeItem(at: old(n)) }
-    }
-
     /// A snapshot, without the lock: the file is only ever replaced whole, so it reads complete.
     public func entries() -> [QueueEntry] {
         guard let data = try? Data(contentsOf: file) else { return [] }

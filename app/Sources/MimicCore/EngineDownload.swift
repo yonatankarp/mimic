@@ -223,7 +223,6 @@ public enum SetupError: Error, Equatable, CustomStringConvertible {
     case ranOutOfSpace
     case damaged(String)
     case engineWontStart
-    case couldntMove(String)
 
     public var description: String {
         switch self {
@@ -239,15 +238,13 @@ public enum SetupError: Error, Equatable, CustomStringConvertible {
             "A file came down damaged (\(name)). Press Try Again to download it once more."
         case .engineWontStart:
             "The 3D engine downloaded but doesn't start on this Mac. Mimic needs a Mac with an Apple chip (M1 or newer)."
-        case .couldntMove(let what):
-            "Mimic couldn't move its 3D engine to its new place (\(what)). Press Try Again."
         }
     }
 }
 
 /// Where setup has got to, for the progress bar.
 public struct SetupProgress: Sendable, Equatable {
-    public enum Activity: Sendable, Equatable { case moving, checking, downloading }
+    public enum Activity: Sendable, Equatable { case checking, downloading }
     public var activity: Activity
     /// Bytes of `EngineDownload.totalBytes` that are in place and checked, or on their way.
     public var done: Int64
@@ -258,16 +255,15 @@ public struct SetupProgress: Sendable, Equatable {
     }
 }
 
-/// First-launch setup: moves an old install's engine out of image-to-3dlab, then downloads
-/// whatever of the engine and its model files is missing or damaged. Safe to run again at any
-/// point: files already right are kept, and a cut-off download carries on from where it stopped.
+/// First-launch setup: downloads whatever of the engine and its model files is missing or
+/// damaged. Safe to run again at any point: files already right are kept, and a cut-off
+/// download carries on from where it stopped.
 public struct EngineSetup: Sendable {
     public var install: Install
     public var engineFile: EngineFile = EngineDownload.engine
     /// Draw Things' command line tool, downloaded beside the engine; nil leaves it out.
     public var drawThingsCLI: EngineFile? = EngineDownload.drawThingsCLI
-    /// The model set to download. An old install's files (Pixal3D's) are moved into it where
-    /// it has files of the same name, and checked like any others.
+    /// The model set to download.
     public var model: EngineModel = EngineDownload.standard
     /// Where identical files may already be on disk, so they're copied instead of downloaded.
     public var catalogue: [EngineModel] = EngineDownload.catalogue
@@ -286,10 +282,6 @@ public struct EngineSetup: Sendable {
             progress(SetupProgress(activity: a, done: tally.done + extra, total: total))
         }
 
-        if let lab = install.legacyLab, FileManager.default.fileExists(atPath: lab.path) {
-            report(.moving)
-            try migrate(from: lab)
-        }
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         for file in model.files { reuse(file, in: folder) }
 
@@ -347,45 +339,6 @@ public struct EngineSetup: Sendable {
             try? FileManager.default.removeItem(at: tarball)
             throw SetupError.damaged(engineFile.name)
         }
-    }
-
-    // MARK: Moving an old install
-
-    /// Installs before the Swift engine kept it inside a clone of image-to-3dlab: move it rather
-    /// than download it again. Its trellis-cli is kept only if it's the build this Mimic pins;
-    /// the model files are checked by the download pass that follows, like any others. The rest
-    /// of image-to-3dlab (a git clone and a Python setup) is no longer used, and is removed only
-    /// once everything worth keeping has moved.
-    func migrate(from lab: URL) throws {
-        let fm = FileManager.default
-        // Old installs had Pixal3D: whichever of its files this set shares by name are moved in.
-        let standard = model.id == EngineDownload.standard.id ? model : EngineDownload.standard
-        let models = standard.folder(in: install)
-        let old = lab.appendingPathComponent("vendor/pixal3d-cpp")
-        let build = old.appendingPathComponent("build"), oldModels = old.appendingPathComponent("models/pixal3d-sv")
-        func move(_ from: URL, _ to: URL) throws {
-            do { try fm.moveItem(at: from, to: to) } catch { throw SetupError.couldntMove(from.lastPathComponent) }
-        }
-        do { try fm.createDirectory(at: models, withIntermediateDirectories: true) } catch {
-            throw SetupError.couldntMove(models.path)
-        }
-        if fm.fileExists(atPath: old.path) {
-            let oldVersion = (try? String(contentsOf: build.appendingPathComponent("VERSION"), encoding: .utf8)) ?? ""
-            if !fm.isExecutableFile(atPath: install.trellisCLI.path), oldVersion.hasPrefix(version + " ") {
-                let names = (try? fm.contentsOfDirectory(atPath: build.path)) ?? []
-                for name in names where name == "trellis-cli" || name == "VERSION" || name.hasPrefix("LICENSE-")
-                    || (name.hasPrefix("libggml") && name.hasSuffix(".dylib")) {
-                    let to = install.engine.appendingPathComponent(name)
-                    try? fm.removeItem(at: to)
-                    try move(build.appendingPathComponent(name), to)
-                }
-            }
-            for file in standard.files {
-                let from = oldModels.appendingPathComponent(file.name), to = models.appendingPathComponent(file.name)
-                if fm.fileExists(atPath: from.path) && !fm.fileExists(atPath: to.path) { try move(from, to) }
-            }
-        }
-        do { try fm.removeItem(at: lab) } catch { throw SetupError.couldntMove(lab.lastPathComponent) }
     }
 
     // MARK: Copying a file another model already has
