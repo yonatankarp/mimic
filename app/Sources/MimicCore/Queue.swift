@@ -37,7 +37,7 @@ public enum QueuePlace: Equatable, Sendable {
 public enum QueueHold: Sendable, Equatable {
     /// Paused, in this Mimic or another, or with `mimic queue pause`.
     case paused
-    /// On battery, with Don't start minis on battery on.
+    /// On battery, with Start minis only when plugged in on.
     case battery
 
     /// What the queue is doing, in words: the popover, the menus and `mimic queue`.

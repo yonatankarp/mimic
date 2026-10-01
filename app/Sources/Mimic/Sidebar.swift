@@ -18,6 +18,8 @@ struct Sidebar: View {
     /// A mini has been picked in the list since it appeared: the gallery tip can show.
     @State private var picked = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The list has the keyboard: the window starts with it there, not on the 3D view.
+    var listFocused: FocusState<Bool>.Binding
 
     var body: some View {
         // Only the search field sits inside the branch: anything attached on the other side
@@ -105,6 +107,7 @@ struct Sidebar: View {
             }
         }
         .listStyle(.sidebar)
+        .focused(listFocused)
         // Like Notes' New Folder: always there, the first project included.
         .safeAreaInset(edge: .bottom) {
             HStack {
@@ -422,8 +425,7 @@ struct AnotherVersionButton: View {
             if showsIcon { Label("Make Another Version", systemImage: "square.on.square") } else { Text("Make Another Version") }
         }
             .help(mini.settings.isImported ? Self.imported
-                  : "Makes it again from the same picture or description, with a different variation number: "
-                  + "a detail that came out as a blob may come out right. It goes next to this one, and waits its turn if Mimic is busy.")
+                  : "Makes it again from its picture or description, with a new variation number")
             .disabled(model.cantStart != nil || !JobRunner.canMakeAnotherVersion(mini))
     }
 }
@@ -438,8 +440,7 @@ struct NewShapeButton: View {
             if showsIcon { Label("New 3D Shape", systemImage: "cube") } else { Text("New 3D Shape") }
         }
             .help(mini.settings.isImported ? AnotherVersionButton.imported
-                  : "Keeps this picture and makes only the 3D shape again, with a different variation number: "
-                  + "quicker than Make Another Version, and a picture you like stays. It goes next to this one, and waits its turn if Mimic is busy.")
+                  : "Keeps this picture and makes only the 3D shape again")
             .disabled(model.cantStart != nil || !JobRunner.canMakeNewShape(mini))
     }
 }
@@ -455,7 +456,7 @@ struct EditAndMakeAgainButton: View {
             if showsIcon { Label("Edit & Make Again…", systemImage: "slider.horizontal.3") } else { Text("Edit & Make Again…") }
         }
             .help(mini.settings.isImported ? AnotherVersionButton.imported
-                  : "Opens New Mini with this mini's picture or description, sizes and choices filled in, to change what you like and make it as a new mini")
+                  : "Opens New Mini filled in from this mini, to change what you like")
             .disabled(!model.setup.installed || !JobRunner.canMakeAnotherVersion(mini))
     }
 }

@@ -848,13 +848,13 @@ final class AppModel {
         alert.addButton(withTitle: "Make Report")
         alert.addButton(withTitle: "Cancel")
         let hasPicture = mini.flatMap { $0.source ?? $0.upload } != nil
-        if hasPicture {
-            alert.showsSuppressionButton = true
-            alert.suppressionButton?.title = "Include the picture (the issue is public)"
-            alert.suppressionButton?.state = .off
-        }
+        // Its own checkbox: the alert's suppression checkbox means "Don't ask again".
+        let include = NSButton(checkboxWithTitle: "Include the picture (the issue is public)", target: nil, action: nil)
+        include.state = .off
+        include.sizeToFit()
+        if hasPicture { alert.accessoryView = include }
         guard alert.runModal() == .alertFirstButtonReturn else { return }
-        let picture = hasPicture && alert.suppressionButton?.state == .on
+        let picture = hasPicture && include.state == .on
         let folder = install.runs.appendingPathComponent("_reports"), build = BuildInfo.line, mac = Report.mac
         let failure = mini.map { $0.settings.failed ?? "It stopped before it was done." }
         Task {
