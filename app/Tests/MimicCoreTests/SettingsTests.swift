@@ -9,6 +9,8 @@ final class SettingsTests: XCTestCase {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     }
 
+    override func tearDownWithError() throws { try? FileManager.default.removeItem(at: folder) }
+
     func testWritesMerge() throws {
         try MiniSettings.update(folder) { $0.source = .desc; $0.desc = "a dwarf" }
         try MiniSettings.update(folder) { $0.requested = Sizes(height: "100", base: "40", nozzle: "0.4") }
