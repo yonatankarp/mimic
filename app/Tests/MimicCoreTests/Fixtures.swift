@@ -27,6 +27,14 @@ struct Fixture {
     /// `mimic` stands in for Mimic's own binary, which steps 2 and 3 run as `mimic _engine …`
     /// and `mimic _prep …`. `drawThings` is step 1's: by default one that fails at once, so a
     /// test never reaches the real Draw Things on a Mac that has it (#140).
+    /// Print prep that reports `report` to the job, as `mimic _prep` does beside the print file
+    /// it's given ($3), then runs `body` (what it says in prep.log, say, and how it exits).
+    func prep(_ name: String, _ report: PrepReport, _ body: String = "") throws -> String {
+        let file = root.appendingPathComponent("\(name).json")
+        try JSONEncoder().encode(report).write(to: file)
+        return try script(name, "cp '\(file.path)' \"$(dirname \"$3\")/prep-result.json\"\n\(body)")
+    }
+
     func tools(mimic: String = "/usr/bin/true", drawThings: DrawThings? = nil) -> Tools {
         Tools(mimic: mimic, engine: install.engine.path,
               environment: ["PATH": "/usr/bin:/bin"], drawThings: drawThings ?? noDrawThings())

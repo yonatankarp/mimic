@@ -498,9 +498,9 @@ public final class JobRunner: @unchecked Sendable {
         var done = 0  // runs of the plan finished
         var problem: String?
         var took: [Int: TimeInterval] = [:]
-        // prep.log is appended to on every run, so only this run's part says whether it's fragile.
-        let prepLog = folder.appendingPathComponent("prep.log")
-        let prepLogStart = (try? FileManager.default.attributesOfItem(atPath: prepLog.path)[.size] as? UInt64) ?? 0
+        // What print prep reports, this run's only: an earlier run's must not follow the mini around.
+        let reportFile = folder.appendingPathComponent("prep-result.json")
+        try? FileManager.default.removeItem(at: reportFile)
         var previous = plan.first?.number  // begin() started its clock
         for (number, step) in plan {
             if status?.canceled == true { break }
@@ -537,26 +537,11 @@ public final class JobRunner: @unchecked Sendable {
         } else if code == 0, let requested = settings.requested {
             try? MiniSettings.update(folder) { $0.made = requested }  // "Now: …" shows only what a finished run made
         }
-        let thisRun: String = {
-            guard let h = try? FileHandle(forReadingFrom: prepLog) else { return "" }
-            defer { try? h.close() }
-            try? h.seek(toOffset: prepLogStart)
-            return String(decoding: h.readDataToEndOfFile(), as: UTF8.self)
-        }()
-        let warnings = (((try? String(contentsOf: log, encoding: .utf8)) ?? "") + "\n" + thisRun)
-            .split(separator: "\n").filter { $0.contains("mini_prep: WARNING") }
-        let said = [Prep.partWarning, Prep.standWarning]
-        let fragile = warnings.contains { w in !said.contains { w.contains($0) } }
-        var notes: [String] = []
-        for w in warnings {
-            guard let r = said.lazy.compactMap({ w.range(of: $0) }).first else { continue }
-            let note = String(w[r.upperBound...])
-            if !notes.contains(note) { notes.append(note) }  // the job log and prep.log can both carry it
-        }
-        // Print prep runs as its own program, so why it failed is only in its log.
-        if code != 0, problem == nil, let r = thisRun.range(of: Prep.failure, options: .backwards) {
-            problem = String(thisRun[r.upperBound...].prefix { $0 != "\n" })
-        }
+        let report = PrepReport.read(folder) ?? PrepReport()
+        try? FileManager.default.removeItem(at: reportFile)
+        let fragile = report.fragile, notes = report.notes
+        // Print prep runs as its own program, so why it failed is only in its report.
+        if code != 0, problem == nil { problem = report.failure.map { String($0.prefix { $0 != "\n" }) } }
         // Kept with the mini, so its page says it after a relaunch too.
         if !canceled {
             let step = status?.step

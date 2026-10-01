@@ -628,14 +628,20 @@ enum CLI {
     }
 
     /// Step 3 of a job, run by the job itself: `mimic _prep <model.glb> <name.stl> [flags]`.
+    /// What it says goes to prep.log, for people, and to the report beside the print file, for
+    /// the job (`PrepReport`).
     private static func prep(_ args: [String]) -> Int32 {
         setvbuf(stdout, nil, _IOLBF, 0)  // prep.log shows each step as it happens
+        // The print file's path, even when the options don't parse: it's the one ending .stl.
+        let stl = args.first { $0.hasSuffix(".stl") }.map { URL(fileURLWithPath: $0) }
         do {
             let options = try PrepOptions.parse(args)
             let result = try Prep.run(options, views: true) { print($0) }
             result.lines.forEach { print($0) }
+            try PrepReport(warnings: result.warnings).write(beside: URL(fileURLWithPath: options.stl))
             return 0
         } catch {
+            if let stl { try? PrepReport(failure: "\(error)").write(beside: stl) }
             return fail(Prep.failure + "\(error)")
         }
     }

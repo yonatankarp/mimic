@@ -136,12 +136,56 @@ public struct PrepOptions: Equatable, Sendable {
     }
 }
 
+/// What print prep tells the job that ran it, in prep-result.json beside the print file: its
+/// warnings and why it failed. prep.log says the same for people; the job reads only this, so
+/// rewording a line there changes nothing it shows.
+public struct PrepReport: Codable, Equatable, Sendable {
+    public enum Kind: String, Codable, Sendable {
+        /// A part left out, and an object that can't stand without a base: said as they are.
+        case part, stand
+        /// Wider than its base: thin parts may be fragile.
+        case footprint
+    }
+    public struct Warning: Codable, Equatable, Sendable {
+        public var kind: Kind
+        public var text: String
+        public init(_ kind: Kind, _ text: String) { self.kind = kind; self.text = text }
+    }
+    public var warnings: [Warning] = []
+    public var failure: String?
+
+    public init(warnings: [Warning] = [], failure: String? = nil) { self.warnings = warnings; self.failure = failure }
+
+    /// The report for the print file `stl`.
+    public static func file(beside stl: URL) -> URL { stl.deletingLastPathComponent().appendingPathComponent("prep-result.json") }
+
+    public func write(beside stl: URL) throws {
+        try JSONEncoder().encode(self).write(to: Self.file(beside: stl), options: .atomic)
+    }
+
+    /// The report in `folder`, or nil when there's none (prep didn't get as far, or was stopped).
+    public static func read(_ folder: URL) -> PrepReport? {
+        guard let data = try? Data(contentsOf: folder.appendingPathComponent("prep-result.json")) else { return nil }
+        return try? JSONDecoder().decode(PrepReport.self, from: data)
+    }
+
+    /// What the person is told as it is, once each.
+    public var notes: [String] {
+        warnings.filter { $0.kind != .footprint }.map(\.text).reduce(into: []) { if !$0.contains($1) { $0.append($1) } }
+    }
+
+    /// Whether thin parts may be fragile: any warning that isn't said as it is.
+    public var fragile: Bool { warnings.contains { $0.kind != .part && $0.kind != .stand } }
+}
+
 public enum Prep {
     public struct Result {
         public var mesh: Mesh
         public var dropped: Int
         public var footprint: Double
         public var lines: [String]
+        /// The warnings among `lines`, for the job (`PrepReport`).
+        public var warnings: [PrepReport.Warning]
     }
 
     /// Makes the print file and returns what it printed. With `views`, the previews beside it
@@ -282,10 +326,15 @@ public enum Prep {
         let (lo, hi) = out.bounds
         var lines = [String(format: "mini_prep: %@  size %.1f x %.1f x %.1f mm  faces %d  loose pieces dropped %d  footprint %.1f mm",
                             o.stl, hi.x - lo.x, hi.y - lo.y, hi.z - lo.z, out.triangles.count, dropped, footprint)]
+        var warnings: [PrepReport.Warning] = []
+        /// A warning: in the log after its marker, and in the report as it is.
+        func warn(_ kind: PrepReport.Kind, _ marker: String, _ text: String) {
+            lines.append(marker + text); warnings.append(.init(kind, text))
+        }
         // An object on a base is a plinth, not a figure that must stand on it: no warning.
         if !o.noBase && !o.groundBottom && footprint > o.base {
-            lines.append(String(format: "mini_prep: WARNING footprint %.1f mm is wider than the %.0f mm base; raise the base to at least %d mm",
-                                footprint, o.base, Int((footprint + 1).rounded(.up))))
+            warn(.footprint, "mini_prep: WARNING ", String(format: "footprint %.1f mm is wider than the %.0f mm base; raise the base to at least %d mm",
+                                                           footprint, o.base, Int((footprint + 1).rounded(.up))))
         }
         if let magnet = o.magnet {
             lines.append(o.noBase ? "mini_prep: no base, so no magnet hole"
@@ -293,25 +342,25 @@ public enum Prep {
                     + magnet.words + String(format: " magnet; base %.2f mm tall", baseHeight))
         }
         if o.noBase && !standsAlone {
-            lines.append(standWarning + "It can't stand on its own, so it was left upright as the 3D engine made it. Turn on Add a round base to stand it up.")
+            warn(.stand, standWarning, "It can't stand on its own, so it was left upright as the 3D engine made it. Turn on Add a round base to stand it up.")
         }
         if let longest = parts.map(Prep.longest).max() {
             let what = parts.count == 1 ? "A part came out separate from the \(thing) (about \(Int(longest.rounded())) mm long) and was left out."
                 : "\(parts.count) parts came out separate from the \(thing) (the largest about \(Int(longest.rounded())) mm long) and were left out."
-            lines.append(partWarning + what + " Try Make Another Version. If you use Pixal3D, TRELLIS.2 (Settings → 3D Model) joins held things more reliably.")
+            warn(.part, partWarning, what + " Try Make Another Version. If you use Pixal3D, TRELLIS.2 (Settings → 3D Model) joins held things more reliably.")
         }
-        return Result(mesh: out, dropped: dropped, footprint: footprint, lines: lines)
+        return Result(mesh: out, dropped: dropped, footprint: footprint, lines: lines, warnings: warnings)
     }
 
     /// A dropped piece whose longest side is at least this share of the height is a part, not a
     /// speck. Measured (NOTES.md): a lost bow was 93% of the height, the largest solid speck on
     /// seven real minis under 1%.
     static let partLength: Float = 0.1
-    /// Marks the warning for a part left out; what follows it is said to the person as it is.
+    /// Marks the warning for a part left out in prep.log; the job reads it from `PrepReport`.
     public static let partWarning = "mini_prep: WARNING part: "
-    /// Marks the warning for an object that can't stand without a base; said as it is, too.
+    /// Marks the warning for an object that can't stand without a base, the same way.
     public static let standWarning = "mini_prep: WARNING stand: "
-    /// Marks why prep failed; what follows it is said to the person as it is.
+    /// Marks why prep failed in prep.log; the job reads it from `PrepReport` too.
     public static let failure = "mini_prep: FAILED: "
     /// A model whose thinnest side is under this share of its longest is a flat sheet, not a mini.
     static let flat: Float = 0.02

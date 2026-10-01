@@ -242,16 +242,29 @@ final class JobTests: XCTestCase {
         XCTAssertEqual(EngineDownload.model(MiniSettings().model)?.id, "pixal3d-sv")
     }
 
-    /// prep.log is appended to, so a warning from an earlier run must not follow the mini around.
+    /// An earlier run's report (or warning in prep.log, which is appended to) must not follow
+    /// the mini around.
     func testFragileIsThisRunsWarningOnly() throws {
         let fx = try Fixture(); let d = try fx.mini("dwarf")
         try "mini_prep: WARNING thin parts\n".write(to: d.appendingPathComponent("prep.log"), atomically: true, encoding: .utf8)
+        try JSONEncoder().encode(PrepReport(warnings: [.init(.footprint, "thin parts")])).write(to: d.appendingPathComponent("prep-result.json"))
         let quiet = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/true"))
         try quiet.resize(name: "dwarf", sizes: sizes); quiet.waitUntilDone()
         XCTAssertEqual(quiet.status?.fragile, false)
-        let warns = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("prep", "echo 'mini_prep: WARNING thin parts'")))
+        let warns = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.prep("prep", PrepReport(warnings: [.init(.footprint, "thin parts")]))))
         try warns.resize(name: "dwarf", sizes: sizes); warns.waitUntilDone()
         XCTAssertEqual(warns.status?.fragile, true)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: d.appendingPathComponent("prep-result.json").path), "read, then gone")
+    }
+
+    /// What the job shows comes from print prep's report, not its log (#218): rewording a line
+    /// in prep.log changes nothing.
+    func testWarningsComeFromTheReportNotTheLog() throws {
+        let fx = try Fixture(); _ = try fx.mini("elf")
+        let says = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("prep", "echo 'mini_prep: WARNING footprint'; echo '\(Prep.partWarning)A part.'")))
+        try says.resize(name: "elf", sizes: sizes); says.waitUntilDone()
+        XCTAssertEqual(says.status?.notes, [])
+        XCTAssertEqual(says.status?.fragile, false)
     }
 
     /// A part print prep left out, or an object that needs a base, is said in its own words,
@@ -260,11 +273,11 @@ final class JobTests: XCTestCase {
         let fx = try Fixture(); _ = try fx.mini("elf")
         let part = "A part came out separate from the figure (about 30 mm long) and was left out."
         let stand = "It needs a base to stand."
-        let one = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("prep", "echo '\(Prep.partWarning)\(part)'; echo '\(Prep.standWarning)\(stand)'")))
+        let one = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.prep("prep", PrepReport(warnings: [.init(.part, part), .init(.stand, stand)]))))
         try one.resize(name: "elf", sizes: sizes); one.waitUntilDone()
         XCTAssertEqual(one.status?.notes, [part, stand])
         XCTAssertEqual(one.status?.fragile, false)
-        let both = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("prep2", "echo 'mini_prep: WARNING footprint'; echo '\(Prep.partWarning)\(part)'")))
+        let both = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.prep("prep2", PrepReport(warnings: [.init(.footprint, "footprint"), .init(.part, part)]))))
         try both.resize(name: "elf", sizes: sizes); both.waitUntilDone()
         XCTAssertEqual(both.status?.notes, [part])
         XCTAssertEqual(both.status?.fragile, true)
@@ -275,13 +288,13 @@ final class JobTests: XCTestCase {
     func testWarningsAndFailuresAreKeptWithTheMini() throws {
         let fx = try Fixture(); let d = try fx.mini("elf")
         let part = "A part came out separate from the figure (about 30 mm long) and was left out."
-        let warns = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("prep", "echo 'mini_prep: WARNING footprint'; echo '\(Prep.partWarning)\(part)'")))
+        let warns = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.prep("prep", PrepReport(warnings: [.init(.footprint, "footprint"), .init(.part, part)]))))
         try warns.resize(name: "elf", sizes: sizes); warns.waitUntilDone()
         XCTAssertEqual(MiniSettings.load(d).notes, [part])
         XCTAssertEqual(MiniSettings.load(d).fragile, true)
-        let fails = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("prep2", "echo 'mini_prep: FAILED the model is flat'; exit 1")))
+        let fails = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.prep("prep2", PrepReport(failure: "the model is flat"), "exit 1")))
         try fails.resize(name: "elf", sizes: sizes); fails.waitUntilDone()
-        XCTAssertNotNil(MiniSettings.load(d).failed, "why it failed is kept")
+        XCTAssertEqual(MiniSettings.load(d).failed, "the model is flat", "why it failed is kept")
         XCTAssertEqual(MiniSettings.load(d).failedStep, 3)
         XCTAssertEqual(MiniSettings.load(d).notes, [part], "a failed run leaves the print file, and its warnings, as they were")
         let quiet = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/true"))
