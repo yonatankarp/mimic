@@ -248,6 +248,7 @@ final class HelperTests: XCTestCase {
     func testSettingsKeepBothDescriptions() throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
         try MiniSettings.update(folder) { $0.source = .desc; $0.desc = "a dwarf" }
         var raw = try String(contentsOf: folder.appendingPathComponent("settings.json"), encoding: .utf8)
         XCTAssertFalse(raw.contains("descOriginal"), "not improved: the file is what it was before the helper")

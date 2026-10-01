@@ -221,9 +221,10 @@ final class ImportTests: XCTestCase {
     func testStoppingAnImportTrashesIt() throws {
         let fx = try Fixture()
         let spy = TrashSpy()
-        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("slow", "sleep 5")), trash: { spy($0) })
+        let started = fx.root.appendingPathComponent("started").path
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("slow", "touch \(started); sleep 5")), trash: { spy($0) })
         XCTAssertNil(try jobs.importModel(try stl(PrepTests.box(half: [8, 8, 16]), in: fx.root), name: "ogre", sizes: sizes))
-        Thread.sleep(forTimeInterval: 0.3)
+        XCTAssertTrue(eventually { fm.fileExists(atPath: started) }, "print prep never started")
         XCTAssertTrue(jobs.cancel())
         jobs.waitUntilDone()
         XCTAssertEqual(spy.trashed.map(\.lastPathComponent), ["ogre"])

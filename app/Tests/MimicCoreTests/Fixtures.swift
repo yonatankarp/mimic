@@ -1,15 +1,17 @@
 import Foundation
 import ImageIO
+import XCTest
 @testable import MimicCore
 
 /// A throwaway Mimic folder with fake tools: the job runner runs real processes, just not
-/// print prep or the 3D engine.
+/// print prep or the 3D engine. Removed once its test is over.
 struct Fixture {
     let root: URL
     let install: Install
     init() throws {
         root = FileManager.default.temporaryDirectory.appendingPathComponent("mimic-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: root.appendingPathComponent("runs"), withIntermediateDirectories: true)
+        FixtureFolders.add(root)
         install = Install(root: root)
         // The queue's folder is made by the first change to the queue; some tests write a
         // running job's record before any.
@@ -85,6 +87,40 @@ struct Fixture {
         }
         return d
     }
+}
+
+/// Every Fixture's folder, removed once its test is over (setUp, the test and tearDown): a
+/// Fixture is made in many places, none of them with the test at hand to add a teardown to.
+final class FixtureFolders: NSObject, XCTestObservation, @unchecked Sendable {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var folders: [URL] = []
+    nonisolated(unsafe) private static var watching = false
+
+    nonisolated static func add(_ folder: URL) {
+        let first = lock.withLock { () -> Bool in
+            folders.append(folder)
+            defer { watching = true }
+            return !watching
+        }
+        // XCTest runs every test on the main thread.
+        if first { MainActor.assumeIsolated { XCTestObservationCenter.shared.addTestObserver(FixtureFolders()) } }
+    }
+
+    func testCaseDidFinish(_ testCase: XCTestCase) {
+        let done = Self.lock.withLock { defer { Self.folders = [] }; return Self.folders }
+        for f in done { try? FileManager.default.removeItem(at: f) }
+    }
+}
+
+/// Waits up to `timeout` seconds for `done`, looking every 50 ms: for the event itself (a marker
+/// file, a request taken away) rather than a sleep that hopes it happened. False if it never did.
+func eventually(timeout: TimeInterval = 10, _ done: () -> Bool) -> Bool {
+    let until = Date().addingTimeInterval(timeout)
+    while !done() {
+        if Date() > until { return false }
+        usleep(50_000)
+    }
+    return true
 }
 
 final class TrashSpy: @unchecked Sendable {

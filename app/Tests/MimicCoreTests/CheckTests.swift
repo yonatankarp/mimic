@@ -181,7 +181,8 @@ final class CheckTests: XCTestCase {
     /// fall back to the first slicer found.
     func testPickingTheMacsDefaultAppSticks() throws {
         try FileManager.default.createDirectory(at: apps.appendingPathComponent("OrcaSlicer.app"), withIntermediateDirectories: true)
-        let d = UserDefaults(suiteName: UUID().uuidString)!
+        let suite = UUID().uuidString, d = UserDefaults(suiteName: suite)!
+        defer { d.removePersistentDomain(forName: suite) }
         XCTAssertEqual(Slicer.preferred(defaults: d, in: [apps])?.id, "orca")
         d.set(Slicer.macDefault, forKey: "slicer")
         XCTAssertNil(Slicer.preferred(defaults: d, in: [apps]))
