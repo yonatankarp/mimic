@@ -25,6 +25,8 @@ enum AppSheet: Identifiable, Equatable {
     case importModel(URL)
     /// Compare Side by Side: two versions of a mini, by name.
     case compare(String, String)
+    /// Make Another Version, or New 3D Shape: what to change in its picture, if anything (#156).
+    case version(Mini, newShape: Bool)
     var id: String {
         switch self {
         case .make: "make"
@@ -39,6 +41,7 @@ enum AppSheet: Identifiable, Equatable {
         case .duplicate(let m): "duplicate-\(m.name)"
         case .importModel(let u): "import-\(u.path)"
         case .compare(let a, let b): "compare-\(a)-\(b)"
+        case .version(let m, let newShape): "\(newShape ? "new-shape" : "version")-\(m.name)"
         }
     }
 }
@@ -419,18 +422,24 @@ final class AppModel {
 
     func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes, kind: MiniKind = .character,
               project: String? = nil, cartoon: Bool = false, shown: String? = nil, model: EngineModel? = nil, shapeSeed: Int? = nil,
-              sides: [PictureSide: URL] = [:]) throws {
+              sides: [PictureSide: URL] = [:], fixes: [String] = [], fixUsed: String? = nil, checkPicture: Bool = false) throws {
         let chosen = EngineDownload.forMaking(cartoon: cartoon, chosen: model ?? setup.chosen)
-        try start(name) { try $0.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, kind: kind, model: chosen, project: project, cartoon: cartoon, shown: shown, shapeSeed: shapeSeed, sides: sides) }
+        try start(name) {
+            try $0.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, kind: kind, model: chosen, project: project,
+                        cartoon: cartoon, shown: shown, shapeSeed: shapeSeed, sides: sides, fixes: fixes, fixUsed: fixUsed, checkPicture: checkPicture)
+        }
     }
 
     /// Several pictures dropped on New Mini: a mini each, named after its file, all made the same
     /// way, with one note in the job's popover. A picture that can't be used is skipped and named
     /// there. Returns why, in words, when none could be used.
-    func make(pictures: [URL], restyle: Bool, seed: Int, sizes: Sizes, kind: MiniKind, project: String?, cartoon: Bool = false) -> String? {
+    /// `fix`: what to change in each, and the AI helper's rewrite of it (#156).
+    func make(pictures: [URL], restyle: Bool, seed: Int, sizes: Sizes, kind: MiniKind, project: String?, cartoon: Bool = false,
+              fix: String = "", fixUsed: String? = nil) -> String? {
         let done = jobs.makeEach(pictures) { url, name, shown in
             guard Picture(url) != nil else { throw RequestError.noPicture }
-            try self.make(name: name, picture: .image(url), restyle: restyle, seed: seed, sizes: sizes, kind: kind, project: project, cartoon: cartoon, shown: shown)
+            try self.make(name: name, picture: .image(url), restyle: restyle, seed: seed, sizes: sizes, kind: kind, project: project, cartoon: cartoon,
+                          shown: shown, fixes: fix.isEmpty ? [] : [fix], fixUsed: fixUsed, checkPicture: !fix.isEmpty)
         }
         guard let last = done.added.last else { return done.failure.map { plainWords($0) } ?? "Mimic can't read these pictures." }
         let ready = readyIn(last) ?? runningLeft()
@@ -439,18 +448,26 @@ final class AppModel {
     }
 
     /// A sibling of `mini` in its project, from the same picture or description, with a new
-    /// seed; it waits its turn like any other.
-    func makeAnotherVersion(_ mini: Mini) {
+    /// seed; it waits its turn like any other. With a `change`, its picture is redrawn with it
+    /// and it stops for you to check it (#156); `changeUsed` is the AI helper's rewrite.
+    func makeAnotherVersion(_ mini: Mini, change: String = "", changeUsed: String? = nil) {
         let new = Gallery.nextVersionName(install.runs, mini.name)
-        do { try start(new) { try $0.makeAnotherVersion(of: mini.name, as: new).ahead } }
-        catch { problem = plainWords(error, else: "Couldn't make another version. Try again.") }
+        do {
+            try start(new) {
+                try $0.makeAnotherVersion(of: mini.name, as: new, change: change, changeUsed: changeUsed, checkPicture: !change.isEmpty).ahead
+            }
+        } catch { problem = plainWords(error, else: "Couldn't make another version. Try again.") }
     }
 
-    /// A sibling of `mini` from the picture it already has, with only a new 3D shape.
-    func makeNewShape(_ mini: Mini) {
+    /// A sibling of `mini` from the picture it already has, with only a new 3D shape; with a
+    /// `change`, that picture redrawn with it first, as Make Another Version's is.
+    func makeNewShape(_ mini: Mini, change: String = "", changeUsed: String? = nil) {
         let new = Gallery.nextVersionName(install.runs, mini.name)
-        do { try start(new) { try $0.makeNewShape(of: mini.name, as: new).ahead } }
-        catch { problem = plainWords(error, else: "Couldn't make a new 3D shape. Try again.") }
+        do {
+            try start(new) {
+                try $0.makeNewShape(of: mini.name, as: new, change: change, changeUsed: changeUsed, checkPicture: !change.isEmpty).ahead
+            }
+        } catch { problem = plainWords(error, else: "Couldn't make a new 3D shape. Try again.") }
     }
 
     // MARK: Projects
@@ -535,10 +552,20 @@ final class AppModel {
         present { $0.retried(name) }
     }
 
+    /// A mini waiting for its picture to be checked (#156): not waiting in the queue or being made.
+    func pictureToCheck(_ mini: Mini) -> Bool {
+        !mini.finished && waiting(mini.name) == nil && current?.name != mini.name && Pipeline.pictureToCheck(mini.folder, settings: mini.settings)
+    }
+
     /// Build Shape, for a mini whose picture is ready to check (#156): carries on from it.
     func buildShape(_ name: String) throws {
         try start(name) { try $0.retry(name: name) }
         present { $0.retried(name) }
+    }
+
+    /// Build Shape from a menu; a refusal is said as an alert.
+    func buildShape(_ mini: Mini) {
+        do { try buildShape(mini.name) } catch { problem = plainWords(error) }
     }
 
     /// Try Again on a picture ready to check (#156): draws it again with a new variation number.
@@ -549,8 +576,10 @@ final class AppModel {
 
     /// A mini that didn't finish and can be tried again: no print file, not waiting or being
     /// made, and it kept what it was asked for.
+    /// One whose picture is ready to check has Build Shape and its own Try Again instead (#156).
     func canRetry(_ mini: Mini) -> Bool {
         mini.stl == nil && waiting(mini.name) == nil && current?.name != mini.name && mini.settings.requested != nil && !mini.settings.isImported
+            && !Pipeline.pictureToCheck(mini.folder, settings: mini.settings)
     }
 
     /// Try Again from a failed mini's page or menus; a refusal is said as an alert.

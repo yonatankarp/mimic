@@ -108,6 +108,42 @@ final class FixTests: XCTestCase {
         try clear(jobs)
     }
 
+    /// A version made with a change stops for its picture to be checked when asked; one without
+    /// a new picture to check (New 3D Shape keeping its picture) never does.
+    func testAVersionWithAChangeStopsForItsPicture() throws {
+        let fx = try Fixture(); try fx.modelFiles()
+        let jobs = try busy(fx), runs = fx.install.runs
+        try jobs.make(name: "knight", picture: .image(try fx.picture()), restyle: true, seed: 7, sizes: sizes, model: EngineDownload.standard)
+        let knight = try XCTUnwrap(Gallery.folder(runs, "knight"))
+        try fm.copyItem(at: try fx.picture(), to: knight.appendingPathComponent("source.png"))
+        let checked = try jobs.makeAnotherVersion(of: "knight", change: "no helmet", checkPicture: true).name
+        XCTAssertEqual(MiniSettings.load(try XCTUnwrap(Gallery.folder(runs, checked))).checkPicture, true)
+        XCTAssertNil(MiniSettings.load(try XCTUnwrap(Gallery.folder(runs, try jobs.makeAnotherVersion(of: "knight").name))).checkPicture)
+        XCTAssertNil(MiniSettings.load(try XCTUnwrap(Gallery.folder(runs, try jobs.makeNewShape(of: "knight", checkPicture: true).name))).checkPicture,
+                     "its picture is copied, so there's nothing to check")
+        try clear(jobs)
+    }
+
+    /// Edit & Make Again is filled in with the fixes a mini had, and the pictures its step 1
+    /// made, which a new change starts from.
+    func testEditAndMakeAgainKnowsTheFixes() throws {
+        let fx = try Fixture(); try fx.modelFiles()
+        let jobs = try busy(fx), runs = fx.install.runs
+        try jobs.make(name: "knight", picture: .image(try fx.picture()), restyle: true, seed: 7, sizes: sizes, model: EngineDownload.standard,
+                      fixes: ["close the cape"], fixUsed: "Close the cape at the front.")
+        let mini = { Gallery.list(runs).first { $0.name == "knight" }! }
+        var form = try XCTUnwrap(MakeForm.again(mini(), install: fx.install, card: SizeCard()))
+        XCTAssertEqual(form.fixes, ["close the cape"])
+        XCTAssertEqual(form.fixUsed, "Close the cape at the front.")
+        XCTAssertNil(form.drawn, "no picture made yet")
+        let knight = try XCTUnwrap(Gallery.folder(runs, "knight"))
+        try fm.copyItem(at: try fx.picture(), to: knight.appendingPathComponent("source.png"))
+        form = try XCTUnwrap(MakeForm.again(mini(), install: fx.install, card: SizeCard()))
+        XCTAssertEqual(form.drawn?.lastPathComponent, "source.png")
+        XCTAssertEqual(form.picture?.lastPathComponent, "upload.img", "without a change it's made from the same picture as before")
+        try clear(jobs)
+    }
+
     /// A description mini changed with a fix becomes one made from its picture.
     func testAFixOnADescriptionMiniStartsFromItsPicture() throws {
         let fx = try Fixture(); try fx.modelFiles()

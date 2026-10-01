@@ -11,10 +11,11 @@ extension JobRunner {
     /// `change` is what to change in the picture, as typed (#156), and `changeUsed` the AI
     /// helper's rewrite of it: the new version starts from the picture this one's step 1 made,
     /// redrawn with that change, and lists it after this one's fixes, so fixes add up.
+    /// `checkPicture`: it stops once its picture is made, for the person to check it.
     @discardableResult
     public func makeAnotherVersion(of name: String, as newName: String? = nil, seed: Int? = nil,
-                                   change: String? = nil, changeUsed: String? = nil) throws -> (name: String, ahead: Int?) {
-        try version(of: name, as: newName, change: change, changeUsed: changeUsed) { settings in
+                                   change: String? = nil, changeUsed: String? = nil, checkPicture: Bool = false) throws -> (name: String, ahead: Int?) {
+        try version(of: name, as: newName, change: change, changeUsed: changeUsed, checkPicture: checkPicture) { settings in
             (seed: Self.newSeed(seed, not: settings.seed ?? 42), shapeSeed: nil, drawn: nil)
         }
     }
@@ -26,12 +27,12 @@ extension JobRunner {
     /// `change`, that picture is redrawn with it first, as Make Another Version's is (#156).
     @discardableResult
     public func makeNewShape(of name: String, as newName: String? = nil, seed: Int? = nil,
-                             change: String? = nil, changeUsed: String? = nil) throws -> (name: String, ahead: Int?) {
+                             change: String? = nil, changeUsed: String? = nil, checkPicture: Bool = false) throws -> (name: String, ahead: Int?) {
         guard let folder = Gallery.folder(install.runs, name) else { throw RequestError.notFound }
         if MiniSettings.load(folder).isImported { throw RequestError.imported(name) }
         let drawn = folder.appendingPathComponent("source.png")
         guard FileManager.default.fileExists(atPath: drawn.path) else { throw RequestError.noDrawing(name) }
-        return try version(of: name, as: newName, change: change, changeUsed: changeUsed) { settings in
+        return try version(of: name, as: newName, change: change, changeUsed: changeUsed, checkPicture: checkPicture) { settings in
             let old = settings.seed ?? 42
             return (seed: old, shapeSeed: Self.newSeed(seed, not: settings.shapeSeed ?? old), drawn: drawn)
         }
@@ -48,7 +49,7 @@ extension JobRunner {
     /// A sibling of `name` in its project, from its saved source and settings, with the seeds
     /// (and picture) `seeds` picks from them. Named "<name>-2" (then -3…) unless `as` says. With
     /// a `change`, from the pictures `name`'s step 1 made instead, redrawn with it (#156).
-    private func version(of name: String, as newName: String?, change: String?, changeUsed: String?,
+    private func version(of name: String, as newName: String?, change: String?, changeUsed: String?, checkPicture: Bool,
                          _ seeds: (MiniSettings) -> (seed: Int, shapeSeed: Int?, drawn: URL?)) throws -> (name: String, ahead: Int?) {
         guard let folder = Gallery.folder(install.runs, name) else { throw RequestError.notFound }
         if MiniSettings.load(folder).isImported { throw RequestError.imported(name) }
@@ -75,7 +76,8 @@ extension JobRunner {
                              kind: settings.kind ?? .character, model: model, project: project,
                              versionOf: settings.versionOf ?? name, cartoon: settings.cartoon == true,
                              shown: settings.shownName(folder: name).flatMap { Rules.shownName(carrying: $0, to: new) },
-                             shapeSeed: shapeSeed, drawn: drawn, sides: sides, fixes: fixes, fixUsed: fixUsed)
+                             shapeSeed: shapeSeed, drawn: drawn, sides: sides, fixes: fixes, fixUsed: fixUsed,
+                             checkPicture: checkPicture && drawn == nil)
         return (new, ahead)
     }
 
@@ -193,6 +195,13 @@ public struct MakeForm: Equatable, Sendable {
     /// The 3D model it was made with, when it isn't a cartoon and that model is here. Nil is
     /// this Mac's choice.
     public var model: String?
+    /// What was changed in its picture before (#156), and the last as the AI helper put it.
+    public var fixes: [String] = []
+    public var fixUsed: String?
+    /// The pictures its step 1 made (front, and back and sides): what a new fix starts from,
+    /// as Make Another Version's does. Nil when there are none yet.
+    public var drawn: URL?
+    public var drawnSides: [PictureSide: URL] = [:]
 
     /// The tour's sample: a picture and a name, the rest as New Mini starts.
     public init(picture: URL, name: String, card: SizeCard) {
@@ -218,6 +227,8 @@ public struct MakeForm: Equatable, Sendable {
             form.fromPicture = false; form.picture = nil
             form.description = original ?? text; form.improved = original == nil ? nil : text
         }
+        form.fixes = s.fixes ?? []; form.fixUsed = s.fixUsed
+        if let drawn = mini.source { form.drawn = drawn; form.drawnSides = JobRunner.madeSidePictures(mini.folder, s) }
         form.cartoon = s.cartoon == true
         form.seed = s.seed ?? 42
         form.shapeSeed = s.shapeSeed

@@ -80,9 +80,15 @@ at the bottom of the list (⇧⌘N), then drag minis onto it or right-click a mi
 Project**. New Mini puts a mini in the project you're looking at, or any one you pick.
 Right-click a project → **Resize All…** to give every mini in it a new size at once.
 
-A small detail came out as a blob? Right-click the mini → **Make Another Version**: the same
+A small detail came out as a blob? Right-click the mini → **Make Another Version…**: the same
 picture and settings with a different variation number, next to it. Line up two or three:
 the mini's page shows them side by side, and **Keep This One** moves the others to the Trash.
+
+Something in the picture to fix, like a cape hiding the arms or a sword cut off? Say it in
+**What to change**, in New Mini or Make Another Version: the picture is redrawn with your
+change, and Mimic shows it to you before building the 3D shape (**Build Shape**, or **Try
+Again** to draw it again). Each version made this way starts from the one before, so changes
+add up, and the mini's details list them under Made From.
 
 Want the same mini at two sizes, say one for the table and one for the shelf? Right-click it →
 **Duplicate…**, name the copy, and choose its size. Only the size is made again: about a minute.

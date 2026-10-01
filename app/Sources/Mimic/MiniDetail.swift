@@ -22,6 +22,8 @@ struct MiniDetail: View {
     @State private var offerName: String?
     /// What the viewer measured in the print file.
     @State private var measured: Measured?
+    /// Why Build Shape or Try Again on its picture couldn't start.
+    @State private var checkProblem: String?
     /// On the model, so View → Show/Hide Details always names what it will do.
     private var showDetails: Bool { model.showDetails }
 
@@ -91,6 +93,8 @@ struct MiniDetail: View {
                     Button("Show Progress") { model.showWindow(); model.jobPopover = true }
                 }
             }
+        } else if model.pictureToCheck(mini), let source = mini.source {
+            checkPage(source)
         } else if model.canRetry(mini) {
             // Didn't finish (#78): why, as saved when it failed, and Try Again.
             let settings = mini.settings
@@ -121,6 +125,37 @@ struct MiniDetail: View {
         } else {
             ContentUnavailableView("This mini isn't finished yet.", systemImage: "hourglass")
         }
+    }
+
+    /// Its picture, redrawn with a change, for you to check before the 3D shape is built (#156).
+    private func checkPage(_ source: URL) -> some View {
+        VStack(spacing: 16) {
+            // By the picture's own time: Try Again draws a new one in its place.
+            Thumbnail(url: source, version: (try? FileManager.default.attributesOfItem(atPath: source.path))?[.modificationDate] as? Date ?? mini.madeAt)
+                .frame(maxWidth: 480, maxHeight: 480)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .accessibilityLabel("The picture of \(mini.displayName)")
+            Text("Check the picture").font(.title2.bold())
+            Text("If the change came out right, build the 3D shape from it. If not, draw it again.")
+                .foregroundStyle(.secondary).multilineTextAlignment(.center)
+            if let checkProblem { Text(checkProblem).font(.callout).foregroundStyle(.red) }
+            HStack {
+                Button("Try Again") { check { try model.redrawPicture(mini.name) } }
+                    .help("Draws the picture again with a new variation number")
+                Button("Build Shape") { check { try model.buildShape(mini.name) } }
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
+                    .help("Makes the 3D shape from this picture")
+            }
+            .disabled(model.requiredProblem != nil)
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func check(_ start: () throws -> Void) {
+        checkProblem = nil
+        do { try start() } catch { checkProblem = model.plainWords(error) }
     }
 
     /// What the run that made it wants you to know, over the view where it can't be missed: kept
@@ -320,6 +355,12 @@ struct MiniDetail: View {
                     Text(description).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                 }
                 ForEach(made.rows, id: \.label) { LabeledContent($0.label, value: $0.value) }
+                // What was changed in its picture, oldest first (#156): what tells versions apart.
+                ForEach(Array(made.fixes.enumerated()), id: \.offset) { i, fix in
+                    LabeledContent(i == 0 ? "Changed" : "Then") {
+                        Text(fix).textSelection(.enabled).multilineTextAlignment(.trailing).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
                 if mini.settings.isImported {
                     Text(AnotherVersionButton.imported).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }

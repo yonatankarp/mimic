@@ -41,6 +41,18 @@ struct MakeView: View {
     @State private var madeWith: String?
     /// `again`'s own number for its 3D shape (New 3D Shape), while its variation number is kept.
     @State private var shapeSeed: Int?
+    /// What to change in the picture (#156), and what was changed before in the mini it was
+    /// filled in from, with the last as the AI helper put it.
+    @State private var fix = ""
+    @State private var earlierFixes: [String] = []
+    @State private var earlierFixUsed: String?
+    /// The pictures `again`'s step 1 made: a change starts from these, as Make Another
+    /// Version's does. Forgotten once another picture is chosen.
+    @State private var drawn: URL?
+    @State private var drawnSides: [PictureSide: URL] = [:]
+    /// The AI helper is rewriting the change, before it's made; Cancel stops it making it.
+    @State private var writing = false
+    @State private var writingTask: Task<Void, Never>?
 
     init(room: CGSize, form: MakeForm? = nil, again: Mini? = nil) {
         self.room = room
@@ -64,6 +76,10 @@ struct MakeView: View {
         _project = State(initialValue: ProjectChoice(form.project))
         _madeWith = State(initialValue: form.model)
         _shapeSeed = State(initialValue: form.shapeSeed)
+        _earlierFixes = State(initialValue: form.fixes)
+        _earlierFixUsed = State(initialValue: form.fixUsed)
+        _drawn = State(initialValue: form.drawn)
+        _drawnSides = State(initialValue: form.drawnSides)
     }
     @State private var message: String?
     @State private var messageIsError = false
@@ -113,6 +129,7 @@ struct MakeView: View {
             Divider()
             makeBar
         }
+        .onDisappear { writingTask?.cancel() }  // closed while the helper writes: nothing is made
         .onAppear {
             // The project you're looking at: the one New Mini was asked from, else the selected
             // mini's. Edit & Make Again keeps the mini's own.
@@ -230,6 +247,9 @@ struct MakeView: View {
         HStack(alignment: .firstTextBaseline) {
             if let reason = model.requiredProblem {
                 CantStart(reason: reason)
+            } else if writing {
+                ProgressView().controlSize(.small)
+                Text("Writing the change…").foregroundStyle(.secondary)
             } else if let message, messageIsError {
                 Text(message).foregroundStyle(.red).help(messageDetail ?? "")
             } else if let missing {
@@ -240,11 +260,11 @@ struct MakeView: View {
                 Label(timing, systemImage: "timer").foregroundStyle(.secondary)
             }
             Spacer()
-            Button("Cancel") { TourGuide.shared.newMiniCancelled(); model.sheet = nil }.keyboardShortcut(.cancelAction)
+            Button("Cancel") { writingTask?.cancel(); TourGuide.shared.newMiniCancelled(); model.sheet = nil }.keyboardShortcut(.cancelAction)
             Button("Make Mini") { make() }
                 .help("Takes \(JobProgress.about(estimate.total))\(estimate.learned ? " on this Mac" : ""); keep using your Mac meanwhile")
                 .keyboardShortcut(.defaultAction)
-                .disabled(model.requiredProblem != nil || takenName != nil || missing != nil)
+                .disabled(model.requiredProblem != nil || takenName != nil || missing != nil || writing)
                 .tourCallout(.make, arrow: .top)
         }
         .padding(16)
@@ -312,6 +332,11 @@ struct MakeView: View {
             }
             .disabled(!health.drawThingsReady || cartoonOn)
             .help("Redraws your picture as a grey statue with the same pose")
+            FixBox(text: $fix, earlier: earlierFixes, kind: card.kind, turnsSculptOn: !(restyle || cartoonOn))
+                .disabled(!health.drawThingsReady)
+            if let again, drawn != nil, !trimmedFix.isEmpty {
+                Text("Starts from the picture \(again.displayName) was drawn as.").font(.callout).foregroundStyle(.secondary)
+            }
             if !health.drawThingsReady { needsDrawThings("The grey sculpt needs Draw Things.") } else { opensWhenNeeded }
         }
     }
@@ -392,6 +417,7 @@ struct MakeView: View {
     private func takeSide(_ side: PictureSide, _ url: URL) {
         guard let p = Picture(url) else { return say("That picture can't be read.", error: true) }
         sides[side] = p
+        drawn = nil  // a change starts from the pictures chosen now
         message = nil
     }
 
@@ -436,6 +462,8 @@ struct MakeView: View {
         guard let p = Picture(url) else { return say("That picture can't be read.", error: true) }
         picture = p
         start = .picture
+        // Another picture has none of the changes the mini it was filled in from had.
+        earlierFixes = []; earlierFixUsed = nil; drawn = nil
         message = nil
         if name.isEmpty {
             if let unnamed { say("\(unnamed) Give your mini a name."); nameFocused = true }
@@ -489,8 +517,12 @@ struct MakeView: View {
     }
 
     private var estimate: Estimate {
-        model.estimateNew(drawn: start == .description || sculpt, sizes: card.sizes, cartoon: cartoonOn, pictures: 1 + sidesUsed.count)
+        model.estimateNew(drawn: start == .description || sculpt || changing, sizes: card.sizes, cartoon: cartoonOn, pictures: 1 + sidesUsed.count)
     }
+
+    private var trimmedFix: String { fix.trimmingCharacters(in: .whitespacesAndNewlines) }
+    /// A picture with a change typed: it's redrawn with it (#156).
+    private var changing: Bool { start == .picture && !trimmedFix.isEmpty }
 
     /// "About 8 minutes on this Mac", or when it would wait: how long until it's ready.
     private var timing: String {
@@ -514,25 +546,50 @@ struct MakeView: View {
         if slug.isEmpty { return "Give your mini a name" }
         if project == .new && Rules.projectName(newProjectName) == nil { return "Name the new project" }
         if start == .description && !health.drawThingsReady { return "A description needs Draw Things first" }
+        if changing && !health.drawThingsReady { return "A change needs Draw Things first" }
         return nil
     }
 
+    /// Make Mini: with a change and the AI helper set up, once the helper has rewritten it.
     private func make() {
-        guard missing == nil else { return }
+        guard missing == nil, !writing else { return }
+        guard changing, FixWriter.helperOn else { return make(fixUsed: nil) }
+        writing = true
+        writingTask = Task {
+            let used = await FixWriter.rewrite(trimmedFix, kind: card.kind)
+            writing = false
+            if !Task.isCancelled { make(fixUsed: used) }
+        }
+    }
+
+    /// `fixUsed`: the AI helper's rewrite of the change typed, or nil to use it as typed.
+    private func make(fixUsed used: String?) {
         let source: PictureSource
+        var pictureSides = sidesUsed
         switch start {
         case .picture:
             guard let picture else { return }
-            source = .image(picture.url)
+            // A change starts from the picture the mini it was filled in from was drawn as.
+            if changing, let drawn {
+                source = .image(drawn)
+                pictureSides = makingWith.multiView ? drawnSides : [:]
+            } else {
+                source = .image(picture.url)
+            }
         case .description:
             let better = improved?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             source = better.isEmpty ? .description(trimmedDescription) : .description(better, original: trimmedDescription)
         }
+        // A new change comes after the earlier ones its picture has; from the picture it was
+        // given instead (one that wasn't drawn yet), it takes the place of the last.
+        let fixes = start == .description ? [] : !changing ? earlierFixes
+            : (drawn != nil ? earlierFixes : Array(earlierFixes.dropLast())) + [trimmedFix]
         do {
             if project == .new { project = .existing(try model.createProject(newProjectName)) }
             try model.make(name: slug, picture: source, restyle: start == .picture && sculpt,
                            seed: seed, sizes: card.sizes, kind: card.kind, project: project.name, cartoon: cartoonOn, shown: name,
-                           model: madeWith.flatMap { EngineDownload.model($0) }, shapeSeed: shapeSeed, sides: sidesUsed)
+                           model: madeWith.flatMap { EngineDownload.model($0) }, shapeSeed: shapeSeed, sides: pictureSides,
+                           fixes: fixes, fixUsed: changing ? used : earlierFixUsed, checkPicture: changing)
         } catch {
             say(model.plainWords(error), error: true)
             messageDetail = "\(error)"
@@ -544,13 +601,21 @@ struct MakeView: View {
     private func make(_ pictures: [URL]) {
         guard model.requiredProblem == nil else { return }
         if project == .new && Rules.projectName(newProjectName) == nil { return say("Name the new project, then drop the pictures again.", error: true) }
-        do {
-            if project == .new { project = .existing(try model.createProject(newProjectName)) }
-            if let why = model.make(pictures: pictures, restyle: sculpt, seed: seed, sizes: card.sizes, kind: card.kind,
-                                    project: project.name, cartoon: cartoonOn) { say(why, error: true) }
-        } catch {
-            say(model.plainWords(error), error: true)
-            messageDetail = "\(error)"
+        let typed = trimmedFix
+        if !typed.isEmpty && !health.drawThingsReady { return say("A change needs Draw Things first.", error: true) }
+        writing = !typed.isEmpty && FixWriter.helperOn
+        writingTask = Task {
+            let used = writing ? await FixWriter.rewrite(typed, kind: card.kind) : nil
+            writing = false
+            guard !Task.isCancelled else { return }
+            do {
+                if project == .new { project = .existing(try model.createProject(newProjectName)) }
+                if let why = model.make(pictures: pictures, restyle: sculpt, seed: seed, sizes: card.sizes, kind: card.kind,
+                                        project: project.name, cartoon: cartoonOn, fix: typed, fixUsed: used) { say(why, error: true) }
+            } catch {
+                say(model.plainWords(error), error: true)
+                messageDetail = "\(error)"
+            }
         }
     }
 

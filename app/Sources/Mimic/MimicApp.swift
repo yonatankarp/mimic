@@ -125,6 +125,10 @@ struct MiniCommands: Commands {
                     .keyboardShortcut("r")
                     .disabled(mini?.hasModel != true || model.requiredProblem != nil || !free || mini.flatMap { model.waiting($0.name) } != nil)
             }
+            if let mini, model.pictureToCheck(mini) {
+                Button("Build Shape") { model.buildShape(mini) }
+                    .disabled(model.requiredProblem != nil || !free)
+            }
             if let mini, model.canRetry(mini) {
                 Button("Try Again") { model.tryAgain(mini) }
                     .disabled(model.requiredProblem != nil || !free)
@@ -140,8 +144,8 @@ struct MiniCommands: Commands {
                 NewShapeButton(mini: mini, showsIcon: false).environment(model)
                 EditAndMakeAgainButton(mini: mini, showsIcon: false).environment(model)
             } else {
-                Button("Make Another Version") {}.disabled(true)
-                Button("New 3D Shape") {}.disabled(true)
+                Button("Make Another Version…") {}.disabled(true)
+                Button("New 3D Shape…") {}.disabled(true)
                 Button("Edit & Make Again…") {}.disabled(true)
             }
             if let mini, free { DuplicateButton(mini: mini, showsIcon: false).environment(model) } else { Button("Duplicate…") {}.disabled(true) }
