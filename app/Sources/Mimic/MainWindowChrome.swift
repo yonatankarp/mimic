@@ -52,6 +52,7 @@ struct MainWindowChrome: ViewModifier {
                 case .duplicate(let mini): DuplicateSheet(mini: mini)
                 case .importModel(let file): ImportSheet(file: file, room: room)
                 case .compare(let a, let b): CompareSheet(names: [a, b], room: room)
+                case .version(let mini, let newShape): VersionSheet(mini: mini, newShape: newShape)
                 }
             }
             .modifier(JobQuestions())

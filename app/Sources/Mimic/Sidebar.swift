@@ -419,7 +419,7 @@ struct GalleryRow: View {
     /// made only for a mini from before its sizes were kept.
     private var line: String {
         if let status { return status }
-        if !mini.finished { return "Not finished" }
+        if !mini.finished { return Pipeline.pictureToCheck(mini.folder, settings: mini.settings) ? "Picture ready to check" : "Not finished" }
         return mini.settings.made.map(PrintTips.shortLine) ?? mini.madeAt.formatted(.relative(presentation: .named))
     }
 
@@ -451,11 +451,11 @@ struct AnotherVersionButton: View {
     var showsIcon = true
     @Environment(AppModel.self) private var model
     var body: some View {
-        Button { model.makeAnotherVersion(mini) } label: {
-            if showsIcon { Label("Make Another Version", systemImage: "square.on.square") } else { Text("Make Another Version") }
+        Button { model.sheet = .version(mini, newShape: false) } label: {
+            if showsIcon { Label("Make Another Version…", systemImage: "square.on.square") } else { Text("Make Another Version…") }
         }
             .help(mini.settings.isImported ? Self.imported
-                  : "Makes it again from its picture or description, with a new variation number")
+                  : "Makes it again with a new variation number, with a change to its picture if you like")
             .disabled(model.requiredProblem != nil || !JobRunner.canMakeAnotherVersion(mini))
     }
 }
@@ -466,11 +466,11 @@ struct NewShapeButton: View {
     var showsIcon = true
     @Environment(AppModel.self) private var model
     var body: some View {
-        Button { model.makeNewShape(mini) } label: {
-            if showsIcon { Label("New 3D Shape", systemImage: "cube") } else { Text("New 3D Shape") }
+        Button { model.sheet = .version(mini, newShape: true) } label: {
+            if showsIcon { Label("New 3D Shape…", systemImage: "cube") } else { Text("New 3D Shape…") }
         }
             .help(mini.settings.isImported ? AnotherVersionButton.imported
-                  : "Keeps this picture and makes only the 3D shape again")
+                  : "Keeps this picture, or redraws it with a change, and makes the 3D shape again")
             .disabled(model.requiredProblem != nil || !JobRunner.canMakeNewShape(mini))
     }
 }

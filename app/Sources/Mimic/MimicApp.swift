@@ -140,8 +140,8 @@ struct MiniCommands: Commands {
                 NewShapeButton(mini: mini, showsIcon: false).environment(model)
                 EditAndMakeAgainButton(mini: mini, showsIcon: false).environment(model)
             } else {
-                Button("Make Another Version") {}.disabled(true)
-                Button("New 3D Shape") {}.disabled(true)
+                Button("Make Another Version…") {}.disabled(true)
+                Button("New 3D Shape…") {}.disabled(true)
                 Button("Edit & Make Again…") {}.disabled(true)
             }
             if let mini, free { DuplicateButton(mini: mini, showsIcon: false).environment(model) } else { Button("Duplicate…") {}.disabled(true) }
