@@ -628,9 +628,8 @@ enum CLI {
         setvbuf(stdout, nil, _IOLBF, 0)  // prep.log shows each step as it happens
         do {
             let options = try PrepOptions.parse(args)
-            let result = try Prep.run(options) { print($0) }
+            let result = try Prep.run(options, views: true) { print($0) }
             result.lines.forEach { print($0) }
-            try Render.views(result.mesh, besides: URL(fileURLWithPath: options.stl))
             return 0
         } catch {
             return fail(Prep.failure + "\(error)")
