@@ -129,7 +129,7 @@ The app is also a `mimic` command, with the same engine. To add it to your Termi
 for your Mac password once). Finish the app's first-launch download first: `make` and `retry` need it.
 
 ```bash
-mimic make dwarf-cleric "dwarf cleric, warhammer held against chest"
+mimic make "Dwarf Cleric" "dwarf cleric, warhammer held against chest"  # any name, as in the app
 mimic make tiefling --image art.png --restyle --height 38 --nozzle 0.2
 mimic resize tiefling --height 32 --base 25
 mimic make teapot "a round teapot with a curved spout" --object --size 80

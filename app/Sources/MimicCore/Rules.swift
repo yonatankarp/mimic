@@ -43,6 +43,14 @@ public enum Rules {
         return one.isEmpty ? nil : String(one.prefix(64))
     }
 
+    /// A name given to `mimic make` or `mimic duplicate`, taken as the app takes a typed one:
+    /// "Élodie" is the folder "elodie", shown as "Élodie". A folder-style name ("dwarf-cleric")
+    /// keeps no typed name, so it's shown as before ("Dwarf Cleric"). Nil when nothing is left.
+    public static func typedName(_ typed: String) -> (folder: String, shown: String?)? {
+        guard let shown = shownName(typed) else { return nil }
+        return (folderName(shown), isValidName(typed) ? nil : shown)
+    }
+
     /// The name to show for a picture's file: its own, as it's spelled ("Élodie" stays "Élodie"),
     /// dashes and underscores as spaces, and words capitalised when it has no capitals at all
     /// ("dwarf-cleric" → "Dwarf Cleric", as before).

@@ -6,8 +6,8 @@ import UserNotifications
 enum CLI {
     static let usage = """
     usage:
-      mimic make <name> "<description>" [--improve] [options]
-      mimic make <name> --image <picture> [--back <picture>] [--left <picture>] [--right <picture>] [--restyle] [options]
+      mimic make "<name>" "<description>" [--improve] [options]
+      mimic make "<name>" --image <picture> [--back <picture>] [--left <picture>] [--right <picture>] [--restyle] [options]
       mimic make-another <name> [--new-shape] [--seed N]
       mimic duplicate <name> --as "<new name>"
       mimic resize <name> [options]
@@ -96,8 +96,9 @@ enum CLI {
         case "duplicate":
             guard rest.count == 3, !rest[0].hasPrefix("-"), rest[1] == "--as" else { return fail(usage) }
             // As typed, like a name in the app: "Raven Display" is the folder raven-display.
-            let typed = Rules.shownName(rest[2]), new = Rules.folderName(rest[2])
-            do { try JobRunner(install: install).duplicate(rest[0], as: new, shown: Rules.isValidName(rest[2]) ? nil : typed) }
+            guard let given = Rules.typedName(rest[2]) else { return fail("Give the copy a name.") }
+            let new = given.folder
+            do { try JobRunner(install: install).duplicate(rest[0], as: new, shown: given.shown) }
             catch { return fail("\(error)") }
             print(JobRunner(install: install).duplicatedSaying(rest[0], as: new))
             return 0
@@ -153,7 +154,10 @@ enum CLI {
             guard let of = rest.first, !of.hasPrefix("-") else { return fail(usage) }
             // make-another makes a new mini, next to `of`; import names it after its file, `of`.
             let imported = args[0] == "import" ? ModelImport.names(for: URL(fileURLWithPath: of), in: install.runs) : nil
-            let name = args[0] == "make-another" ? Gallery.nextVersionName(install.runs, of) : imported?.folder ?? of
+            // make takes a name as the app does: "Élodie" is the folder elodie, shown as typed.
+            let typed = args[0] == "make" ? Rules.typedName(of) : nil
+            if args[0] == "make" && typed == nil { return fail("Give the mini a name.") }
+            let name = args[0] == "make-another" ? Gallery.nextVersionName(install.runs, of) : imported?.folder ?? typed?.folder ?? of
             // Setup downloads the engine in the app, where it can show its progress. Resize and
             // import only run print prep.
             guard args[0] == "resize" || args[0] == "import" || FileManager.default.isExecutableFile(atPath: install.trellisCLI.path) else {
@@ -250,7 +254,8 @@ enum CLI {
                     else { return fail(usage) }
                     let into = try projectName.map { try project($0, install) }
                     ahead = try jobs.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes,
-                                          kind: object ? .object : .character, model: model, project: into, sides: sides)
+                                          kind: object ? .object : .character, model: model, project: into, shown: typed?.shown,
+                                          sides: sides)
                 case "make-another":
                     if newShape {
                         ahead = try jobs.makeNewShape(of: of, as: name, seed: seedGiven ? seed : nil).ahead

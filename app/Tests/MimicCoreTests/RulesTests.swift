@@ -17,6 +17,21 @@ final class RulesTests: XCTestCase {
         XCTAssertTrue(Rules.isValidName(Rules.slug("A Name From A Description, Maybe Long")))
     }
 
+    /// `mimic make` takes any name the app takes (#128): it used the name as the folder, so
+    /// "Élodie" was refused as a bad name.
+    func testNamesGivenInTerminal() {
+        XCTAssertEqual(Rules.typedName("Élodie")?.folder, "elodie")
+        XCTAssertEqual(Rules.typedName("Élodie")?.shown, "Élodie")
+        XCTAssertEqual(Rules.typedName("  D&D   Bard ")?.folder, "d-d-bard")
+        XCTAssertEqual(Rules.typedName("  D&D   Bard ")?.shown, "D&D Bard")
+        XCTAssertEqual(Rules.typedName("dwarf-cleric")?.folder, "dwarf-cleric")
+        XCTAssertNil(Rules.typedName("dwarf-cleric")?.shown, "a folder-style name is shown as before")
+        XCTAssertNil(Rules.typedName("   "))
+        for typed in ["Élodie", "Дракон", "Dwarf Cleric", "🐉", "dwarf-cleric"] {
+            XCTAssertTrue(Rules.isValidName(Rules.typedName(typed)?.folder ?? ""), typed)
+        }
+    }
+
     /// A typed name's folder is never empty (#87): the plain slug made "Élodie" "lodie" and
     /// "Дракон" nothing at all, which blocked Make.
     func testFolderNamesForTypedNames() {
