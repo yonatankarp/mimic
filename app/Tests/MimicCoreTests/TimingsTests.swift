@@ -73,7 +73,7 @@ final class TimingsTests: XCTestCase {
         ]
         let e = Estimator.estimate(make, history: history, machine: mac)
         XCTAssertTrue(e.learned)
-        XCTAssertEqual(e.steps, [1: 50, 2: 300, 3: 6])
+        XCTAssertEqual(e.steps, [.picture: 50, .shape: 300, .print: 6])
         // Only two TRELLIS.2 makes: its 3D step is still the fixed one, the other steps learned.
         let t = Estimator.estimate(JobShape(job: .generate, model: "trellis2-q8", drawn: true, nozzle: "0.4", height: 32), history: history, machine: mac)
         XCTAssertFalse(t.learned)
@@ -103,12 +103,12 @@ final class TimingsTests: XCTestCase {
             record("resize", steps: [3: 21], nozzle: "0.2", height: 90),
         ]
         let small = Estimator.estimate(JobShape(job: .prep, model: "pixal3d-sv", drawn: false, nozzle: "0.4", height: 32), history: history, machine: mac)
-        XCTAssertEqual(small.steps, [3: 6])
+        XCTAssertEqual(small.steps, [.print: 6])
         XCTAssertTrue(small.learned)
         let big = Estimator.estimate(JobShape(job: .prep, model: "pixal3d-sv", drawn: false, nozzle: "0.2", height: 100), history: history, machine: mac)
-        XCTAssertEqual(big.steps, [3: 21])
+        XCTAssertEqual(big.steps, [.print: 21])
         let unlike = Estimator.estimate(JobShape(job: .prep, model: "pixal3d-sv", drawn: false, nozzle: "0.6", height: 54), history: history, machine: mac)
-        XCTAssertEqual(unlike.steps, [3: 13.5], "nothing similar: every print prep on this Mac")
+        XCTAssertEqual(unlike.steps, [.print: 13.5], "nothing similar: every print prep on this Mac")
     }
 
     /// Time left: the rest of this step (none once it's over its time) and every step after.
