@@ -39,6 +39,28 @@ final class MiniActionsTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: maker.queue.stopFile.path))
     }
 
+    /// A stopped new mini's folder goes to the Trash, and with it the name it was given: it's
+    /// named as typed all the same, not "Elodie The Druid" from its folder (#166).
+    func testAStoppedMiniIsNamedAsTyped() throws {
+        let fx = try Fixture()
+        let started = fx.root.appendingPathComponent("started").path
+        let engine = try fx.script("fake-engine", "touch \(started); sleep 60 & wait")
+        try fx.modelFiles()
+        let maker = JobRunner(install: fx.install, tools: fx.tools(mimic: engine), trash: { try FileManager.default.removeItem(at: $0) })
+        let terminal = JobRunner(install: fx.install, tools: fx.tools())
+        try maker.make(name: "elodie-the-druid", picture: .image(try fx.picture()), restyle: false, seed: 1, sizes: sizes,
+                       model: EngineDownload.standard, shown: "Élodie the Druid")
+        for _ in 0..<100 where !FileManager.default.fileExists(atPath: started) { usleep(50_000) }
+
+        guard case .stopped(let s) = terminal.stopElsewhere(timeout: 10) else { return XCTFail("the Mimic making it didn't stop it") }
+        maker.waitUntilDone()
+        let runs = fx.install.runs
+        XCTAssertNil(Gallery.folder(runs, "elodie-the-druid"), "a stopped new mini goes to the Trash")
+        XCTAssertEqual(Mini.displayName("elodie-the-druid", runs: runs), "Elodie The Druid", "the folder is gone, so it can't name it")
+        XCTAssertEqual(s.displayName(runs: runs), "Élodie the Druid", "mimic stop")
+        XCTAssertEqual(maker.status?.displayName(runs: runs), "Élodie the Druid", "Mimic's toolbar and job popover")
+    }
+
     /// Unanswered (a Mimic from before 0.9.0), the request is taken back, so it can't stop a later
     /// job of the same name.
     func testAnUnansweredStopIsTakenBack() throws {
