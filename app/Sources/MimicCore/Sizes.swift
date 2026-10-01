@@ -59,6 +59,18 @@ public struct Sizes: Equatable, Sendable {
         if let magnet { out += ["--magnet", magnet.rawValue] }
         return out
     }
+
+    /// A resize's sizes: what wasn't given is kept from the sizes the mini was made with, as the
+    /// app's Resize does. A hex mini on a stone floor with a magnet, made for a 0.2 mm nozzle,
+    /// stays that. The magnet is given even as none, so it says so; a nozzle is given when set.
+    public func resizing(_ was: Sizes?, shapeGiven: Bool, styleGiven: Bool, magnetGiven: Bool) -> Sizes {
+        var out = self
+        if !shapeGiven, let s = was?.shape { out.shape = s }
+        if !styleGiven, let s = was?.style { out.style = s }
+        if !magnetGiven { out.magnet = was?.magnet }
+        if out.nozzle == nil { out.nozzle = was?.nozzle }
+        return out
+    }
 }
 
 extension Sizes: Codable {
