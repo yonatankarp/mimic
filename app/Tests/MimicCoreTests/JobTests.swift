@@ -396,7 +396,7 @@ final class JobTests: XCTestCase {
     /// Mimic is gone and anyone looks again.
     func testAnotherMimicHoldingTheLockQueues() throws {
         let fx = try Fixture(); _ = try fx.mini("a")
-        let fd = open(fx.install.runs.appendingPathComponent(".job.lock").path, O_CREAT | O_RDWR, 0o644)
+        let fd = open(fx.install.queue.appendingPathComponent("job.lock").path, O_CREAT | O_RDWR, 0o644)
         XCTAssertEqual(flock(fd, LOCK_EX | LOCK_NB), 0)
         let jobs = JobRunner(install: fx.install, tools: fx.tools())
         XCTAssertEqual(try jobs.resize(name: "a", sizes: sizes), 1)
@@ -415,13 +415,13 @@ final class JobTests: XCTestCase {
     func testLeftoverJobsAreStoppedOnlyWhenTheyAreReallyOurs() throws {
         let fx = try Fixture()
         let orphan = try GroupProcess(executable: "/bin/sleep", arguments: ["60"], environment: [:])
-        Leftover.record(pid: orphan.pid, runs: fx.install.runs)
-        XCTAssertTrue(Leftover.stop(fx.install.runs))
+        Leftover.record(pid: orphan.pid, queue: fx.install.queue)
+        XCTAssertTrue(Leftover.stop(queue: fx.install.queue))
         XCTAssertEqual(orphan.wait(), -15)
 
         let unrelated = try GroupProcess(executable: "/bin/sleep", arguments: ["60"], environment: [:])
-        try "\(unrelated.pid) 12345".write(to: Leftover.file(fx.install.runs), atomically: true, encoding: .utf8)
-        XCTAssertFalse(Leftover.stop(fx.install.runs), "a pid whose start time doesn't match must not be stopped")
+        try "\(unrelated.pid) 12345".write(to: Leftover.file(queue: fx.install.queue), atomically: true, encoding: .utf8)
+        XCTAssertFalse(Leftover.stop(queue: fx.install.queue), "a pid whose start time doesn't match must not be stopped")
         XCTAssertEqual(kill(unrelated.pid, 0), 0)
         unrelated.terminateGroup(); unrelated.wait()
     }

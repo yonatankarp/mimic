@@ -11,6 +11,9 @@ struct Fixture {
         root = FileManager.default.temporaryDirectory.appendingPathComponent("mimic-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: root.appendingPathComponent("runs"), withIntermediateDirectories: true)
         install = Install(root: root)
+        // The queue's folder is made by the first change to the queue; some tests write a
+        // running job's record before any.
+        try FileManager.default.createDirectory(at: install.queue, withIntermediateDirectories: true)
     }
 
     /// A shell script to stand in for print prep or the 3D engine.

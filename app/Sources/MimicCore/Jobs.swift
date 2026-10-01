@@ -43,9 +43,9 @@ public enum PictureSource: Sendable {
 /// asked for while another runs, here or in another Mimic, waits in the queue (`JobQueue`).
 ///
 /// A job's programs run in their own session (GroupProcess) so Stop ends all of them. While a
-/// runner is running jobs it holds runs/.job.lock, which every Mimic on this Mac (the app, a dev
-/// build, `mimic` in a terminal) takes before starting one, and the holder runs the queue's next
-/// job when one ends. runs/.job.pid names the running program and its start time, so a job
+/// runner is running jobs it holds the queue's job.lock, which every Mimic on this Mac (the app,
+/// a dev build, `mimic` in a terminal) takes before starting one, and the holder runs the queue's
+/// next job when one ends. job.pid beside it names the running program and its start time, so a job
 /// orphaned by a crash can be stopped safely: by whoever next takes the lock, since only then is
 /// it certain no live Mimic is running it.
 public final class JobRunner: @unchecked Sendable {
@@ -80,7 +80,7 @@ public final class JobRunner: @unchecked Sendable {
                 trash: @escaping @Sendable (URL) throws -> Void = { try FileManager.default.trashItem(at: $0, resultingItemURL: nil) },
                 timings: Timings? = nil, version: String = "dev") {
         self.install = install
-        self.queue = JobQueue(runs: install.runs)
+        self.queue = JobQueue(folder: install.queue)
         self.tools = tools ?? Tools.resolve(install)
         self.drawThings = drawThings ?? self.tools.drawThings ?? DrawThings()
         self.trash = trash
@@ -303,7 +303,7 @@ public final class JobRunner: @unchecked Sendable {
     /// The job running in any Mimic on this Mac: this runner's, else another's.
     public func running() -> JobStatus? {
         if let s = status, s.running { return s }
-        return SharedJob.read(install.runs)?.status
+        return SharedJob.read(queue: install.queue)?.status
     }
 
     /// Stops the running job and everything it started. False when nothing is running. The
@@ -334,6 +334,7 @@ public final class JobRunner: @unchecked Sendable {
     private var holding: Bool { lock.withLock { lockFD >= 0 } }
 
     func checkFree(_ name: String, _ entries: [QueueEntry]) throws {
+        try refuseWhileMoving()
         if entries.contains(where: { $0.name == name }) { throw RequestError.queued(name) }
         if let r = running(), r.name == name { throw RequestError.busy(name, r.kind) }
     }
@@ -377,7 +378,7 @@ public final class JobRunner: @unchecked Sendable {
 
     /// Only when no live Mimic holds it; then any job record left behind is an orphan's.
     private func takeJobLock() -> Bool {
-        let fd = JobQueue.openLock(install.runs.appendingPathComponent(".job.lock"))
+        let fd = JobQueue.openLock(queue.jobLockFile)
         guard fd >= 0, flock(fd, LOCK_EX | LOCK_NB) == 0 else {
             if fd >= 0 { close(fd) }
             return false
@@ -385,8 +386,8 @@ public final class JobRunner: @unchecked Sendable {
         let activity = ProcessInfo.processInfo.beginActivity(options: .idleSystemSleepDisabled, reason: "Making minis")
         lock.withLock { lockFD = fd; awake = activity }
         idle.enter()
-        Leftover.stop(install.runs)
-        SharedJob.clear(install.runs)
+        Leftover.stop(queue: install.queue)
+        SharedJob.clear(queue: install.queue)
         return true
     }
 
@@ -394,7 +395,7 @@ public final class JobRunner: @unchecked Sendable {
         let (fd, activity) = lock.withLock { defer { lockFD = -1; awake = nil }; return (lockFD, awake) }
         guard fd >= 0 else { return }
         quitDrawThings()
-        SharedJob.clear(install.runs)
+        SharedJob.clear(queue: install.queue)
         flock(fd, LOCK_UN); close(fd)
         if let activity { ProcessInfo.processInfo.endActivity(activity) }
         idle.leave()
@@ -413,7 +414,7 @@ public final class JobRunner: @unchecked Sendable {
         s.stepStarted = now
         s.importing = entry.job == .prep && Self.importing(folder)
         lock.withLock { current = s; keepWork = false }
-        SharedJob.write(s, runs: install.runs)
+        SharedJob.write(s, queue: install.queue)
         notify()
         Log.queue.notice("Started \(entry.job.rawValue, privacy: .public) of \(entry.name, privacy: .public) at step \(plan[0].number)")
         Thread.detachNewThread { [self] in execute(plan, entry: entry, folder: folder, log: log, settings: settings) }
@@ -434,7 +435,7 @@ public final class JobRunner: @unchecked Sendable {
             if status?.canceled == true { break }
             let began = Date()
             lock.withLock { current?.step = number; current?.stepStarted = began }
-            if let s = status { SharedJob.write(s, runs: install.runs) }
+            if let s = status { SharedJob.write(s, queue: install.queue) }
             notify()
             append(log, "[\(number)/3] \(Self.label(number))\n")
             do {
@@ -506,7 +507,7 @@ public final class JobRunner: @unchecked Sendable {
         let outcome = canceled ? "stopped" : code == 0 ? "finished" : "failed (exit \(code)): \(problem ?? "no reason given")"
         Log.queue.notice("\(kind.rawValue, privacy: .public) of \(entry.name, privacy: .public) \(outcome, privacy: .public)")
         if let ended { timings?.append([TimingRecord(ended, settings: settings, steps: took, version: version, machine: .current)]) }
-        Leftover.clear(install.runs)
+        Leftover.clear(queue: install.queue)
         notify()
         // The next job, if any, starts before the lock is let go: no other Mimic can slip in.
         let going = keepGoing
@@ -552,7 +553,7 @@ public final class JobRunner: @unchecked Sendable {
             let p = try GroupProcess(executable: "/usr/bin/nice", arguments: ["-n", String(Self.nice), executable] + arguments,
                                      environment: tools.environment, workingDirectory: directory, log: log.path)
             let stopNow = lock.withLock { () -> Bool in process = p; return current?.canceled == true }
-            Leftover.record(pid: p.pid, runs: install.runs)
+            Leftover.record(pid: p.pid, queue: install.queue)
             if stopNow { p.terminateGroup() }  // Stop pressed while the program was starting
             return p.wait()
         }
@@ -609,7 +610,8 @@ public final class JobRunner: @unchecked Sendable {
 /// launch. It holds the pid *and* the program's start time: a pid alone may have been reused by
 /// an unrelated program after a reboot, and stopping that would be far worse than a leftover.
 public enum Leftover {
-    static func file(_ runs: URL) -> URL { runs.appendingPathComponent(".job.pid") }
+    /// job.pid in the queue's folder (`Install.queue`).
+    static func file(queue: URL) -> URL { queue.appendingPathComponent("job.pid") }
 
     static func startTime(_ pid: pid_t) -> UInt64? {
         var info = proc_bsdinfo()
@@ -618,21 +620,21 @@ public enum Leftover {
         return info.pbi_start_tvsec * 1_000_000 + info.pbi_start_tvusec
     }
 
-    static func record(pid: pid_t, runs: URL) {
+    static func record(pid: pid_t, queue: URL) {
         guard let t = startTime(pid) else { return }
-        try? "\(pid) \(t)".write(to: file(runs), atomically: true, encoding: .utf8)
+        try? "\(pid) \(t)".write(to: file(queue: queue), atomically: true, encoding: .utf8)
     }
 
-    static func clear(_ runs: URL) { try? FileManager.default.removeItem(at: file(runs)) }
+    static func clear(queue: URL) { try? FileManager.default.removeItem(at: file(queue: queue)) }
 
     /// Whether a running program is on record (cheap: whether the file is there).
-    public static func recorded(_ runs: URL) -> Bool { FileManager.default.fileExists(atPath: file(runs).path) }
+    public static func recorded(queue: URL) -> Bool { FileManager.default.fileExists(atPath: file(queue: queue).path) }
 
     /// Stops a job left running by a crashed Mimic. True when one was found and stopped.
     @discardableResult
-    public static func stop(_ runs: URL) -> Bool {
-        defer { clear(runs) }
-        guard let text = try? String(contentsOf: file(runs), encoding: .utf8) else { return false }
+    public static func stop(queue: URL) -> Bool {
+        defer { clear(queue: queue) }
+        guard let text = try? String(contentsOf: file(queue: queue), encoding: .utf8) else { return false }
         let parts = text.split(separator: " ").compactMap { UInt64($0) }
         guard parts.count == 2, let pid = pid_t(exactly: parts[0]), startTime(pid) == parts[1] else { return false }
         kill(-pid, SIGTERM)
