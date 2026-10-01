@@ -265,6 +265,11 @@ struct Sidebar: View {
         MoveToProjectMenu(minis: [mini])
         if model.waiting(mini.name) != nil { MoveInQueueMenu(mini: mini) }
         Divider()
+        if model.pictureToCheck(mini) {
+            Button("Build Shape", systemImage: "cube") { model.buildShape(mini) }
+                .disabled(model.requiredProblem != nil)
+                .help("Makes the 3D shape from the picture it's waiting with")
+        }
         if model.canRetry(mini) {
             Button("Try Again", systemImage: "arrow.clockwise") { model.tryAgain(mini) }
                 .disabled(model.requiredProblem != nil)
