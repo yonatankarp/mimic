@@ -101,8 +101,7 @@ struct MiniViewer: View {
         .task(id: [stl.path, version.description]) {
             failed = false
             measured = nil  // at once: the page's details shouldn't show the last mini's size while it fades
-            // The mini on show fades out first: loading blocks the main actor, so the fade has to
-            // be over before it starts.
+            // The mini on show fades out first, before it leaves the stage.
             if mini != nil && shown && !reduceMotion {
                 withAnimation(.easeIn(duration: 0.2)) { shown = false }
                 try? await Task.sleep(for: .seconds(0.2))
@@ -340,10 +339,7 @@ struct MiniViewer: View {
 
     /// Print files are Z-up millimetres; the scene is Y-up metres. The mini is centred and
     /// scaled to 1 m tall, which the camera fits to the view. Also returns its size in millimetres.
-    static func load(_ url: URL) throws -> (Entity, Measured) { try entity(read(url)) }
-
-    /// A print file's triangles, ready for the scene, and its size: `load` without the part
-    /// that has to be on the main actor, so it can run off it.
+    /// Off the main actor; `entity` then makes the mini on it.
     nonisolated static func read(_ url: URL) throws -> Read {
         let asset = MDLAsset(url: url)
         guard let mesh = asset.childObjects(of: MDLMesh.self).first as? MDLMesh else { throw CocoaError(.fileReadCorruptFile) }
