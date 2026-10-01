@@ -78,7 +78,7 @@ struct ImportSheet: View {
             .reportsHeight(0, into: $forms)
             Divider()
             HStack(alignment: .firstTextBaseline) {
-                if let reason = model.cantStart {
+                if let reason = model.requiredProblem {
                     CantStart(reason: reason)
                 } else if let problem {
                     Label(problem.words, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
@@ -88,7 +88,7 @@ struct ImportSheet: View {
                 Button("Cancel") { model.sheet = nil }.keyboardShortcut(.cancelAction)
                 Button("Import") { start() }
                     .keyboardShortcut(.defaultAction)
-                    .disabled(model.cantStart != nil || slug.isEmpty || taken != nil)
+                    .disabled(model.requiredProblem != nil || slug.isEmpty || taken != nil)
             }
             .padding(16)
             .fixedSize(horizontal: false, vertical: true)

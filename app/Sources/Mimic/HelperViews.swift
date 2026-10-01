@@ -75,6 +75,16 @@ struct HelperSection: View {
     @State private var testResult: (ok: Bool, text: String)?
 
     private var current: HelperProvider { HelperProvider(rawValue: provider) ?? .off }
+    /// What Improve reads, so the key is saved under the account it looks for.
+    private var config: HelperConfig { HelperConfig.load(.standard) }
+
+    /// A key is only sent to the address it was saved for, so an address that isn't the provider's
+    /// own is named here, whoever set it.
+    private var addressNote: String? {
+        guard current.isCloud, !config.isDefaultHost else { return nil }
+        guard let host = config.host, config.isSecure else { return "\(HelperError.badURL)" }
+        return "Set to \(host). Keys are kept per address: one saved here is only sent to \(host)."
+    }
 
     var body: some View {
         Section {
@@ -90,6 +100,7 @@ struct HelperSection: View {
                 TextField("Service address", text: $address, prompt: Text(HelperProvider.openai.defaultURL))
                     .help("The service's API address; leave blank for OpenAI")
             }
+            if let addressNote { Text(addressNote).font(.callout).foregroundStyle(.secondary) }
             if current == .ollama { ollamaRow }
             if current != .off && current != .ollama {
                 TextField("Model", text: $model, prompt: Text(current.defaultModel.isEmpty ? "e.g. the model's name from the service" : current.defaultModel))
@@ -114,6 +125,7 @@ struct HelperSection: View {
                 .foregroundStyle(.secondary)
         }
         .onChange(of: provider) { _, _ in model = ""; address = ""; testResult = nil; load() }
+        .onChange(of: address) { _, _ in testResult = nil; load() }
         .task { load() }
     }
 
@@ -123,14 +135,14 @@ struct HelperSection: View {
                 Label("API key saved in your Keychain", systemImage: "key.fill")
                 Spacer()
                 Button("Remove") {
-                    Keychain.delete(account: provider)
+                    if let account = config.keyAccount { Keychain.delete(account: account) }
                     hasKey = false
                     testResult = nil
                 }
             } else {
                 SecureField("API key", text: $keyText, prompt: Text("Paste your key"))
                     .onSubmit(saveKey)
-                Button("Save", action: saveKey).disabled(keyText.trimmingCharacters(in: .whitespaces).isEmpty)
+                Button("Save", action: saveKey).disabled(keyText.trimmingCharacters(in: .whitespaces).isEmpty || config.keyAccount == nil)
             }
         }
     }
@@ -159,9 +171,9 @@ struct HelperSection: View {
 
     private func saveKey() {
         let key = keyText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !key.isEmpty else { return }
+        guard !key.isEmpty, let account = config.keyAccount else { return }
         do {
-            try Keychain.save(key, account: provider)
+            try Keychain.save(key, account: account)
             keyText = ""
             hasKey = true
             testResult = nil
@@ -171,7 +183,7 @@ struct HelperSection: View {
     }
 
     private func load() {
-        hasKey = current.isCloud && Keychain.has(account: provider)
+        hasKey = config.keyAccount.map { Keychain.has(account: $0) } ?? false
         guard current == .ollama else { return }
         Task {
             let result = await Task.detached { Result { try DescriptionHelper.ollamaModels() } }.value

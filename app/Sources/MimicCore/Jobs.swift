@@ -2,11 +2,32 @@ import Darwin
 import Foundation
 import OSLog
 
+/// The steps of a make, in order; a resize is the last one alone. Numbered as they're shown
+/// ("Step 2 of 3") and saved.
+public enum JobStep: Int, Codable, CaseIterable, Comparable, Sendable {
+    case picture = 1, shape, print
+
+    public var label: String {
+        switch self {
+        case .picture: "Getting the picture ready"
+        case .shape: "Building the 3D shape"
+        case .print: "Making the print-ready file"
+        }
+    }
+
+    public static func < (a: JobStep, b: JobStep) -> Bool { a.rawValue < b.rawValue }
+}
+
+/// How a job is doing, or how it ended.
+public enum JobOutcome: Sendable {
+    case running, finished, stopped, failed
+}
+
 /// Where a job is, for the progress window and `mimic make`.
 public struct JobStatus: Equatable, Sendable {
     public var name: String
     public var kind: JobKind
-    public var step: Int
+    public var step: JobStep
     public var started: Date
     public var running = true
     public var canceled = false
@@ -25,7 +46,8 @@ public struct JobStatus: Equatable, Sendable {
     /// The mini's name as shown ("Élodie the Druid"), read as it starts: a stopped new mini's
     /// folder, which keeps that name, is in the Trash by the time it's named (#166).
     public var shown: String?
-    public var succeeded: Bool { !running && !canceled && exit == 0 }
+    public var outcome: JobOutcome { running ? .running : canceled ? .stopped : exit == 0 ? .finished : .failed }
+    public var succeeded: Bool { outcome == .finished }
 
     /// What to call the mini: its name as shown, or from its folder for a job from a Mimic
     /// before 0.9.0, which didn't say.
@@ -34,7 +56,7 @@ public struct JobStatus: Equatable, Sendable {
 
 // In an extension, so the memberwise initialiser the tests use stays.
 extension JobStatus {
-    public init(name: String, kind: JobKind, step: Int, started: Date) {
+    public init(name: String, kind: JobKind, step: JobStep, started: Date) {
         self.name = name; self.kind = kind; self.step = step; self.started = started
     }
 }
@@ -184,13 +206,7 @@ public final class JobRunner: @unchecked Sendable {
         _ = try Pipeline.plan(.generate, folder: folder, settings: settings, tools: tools)  // an empty description, say
         return try queue.locked { entries in
             try checkFree(name, entries)
-            // A failed attempt's folder in the same place is made again; any other mini (or a
-            // project) with this name, anywhere, keeps it.
-            if let existing = Gallery.folder(install.runs, name),
-               existing.standardizedFileURL != folder.standardizedFileURL || fm.fileExists(atPath: existing.appendingPathComponent("model.glb").path) {
-                throw RequestError.nameTaken(name)
-            }
-            if Gallery.projects(install.runs).contains(where: { $0.lowercased() == name }) { throw RequestError.nameTaken(name) }
+            if Gallery.nameTaken(install.runs, name, project: project) { throw RequestError.nameTaken(name) }
             let created = !fm.fileExists(atPath: folder.path)
             try fm.createDirectory(at: folder, withIntermediateDirectories: true)
             do {
@@ -239,7 +255,7 @@ public final class JobRunner: @unchecked Sendable {
         guard Rules.isValidName(name) else { throw RequestError.badName }
         _ = try sizes.flags()
         guard let folder = Gallery.folder(install.runs, name) else { throw RequestError.notFound }
-        guard FileManager.default.fileExists(atPath: folder.appendingPathComponent("model.glb").path) else { throw RequestError.noModelYet }
+        guard FileManager.default.fileExists(atPath: folder.appendingPathComponent(Mini.modelFile).path) else { throw RequestError.noModelYet }
         var settings = MiniSettings.load(folder)
         settings.requested = sizes
         _ = try Pipeline.plan(.prep, folder: folder, settings: settings, tools: tools)
@@ -259,7 +275,7 @@ public final class JobRunner: @unchecked Sendable {
         // An imported model has nothing of its own to make again; Resize remakes its print file.
         if settings.isImported { throw RequestError.imported(name) }
         guard settings.requested != nil else { throw RequestError.nothingToRetry }
-        let hasModel = FileManager.default.fileExists(atPath: folder.appendingPathComponent("model.glb").path)
+        let hasModel = FileManager.default.fileExists(atPath: folder.appendingPathComponent(Mini.modelFile).path)
         if !hasModel {
             // The same 3D model it was made with, and it has to be here: found out now, not minutes in.
             guard let model = EngineDownload.model(settings.model) else { throw RequestError.unknownModel(settings.model ?? "") }
@@ -275,16 +291,16 @@ public final class JobRunner: @unchecked Sendable {
 
     /// Takes a waiting job out of the queue. A new mini's folder goes to the Trash, as a stopped
     /// one's does, and so does an import's whose print file isn't made yet (#96). False when it
-    /// isn't waiting (it may have just started).
+    /// isn't waiting (it may have just started). Trashed under the queue's lock, so a make with
+    /// the same name (from another Mimic, say) can't take the folder over first.
     @discardableResult
     public func remove(_ name: String) throws -> Bool {
-        let removed = try queue.locked { entries -> QueueEntry? in
-            guard let i = entries.firstIndex(where: { $0.name == name }) else { return nil }
-            return entries.remove(at: i)
+        try queue.locked { entries in
+            guard let i = entries.firstIndex(where: { $0.name == name }) else { return false }
+            let removed = entries.remove(at: i)
+            if let folder = Gallery.folder(install.runs, name), removed.job == .generate || Self.importing(folder) { try? trash(folder) }
+            return true
         }
-        guard let removed else { return false }
-        if let folder = Gallery.folder(install.runs, name), removed.job == .generate || Self.importing(folder) { try? trash(folder) }
-        return true
     }
 
     /// `remove`, for `mimic queue remove`: what it says, by the mini's name as shown. That's read
@@ -350,13 +366,15 @@ public final class JobRunner: @unchecked Sendable {
     /// queue carries on with its next job, unless `keepGoing` says otherwise.
     ///
     /// `keepingWork` is for quitting (#82): the job goes back to the front of the queue instead
-    /// of to the Trash, and starts again at the first step it hadn't finished.
+    /// of to the Trash, and starts again at the first step it hadn't finished. The first ask
+    /// decides: a Stop then a quit while it ends still throws it away, and a quit then a Stop
+    /// still keeps it (#171).
     @discardableResult
     public func cancel(keepingWork: Bool = false) -> Bool {
         let p: GroupProcess? = lock.withLock {
             guard current?.running == true else { return nil as GroupProcess? }
+            if current?.canceled != true { keepWork = keepingWork }
             current?.canceled = true
-            keepWork = keepingWork
             return process
         }
         guard status?.canceled == true else { return false }
@@ -368,6 +386,26 @@ public final class JobRunner: @unchecked Sendable {
 
     /// Until this runner has no job left to run (for the command line and tests).
     public func waitUntilDone() { idle.wait() }
+
+    /// For `mimic make`: stops the running job, and the queue after it, when this program is
+    /// told to end: Ctrl-C, its Terminal window closed, or `kill` (#174). The job's programs run
+    /// in a session of their own, so they don't hear these. `heard` is told which it was first.
+    /// Listens while what it returns is kept.
+    public func stopOnSignals(_ heard: @escaping @Sendable (Int32) -> Void = { _ in }) -> [DispatchSourceSignal] {
+        [SIGINT, SIGHUP, SIGTERM].map { sig in
+            // Caught and let be, not ignored: an ignored signal stays ignored in the programs a
+            // job starts, and SIGTERM couldn't stop them; a caught one is back to normal there.
+            signal(sig) { _ in }
+            let source = DispatchSource.makeSignalSource(signal: sig)
+            source.setEventHandler { [self] in
+                heard(sig)
+                keepGoing = { _ in false }
+                cancel()
+            }
+            source.resume()
+            return source
+        }
+    }
 
     // MARK: The queue (every function here runs holding the queue's lock)
 
@@ -406,7 +444,7 @@ public final class JobRunner: @unchecked Sendable {
                 return
             } catch {
                 // Checked when it was queued, so rare: its folder went, or its model was removed.
-                var s = JobStatus(name: entry.name, kind: entry.job, step: entry.job == .prep ? 3 : 1, started: Date())
+                var s = JobStatus(name: entry.name, kind: entry.job, step: entry.job == .prep ? .print : .picture, started: Date())
                 s.running = false; s.exit = 1
                 s.problem = (error as? RequestError)?.description ?? String(describing: error)
                 lock.withLock { current = s }
@@ -459,24 +497,46 @@ public final class JobRunner: @unchecked Sendable {
         s.stepStarted = now
         s.importing = entry.job == .prep && Self.importing(folder)
         s.shown = settings.shownName(folder: entry.name)
+        // Before the job can be stopped, so a Stop while step 1 starts isn't forgotten (#170).
+        drawThings.reset()
         lock.withLock { current = s; keepWork = false }
         SharedJob.write(s, queue: install.queue)
         notify()
-        Log.queue.notice("Started \(entry.job.rawValue, privacy: .public) of \(entry.name, privacy: .public) at step \(plan[0].number)")
+        Log.queue.notice("Started \(entry.job.rawValue, privacy: .public) of \(entry.name, privacy: .public) at step \(plan[0].number.rawValue)")
         Thread.detachNewThread { [self] in execute(plan, entry: entry, folder: folder, log: log, settings: settings) }
     }
 
     // MARK: Running
 
-    private func execute(_ plan: [(number: Int, step: Step)], entry: QueueEntry, folder: URL, log: URL, settings: MiniSettings) {
-        let kind = entry.job
+    /// What running a job's plan came to.
+    private struct PlanRun {
         var code: Int32 = 0
-        var done = 0  // runs of the plan finished
+        /// Runs of the plan finished.
+        var done = 0
         var problem: String?
-        var took: [Int: TimeInterval] = [:]
-        // prep.log is appended to on every run, so only this run's part says whether it's fragile.
-        let prepLog = folder.appendingPathComponent("prep.log")
-        let prepLogStart = (try? FileManager.default.attributesOfItem(atPath: prepLog.path)[.size] as? UInt64) ?? 0
+        var took: [JobStep: TimeInterval] = [:]
+    }
+
+    /// How a job ended, once its folder is settled: what `finish` reports and records.
+    private struct Ending {
+        var canceled: Bool
+        var kept: Bool
+        var fragile: Bool
+        var notes: [String]
+    }
+
+    private func execute(_ plan: [(number: JobStep, step: Step)], entry: QueueEntry, folder: URL, log: URL, settings: MiniSettings) {
+        // What print prep reports, this run's only: an earlier run's must not follow the mini around.
+        let reportFile = folder.appendingPathComponent("prep-result.json")
+        try? FileManager.default.removeItem(at: reportFile)
+        var ran = runPlan(plan, log: log)
+        let ending = settle(&ran, plan: plan, kind: entry.job, folder: folder, reportFile: reportFile, settings: settings)
+        finish(ran, ending, entry: entry, settings: settings)
+    }
+
+    /// Runs the plan's steps in turn, until one fails or the job is stopped.
+    private func runPlan(_ plan: [(number: JobStep, step: Step)], log: URL) -> PlanRun {
+        var ran = PlanRun()
         var previous = plan.first?.number  // begin() started its clock
         for (number, step) in plan {
             if status?.canceled == true { break }
@@ -486,65 +546,66 @@ public final class JobRunner: @unchecked Sendable {
             previous = number
             if let s = status { SharedJob.write(s, queue: install.queue) }
             notify()
-            append(log, "[\(number)/3] \(Self.label(number))\n")
+            append(log, "[\(number.rawValue)/3] \(number.label)\n")
             do {
-                code = try run(step)
+                ran.code = try run(step)
             } catch {
-                code = 1
-                problem = String(describing: error)
+                ran.code = 1
+                ran.problem = String(describing: error)
             }
-            took[number, default: 0] += Date().timeIntervalSince(began)  // step 1 is one run per picture
-            if code != 0 { break }
-            done += 1
+            ran.took[number, default: 0] += Date().timeIntervalSince(began)  // step 1 is one run per picture
+            if ran.code != 0 { break }
+            ran.done += 1
         }
+        return ran
+    }
+
+    /// The mini's folder after its job: a stopped job's work cleared away (or kept, when it was
+    /// stopped by quitting), a finished one's sizes recorded, and how it went kept with the mini.
+    private func settle(_ ran: inout PlanRun, plan: [(number: JobStep, step: Step)], kind: JobKind, folder: URL,
+                        reportFile: URL, settings: MiniSettings) -> Ending {
         let (canceled, kept) = lock.withLock { (current?.canceled == true, keepWork) }
         if canceled {
-            code = code == 0 ? -15 : code
+            ran.code = ran.code == 0 ? -15 : ran.code
             if kept {
                 // What the step it was on had written may be half written, and the next run
                 // skips a step whose file is there: a picture, or the 3D shape. Step 1 is one run
                 // per picture, so the pictures it had finished are kept.
-                for (number, step) in plan.dropFirst(done) where kind == .generate {
-                    if let file = number == 2 ? folder.appendingPathComponent("model.glb") : step.makes { try? FileManager.default.removeItem(at: file) }
+                for (number, step) in plan.dropFirst(ran.done) where kind == .generate {
+                    if let file = number == .shape ? folder.appendingPathComponent(Mini.modelFile) : step.makes { try? FileManager.default.removeItem(at: file) }
                 }
             } else if kind == .generate || Self.importing(folder) {
                 try? trash(folder)  // a half-made new mini (or import) is clutter, not a result
             }
-        } else if code == 0, let requested = settings.requested {
+        } else if ran.code == 0, let requested = settings.requested {
             try? MiniSettings.update(folder) { $0.made = requested }  // "Now: …" shows only what a finished run made
         }
-        let thisRun: String = {
-            guard let h = try? FileHandle(forReadingFrom: prepLog) else { return "" }
-            defer { try? h.close() }
-            try? h.seek(toOffset: prepLogStart)
-            return String(decoding: h.readDataToEndOfFile(), as: UTF8.self)
-        }()
-        let warnings = (((try? String(contentsOf: log, encoding: .utf8)) ?? "") + "\n" + thisRun)
-            .split(separator: "\n").filter { $0.contains("mini_prep: WARNING") }
-        let said = [Prep.partWarning, Prep.standWarning]
-        let fragile = warnings.contains { w in !said.contains { w.contains($0) } }
-        var notes: [String] = []
-        for w in warnings {
-            guard let r = said.lazy.compactMap({ w.range(of: $0) }).first else { continue }
-            let note = String(w[r.upperBound...])
-            if !notes.contains(note) { notes.append(note) }  // the job log and prep.log can both carry it
-        }
-        // Print prep runs as its own program, so why it failed is only in its log.
-        if code != 0, problem == nil, let r = thisRun.range(of: Prep.failure, options: .backwards) {
-            problem = String(thisRun[r.upperBound...].prefix { $0 != "\n" })
-        }
+        let report = PrepReport.read(folder) ?? PrepReport()
+        try? FileManager.default.removeItem(at: reportFile)
+        let fragile = report.fragile, notes = report.notes
+        // Print prep runs as its own program, so why it failed is only in its report.
+        if ran.code != 0, ran.problem == nil { ran.problem = report.failure.map { String($0.prefix { $0 != "\n" }) } }
         // Kept with the mini, so its page says it after a relaunch too.
         if !canceled {
             let step = status?.step
+            let code = ran.code, problem = ran.problem
             try? MiniSettings.update(folder) { s in
                 if code == 0 {
                     s.notes = notes.isEmpty ? nil : notes; s.fragile = fragile ? true : nil
                     s.failed = nil; s.failedStep = nil
                 } else {
-                    s.failed = problem ?? "It stopped while \(Self.label(step ?? 2).lowercased())."; s.failedStep = step
+                    s.failed = problem ?? "It stopped while \((step ?? .shape).label.lowercased())."; s.failedStep = step?.rawValue
                 }
             }
         }
+        return Ending(canceled: canceled, kept: kept, fragile: fragile, notes: notes)
+    }
+
+    /// Ends the job: its status, its line in the log and its time, then the queue's next job, or
+    /// a stopped-by-quitting one back at the front.
+    private func finish(_ ran: PlanRun, _ ending: Ending, entry: QueueEntry, settings: MiniSettings) {
+        let kind = entry.job, code = ran.code, problem = ran.problem
+        let canceled = ending.canceled, kept = ending.kept, fragile = ending.fragile, notes = ending.notes
         let ended: JobStatus? = lock.withLock {
             current?.running = false
             current?.exit = code
@@ -556,7 +617,7 @@ public final class JobRunner: @unchecked Sendable {
         }
         let outcome = canceled ? "stopped" : code == 0 ? "finished" : "failed (exit \(code)): \(problem ?? "no reason given")"
         Log.queue.notice("\(kind.rawValue, privacy: .public) of \(entry.name, privacy: .public) \(outcome, privacy: .public)")
-        if let ended { timings?.append([TimingRecord(ended, settings: settings, steps: took, version: version, machine: .current)]) }
+        if let ended { timings?.append([TimingRecord(ended, settings: settings, steps: ran.took, version: version, machine: .current)]) }
         Leftover.clear(queue: install.queue)
         notify()
         // The next job, if any, starts before the lock is let go: no other Mimic can slip in.
@@ -605,8 +666,22 @@ public final class JobRunner: @unchecked Sendable {
             let stopNow = lock.withLock { () -> Bool in process = p; return current?.canceled == true }
             Leftover.record(pid: p.pid, queue: install.queue)
             if stopNow { p.terminateGroup() }  // Stop pressed while the program was starting
-            return p.wait()
+            let code = p.wait()
+            // Stopped, what it started may outlive it, holding memory and writing into the mini's
+            // folder: the job ends, and its record goes, only once they have too (#174).
+            if status?.canceled == true { Self.waitForGroup(p.pid) }
+            lock.withLock { if process === p { process = nil } }  // a Stop between steps has nothing to signal
+            return code
         }
+    }
+
+    /// Until every program in the group `pid` led has ended, ending whatever is left after
+    /// `grace` seconds, as `GroupProcess.terminateGroup` does from the Stop that ended the leader.
+    static func waitForGroup(_ pid: pid_t, grace: TimeInterval = 5) {
+        let deadline = Date().addingTimeInterval(grace)
+        while kill(-pid, 0) == 0, Date() < deadline { usleep(50_000) }
+        if kill(-pid, 0) == 0 { kill(-pid, SIGKILL) }
+        for _ in 0..<40 where kill(-pid, 0) == 0 { usleep(50_000) }
     }
 
     /// A picture from Draw Things, opening it first when needed and quitting it after if Mimic
@@ -650,10 +725,6 @@ public final class JobRunner: @unchecked Sendable {
 
     /// The nice value job programs run at.
     static let nice = 10
-
-    public static func label(_ step: Int) -> String {
-        ["", "Getting the picture ready", "Building the 3D shape", "Making the print-ready file"][max(0, min(3, step))]
-    }
 }
 
 /// The record of a running job's program, so one orphaned by a crash can be stopped on the next

@@ -105,7 +105,7 @@ final class OpenDrawThingsTests: XCTestCase {
     /// Bounded by the app being alive, not only by the clock: quit while opening ends the wait.
     func testStopsWaitingWhenTheAppExits() throws {
         let app = fake()
-        app.onOpen = { DispatchQueue.global().asyncAfter(deadline: .now() + 0.2) { app.running = false } }
+        app.onOpen = { app.running = false }  // quit as soon as it's opened, before it answers
         let started = Date()
         XCTAssertThrowsError(try drawThings(app).openIfNeeded(cap: 30, poll: 0.05)) {
             XCTAssertEqual($0 as? DrawThingsError, .closedWhileOpening)
@@ -157,12 +157,14 @@ final class OpenDrawThingsTests: XCTestCase {
         let fx = try Fixture(); try fx.modelFiles()
         let app = fake()
         let server = server!
-        // Slow to open, so the second mini is queued before the first one's picture is drawn.
-        app.onOpen = { DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) { server.ready = true } }
+        // Answers only once the second mini is queued, so it's queued before the first one's picture is drawn.
+        app.onOpen = {}
         let jobs = runner(app, fx)
         try describe(jobs, fx, "first")
+        XCTAssertTrue(eventually { app.opens == 1 }, "the first mini never opened it")
         XCTAssertEqual(try jobs.make(name: "second", picture: .description("an elf"), restyle: false, seed: 1, sizes: Sizes(),
                                      model: EngineDownload.standard), 1)
+        server.ready = true
         jobs.waitUntilDone()
         XCTAssertTrue(FileManager.default.fileExists(atPath: fx.install.runs.appendingPathComponent("second/source.png").path))
         XCTAssertEqual(app.opens, 1, "quit and opened again between two minis that both need it")

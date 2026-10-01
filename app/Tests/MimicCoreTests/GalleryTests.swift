@@ -3,6 +3,53 @@ import XCTest
 
 /// Ported from tests/test_rename.py.
 final class GalleryTests: XCTestCase {
+    /// A folder is a mini by a file only Mimic writes there, each one alone enough. Any other
+    /// .stl, such as one dragged into a project in Finder, leaves it a project.
+    func testWhatMakesAFolderAMini() throws {
+        let fx = try Fixture(), fm = FileManager.default
+        let folder = fx.install.runs.appendingPathComponent("raven")
+        try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+        XCTAssertFalse(Gallery.isMini(folder), "an empty folder")
+        for other in ["dwarf.stl", "source.png", "raven.3mf"] {
+            fm.createFile(atPath: folder.appendingPathComponent(other).path, contents: Data())
+        }
+        XCTAssertFalse(Gallery.isMini(folder), "files any folder may hold")
+        for marker in ["settings.json", "model.glb", "raven.stl"] {
+            let file = folder.appendingPathComponent(marker)
+            fm.createFile(atPath: file.path, contents: Data())
+            XCTAssertTrue(Gallery.isMini(folder), marker)
+            try fm.removeItem(at: file)
+        }
+        XCTAssertFalse(Gallery.isMini(fx.install.runs.appendingPathComponent("not-there")))
+    }
+
+    /// A new mini goes in its project's folder, or at the top for Unsorted.
+    func testWhereANewMiniGoes() {
+        let runs = URL(fileURLWithPath: "/tmp/minis")
+        XCTAssertEqual(Gallery.newFolder(runs, "raven", project: nil).path, "/tmp/minis/raven")
+        XCTAssertEqual(Gallery.newFolder(runs, "raven", project: "Tiefling Party").path, "/tmp/minis/Tiefling Party/raven")
+    }
+
+    /// The name New Mini says is taken is the one Make Mini refuses (#219): any mini or project
+    /// with it, except a failed attempt's folder where the new one would go.
+    func testANewMinisNameIsTakenAsMakeRefusesIt() throws {
+        let fx = try Fixture(), fm = FileManager.default, runs = fx.install.runs
+        _ = try fx.mini("dwarf")
+        let party = runs.appendingPathComponent("Party")
+        let failed = party.appendingPathComponent("raven")
+        try fm.createDirectory(at: failed, withIntermediateDirectories: true)
+        try MiniSettings.update(failed) { $0.source = .image }  // settings, but no 3D model
+        try fm.createDirectory(at: runs.appendingPathComponent("Tieflings"), withIntermediateDirectories: true)
+        XCTAssertTrue(Gallery.nameTaken(runs, "dwarf", project: nil), "a made mini")
+        XCTAssertTrue(Gallery.nameTaken(runs, "dwarf", project: "Party"), "a made mini, in another project")
+        XCTAssertFalse(Gallery.nameTaken(runs, "raven", project: "Party"), "a failed attempt where it would go is made again")
+        XCTAssertTrue(Gallery.nameTaken(runs, "raven", project: nil), "a failed attempt somewhere else keeps its name")
+        XCTAssertTrue(Gallery.nameTaken(runs, "tieflings", project: nil), "a project's name")
+        XCTAssertTrue(Gallery.nameTaken(runs, "party", project: "Party"), "a project's name, though a failed attempt isn't there")
+        XCTAssertFalse(Gallery.nameTaken(runs, "owl", project: nil))
+        XCTAssertFalse(Gallery.nameTaken(runs, "owl", project: "Party"))
+    }
+
     /// A mini's settings are read once, with the list (#95): what the list and its page ask of a
     /// mini afterwards comes from the value, however often a redraw asks. Planted by changing
     /// every file after the list was read: an answer read from disk would see the change.
@@ -232,6 +279,17 @@ final class GalleryTests: XCTestCase {
         XCTAssertTrue(fm.fileExists(atPath: runs.appendingPathComponent("dwarf-king/dwarf-king.stl").path))
     }
 
+    /// The list just read is looked at for minis to take over, not the folder read again.
+    func testTakingOverLooksAtTheListGiven() throws {
+        let fx = try Fixture(), fm = FileManager.default, runs = fx.install.runs
+        try fm.moveItem(at: try fx.mini("dwarf"), to: runs.appendingPathComponent("dwarf-king"))
+        let jobs = JobRunner(install: fx.install, tools: fx.tools())
+        XCTAssertEqual(jobs.adoptOddFolders(listed: []), [], "nothing listed to take over")
+        XCTAssertTrue(fm.fileExists(atPath: runs.appendingPathComponent("dwarf-king/dwarf.stl").path))
+        XCTAssertEqual(jobs.adoptOddFolders(listed: Gallery.list(runs)), ["dwarf-king"])
+        XCTAssertTrue(fm.fileExists(atPath: runs.appendingPathComponent("dwarf-king/dwarf-king.stl").path))
+    }
+
     /// Undo for Move to Trash, with a folder standing in for the Trash.
     func testPutBackFromTheTrash() throws {
         let fx = try Fixture(), fm = FileManager.default, runs = fx.install.runs
@@ -332,11 +390,13 @@ final class GalleryTests: XCTestCase {
 final class SlicerTests: XCTestCase {
     func testFindsInstalledSlicersAndHonoursThePick() throws {
         let apps = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: apps) }
         for b in ["OrcaSlicer.app", "BambuStudio.app"] {
             try FileManager.default.createDirectory(at: apps.appendingPathComponent(b), withIntermediateDirectories: true)
         }
         XCTAssertEqual(Slicer.installed(in: [apps]).map(\.id), ["bambu", "orca"])
-        let d = UserDefaults(suiteName: UUID().uuidString)!
+        let suite = UUID().uuidString, d = UserDefaults(suiteName: suite)!
+        defer { d.removePersistentDomain(forName: suite) }
         XCTAssertEqual(Slicer.preferred(defaults: d, in: [apps])?.id, "bambu", "the first installed when none is picked")
         d.set("orca", forKey: "slicer")
         XCTAssertEqual(Slicer.preferred(defaults: d, in: [apps])?.id, "orca")

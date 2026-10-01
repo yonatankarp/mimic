@@ -14,7 +14,7 @@ extension JobRunner {
         try queue.locked { entries in
             try refuseWhileMoving()
             guard let src = Gallery.folder(runs, name) else { throw RequestError.notFound }
-            guard fm.fileExists(atPath: src.appendingPathComponent("model.glb").path) else { throw RequestError.noModelYet }
+            guard fm.fileExists(atPath: src.appendingPathComponent(Mini.modelFile).path) else { throw RequestError.noModelYet }
             if entries.contains(where: { $0.name == name }) || running()?.name == name { throw RequestError.cantDuplicate(name) }
             let dst = src.deletingLastPathComponent().appendingPathComponent(new)
             guard !Gallery.nameInUse(runs, new), !fm.fileExists(atPath: dst.path) else { throw RequestError.nameTaken(new) }

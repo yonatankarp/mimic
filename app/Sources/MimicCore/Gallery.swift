@@ -19,6 +19,9 @@ public struct Mini: Identifiable, Hashable, Sendable {
     public let finished: Bool
     public var id: String { name }
 
+    /// The 3D shape in a mini's folder: what step 2 (or an import) writes and print prep reads.
+    public static let modelFile = "model.glb"
+
     public init(name: String, folder: URL, madeAt: Date, created: Date? = nil, project: String? = nil, settings: MiniSettings = MiniSettings(),
                 finished: Bool = true) {
         self.name = name; self.folder = folder; self.madeAt = madeAt; self.created = created ?? madeAt; self.project = project
@@ -47,7 +50,7 @@ public struct Mini: Identifiable, Hashable, Sendable {
             + renders.map { MiniPreview(caption: $0.view.capitalized, url: $0.url) }
     }
     /// The 3D model a resize starts from: without it only a full Make can finish the mini.
-    public var hasModel: Bool { existing("model.glb") != nil }
+    public var hasModel: Bool { existing(Mini.modelFile) != nil }
     /// The name it was given ("Élodie"), from its settings as the gallery read them; a mini
     /// without one (older minis, one renamed or copied in Finder) goes by its folder's:
     /// "dwarf-cleric" is shown as "Dwarf Cleric".
@@ -191,7 +194,7 @@ public enum Gallery {
     /// a project in Finder would make the project look like a mini.
     public static func isMini(_ folder: URL) -> Bool {
         let fm = FileManager.default
-        return ["settings.json", "model.glb", "\(folder.lastPathComponent).stl"]
+        return ["settings.json", Mini.modelFile, "\(folder.lastPathComponent).stl"]
             .contains { fm.fileExists(atPath: folder.appendingPathComponent($0).path) }
     }
 
@@ -217,6 +220,18 @@ public enum Gallery {
     /// "dwarf" are one folder).
     public static func nameInUse(_ runs: URL, _ name: String) -> Bool {
         folder(runs, name) != nil || projects(runs).contains { $0.lowercased() == name.lowercased() }
+    }
+
+    /// Whether a new mini can't be called `name` in `project`: any other mini (or a project) with
+    /// the name, anywhere, keeps it. A failed attempt's folder in that same place doesn't: making
+    /// it there makes it again.
+    public static func nameTaken(_ runs: URL, _ name: String, project: String?) -> Bool {
+        if let existing = folder(runs, name),
+           existing.standardizedFileURL != newFolder(runs, name, project: project).standardizedFileURL
+            || FileManager.default.fileExists(atPath: existing.appendingPathComponent(Mini.modelFile).path) {
+            return true
+        }
+        return projects(runs).contains { $0.lowercased() == name.lowercased() }
     }
 
     /// The folder's name as it is on disk, which on a case-insensitive disk may differ from the

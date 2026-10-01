@@ -145,6 +145,32 @@ final class CheckTests: XCTestCase {
         XCTAssertLessThan(Date().timeIntervalSince(started), 5)
     }
 
+    /// One that ignores SIGTERM is killed too.
+    func testAProgramIgnoringStopTimesOut() throws {
+        let hang = f.root.appendingPathComponent("stubborn")
+        try executable(hang, "trap '' TERM; exec sleep 30")
+        let started = Date()
+        XCTAssertNil(Checks.execute(hang.path, [], 0.5))
+        XCTAssertLessThan(Date().timeIntervalSince(started), 5)
+    }
+
+    /// A program that finishes but leaves something running with its output open still
+    /// answers, once the time is up.
+    func testSomethingLeftHoldingTheOutputDoesNotHang() throws {
+        let pidFile = f.root.appendingPathComponent("left.pid")
+        let leaves = f.root.appendingPathComponent("leaves")
+        try executable(leaves, "sleep 30 & echo $! > \(pidFile.path); echo ok")
+        defer {
+            let pid = (try? String(contentsOf: pidFile, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let pid = pid.flatMap({ pid_t($0) }) { kill(pid, SIGKILL) }
+        }
+        let started = Date()
+        let result = Checks.execute(leaves.path, [], 0.5)
+        XCTAssertLessThan(Date().timeIntervalSince(started), 5)
+        XCTAssertEqual(result?.status, 0)
+        XCTAssertEqual(result?.output, "ok\n")
+    }
+
     func testFreeSpaceIsShownInTheLabel() {
         let space = checks(freeGB: 120).all.first { $0.id == "space" }!.run()
         XCTAssertEqual(space.label, "Free disk space (120 GB)")
@@ -155,7 +181,8 @@ final class CheckTests: XCTestCase {
     /// fall back to the first slicer found.
     func testPickingTheMacsDefaultAppSticks() throws {
         try FileManager.default.createDirectory(at: apps.appendingPathComponent("OrcaSlicer.app"), withIntermediateDirectories: true)
-        let d = UserDefaults(suiteName: UUID().uuidString)!
+        let suite = UUID().uuidString, d = UserDefaults(suiteName: suite)!
+        defer { d.removePersistentDomain(forName: suite) }
         XCTAssertEqual(Slicer.preferred(defaults: d, in: [apps])?.id, "orca")
         d.set(Slicer.macDefault, forKey: "slicer")
         XCTAssertNil(Slicer.preferred(defaults: d, in: [apps]))

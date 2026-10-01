@@ -28,8 +28,14 @@ final class MiniActionsTests: XCTestCase {
 
         // A request left from before, naming another job, is dropped rather than kept for later.
         try Data("someone-else".utf8).write(to: maker.queue.stopFile)
-        usleep(1_200_000)
+        XCTAssertTrue(eventually { !FileManager.default.fileExists(atPath: maker.queue.stopFile.path) }, "the request was never read")
         XCTAssertEqual(maker.status?.running, true, "a request naming another mini stopped this one")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: maker.queue.stopFile.path))
+        // So is one for an earlier job of the same name (#173).
+        let earlier = JobStatus(name: "mini", kind: .prep, step: .print, started: Date(timeIntervalSinceNow: -3600))
+        try Data(JobRunner.stopAsk(earlier).utf8).write(to: maker.queue.stopFile)
+        XCTAssertTrue(eventually { !FileManager.default.fileExists(atPath: maker.queue.stopFile.path) }, "the request was never read")
+        XCTAssertEqual(maker.status?.running, true, "a request for an earlier job of this name stopped this one")
         XCTAssertFalse(FileManager.default.fileExists(atPath: maker.queue.stopFile.path))
 
         guard case .stopped(let s) = terminal.stopElsewhere(timeout: 10) else { return XCTFail("the Mimic making it didn't stop it") }
@@ -61,11 +67,45 @@ final class MiniActionsTests: XCTestCase {
         XCTAssertEqual(maker.status?.displayName(runs: runs), "Élodie the Druid", "Mimic's toolbar and job popover")
     }
 
+    /// The job ends on its own before the Mimic making it reads the request (#173): `mimic stop`
+    /// doesn't say it stopped it, and the request goes, so the next job of that name isn't stopped.
+    func testAStopThatCameTooLateSaysSoAndIsTakenBack() throws {
+        let fx = try Fixture()
+        // Just short of a whole second: what `mimic stop` reads from job.json still matches it.
+        let job = JobStatus(name: "mini", kind: .prep, step: .print, started: Date(timeIntervalSince1970: 1_700_000_000.9999))
+        SharedJob.write(job, queue: fx.install.queue)  // another Mimic, which finishes it before it looks
+        XCTAssertEqual(JobRunner.stopTime(try XCTUnwrap(SharedJob.read(queue: fx.install.queue)).started), JobRunner.stopTime(job.started))
+        let terminal = JobRunner(install: fx.install, tools: fx.tools())
+        // Finished once `mimic stop` has asked, not before.
+        let stopFile = terminal.queue.stopFile.path
+        DispatchQueue.global().async {
+            _ = eventually { FileManager.default.fileExists(atPath: stopFile) }
+            SharedJob.clear(queue: fx.install.queue)
+        }
+        guard case .ended(let s) = terminal.stopElsewhere(timeout: 10) else { return XCTFail("said it stopped a job that ended on its own") }
+        XCTAssertEqual(s.name, "mini")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: terminal.queue.stopFile.path), "the request was left for a later job")
+
+        // Later, the same mini is resized: it runs.
+        let started = fx.root.appendingPathComponent("started").path
+        let prep = try fx.script("fake-prep", "touch \(started); sleep 60 & wait")
+        _ = try fx.mini("mini")
+        let maker = JobRunner(install: fx.install, tools: fx.tools(mimic: prep), trash: { _ in })
+        try maker.resize(name: "mini", sizes: sizes)
+        for _ in 0..<100 where !FileManager.default.fileExists(atPath: started) { usleep(50_000) }
+        // It has looked for a request once it drops this one, naming another mini.
+        try Data("someone-else".utf8).write(to: maker.queue.stopFile)
+        XCTAssertTrue(eventually { !FileManager.default.fileExists(atPath: maker.queue.stopFile.path) }, "the request was never read")
+        XCTAssertEqual(maker.status?.running, true, "a request from before stopped the next job of that name")
+        XCTAssertTrue(maker.cancel())
+        maker.waitUntilDone()
+    }
+
     /// Unanswered (a Mimic from before 0.9.0), the request is taken back, so it can't stop a later
     /// job of the same name.
     func testAnUnansweredStopIsTakenBack() throws {
         let fx = try Fixture()
-        let job = JobStatus(name: "mini", kind: .generate, step: 2, started: Date())
+        let job = JobStatus(name: "mini", kind: .generate, step: .shape, started: Date())
         SharedJob.write(job, queue: fx.install.queue)  // as if another Mimic were making it, and deaf
         let terminal = JobRunner(install: fx.install, tools: fx.tools())
         guard case .noAnswer = terminal.stopElsewhere(timeout: 0.5) else { return XCTFail("no Mimic stopped it") }
@@ -142,6 +182,33 @@ final class MiniActionsTests: XCTestCase {
         XCTAssertEqual(refused.nothingAdded("Not yet."), "Not yet. Skipped 1: not made yet, or already waiting or being made.")
         let same = jobs.resizeAll(Gallery.list(fx.install.runs).filter { $0.name == "b" }, to: sizes) { _, _ in XCTFail("resized a mini already that size") }
         XCTAssertEqual(same.nothingAdded(nil), "They're all already that size.")
+    }
+
+    /// Several dropped pictures: a mini each, named after its file, and those that can't be used
+    /// skipped and named; the last refusal not about the picture is kept to say why (#219).
+    func testMakeEachNamesAMiniAfterEachPicture() throws {
+        let fx = try Fixture()
+        _ = try fx.mini("dwarf")
+        let jobs = JobRunner(install: fx.install, tools: fx.tools())
+        let pictures = ["dwarf.png", "Raven Queen.png", "blurry.png", "owl.png"].map { fx.root.appendingPathComponent($0) }
+        var asked: [String] = [], shown: [String?] = []
+        let done = jobs.makeEach(pictures) { url, name, typed in
+            if url.lastPathComponent == "blurry.png" { throw RequestError.unreadablePicture }
+            if name == "owl" { throw RequestError.busy("owl") }
+            asked.append(name); shown.append(typed)
+        }
+        XCTAssertEqual(asked, ["dwarf-2", "raven-queen"])
+        XCTAssertEqual(shown, ["Dwarf 2", "Raven Queen"])
+        XCTAssertEqual(done.added, ["dwarf-2", "raven-queen"])
+        XCTAssertEqual(done.skipped, ["blurry.png", "owl.png"])
+        XCTAssertEqual(done.failure as? RequestError, .busy("owl"))
+        XCTAssertEqual(done.skippedNote, " Skipped blurry.png, owl.png: Mimic can't use them.")
+
+        let unreadable = jobs.makeEach([pictures[2]]) { _, _, _ in throw RequestError.noPicture }
+        XCTAssertEqual(unreadable.added, [])
+        XCTAssertNil(unreadable.failure, "a picture that can't be read says nothing more")
+        XCTAssertEqual(unreadable.skippedNote, " Skipped blurry.png: Mimic can't use it.")
+        XCTAssertEqual(MakeEach().skippedNote, "")
     }
 
     /// Measured as the 3D view turns a print file: tall is its Z extent, wide its X, deep its Y.

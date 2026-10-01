@@ -73,13 +73,14 @@ final class PrepTests: XCTestCase {
     }
 
     /// A .glb of `mesh` the way the 3D engine writes one: y up, and here placed by its node
-    /// (nowhere near the origin), so the reader's axes and transforms are both on trial.
-    static func glb(_ mesh: Mesh, translation: SIMD3<Float>) -> Data {
+    /// (nowhere near the origin), so the reader's axes and transforms are both on trial. `edit`
+    /// changes the scene description, to try the reader on a damaged file.
+    static func glb(_ mesh: Mesh, translation: SIMD3<Float>, edit: (inout [String: Any]) -> Void = { _ in }) -> Data {
         var bin = Data()
         for p in mesh.positions { for v in [p.x, p.z, -p.y] { withUnsafeBytes(of: v) { bin.append(contentsOf: $0) } } }
         let indexStart = bin.count
         for t in mesh.triangles { for v in [t.x, t.y, t.z] { withUnsafeBytes(of: v) { bin.append(contentsOf: $0) } } }
-        let json: [String: Any] = [
+        var json: [String: Any] = [
             "asset": ["version": "2.0"], "scene": 0, "scenes": [["nodes": [0]]],
             "nodes": [["mesh": 0, "translation": [translation.x, translation.z, -translation.y]]],
             "meshes": [["primitives": [["attributes": ["POSITION": 0], "indices": 1]]]],
@@ -89,6 +90,7 @@ final class PrepTests: XCTestCase {
                             ["buffer": 0, "byteOffset": indexStart, "byteLength": bin.count - indexStart]],
             "buffers": [["byteLength": bin.count]],
         ]
+        edit(&json)
         var text = try! JSONSerialization.data(withJSONObject: json)
         while text.count % 4 != 0 { text.append(0x20) }
         var out = Data()
@@ -246,6 +248,27 @@ final class PrepTests: XCTestCase {
         let above = out.positions.filter { $0.z > out.bounds.lo.z + 5 }  // above the base
         XCTAssertGreaterThan(above.map(\.y).min()!, -6, "the bar (at y ≈ -6.6 mm) is out of the print file")
         XCTAssertEqual(result.lines.count, 2, "the fixture's speck said nothing")
+        XCTAssertEqual(result.warnings.map(\.kind), [.part], "the job is told it too")
+        XCTAssertEqual(result.warnings.map { Prep.partWarning + $0.text }, parts)
+    }
+
+    /// The report beside the print file reads back as written, and what it says comes to: the
+    /// part and stand warnings said once each, and fragile from any other.
+    func testThePrepReportBesideThePrintFile() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("prep-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let stl = dir.appendingPathComponent("elf.stl")
+        XCTAssertEqual(PrepReport.file(beside: stl), dir.appendingPathComponent("prep-result.json"))
+        XCTAssertNil(PrepReport.read(dir))
+        let report = PrepReport(warnings: [.init(.footprint, "wide"), .init(.part, "A part."), .init(.stand, "Stand."), .init(.part, "A part.")])
+        try report.write(beside: stl)
+        XCTAssertEqual(PrepReport.read(dir), report)
+        XCTAssertEqual(report.notes, ["A part.", "Stand."])
+        XCTAssertTrue(report.fragile)
+        XCTAssertFalse(PrepReport(warnings: [.init(.part, "A part."), .init(.stand, "Stand.")]).fragile)
+        try PrepReport(failure: "flat").write(beside: stl)
+        XCTAssertEqual(PrepReport.read(dir)?.failure, "flat")
     }
 
     /// The generator's figures are often hollow, and the solid's wall round the hollow is a
@@ -281,10 +304,11 @@ final class PrepTests: XCTestCase {
         }
     }
 
-    /// JobRunner marks a mini fragile when it reads this marker.
+    /// JobRunner marks a mini fragile when its report has this warning.
     func testAFootprintWiderThanTheBaseWarns() throws {
         let (result, _, stl) = try prep(["--base", "8", "--faces", "20000"])
         XCTAssertTrue(result.lines.contains { $0.hasPrefix("mini_prep: WARNING") }, "\(result.lines)")
+        XCTAssertEqual(result.warnings.map(\.kind), [.footprint])
         let side = stl.deletingPathExtension().path + "_side.png"  // an older mini's one side view
         FileManager.default.createFile(atPath: side, contents: Data([1]))
         try Render.views(result.mesh, besides: stl)
@@ -296,6 +320,29 @@ final class PrepTests: XCTestCase {
             XCTAssertEqual(image.alphaInfo, .last, "transparent background")
         }
         XCTAssertFalse(FileManager.default.fileExists(atPath: side), "the old side view stayed beside left and right")
+    }
+
+    /// The previews are drawn before the print file is put in place (#172): when drawing them
+    /// fails, or a resize is stopped meanwhile, the old print file stays, the size its settings say.
+    func testAResizeWhosePreviewsFailKeepsTheOldPrintFile() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("prep-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let glb = dir.appendingPathComponent("fixture.glb"), stl = dir.appendingPathComponent("out.stl")
+        try Self.glb(Self.fixture(), translation: [0.8, -0.5, 0]).write(to: glb)
+        try Data("old".utf8).write(to: stl)
+        // A folder where the front view goes: it can't be written.
+        let front = dir.appendingPathComponent("out_front.png")
+        try FileManager.default.createDirectory(at: front, withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: front.appendingPathComponent("keep").path, contents: Data())
+        let options = try PrepOptions.parse([glb.path, stl.path, "--faces", "20000"])
+        XCTAssertThrowsError(try Prep.run(options, views: true))
+        XCTAssertEqual(try Data(contentsOf: stl), Data("old".utf8), "the new print file went in without its previews")
+        // Drawn, they go in with it.
+        try FileManager.default.removeItem(at: front)
+        _ = try Prep.run(options, views: true)
+        XCTAssertTrue(try Printed(stl).watertight)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: front.path))
     }
 
     /// A square base is its size along each side; a hex is its size across the flat sides, which
@@ -533,6 +580,7 @@ final class PrepTests: XCTestCase {
     func prepObject(_ m: Mesh) throws -> (Printed, Bool) {
         let (result, out, _) = try prep(["--fit", "longest", "--ground", "bottom", "--height", "60", "--no-base", "--faces", "20000"], mesh: m)
         said = result.lines.filter { $0.hasPrefix(Prep.standWarning) }
+        XCTAssertEqual(result.warnings.filter { $0.kind == .stand }.map { Prep.standWarning + $0.text }, said, "the job is told what the log says")
         return (out, logged.contains { $0.hasPrefix("prep: set on its most stable side") })
     }
 
@@ -644,6 +692,33 @@ final class PrepTests: XCTestCase {
         XCTAssertEqual(read.positions, [[5, 6, 7], [6, 6, 7], [5, 6, 8]])
         XCTAssertEqual(read.triangles, [[0, 1, 2]])
         XCTAssertThrowsError(try GLB.parse(Data("not a model".utf8)))
+    }
+
+    /// Trimming a 960-triangle ball to 300 keeps it one closed ball: every edge between exactly
+    /// two triangles, facing opposite ways, and still a sphere's count of corners for its faces
+    /// (V - E + F = 2: 152 corners for 300 faces). Its volume barely moves. One already under
+    /// the target is left as it is.
+    func testDecimateKeepsTheBallClosed() {
+        let ball = Self.sphere(radius: 10)
+        XCTAssertEqual(ball.triangles.count, 960)
+        let volume = { (m: Mesh) in Filament.volume(m.triangles.flatMap { t in [t.x, t.y, t.z].map { m.positions[Int($0)] } }) }
+
+        let trimmed = Decimate.run(ball, target: 300)
+        XCTAssertEqual(trimmed.triangles.count, 300, "each collapse takes two triangles, from an even count")
+        XCTAssertEqual(trimmed.positions.count, 152)
+        var edges: [SIMD2<UInt32>: Int] = [:]
+        for t in trimmed.triangles {
+            XCTAssert(t.x != t.y && t.y != t.z && t.z != t.x, "a triangle with a corner twice: \(t)")
+            for (a, b) in [(t.x, t.y), (t.y, t.z), (t.z, t.x)] { edges[SIMD2(a, b), default: 0] += 1 }
+        }
+        XCTAssertEqual(edges.count, 900, "450 edges, each once in each direction")
+        XCTAssertTrue(edges.allSatisfy { $0.value == 1 && edges[SIMD2($0.key.y, $0.key.x)] == 1 }, "an edge isn't between exactly two triangles")
+        XCTAssertEqual(volume(trimmed), volume(ball), accuracy: volume(ball) * 0.08)
+
+        let kept = Decimate.run(ball, target: 1000)
+        XCTAssertEqual(kept.triangles.count, 960)
+        XCTAssertEqual(kept.positions.count, ball.positions.count)
+        XCTAssertEqual(volume(kept), volume(ball), accuracy: 1e-6)
     }
 }
 

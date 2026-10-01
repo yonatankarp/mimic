@@ -42,7 +42,7 @@ final class SetupModel {
     /// Makes minis with `model` from now on. Only a model that's all there: others download first.
     func use(_ model: EngineModel) {
         guard model.complete(in: install) else { return }
-        UserDefaults.standard.set(model.id, forKey: "model")
+        UserDefaults.standard.set(model.id, forKey: SettingsKey.model)
         chosen = model
         Health.shared.check(install)
     }
@@ -109,7 +109,7 @@ final class SetupModel {
         if let problem { Log.setup.error("Setup stopped: \(problem, privacy: .public)") }
         else { Log.setup.notice("Setup finished, \(downloaded ? "ready" : "not complete", privacy: .public)") }
         if downloaded && !demo && target != chosen {
-            UserDefaults.standard.set(target.id, forKey: "model")
+            UserDefaults.standard.set(target.id, forKey: SettingsKey.model)
             chosen = target
         }
         let present = demo || EngineDownload.present(install, chosen)

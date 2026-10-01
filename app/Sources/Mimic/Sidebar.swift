@@ -11,6 +11,7 @@ import UniformTypeIdentifiers
 /// (MainWindowChrome), so the Mini menu can ask too, sidebar hidden or not.
 struct Sidebar: View {
     @Environment(AppModel.self) private var model
+    @Environment(Reporter.self) private var reporter
     @State private var query = ""
     @SceneStorage("gallerySort") private var sort = GallerySort.made
     @SceneStorage("galleryShow") private var show = GalleryShow.all
@@ -224,7 +225,7 @@ struct Sidebar: View {
             .disabled(model.minis.filter { $0.project == project && $0.stl != nil }.count < 2 || model.packing)
         Button("Show in Finder", systemImage: "folder") { model.showInFinder(project: project) }
         Button("Resize All…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resizeAll(project) }
-            .disabled(!model.minis.contains { $0.project == project && $0.hasModel } || model.cantStart != nil)
+            .disabled(!model.minis.contains { $0.project == project && $0.hasModel } || model.requiredProblem != nil)
         Divider()
         Button("Rename Project…", systemImage: "pencil") { model.sheet = .renameProject(project) }
         Button("Delete Project…", systemImage: "trash", role: .destructive) { model.deletingProject = project }
@@ -255,7 +256,7 @@ struct Sidebar: View {
             .disabled(mini.stl == nil)
             .help("A low-poly .glb to drag into a virtual tabletop")
         Button("Resize This Mini…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resize(mini) }
-            .disabled(!mini.hasModel || model.cantStart != nil || model.waiting(mini.name) != nil)
+            .disabled(!mini.hasModel || model.requiredProblem != nil || model.waiting(mini.name) != nil)
         Divider()
         AnotherVersionButton(mini: mini)
         NewShapeButton(mini: mini)
@@ -266,8 +267,8 @@ struct Sidebar: View {
         Divider()
         if model.canRetry(mini) {
             Button("Try Again", systemImage: "arrow.clockwise") { model.tryAgain(mini) }
-                .disabled(model.cantStart != nil)
-            Button("Report a Problem…", systemImage: "exclamationmark.bubble") { model.reportProblem(mini) }
+                .disabled(model.requiredProblem != nil)
+            Button("Report a Problem…", systemImage: "exclamationmark.bubble") { reporter.report(mini) }
         }
         Button("Rename…", systemImage: "pencil") { model.sheet = .rename(mini) }
             .disabled(model.waiting(mini.name) != nil)
@@ -287,7 +288,7 @@ struct SeveralMenu: View {
         CopiesButton(minis: minis)
         Button("Show in Finder", systemImage: "folder") { model.showInFinder(minis) }
         Button("Resize \(minis.count) Minis…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resizeSeveral(minis) }
-            .disabled(!minis.contains(where: \.hasModel) || model.cantStart != nil)
+            .disabled(!minis.contains(where: \.hasModel) || model.requiredProblem != nil)
         MoveToProjectMenu(minis: minis)
         Divider()
         Button("Move to Trash", systemImage: "trash", role: .destructive) { model.askToTrash(minis) }
@@ -455,7 +456,7 @@ struct AnotherVersionButton: View {
         }
             .help(mini.settings.isImported ? Self.imported
                   : "Makes it again from its picture or description, with a new variation number")
-            .disabled(model.cantStart != nil || !JobRunner.canMakeAnotherVersion(mini))
+            .disabled(model.requiredProblem != nil || !JobRunner.canMakeAnotherVersion(mini))
     }
 }
 
@@ -470,7 +471,7 @@ struct NewShapeButton: View {
         }
             .help(mini.settings.isImported ? AnotherVersionButton.imported
                   : "Keeps this picture and makes only the 3D shape again")
-            .disabled(model.cantStart != nil || !JobRunner.canMakeNewShape(mini))
+            .disabled(model.requiredProblem != nil || !JobRunner.canMakeNewShape(mini))
     }
 }
 

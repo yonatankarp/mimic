@@ -257,13 +257,32 @@ final class ImportTests: XCTestCase {
         jobs.waitUntilDone()
     }
 
+    /// A waiting new mini taken out goes to the Trash while the queue is still locked, so a make
+    /// with the same name from another Mimic can't take its folder over in between (#179).
+    func testAWaitingNewMiniIsTrashedUnderTheQueuesLock() throws {
+        let fx = try Fixture(); _ = try fx.mini("first")
+        let held = Flag(false)
+        let lockFile = JobQueue(folder: fx.install.queue).lockFile
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("slow", "sleep 1")), trash: { _ in
+            let fd = JobQueue.openLock(lockFile)
+            defer { close(fd) }
+            held.value = flock(fd, LOCK_EX | LOCK_NB) != 0
+        })
+        try jobs.resize(name: "first", sizes: sizes)
+        XCTAssertEqual(try jobs.importModel(try stl(PrepTests.box(half: [8, 8, 16]), in: fx.root), name: "ogre", sizes: sizes), 1)
+        XCTAssertTrue(try jobs.remove("ogre"))
+        XCTAssertTrue(held.value, "trashed after the queue's lock was let go")
+        jobs.waitUntilDone()
+    }
+
     /// Stopped before its print file is made, an import goes to the Trash as a new mini does.
     func testStoppingAnImportTrashesIt() throws {
         let fx = try Fixture()
         let spy = TrashSpy()
-        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("slow", "sleep 5")), trash: { spy($0) })
+        let started = fx.root.appendingPathComponent("started").path
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("slow", "touch \(started); sleep 5")), trash: { spy($0) })
         XCTAssertNil(try jobs.importModel(try stl(PrepTests.box(half: [8, 8, 16]), in: fx.root), name: "ogre", sizes: sizes))
-        Thread.sleep(forTimeInterval: 0.3)
+        XCTAssertTrue(eventually { fm.fileExists(atPath: started) }, "print prep never started")
         XCTAssertTrue(jobs.cancel())
         jobs.waitUntilDone()
         XCTAssertEqual(spy.trashed.map(\.lastPathComponent), ["ogre"])

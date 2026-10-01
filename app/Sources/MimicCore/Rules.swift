@@ -36,6 +36,10 @@ public enum Rules {
         return s.isEmpty ? "mini" : s
     }
 
+    /// A mini named on the command line: its folder's name, as `mimic list` shows it, or its name
+    /// as typed in Mimic ("Élodie" is elodie).
+    public static func miniName(_ text: String) -> String { isValidName(text) ? text : folderName(text) }
+
     /// A typed name as it's kept: trimmed, one line, at most 64 characters; nil when nothing is left.
     public static func shownName(_ typed: String) -> String? {
         let one = typed.components(separatedBy: .controlCharacters).joined(separator: " ")
@@ -93,6 +97,15 @@ public enum Rules {
         return nil
     }
 
+    /// The file name for a print file named after shown names: "AC/DC Roadie ×2" is
+    /// "AC-DC Roadie ×2.3mf", since "/" and ":" can't be in a file name and a leading "." would
+    /// hide it. "minis.3mf" when nothing in it could be a folder name (only emoji, say).
+    public static func printFileName(_ name: String) -> String {
+        let plain = name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
+        let shown = plain.drop { $0 == "." }
+        return slug(String(shown)).isEmpty ? "minis.3mf" : "\(shown).3mf"
+    }
+
     /// A project's folder name, as typed ("Tiefling Party"), trimmed; nil when it can't be one.
     /// "_" and "." folders are Mimic's own scratch and hidden, so a project can't start with either.
     public static func projectName(_ text: String) -> String? {
@@ -106,12 +119,19 @@ public enum Rules {
     public static let nozzles: Set<String> = ["0.2", "0.4", "0.6"]
 }
 
+/// A refusal of the app's or the command line's own, already in words for people: a job
+/// refused before it started, a project that isn't there.
+public struct Refusal: Error, Equatable, CustomStringConvertible {
+    public let description: String
+    public init(_ description: String) { self.description = description }
+}
+
 public enum RequestError: Error, Equatable, CustomStringConvertible {
     case badName, badNumber(String), badNozzle, nameTaken(String), busy(String, JobKind = .generate), nothingToRetry, noModelYet, notFound, missing(String), modelNotDownloaded(String), unknownModel(String), queued(String), noPicture, unreadablePicture,
          badProjectName, projectTaken(String), projectNotFound, cantMove(String), projectBusy(String, String), noSource(String), noDrawing(String), cantDuplicate(String),
          minisFolderBusy, sameMinisFolder, minisFolderNested, minisFolderClash([String]), movingMinis,
          imported(String), unreadableModel(String),
-         noName, renameWaiting(String), sidesNeedAPicture, oneSideOnly(String)
+         noName, renameWaiting(String), sidesNeedAPicture, oneSideOnly(String), unreadableSettings(String)
     public var description: String {
         switch self {
         case .badName: "Names can only use lowercase letters, numbers and dashes."
@@ -151,6 +171,7 @@ public enum RequestError: Error, Equatable, CustomStringConvertible {
             "That folder already has minis or projects called \(ListFormatter.localizedString(byJoining: names)). Rename yours first, or use the folder without moving your minis."
         case .sidesNeedAPicture: "Pictures of the back and sides go with a picture of the front, not a description."
         case .oneSideOnly(let model): "\(model) makes a mini from one picture. Choose TRELLIS.2 in Settings → 3D Model to use pictures of the back and sides too."
+        case .unreadableSettings(let n): "Mimic can't read the settings.json of \(Mini.displayName(n)), so it left it as it is. Fix or remove that file, then try again."
         }
     }
 }

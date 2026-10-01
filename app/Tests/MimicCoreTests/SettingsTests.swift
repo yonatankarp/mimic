@@ -9,6 +9,8 @@ final class SettingsTests: XCTestCase {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     }
 
+    override func tearDownWithError() throws { try? FileManager.default.removeItem(at: folder) }
+
     func testWritesMerge() throws {
         try MiniSettings.update(folder) { $0.source = .desc; $0.desc = "a dwarf" }
         try MiniSettings.update(folder) { $0.requested = Sizes(height: "100", base: "40", nozzle: "0.4") }
@@ -21,6 +23,50 @@ final class SettingsTests: XCTestCase {
     func testUnreadableSettingsReadAsEmpty() throws {
         try "{ not json".write(to: folder.appendingPathComponent("settings.json"), atomically: true, encoding: .utf8)
         XCTAssertEqual(MiniSettings.load(folder), MiniSettings())
+    }
+
+    /// A file that's there but doesn't read (a hand edit, a newer Mimic's value) is never written
+    /// over, which would lose everything it says (#179). An empty one, or none, is written.
+    func testAFileThatDoesntReadIsLeftAsItIs() throws {
+        let file = folder.appendingPathComponent("settings.json")
+        for text in ["{ not json", #"{"source": "video", "desc": "a dwarf", "seed": 42}"#] {
+            try text.write(to: file, atomically: true, encoding: .utf8)
+            XCTAssertThrowsError(try MiniSettings.update(folder) { $0.made = Sizes(height: "32") }) {
+                XCTAssertEqual($0 as? RequestError, .unreadableSettings(folder.lastPathComponent))
+            }
+            XCTAssertEqual(try String(contentsOf: file, encoding: .utf8), text)
+        }
+        try Data().write(to: file)
+        try MiniSettings.update(folder) { $0.seed = 7 }
+        XCTAssertEqual(MiniSettings.load(folder).seed, 7)
+    }
+
+    /// Changes to one mini's settings take turns, so none is lost to another made at the same
+    /// time (a rename while it's resized, #179).
+    func testUpdatesTakeTurns() throws {
+        let folder = folder!
+        DispatchQueue.concurrentPerform(iterations: 40) { _ in
+            try? MiniSettings.update(folder) { $0.seed = ($0.seed ?? 0) + 1 }
+        }
+        XCTAssertEqual(MiniSettings.load(folder).seed, 40)
+    }
+
+    /// The turn is the folder's, so a mini renamed while its settings are being changed waits
+    /// for that change under its new name.
+    func testTheTurnFollowsARename() throws {
+        let fd = open(folder.path, O_RDONLY)
+        XCTAssertEqual(flock(fd, LOCK_EX), 0)
+        let renamed = folder.deletingLastPathComponent().appendingPathComponent(UUID().uuidString)
+        try FileManager.default.moveItem(at: folder, to: renamed)
+        folder = renamed
+        let done = Flag(false)
+        Thread.detachNewThread { try? MiniSettings.update(renamed) { $0.seed = 1 }; done.value = true }
+        Thread.sleep(forTimeInterval: 0.3)
+        XCTAssertFalse(done.value, "changed while another change held the folder")
+        flock(fd, LOCK_UN); close(fd)
+        let deadline = Date().addingTimeInterval(5)
+        while !done.value, Date() < deadline { Thread.sleep(forTimeInterval: 0.02) }
+        XCTAssertEqual(MiniSettings.load(renamed).seed, 1)
     }
 
     /// The web version wrote this exact file; the app must read it the same way.

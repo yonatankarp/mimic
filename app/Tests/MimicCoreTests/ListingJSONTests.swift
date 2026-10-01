@@ -46,11 +46,11 @@ final class ListingJSONTests: XCTestCase {
     }
 
     func testQueueFields() throws {
-        var running = JobStatus(name: "orc", kind: .prep, step: 3, started: day)
+        var running = JobStatus(name: "orc", kind: .prep, step: .print, started: day)
         running.stepStarted = day
         let entry = QueueEntry(name: "elf", job: .generate, added: day)
         let q = ListingJSON.Queue(running: running, left: 61.4, held: .paused,
-                                  waiting: [(entry, Estimate(steps: [1: 30, 2: 400, 3: 50], learned: false), 541)])
+                                  waiting: [(entry, Estimate(steps: [.picture: 30, .shape: 400, .print: 50], learned: false), 541)])
         let o = try object(q)
         XCTAssertEqual(keys(o), ["held", "running", "waiting"])
         XCTAssertEqual(keys(o["running"] as? [String: Any]), ["job", "name", "secondsLeft", "started", "step"])

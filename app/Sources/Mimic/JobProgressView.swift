@@ -2,7 +2,6 @@ import AppKit
 import MimicCore
 import SwiftUI
 import TipKit
-import UserNotifications
 
 /// The job's popover under its toolbar item: three steps, a bar, the time so far, the queue,
 /// and what to do when it ends. It never covers the window; a click outside closes it.
@@ -14,8 +13,8 @@ struct JobProgressView: View {
     @State private var retryDetail: String?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    static let steps = [(1, "Getting the picture ready"), (2, "Building the 3D shape (the long part)"),
-                        (3, "Making the print-ready file")]
+    static let steps: [(JobStep, String)] = [(.picture, "Getting the picture ready"), (.shape, "Building the 3D shape (the long part)"),
+                                             (.print, "Making the print-ready file")]
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -49,9 +48,9 @@ struct JobProgressView: View {
             title(s, who: who).font(.title3.bold())
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(Self.steps.filter { s.kind == .generate || $0.0 == 3 }, id: \.0) { n, label in
+                    ForEach(Self.steps.filter { s.kind == .generate || $0.0 == .print }, id: \.0) { n, label in
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            StepMark(state: state(of: n, in: s), number: n)
+                            StepMark(state: state(of: n, in: s), number: n.rawValue)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(label).foregroundStyle(state(of: n, in: s) == .pending ? .secondary : .primary)
                                 // Its time left, or how long it should take.
@@ -83,14 +82,14 @@ struct JobProgressView: View {
                         Button("Open in \(model.slicerName)") { model.jobPopover = false; model.openInSlicer(stl) }
                             .buttonStyle(.glassProminent)
                             .keyboardShortcut(.defaultAction)
-                    } else if !s.succeeded && !s.canceled {
+                    } else if s.outcome == .failed {
                         if JobProgress.drawThingsCaused(s) {
                             Button("Open Setup") { model.jobPopover = false; SettingsTab.drawThings.select(); openSettings() }
                         }
                         Button("Try Again") { tryAgain(s.name) }
                             .buttonStyle(.glassProminent)
                             .keyboardShortcut(.defaultAction)
-                            .disabled(model.cantStart != nil || model.waiting(s.name) != nil || model.isImported(s.name))
+                            .disabled(model.requiredProblem != nil || model.waiting(s.name) != nil || model.isImported(s.name))
                             .help(model.isImported(s.name) ? RequestError.imported(s.name).description : "")
                     }
                 }
@@ -104,7 +103,7 @@ struct JobProgressView: View {
         return VStack(alignment: .leading, spacing: 10) {
             Label("\(model.doing(s)) \(model.displayName(s))", systemImage: Self.symbol(s.kind))
                 .font(.title3.bold())
-            Text("Another Mimic is doing this one (another copy of the app, or Terminal): stop it there. Step \(s.step) of 3 · \(JobProgress.about(estimate.left(s, now: now))) left.")
+            Text("Another Mimic is doing this one (another copy of the app, or Terminal): stop it there. Step \(s.step.rawValue) of 3 · \(JobProgress.about(estimate.left(s, now: now))) left.")
                 .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             ProgressView(value: JobProgress.fraction(s, estimate: estimate, now: now)).progressViewStyle(GlidingBar(working: true))
         }
@@ -117,14 +116,13 @@ struct JobProgressView: View {
             Text("Finished while you waited").font(.headline)
             ForEach(Array(model.ended.enumerated().reversed()), id: \.offset) { _, s in
                 HStack {
-                    Image(systemName: s.succeeded ? "checkmark.circle.fill" : s.canceled ? "stop.circle" : "exclamationmark.triangle.fill")
-                        .foregroundStyle(s.succeeded ? .green : s.canceled ? .secondary : .orange)
+                    Image(systemName: s.outcome.symbol).foregroundStyle(s.outcome.color)
                     Text(s.succeeded ? "\(model.displayName(s)) is ready" : s.canceled ? "Stopped \(model.displayName(s))"
                                                                             : "\(model.displayName(s)) didn't finish")
                     Spacer()
-                    if !s.succeeded && !s.canceled {
+                    if s.outcome == .failed {
                         Button("Try Again") { tryAgain(s.name) }
-                            .disabled(model.cantStart != nil || model.waiting(s.name) != nil || model.isImported(s.name))
+                            .disabled(model.requiredProblem != nil || model.waiting(s.name) != nil || model.isImported(s.name))
                             .help(model.isImported(s.name) ? RequestError.imported(s.name).description : s.problem ?? "")
                     }
                 }
@@ -134,27 +132,28 @@ struct JobProgressView: View {
 
     @ViewBuilder private func note(_ s: JobStatus, estimate: Estimate, now: Date) -> some View {
         Group {
-            if s.running {
+            switch s.outcome {
+            case .running:
                 Text(JobProgress.note(s, estimate: estimate, now: now))
                     .foregroundStyle(JobProgress.pace(s, estimate: estimate, now: now) == .usual ? Color.secondary : .orange)
                     // The time so far rolls from one second to the next.
                     .contentTransition(.numericText())
                     .animation(reduceMotion ? nil : .default, value: Int(now.timeIntervalSince(s.started)))
-            } else if s.canceled {
+            case .stopped:
                 Text(s.kind == .prep && !s.importing ? "It keeps its previous size." : "Nothing was kept. It's in the Trash if you want the pieces.")
                     .foregroundStyle(.secondary)
-            } else if s.succeeded {
+            case .finished:
                 ForEach(s.notes, id: \.self) { Label($0, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange) }
                 if s.fragile {
                     Label("Your mini is ready, but some thin parts may be fragile. Check it in your slicer before printing.",
                           systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                 }
-            } else {
+            case .failed:
                 VStack(alignment: .leading, spacing: 4) {
                     Text(JobProgress.drawThingsCaused(s) ? "Draw Things didn't answer. Check the setup steps, then try again."
                          : model.isImported(s.name) ? "Try Resize This Mini with other sizes, or check the model in the app it came from."
                          : "Try again, or use a clearer, full-body picture.")
-                    if let why = retryProblem ?? model.cantStart ?? s.problem {
+                    if let why = retryProblem ?? model.requiredProblem ?? s.problem {
                         Text(why).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
                             .help(retryProblem != nil ? retryDetail ?? "" : "")
                     }
@@ -170,14 +169,15 @@ struct JobProgressView: View {
     }
 
     @ViewBuilder private func title(_ s: JobStatus, who: String) -> some View {
-        if s.running {
+        switch s.outcome {
+        case .running:
             Label("\(model.doing(s)) \(who)", systemImage: Self.symbol(s.kind))
-        } else if s.canceled {
+        case .stopped:
             Label("Stopped \(model.doing(s).lowercased()) \(who)", systemImage: "stop.circle")
-        } else if s.succeeded {
+        case .finished:
             Label { Text("\(who) is ready") } icon: { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green) }
-        } else {
-            Label { Text("Something went wrong while \(JobRunner.label(s.step).lowercased())").fixedSize(horizontal: false, vertical: true) }
+        case .failed:
+            Label { Text("Something went wrong while \(s.step.label.lowercased())").fixedSize(horizontal: false, vertical: true) }
                 icon: { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange) }
         }
     }
@@ -185,11 +185,13 @@ struct JobProgressView: View {
     /// Making or resizing, as the menus show them.
     static func symbol(_ kind: JobKind) -> String { kind == .prep ? "arrow.up.left.and.arrow.down.right" : "cube" }
 
-    private func state(of n: Int, in s: JobStatus) -> StepMark.State {
-        if s.running { return n < s.step ? .done : n == s.step ? .active : .pending }
-        if s.succeeded { return .done }
-        if s.canceled { return .pending }
-        return n < s.step ? .done : n == s.step ? .failed : .pending
+    private func state(of n: JobStep, in s: JobStatus) -> StepMark.State {
+        switch s.outcome {
+        case .running: n < s.step ? .done : n == s.step ? .active : .pending
+        case .finished: .done
+        case .stopped: .pending
+        case .failed: n < s.step ? .done : n == s.step ? .failed : .pending
+        }
     }
 }
 
@@ -299,7 +301,7 @@ private struct QueueRow: View {
 }
 
 /// The questions the job's popover asks, over the window: Stop, and taking a job out of the queue.
-private struct JobQuestions: ViewModifier {
+struct JobQuestions: ViewModifier {
     @Environment(AppModel.self) private var model
 
     func body(content: Content) -> some View {
@@ -383,8 +385,8 @@ private struct JobPicture: View {
         // moment step 1 writes it.
         let file = shownFile
         let version = (try? FileManager.default.attributesOfItem(atPath: file.path))?[.modificationDate] as? Date
-        let building = status.running && status.kind == .generate && status.step == 2
-        let failed = !status.running && !status.succeeded && !status.canceled
+        let building = status.running && status.kind == .generate && status.step == .shape
+        let failed = status.outcome == .failed
         let shape = RoundedRectangle(cornerRadius: 12)
         Thumbnail(url: version == nil ? nil : file, version: version ?? .distantPast)
             .frame(width: 84, height: 84)
@@ -447,8 +449,8 @@ struct JobToolbarItem: View {
                                 ProgressRing(fraction: JobProgress.fraction(s, estimate: model.estimate(s), now: context.date))
                                     .transition(.opacity)
                             } else {
-                                Image(systemName: s.succeeded ? "checkmark.circle.fill" : s.canceled ? "stop.circle" : "exclamationmark.triangle.fill")
-                                    .foregroundStyle(s.succeeded ? .green : s.canceled ? .secondary : .orange)
+                                Image(systemName: s.outcome.symbol)
+                                    .foregroundStyle(s.outcome.color)
                                     .transition(reduceMotion || !s.succeeded ? .opacity : .scale(scale: 0.3).combined(with: .opacity))
                             }
                             Text(label(s, now: context.date)).monospacedDigit()
@@ -477,79 +479,31 @@ struct JobToolbarItem: View {
     private func label(_ s: JobStatus, now: Date) -> String {
         let who = model.displayName(s)
         let waiting = model.queue.isEmpty ? "" : " · \(model.queue.count) waiting" + (model.paused ? ", paused" : "")
-        if s.running { return "\(model.doing(s)) \(who) · \(JobProgress.clock(now.timeIntervalSince(s.started)))\(waiting)" }
-        if s.canceled { return "Stopped \(who)\(waiting)" }
-        return (s.succeeded ? "\(who) is ready" : "\(who) didn't finish") + waiting
+        switch s.outcome {
+        case .running: return "\(model.doing(s)) \(who) · \(JobProgress.clock(now.timeIntervalSince(s.started)))\(waiting)"
+        case .stopped: return "Stopped \(who)\(waiting)"
+        case .finished: return "\(who) is ready" + waiting
+        case .failed: return "\(who) didn't finish" + waiting
+        }
     }
 }
 
-/// `.popover(isPresented:)` that can be dragged off into a small window of its own, to keep an eye
-/// on a job: SwiftUI's popover can't detach, AppKit's can. Opens under the view it's behind,
-/// closes on a click outside, Esc, or switching apps (unless detached), and sets `isPresented`
-/// back to false when it closes, as SwiftUI's does. A new hosting controller each time, so its
-/// content appears afresh.
-private struct DetachablePopover<Content: View>: NSViewRepresentable {
-    @Binding var isPresented: Bool
-    @ViewBuilder let content: () -> Content
-
-    func makeNSView(context: Context) -> Anchor {
-        let anchor = Anchor()
-        anchor.coordinator = context.coordinator
-        return anchor
-    }
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    func updateNSView(_ anchor: Anchor, context: Context) {
-        let c = context.coordinator
-        c.closed = { isPresented = false }
-        guard isPresented != (c.popover != nil) else { return }
-        guard isPresented else {
-            if c.popover?.isShown == true { c.popover?.close() } else { c.popover = nil }
-            return
-        }
-        // The click outside that closed it also presses the toolbar button, which asks to open it
-        // again: SwiftUI's popover ignores that, and so does this.
-        if Date().timeIntervalSince(c.lastClosed) < 0.3 {
-            DispatchQueue.main.async { isPresented = false }
-            return
-        }
-        let popover = NSPopover()
-        popover.behavior = .transient
-        popover.delegate = c
-        let host = NSHostingController(rootView: content())
-        host.sizingOptions = .preferredContentSize
-        popover.contentViewController = host
-        c.popover = popover
-        // After this update; or, when the window is still opening (Show Progress from the Dock
-        // with the window closed), once the anchor is in it.
-        DispatchQueue.main.async { c.show(from: anchor) }
-    }
-
-    static func dismantleNSView(_ anchor: Anchor, coordinator: Coordinator) { coordinator.popover?.close() }
-
-    final class Anchor: NSView {
-        weak var coordinator: Coordinator?
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            coordinator?.show(from: self)
+/// How an ended job is marked beside its name: in the toolbar, and in the jobs that ended
+/// while the next one went on.
+private extension JobOutcome {
+    var symbol: String {
+        switch self {
+        case .finished: "checkmark.circle.fill"
+        case .stopped: "stop.circle"
+        case .running, .failed: "exclamationmark.triangle.fill"
         }
     }
 
-    @MainActor final class Coordinator: NSObject, NSPopoverDelegate {
-        var popover: NSPopover?
-        var closed: () -> Void = {}
-        var lastClosed = Date.distantPast
-
-        func show(from anchor: NSView) {
-            guard let popover, !popover.isShown, anchor.window != nil else { return }
-            popover.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .minY)
-        }
-
-        func popoverShouldDetach(_ popover: NSPopover) -> Bool { true }
-        func popoverDidClose(_ notification: Notification) {
-            popover = nil
-            lastClosed = Date()
-            closed()
+    var color: Color {
+        switch self {
+        case .finished: .green
+        case .stopped: .secondary
+        case .running, .failed: .orange
         }
     }
 }
@@ -573,258 +527,4 @@ private struct ProgressRing: View {
         .accessibilityElement()
         .accessibilityValue("\(Int(fraction * 100))%")
     }
-}
-
-/// A progress bar on the Dock icon while a job runs, so it can be followed from any app.
-@MainActor
-enum DockProgress {
-    private static var task: Task<Void, Never>?
-
-    static func follow(_ model: AppModel) {
-        task?.cancel()
-        task = Task { @MainActor in
-            let tile = NSApp.dockTile, view = DockTileView()
-            tile.contentView = view
-            while !Task.isCancelled, let s = model.job, s.running {
-                view.fraction = JobProgress.fraction(s, estimate: model.estimate(s))
-                tile.display()
-                // Every second, like the popover's clock: a 2-second step read as a stutter.
-                try? await Task.sleep(for: .seconds(1))
-            }
-            tile.contentView = nil
-            tile.display()
-        }
-    }
-}
-
-private final class DockTileView: NSView {
-    var fraction = 0.0
-
-    override func draw(_ dirtyRect: NSRect) {
-        NSApp.applicationIconImage?.draw(in: bounds)
-        let track = NSRect(x: bounds.width * 0.1, y: bounds.height * 0.06, width: bounds.width * 0.8, height: bounds.height * 0.1)
-        let radius = track.height / 2
-        NSColor.black.withAlphaComponent(0.55).setFill()
-        NSBezierPath(roundedRect: track, xRadius: radius, yRadius: radius).fill()
-        let inset = track.insetBy(dx: 2, dy: 2)
-        var fill = inset
-        fill.size.width = max(inset.height, inset.width * fraction)
-        NSColor.controlAccentColor.setFill()
-        NSBezierPath(roundedRect: fill, xRadius: inset.height / 2, yRadius: inset.height / 2).fill()
-    }
-}
-
-/// What the main window adds around the gallery: the sheets and questions, and the toolbar's
-/// New Mini button and job progress. Kept here so the window's own layout stays about the gallery.
-struct MainWindowChrome: ViewModifier {
-    // Named, not written inline: inside the long modifier chain below it made one expression
-    // too slow for CI's Swift to type-check.
-    private var showsProblem: Binding<Bool> {
-        Binding(get: { model.problem != nil }, set: { if !$0 { model.problem = nil } })
-    }
-    @Environment(AppModel.self) private var model
-    @Environment(\.undoManager) private var undoManager
-    @Environment(\.openWindow) private var openWindow
-    /// The window's size under its toolbar: New Mini and Resize grow up to it.
-    @State private var room = CGSize(width: 960, height: 640)
-
-    func body(content: Content) -> some View {
-        @Bindable var model = model
-        content
-            .onGeometryChange(for: CGSize.self) { $0.size } action: { room = $0 }
-            .toolbar {
-                // What's going on, then New Mini apart from it; the mini's page adds its own group.
-                ToolbarItem(placement: .primaryAction) { UpdateToolbarItem() }
-                ToolbarItem(placement: .primaryAction) { JobToolbarItem() }
-                ToolbarItem(placement: .primaryAction) { NeedsSetupItem() }
-                ToolbarSpacer(.fixed, placement: .primaryAction)
-                ToolbarItem(placement: .primaryAction) {
-                    Button { model.sheet = .make } label: { Label("New Mini", systemImage: "plus") }
-                        .help("Make a new mini (⌘N)")
-                        .disabled(!model.setup.installed)
-                        .tourCallout(.newMini)
-                }
-            }
-            // [room]: read here, so a new window size reaches the sheets (read only inside the
-            // closure, the sheet kept getting the starting 640).
-            .sheet(item: $model.sheet, onDismiss: { model.askToKeep = model.keepWhenClosed; model.keepWhenClosed = nil }) { [room] sheet in
-                switch sheet {
-                case .make: MakeView(room: room)
-                case .makeAgain(let mini): MakeView(room: room, form: MakeForm.again(mini, install: model.install, card: .remembered()), again: mini)
-                case .resize(let mini): ResizeView(mini: mini, room: room)
-                case .resizeAll(let p):
-                    let group = model.minis.filter { $0.project == p }
-                    if let first = group.first(where: \.hasModel) { ResizeView(mini: first, group: group, project: p, room: room) }
-                case .resizeSeveral(let group):
-                    if let first = group.first(where: \.hasModel) { ResizeView(mini: first, group: group, room: room) }
-                case .rename(let mini): RenameSheet(mini: mini)
-                case .newProject(let group): ProjectNameSheet(renaming: nil, moving: group)
-                case .renameProject(let p): ProjectNameSheet(renaming: p)
-                case .copies(let group): CopiesSheet(minis: group)
-                case .duplicate(let mini): DuplicateSheet(mini: mini)
-                case .importModel(let file): ImportSheet(file: file, room: room)
-                case .compare(let a, let b): CompareSheet(names: [a, b], room: room)
-                }
-            }
-            .modifier(JobQuestions())
-            .confirmationDialog(model.trashing.count == 1 ? "Move “\(model.trashing[0].displayName)” to the Trash?" : "Move \(model.trashing.count) minis to the Trash?",
-                                isPresented: Binding(get: { !model.trashing.isEmpty }, set: { if !$0 { model.trashing = [] } }),
-                                presenting: model.trashing) { group in
-                Button("Move to Trash", role: .destructive) { model.trash(group) }
-                Button("Cancel", role: .cancel) {}
-            } message: { group in
-                Text(group.count == 1 ? "It leaves the queue. You can put it back from the Trash, but not in the queue."
-                     : "Those waiting leave the queue. You can put them back from the Trash, but not in the queue.")
-            }
-            // Move to Trash registers its Undo with the window's undo manager (Edit → Undo).
-            .onChange(of: undoManager, initial: true) { model.undo = undoManager }
-            // Kept by the model, so a notification or the Dock menu can bring the window back
-            // after it's been closed while a mini is made.
-            .onAppear { model.openMainWindow = { [openWindow] in openWindow(id: "main") } }
-            // Deleting a project never trashes its minis silently: keeping them is the default.
-            .confirmationDialog("Delete the project “\(model.deletingProject ?? "")”?",
-                                isPresented: Binding(get: { model.deletingProject != nil }, set: { if !$0 { model.deletingProject = nil } }),
-                                presenting: model.deletingProject) { project in
-                let count = model.minis.filter { $0.project == project }.count
-                if count == 0 {
-                    Button("Delete Project") { model.deleteProject(project, keepMinis: true) }.keyboardShortcut(.defaultAction)
-                } else {
-                    Button("Keep Minis") { model.deleteProject(project, keepMinis: true) }.keyboardShortcut(.defaultAction)
-                    Button("Delete All", role: .destructive) { model.deleteProject(project, keepMinis: false) }
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: { project in
-                let count = model.minis.filter { $0.project == project }.count
-                let minis = count == 1 ? "its mini" : "its \(count) minis"
-                Text(count == 0 ? "The empty project goes to the Trash."
-                     : "Keep Minis moves \(minis) to Unsorted. Delete All moves \(minis) to the Trash with the project. You can put anything back from the Trash.")
-            }
-            .alert(model.problem ?? "", isPresented: showsProblem) {
-                Button("OK") {}
-            }
-            // Minis made from the terminal appear when you come back to the app.
-            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-                model.reload()
-            }
-    }
-}
-
-/// Settings lives in the Mimic menu (⌘,); the toolbar only says so when something needs you,
-/// and goes straight to what's missing.
-private struct NeedsSetupItem: View {
-    private var health: Health { .shared }
-
-    var body: some View {
-        if let why = health.blocking {
-            OpenSettingsButton(tab: .general) {
-                Label {
-                    Text("Needs Setup")
-                } icon: {
-                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                }
-                .labelStyle(.titleAndIcon)
-            }
-            .help(why)
-        }
-    }
-}
-
-/// Quitting during a job asks first; a confirmed quit stops the job before leaving and puts it
-/// back at the front of the queue, to carry on from its last finished step at the next launch.
-@MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
-    let model = AppModel()
-
-    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard let s = model.job, s.running else { return .terminateNow }
-        let jobs = model.jobs
-        // Logging out, restarting or shutting down: a question would hold the Mac up, and
-        // nothing is lost by not asking.
-        if !Self.systemQuit {
-            let alert = NSAlert()
-            let who = model.displayName(s)
-            alert.messageText = s.kind == .prep ? "Mimic is still resizing “\(who)”" : "Mimic is still making “\(who)”"
-            let waiting = model.queue.count
-            alert.informativeText = "Quitting stops it for now. The next time you open Mimic, it carries on from the last step it finished."
-                + (waiting == 0 ? "" : " The \(waiting == 1 ? "mini" : "\(waiting) minis") waiting in the queue will follow.")
-            // First, so Esc presses it.
-            alert.addButton(withTitle: "Cancel")
-            alert.addButton(withTitle: "Quit")
-            guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }
-        }
-        jobs.keepGoing = { _ in false }  // the queue waits for the next launch
-        jobs.cancel(keepingWork: true)
-        // The job's own thread tidies up (the queue, the lock) once its programs have ended;
-        // waiting here on the main thread would block the updates it sends.
-        DispatchQueue.global().async {
-            jobs.waitUntilDone()
-            DispatchQueue.main.async { NSApp.reply(toApplicationShouldTerminate: true) }
-        }
-        return .terminateLater
-    }
-
-    /// The quit is the Mac logging out, restarting or shutting down, as its quit event says.
-    private static var systemQuit: Bool {
-        guard let event = NSAppleEventManager.shared().currentAppleEvent,
-              let why = event.attributeDescriptor(forKeyword: AEKeyword(kAEQuitReason)) ?? event.paramDescriptor(forKeyword: AEKeyword(kAEQuitReason))
-        else { return false }
-        return [kAELogOut, kAEReallyLogOut, kAEShowRestartDialog, kAERestart, kAEShowShutdownDialog, kAEShutDown]
-            .map { OSType($0) }.contains(why.enumCodeValue)
-    }
-
-    func applicationWillFinishLaunching(_ notification: Notification) {
-        Tips.startUp()
-        // Before launching ends, so a click on a notification that opened Mimic reaches it.
-        if Bundle.main.bundleIdentifier != nil {
-            UNUserNotificationCenter.current().delegate = self
-            MiniNotification.register(slicer: model.slicerName)
-        }
-    }
-
-    /// Closing the window quits Mimic, except while a mini is being made or waiting, or setup is
-    /// downloading: that carries on, with its progress on the Dock icon, and the Dock icon (or
-    /// the Window menu) brings the window back. ⌘Q still asks first.
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        !model.setup.running && !model.running && model.queue.isEmpty
-    }
-
-    func applicationDidBecomeActive(_ notification: Notification) { model.becameActive() }
-
-    /// New Mini, the job's progress and Stop while one runs, and pausing the queue while
-    /// minis wait, from the Dock icon.
-    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
-        let menu = NSMenu()
-        let free = model.sheet == nil
-        func add(_ title: String, _ action: Selector) {
-            let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
-            item.target = self
-            menu.addItem(item)
-        }
-        if model.setup.installed && free { add("New Mini…", #selector(newMini)) }
-        if model.toolbarJob != nil && free { add("Show Progress", #selector(showProgress)) }
-        if let title = model.stopCommand, free { add(title, #selector(stopJob)) }
-        if !model.queue.isEmpty && free { add(model.pauseCommand, #selector(togglePause)) }
-        return menu
-    }
-
-    // Mimic and its window come to the front first (the window may have been closed while a
-    // mini is made), then act: the job's popover keeps track of whether it is.
-    @objc private func newMini() { model.showWindow(); Task { model.sheet = .make } }
-    @objc private func showProgress() { model.showWindow(); Task { model.jobPopover = true } }
-    @objc private func togglePause() { model.togglePause() }
-    @objc private func stopJob() { model.showWindow(); Task { model.confirmingStop = true } }
-}
-
-extension AppDelegate: UNUserNotificationCenterDelegate {
-    /// A finished mini's notification: clicked, Open in the slicer, or Try Again. The center may
-    /// call from any thread, so only plain strings cross to the main actor.
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
-        let action = response.actionIdentifier
-        guard let name = response.notification.request.content.userInfo[MiniNotification.mini] as? String else { return }
-        await MainActor.run { model.notificationAnswered(action, mini: name) }
-    }
-
-    /// Shown even with Mimic in front: it only posts one then when its window is closed.
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async
-        -> UNNotificationPresentationOptions { [.banner, .list, .sound] }
 }

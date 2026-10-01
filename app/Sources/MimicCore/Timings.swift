@@ -90,12 +90,12 @@ public struct JobShape: Equatable, Sendable {
 
 /// How long each step of a job should take on this Mac.
 public struct Estimate: Equatable, Sendable {
-    public var steps: [Int: TimeInterval]
+    public var steps: [JobStep: TimeInterval]
     /// From this Mac's own history, rather than Mimic's fixed figures.
     public var learned: Bool
     public var total: TimeInterval { steps.values.reduce(0, +) }
 
-    public init(steps: [Int: TimeInterval], learned: Bool) { self.steps = steps; self.learned = learned }
+    public init(steps: [JobStep: TimeInterval], learned: Bool) { self.steps = steps; self.learned = learned }
 
     /// Seconds left: the rest of the step it's in (nothing once past its estimate) and every
     /// step after it.
@@ -129,11 +129,11 @@ public enum Estimator {
     /// (EngineModel.minutes, measured on an M2 Max) less the other two.
     static func fixed(_ shape: JobShape) -> Estimate {
         let prep = 45.0
-        if shape.job == .prep { return Estimate(steps: [3: prep], learned: false) }
+        if shape.job == .prep { return Estimate(steps: [.print: prep], learned: false) }
         let whole = Double((EngineDownload.model(shape.model)?.minutes ?? 8) * 60)
         let shapeStep = whole - 60 - prep
-        return Estimate(steps: [1: (shape.drawn ? 60 : 5) * Double(shape.pictures),
-                                2: shape.pictures > 1 ? shapeStep * multiViewShape : shapeStep, 3: prep], learned: false)
+        return Estimate(steps: [.picture: (shape.drawn ? 60 : 5) * Double(shape.pictures),
+                                .shape: shape.pictures > 1 ? shapeStep * multiViewShape : shapeStep, .print: prep], learned: false)
     }
 
     /// Each step is the median of that step in the most recent similar jobs that finished on
@@ -148,8 +148,8 @@ public enum Estimator {
         var e = fixed(shape)
         var learned = false
         /// `each`: step 1 as the time per picture, since a make from four pictures makes four.
-        func median(_ step: Int, _ records: [TimingRecord], each: Bool = false) -> Double? {
-            let values = records.reversed().compactMap { r in r.steps[String(step)].map { each ? $0 / Double(r.pictures ?? 1) : $0 } }
+        func median(_ step: JobStep, _ records: [TimingRecord], each: Bool = false) -> Double? {
+            let values = records.reversed().compactMap { r in r.steps[String(step.rawValue)].map { each ? $0 / Double(r.pictures ?? 1) : $0 } }
                 .prefix(recent).sorted()
             guard values.count >= minimum else { return nil }
             let mid = values.count / 2
@@ -157,13 +157,13 @@ public enum Estimator {
         }
         if shape.job == .generate {
             let makes = usable.filter { $0.jobKind == .generate }
-            if let m = median(1, makes.filter { $0.drawn == shape.drawn }, each: true) { e.steps[1] = m * Double(shape.pictures) }
+            if let m = median(.picture, makes.filter { $0.drawn == shape.drawn }, each: true) { e.steps[.picture] = m * Double(shape.pictures) }
             // The 3D step from several pictures runs the slower way (`multiViewShape`): those
             // learn from each other, not from one-picture makes.
-            if let m = median(2, makes.filter { $0.model == shape.model && ($0.pictures ?? 1 > 1) == (shape.pictures > 1) }) {
-                e.steps[2] = m; learned = true
-            } else if shape.pictures > 1, let m = median(2, makes.filter { $0.model == shape.model }) {
-                e.steps[2] = m * multiViewShape; learned = true
+            if let m = median(.shape, makes.filter { $0.model == shape.model && ($0.pictures ?? 1 > 1) == (shape.pictures > 1) }) {
+                e.steps[.shape] = m; learned = true
+            } else if shape.pictures > 1, let m = median(.shape, makes.filter { $0.model == shape.model }) {
+                e.steps[.shape] = m * multiViewShape; learned = true
             }
         }
         let similar = usable.filter { r in
@@ -171,8 +171,8 @@ public enum Estimator {
             guard let a = r.height, let b = shape.height, b > 0 else { return r.height == shape.height }
             return abs(a - b) / b <= 0.3
         }
-        if let m = median(3, similar) ?? median(3, usable) {
-            e.steps[3] = m
+        if let m = median(.print, similar) ?? median(.print, usable) {
+            e.steps[.print] = m
             if shape.job == .prep { learned = true }
         }
         e.learned = learned
@@ -209,27 +209,36 @@ public struct Timings: Sendable {
         return text.split(separator: "\n").compactMap { try? JobQueue.decoder.decode(TimingRecord.self, from: Data($0.utf8)) }
     }
 
-    /// Adds one, dropping the oldest past the cap. Under a lock on the file itself, so two
-    /// Mimics finishing together both get their line in.
-    public func append(_ records: [TimingRecord]) {
+    /// The lock beside the history: the history itself is replaced whole, so a lock on it would
+    /// be let go of with the file it was on.
+    var lockFile: URL { url.appendingPathExtension("lock") }
+
+    /// Runs `body` holding the lock, so two Mimics finishing together both get their line in.
+    private func locked(_ body: () -> Void) {
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let fd = open(url.path, O_CREAT | O_RDWR | O_APPEND | O_CLOEXEC, 0o644)
+        let fd = JobQueue.openLock(lockFile)
         guard fd >= 0 else { return }
         defer { flock(fd, LOCK_UN); close(fd) }
-        flock(fd, LOCK_EX)
-        let h = FileHandle(fileDescriptor: fd, closeOnDealloc: false)
-        var lines = String(decoding: (try? h.readToEnd()) ?? Data(), as: UTF8.self).split(separator: "\n").map(String.init)
-        lines += records.compactMap { (try? Self.encoder.encode($0)).map { String(decoding: $0, as: UTF8.self) } }
-        let kept = lines.suffix(Self.cap)
-        ftruncate(fd, 0)
-        try? h.write(contentsOf: Data((kept.joined(separator: "\n") + (kept.isEmpty ? "" : "\n")).utf8))
+        while flock(fd, LOCK_EX) != 0 { guard errno == EINTR else { return } }
+        body()
+    }
+
+    /// Adds one, dropping the oldest past the cap. Written beside the history and then put in
+    /// its place, so a crash halfway leaves the history as it was.
+    public func append(_ records: [TimingRecord]) {
+        locked {
+            let text = (try? Data(contentsOf: url)).map { String(decoding: $0, as: UTF8.self) } ?? ""
+            var lines = text.split(separator: "\n").map(String.init)
+            lines += records.compactMap { (try? Self.encoder.encode($0)).map { String(decoding: $0, as: UTF8.self) } }
+            let kept = lines.suffix(Self.cap)
+            try? Data((kept.joined(separator: "\n") + (kept.isEmpty ? "" : "\n")).utf8).write(to: url, options: .atomic)
+        }
     }
 
     /// Forgets every job (Settings → Time estimates → Clear). The empty file stays, so the old
     /// minis aren't imported again.
     public func clear() {
-        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? Data().write(to: url, options: .atomic)
+        locked { try? Data().write(to: url, options: .atomic) }
     }
 
     /// The first time this Mimic runs, the minis already made seed the history (`imported`).
@@ -254,7 +263,7 @@ public struct Timings: Sendable {
                   let b = a[.creationDate] as? Date, let m = a[.modificationDate] as? Date else { return nil }
             return (b, m)
         }
-        let expected = (1...3).map { "[\($0)/3] \(JobRunner.label($0))" }
+        let expected = JobStep.allCases.map { "[\($0.rawValue)/3] \($0.label)" }
         var out: [TimingRecord] = []
         for mini in Gallery.list(runs) {
             let f = mini.folder
@@ -284,7 +293,7 @@ public struct Timings: Sendable {
 
 extension TimingRecord {
     /// The record of a job that just ended.
-    init(_ s: JobStatus, settings: MiniSettings, steps: [Int: TimeInterval], version: String, machine: Machine) {
+    init(_ s: JobStatus, settings: MiniSettings, steps: [JobStep: TimeInterval], version: String, machine: Machine) {
         let sizes = settings.requested
         self.init(date: Date(), version: version, machine: machine, job: s.kind == .prep ? "resize" : "make",
                   mini: settings.kind ?? .character,
@@ -292,7 +301,7 @@ extension TimingRecord {
                   source: s.kind == .prep ? nil : settings.source == .desc ? "description" : "picture",
                   restyled: s.kind == .prep ? nil : settings.restyle ?? false,
                   height: sizes?.height.flatMap(Double.init), nozzle: sizes?.nozzle ?? "0.4", base: sizes?.base.flatMap(Double.init),
-                  steps: Dictionary(uniqueKeysWithValues: steps.map { (String($0.key), $0.value) }),
+                  steps: Dictionary(uniqueKeysWithValues: steps.map { (String($0.key.rawValue), $0.value) }),
                   total: steps.values.reduce(0, +),
                   outcome: s.canceled ? .stopped : s.exit == 0 ? .finished : .failed, imported: nil,
                   pictures: s.kind == .prep || settings.pictures == 1 ? nil : settings.pictures)
@@ -327,5 +336,11 @@ extension JobRunner {
             t += est.total
             return (e, est, t)
         }
+    }
+
+    /// The seconds until `name`, waiting in `queue`, should be ready; nil when it isn't waiting.
+    public func readyIn(_ name: String, queue: [QueueEntry], running: JobStatus?, history: [TimingRecord], now: Date = Date(),
+                        minis: [Mini] = []) -> TimeInterval? {
+        queueTimes(queue, running: running, history: history, now: now, minis: minis).first { $0.entry.name == name }?.ready
     }
 }

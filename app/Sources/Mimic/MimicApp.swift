@@ -17,6 +17,7 @@ struct MimicApp: App {
                 // Wide enough that the 3D view keeps about 420 points beside the sidebar and the details.
                 .frame(minWidth: 960, minHeight: 680)
                 .environment(model)
+                .environment(delegate.reporter)
         }
         .defaultSize(width: 1180, height: 780)
         .commands {
@@ -53,13 +54,13 @@ struct MimicApp: App {
             GalleryCommands(model: model)
             SidebarCommands()
             ImportFromDevicesCommands()  // File → Import from iPhone, for New Mini's picture
-            MiniCommands(model: model)
+            MiniCommands(model: model, reporter: delegate.reporter)
             CommandGroup(replacing: .help) {
                 Button("Mimic Help") { NSWorkspace.shared.open(Self.help) }
                 Button("Show Tour") { TourGuide.shared.begin() }
                     .disabled(!model.setup.installed || model.sheet != nil)
                 Divider()
-                Button("Report a Problem…") { model.reportProblem() }
+                Button("Report a Problem…") { delegate.reporter.report() }
             }
         }
         Settings {
@@ -78,6 +79,7 @@ struct MimicApp: App {
 /// The mini page's own toolbar and 3D view controls are in the View menu.
 struct MiniCommands: Commands {
     let model: AppModel
+    let reporter: Reporter
     @AppStorage(SizeReference.key) private var reference = SizeReference.none
 
     var body: some Commands {
@@ -117,16 +119,16 @@ struct MiniCommands: Commands {
             if several {
                 Button("Resize \(chosen.count) Minis…") { model.sheet = .resizeSeveral(chosen) }
                     .keyboardShortcut("r")
-                    .disabled(!chosen.contains(where: \.hasModel) || model.cantStart != nil || !free)
+                    .disabled(!chosen.contains(where: \.hasModel) || model.requiredProblem != nil || !free)
             } else {
                 Button("Resize This Mini…") { if let mini { model.sheet = .resize(mini) } }
                     .keyboardShortcut("r")
-                    .disabled(mini?.hasModel != true || model.cantStart != nil || !free || mini.flatMap { model.waiting($0.name) } != nil)
+                    .disabled(mini?.hasModel != true || model.requiredProblem != nil || !free || mini.flatMap { model.waiting($0.name) } != nil)
             }
             if let mini, model.canRetry(mini) {
                 Button("Try Again") { model.tryAgain(mini) }
-                    .disabled(model.cantStart != nil || !free)
-                Button("Report a Problem…") { model.reportProblem(mini) }
+                    .disabled(model.requiredProblem != nil || !free)
+                Button("Report a Problem…") { reporter.report(mini) }
                     .disabled(!free)
             }
             Button("Rename…") { if let mini { model.sheet = .rename(mini) } }

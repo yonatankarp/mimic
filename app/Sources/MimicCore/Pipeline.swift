@@ -88,14 +88,14 @@ public enum Pipeline {
     /// would draw the same one, and doesn't need Draw Things. Make clears a stale one first. A 3D
     /// shape already made (model.glb) isn't built again either: a make stopped by quitting in its
     /// last step carries on there (#82). Make refuses a folder that has one.
-    public static func plan(_ kind: JobKind, folder: URL, settings: MiniSettings, tools: Tools) throws -> [(number: Int, step: Step)] {
+    public static func plan(_ kind: JobKind, folder: URL, settings: MiniSettings, tools: Tools) throws -> [(number: JobStep, step: Step)] {
         let name = folder.lastPathComponent
         let flags = try prepFlags(settings)
         let prep: Step = .run(executable: tools.mimic,
-                              arguments: ["_prep", folder.appendingPathComponent("model.glb").path,
+                              arguments: ["_prep", folder.appendingPathComponent(Mini.modelFile).path,
                                           folder.appendingPathComponent("\(name).stl").path] + flags,
                               directory: nil, log: folder.appendingPathComponent("prep.log"))
-        if kind == .prep { return [(3, prep)] }
+        if kind == .prep { return [(.print, prep)] }
         if settings.isImported { throw RequestError.imported(name) }
         guard let model = EngineDownload.model(settings.model) else { throw RequestError.unknownModel(settings.model ?? "") }
 
@@ -123,7 +123,7 @@ public enum Pipeline {
         }
         let sides = settings.source == .image ? settings.sides ?? [] : []
         let mesh: Step = .run(executable: tools.mimic,
-                              arguments: ["_engine", source.path, folder.appendingPathComponent("model.glb").path,
+                              arguments: ["_engine", source.path, folder.appendingPathComponent(Mini.modelFile).path,
                                           "--seed", String(settings.shapeSeed ?? seed), "--engine", tools.engine, "--model", model.id]
                                   + sides.flatMap { ["--\($0.rawValue)", folder.appendingPathComponent($0.source).path] },
                               directory: nil, log: folder.appendingPathComponent("pixal3d.log"))
@@ -131,17 +131,17 @@ public enum Pipeline {
         // A picture already made isn't made again, each on its own: a make stopped while
         // sculpting the back keeps the front.
         let fm = FileManager.default
-        return pictures.filter { !fm.fileExists(atPath: $0.makes?.path ?? "") }.map { (1, $0) }
-            + (skip.contains(2) ? [] : [(2, mesh)]) + [(3, prep)]
+        return pictures.filter { !fm.fileExists(atPath: $0.makes?.path ?? "") }.map { (.picture, $0) }
+            + (skip.contains(.shape) ? [] : [(.shape, mesh)]) + [(.print, prep)]
     }
 
     /// The steps a make of the mini in `folder` skips because what they make is there already:
     /// the picture (source.png and one for each of its `sides`: Try Again, a new 3D shape), and
     /// the 3D shape too when it has model.glb as well (a make stopped in its last step).
-    public static func skipped(_ folder: URL, sides: [PictureSide] = []) -> Set<Int> {
+    public static func skipped(_ folder: URL, sides: [PictureSide] = []) -> Set<JobStep> {
         let fm = FileManager.default
         guard (["source.png"] + sides.map(\.source)).allSatisfy({ fm.fileExists(atPath: folder.appendingPathComponent($0).path) }) else { return [] }
-        return fm.fileExists(atPath: folder.appendingPathComponent("model.glb").path) ? [1, 2] : [1]
+        return fm.fileExists(atPath: folder.appendingPathComponent(Mini.modelFile).path) ? [.picture, .shape] : [.picture]
     }
 }
 

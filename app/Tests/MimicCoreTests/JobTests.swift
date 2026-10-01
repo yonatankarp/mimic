@@ -77,9 +77,9 @@ final class JobTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: src.path), "a new Make draws its own picture")
         jobs.waitUntilDone()
         let settings = MiniSettings.load(d), tools = fx.tools(mimic: "/app/mimic")
-        XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: settings, tools: tools).map(\.number), [1, 2, 3])
+        XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: settings, tools: tools).map(\.number), [.picture, .shape, .print])
         FileManager.default.createFile(atPath: src.path, contents: Data([1]))  // step 1 finished, step 2 failed
-        XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: settings, tools: tools).map(\.number), [2, 3], "not drawn again")
+        XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: settings, tools: tools).map(\.number), [.shape, .print], "not drawn again")
     }
 
     /// A job with the fixture's tools never reaches the real Draw Things (#140): on a Mac that
@@ -242,16 +242,29 @@ final class JobTests: XCTestCase {
         XCTAssertEqual(EngineDownload.model(MiniSettings().model)?.id, "pixal3d-sv")
     }
 
-    /// prep.log is appended to, so a warning from an earlier run must not follow the mini around.
+    /// An earlier run's report (or warning in prep.log, which is appended to) must not follow
+    /// the mini around.
     func testFragileIsThisRunsWarningOnly() throws {
         let fx = try Fixture(); let d = try fx.mini("dwarf")
         try "mini_prep: WARNING thin parts\n".write(to: d.appendingPathComponent("prep.log"), atomically: true, encoding: .utf8)
+        try JSONEncoder().encode(PrepReport(warnings: [.init(.footprint, "thin parts")])).write(to: d.appendingPathComponent("prep-result.json"))
         let quiet = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/true"))
         try quiet.resize(name: "dwarf", sizes: sizes); quiet.waitUntilDone()
         XCTAssertEqual(quiet.status?.fragile, false)
-        let warns = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("prep", "echo 'mini_prep: WARNING thin parts'")))
+        let warns = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.prep("prep", PrepReport(warnings: [.init(.footprint, "thin parts")]))))
         try warns.resize(name: "dwarf", sizes: sizes); warns.waitUntilDone()
         XCTAssertEqual(warns.status?.fragile, true)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: d.appendingPathComponent("prep-result.json").path), "read, then gone")
+    }
+
+    /// What the job shows comes from print prep's report, not its log (#218): rewording a line
+    /// in prep.log changes nothing.
+    func testWarningsComeFromTheReportNotTheLog() throws {
+        let fx = try Fixture(); _ = try fx.mini("elf")
+        let says = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("prep", "echo 'mini_prep: WARNING footprint'; echo '\(Prep.partWarning)A part.'")))
+        try says.resize(name: "elf", sizes: sizes); says.waitUntilDone()
+        XCTAssertEqual(says.status?.notes, [])
+        XCTAssertEqual(says.status?.fragile, false)
     }
 
     /// A part print prep left out, or an object that needs a base, is said in its own words,
@@ -260,11 +273,11 @@ final class JobTests: XCTestCase {
         let fx = try Fixture(); _ = try fx.mini("elf")
         let part = "A part came out separate from the figure (about 30 mm long) and was left out."
         let stand = "It needs a base to stand."
-        let one = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("prep", "echo '\(Prep.partWarning)\(part)'; echo '\(Prep.standWarning)\(stand)'")))
+        let one = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.prep("prep", PrepReport(warnings: [.init(.part, part), .init(.stand, stand)]))))
         try one.resize(name: "elf", sizes: sizes); one.waitUntilDone()
         XCTAssertEqual(one.status?.notes, [part, stand])
         XCTAssertEqual(one.status?.fragile, false)
-        let both = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("prep2", "echo 'mini_prep: WARNING footprint'; echo '\(Prep.partWarning)\(part)'")))
+        let both = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.prep("prep2", PrepReport(warnings: [.init(.footprint, "footprint"), .init(.part, part)]))))
         try both.resize(name: "elf", sizes: sizes); both.waitUntilDone()
         XCTAssertEqual(both.status?.notes, [part])
         XCTAssertEqual(both.status?.fragile, true)
@@ -275,13 +288,13 @@ final class JobTests: XCTestCase {
     func testWarningsAndFailuresAreKeptWithTheMini() throws {
         let fx = try Fixture(); let d = try fx.mini("elf")
         let part = "A part came out separate from the figure (about 30 mm long) and was left out."
-        let warns = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("prep", "echo 'mini_prep: WARNING footprint'; echo '\(Prep.partWarning)\(part)'")))
+        let warns = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.prep("prep", PrepReport(warnings: [.init(.footprint, "footprint"), .init(.part, part)]))))
         try warns.resize(name: "elf", sizes: sizes); warns.waitUntilDone()
         XCTAssertEqual(MiniSettings.load(d).notes, [part])
         XCTAssertEqual(MiniSettings.load(d).fragile, true)
-        let fails = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("prep2", "echo 'mini_prep: FAILED the model is flat'; exit 1")))
+        let fails = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.prep("prep2", PrepReport(failure: "the model is flat"), "exit 1")))
         try fails.resize(name: "elf", sizes: sizes); fails.waitUntilDone()
-        XCTAssertNotNil(MiniSettings.load(d).failed, "why it failed is kept")
+        XCTAssertEqual(MiniSettings.load(d).failed, "the model is flat", "why it failed is kept")
         XCTAssertEqual(MiniSettings.load(d).failedStep, 3)
         XCTAssertEqual(MiniSettings.load(d).notes, [part], "a failed run leaves the print file, and its warnings, as they were")
         let quiet = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/true"))
@@ -306,7 +319,7 @@ final class JobTests: XCTestCase {
             if let s = try? String(contentsOfFile: childFile, encoding: .utf8), let p = pid_t(s.trimmingCharacters(in: .whitespacesAndNewlines)) { child = p; break }
             usleep(50_000)
         }
-        XCTAssertEqual(jobs.status?.step, 2)
+        XCTAssertEqual(jobs.status?.step, .shape)
         XCTAssertTrue(jobs.cancel())
         jobs.waitUntilDone()
         XCTAssertEqual(jobs.status?.canceled, true)
@@ -314,6 +327,60 @@ final class JobTests: XCTestCase {
         usleep(200_000)
         XCTAssertNotEqual(kill(child, 0), 0, "Stop left the 3D engine's child running")
         XCTAssertEqual(spy.trashed.map(\.lastPathComponent), ["mini"])
+    }
+
+    /// Stop ends the job only once everything it started has ended too (#174): a program slow
+    /// to die on SIGTERM can't hold memory into the next job, or outlive Mimic quitting with
+    /// no record left to stop it by.
+    func testStopWaitsForEverythingTheJobStarted() throws {
+        let fx = try Fixture()
+        let childFile = fx.root.appendingPathComponent("child.pid").path
+        // The engine ends at once; what it started takes 2 s more.
+        let engine = try fx.script("fake-engine", "(trap '' TERM; sleep 2) & echo $! > \(childFile); wait")
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: engine), trash: { _ in })
+        try fx.modelFiles()
+        try jobs.make(name: "mini", picture: .image(try fx.picture()), restyle: false, seed: 1, sizes: sizes, model: EngineDownload.standard)
+        var child: pid_t = 0
+        for _ in 0..<100 {
+            if let s = try? String(contentsOfFile: childFile, encoding: .utf8), let p = pid_t(s.trimmingCharacters(in: .whitespacesAndNewlines)) { child = p; break }
+            usleep(50_000)
+        }
+        XCTAssertGreaterThan(child, 0)
+        XCTAssertTrue(jobs.cancel())
+        jobs.waitUntilDone()
+        XCTAssertNotEqual(kill(child, 0), 0, "the job ended while what it started still ran")
+        XCTAssertFalse(Leftover.recorded(queue: fx.install.queue))
+    }
+
+    /// `mimic make` stops its job when its Terminal window is closed or it's killed, not only on
+    /// Ctrl-C (#174): the job's programs, in a session of their own, don't hear it themselves.
+    func testClosingTheTerminalOrKillStopsTheJob() throws {
+        let saved = [SIGINT, SIGHUP, SIGTERM].map { sig -> (Int32, sigaction) in
+            var old = sigaction()
+            sigaction(sig, nil, &old)
+            return (sig, old)
+        }
+        defer { for (sig, old) in saved { var o = old; sigaction(sig, &o, nil) } }
+        for sig in [SIGHUP, SIGTERM] {
+            let fx = try Fixture()
+            let started = fx.root.appendingPathComponent("started").path, termed = fx.root.appendingPathComponent("termed").path
+            // Ends as soon as it hears SIGTERM, as the 3D engine should.
+            let engine = try fx.script("fake-engine", "trap 'touch \(termed); exit 143' TERM; touch \(started); sleep 60 & wait")
+            let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: engine), trash: { _ in })
+            // Listening before the job starts, as `mimic make` does: its programs still hear Stop.
+            let signals = jobs.stopOnSignals()
+            try fx.modelFiles()
+            try jobs.make(name: "mini", picture: .image(try fx.picture()), restyle: false, seed: 1, sizes: sizes, model: EngineDownload.standard)
+            for _ in 0..<100 where !FileManager.default.fileExists(atPath: started) { usleep(50_000) }
+            let asked = Date()
+            // Until it's heard: the listener may not be up yet.
+            for _ in 0..<100 where jobs.status?.canceled != true { kill(getpid(), sig); usleep(50_000) }
+            jobs.waitUntilDone()
+            signals.forEach { $0.cancel() }
+            XCTAssertEqual(jobs.status?.canceled, true, "signal \(sig) didn't stop the job")
+            XCTAssertTrue(FileManager.default.fileExists(atPath: termed), "the job's program never heard SIGTERM")
+            XCTAssertLessThan(Date().timeIntervalSince(asked), 4, "it took the SIGKILL after the grace to stop it")
+        }
     }
 
     /// Quitting during a make (#82): the mini goes back to the front of the queue, not to the
@@ -333,7 +400,7 @@ final class JobTests: XCTestCase {
         try jobs.make(name: "mini", picture: .image(picture), restyle: false, seed: 1, sizes: sizes, model: EngineDownload.standard)
         XCTAssertEqual(try jobs.resize(name: "b", sizes: sizes), 1)
         for _ in 0..<100 where !FileManager.default.fileExists(atPath: started) { usleep(50_000) }
-        XCTAssertEqual(jobs.status?.step, 2)
+        XCTAssertEqual(jobs.status?.step, .shape)
         jobs.keepGoing = { _ in false }
         XCTAssertTrue(jobs.cancel(keepingWork: true))
         jobs.waitUntilDone()
@@ -342,7 +409,7 @@ final class JobTests: XCTestCase {
         XCTAssertEqual(jobs.queue.entries().map(\.name), ["mini", "b"], "it goes back first")
         XCTAssertEqual(jobs.queue.entries().first?.job, .generate)
         XCTAssertFalse(FileManager.default.fileExists(atPath: d.appendingPathComponent("model.glb").path), "a half-built shape was kept")
-        XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: MiniSettings.load(d), tools: fx.tools()).map(\.number), [2, 3],
+        XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: MiniSettings.load(d), tools: fx.tools()).map(\.number), [.shape, .print],
                        "the picture is kept")
         XCTAssertNil(MiniSettings.load(d).failed, "quitting isn't a failure")
     }
@@ -359,20 +426,51 @@ final class JobTests: XCTestCase {
         try fx.modelFiles()
         try jobs.make(name: "mini", picture: .image(picture), restyle: false, seed: 1, sizes: sizes, model: EngineDownload.standard)
         for _ in 0..<100 where !FileManager.default.fileExists(atPath: started) { usleep(50_000) }
-        XCTAssertEqual(jobs.status?.step, 3)
+        XCTAssertEqual(jobs.status?.step, .print)
         jobs.keepGoing = { _ in false }
         XCTAssertTrue(jobs.cancel(keepingWork: true))
         jobs.waitUntilDone()
         let d = fx.install.runs.appendingPathComponent("mini")
         XCTAssertEqual(jobs.queue.entries().map(\.name), ["mini"])
         XCTAssertEqual(try String(contentsOf: d.appendingPathComponent("model.glb"), encoding: .utf8), "shape\n")
-        XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: MiniSettings.load(d), tools: fx.tools()).map(\.number), [3])
+        XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: MiniSettings.load(d), tools: fx.tools()).map(\.number), [.print])
         // The next launch carries on with it, and it finishes.
         let next = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/true"))
         next.pump(); next.waitUntilDone()
         XCTAssertEqual(next.status?.name, "mini")
         XCTAssertEqual(next.status?.succeeded, true)
         XCTAssertEqual(next.queue.entries(), [])
+    }
+
+    /// Stop then quit while the job is still ending (#171): the stopped mini goes to the Trash
+    /// and doesn't start again next launch. Quit then Stop keeps it, as quitting promised.
+    func testTheFirstStopOrQuitDecidesWhatIsKept() throws {
+        for (first, then) in [(false, true), (true, false)] {
+            let fx = try Fixture()
+            let started = fx.root.appendingPathComponent("started").path
+            // Takes a second to end once stopped: the window the second ask lands in.
+            let fake = try fx.script("fake-mimic", """
+                trap 'sleep 1; exit 143' TERM; touch \(started); sleep 60 & wait
+                """)
+            let picture = try fx.picture()
+            let spy = TrashSpy()
+            let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: fake), trash: { spy($0) })
+            try fx.modelFiles()
+            try jobs.make(name: "mini", picture: .image(picture), restyle: false, seed: 1, sizes: sizes, model: EngineDownload.standard)
+            for _ in 0..<100 where !FileManager.default.fileExists(atPath: started) { usleep(50_000) }
+            jobs.keepGoing = { _ in false }
+            XCTAssertTrue(jobs.cancel(keepingWork: first))
+            XCTAssertEqual(jobs.status?.running, true, "it ended before the second ask")
+            XCTAssertTrue(jobs.cancel(keepingWork: then))
+            jobs.waitUntilDone()
+            if first {
+                XCTAssertEqual(spy.trashed, [], "a Stop after quitting threw the mini away")
+                XCTAssertEqual(jobs.queue.entries().map(\.name), ["mini"])
+            } else {
+                XCTAssertEqual(spy.trashed.map(\.lastPathComponent), ["mini"], "quitting after Stop kept the stopped mini")
+                XCTAssertEqual(jobs.queue.entries(), [], "the stopped mini would start again next launch")
+            }
+        }
     }
 
     /// A second job while one runs waits its turn instead of being refused, then runs.

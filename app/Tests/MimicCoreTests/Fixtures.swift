@@ -1,15 +1,17 @@
 import Foundation
 import ImageIO
+import XCTest
 @testable import MimicCore
 
 /// A throwaway Mimic folder with fake tools: the job runner runs real processes, just not
-/// print prep or the 3D engine.
+/// print prep or the 3D engine. Removed once its test is over.
 struct Fixture {
     let root: URL
     let install: Install
     init() throws {
         root = FileManager.default.temporaryDirectory.appendingPathComponent("mimic-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: root.appendingPathComponent("runs"), withIntermediateDirectories: true)
+        FixtureFolders.add(root)
         install = Install(root: root)
         // The queue's folder is made by the first change to the queue; some tests write a
         // running job's record before any.
@@ -27,6 +29,14 @@ struct Fixture {
     /// `mimic` stands in for Mimic's own binary, which steps 2 and 3 run as `mimic _engine …`
     /// and `mimic _prep …`. `drawThings` is step 1's: by default one that fails at once, so a
     /// test never reaches the real Draw Things on a Mac that has it (#140).
+    /// Print prep that reports `report` to the job, as `mimic _prep` does beside the print file
+    /// it's given ($3), then runs `body` (what it says in prep.log, say, and how it exits).
+    func prep(_ name: String, _ report: PrepReport, _ body: String = "") throws -> String {
+        let file = root.appendingPathComponent("\(name).json")
+        try JSONEncoder().encode(report).write(to: file)
+        return try script(name, "cp '\(file.path)' \"$(dirname \"$3\")/prep-result.json\"\n\(body)")
+    }
+
     func tools(mimic: String = "/usr/bin/true", drawThings: DrawThings? = nil) -> Tools {
         Tools(mimic: mimic, engine: install.engine.path,
               environment: ["PATH": "/usr/bin:/bin"], drawThings: drawThings ?? noDrawThings())
@@ -77,6 +87,40 @@ struct Fixture {
         }
         return d
     }
+}
+
+/// Every Fixture's folder, removed once its test is over (setUp, the test and tearDown): a
+/// Fixture is made in many places, none of them with the test at hand to add a teardown to.
+final class FixtureFolders: NSObject, XCTestObservation, @unchecked Sendable {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var folders: [URL] = []
+    nonisolated(unsafe) private static var watching = false
+
+    nonisolated static func add(_ folder: URL) {
+        let first = lock.withLock { () -> Bool in
+            folders.append(folder)
+            defer { watching = true }
+            return !watching
+        }
+        // XCTest runs every test on the main thread.
+        if first { MainActor.assumeIsolated { XCTestObservationCenter.shared.addTestObserver(FixtureFolders()) } }
+    }
+
+    func testCaseDidFinish(_ testCase: XCTestCase) {
+        let done = Self.lock.withLock { defer { Self.folders = [] }; return Self.folders }
+        for f in done { try? FileManager.default.removeItem(at: f) }
+    }
+}
+
+/// Waits up to `timeout` seconds for `done`, looking every 50 ms: for the event itself (a marker
+/// file, a request taken away) rather than a sleep that hopes it happened. False if it never did.
+func eventually(timeout: TimeInterval = 10, _ done: () -> Bool) -> Bool {
+    let until = Date().addingTimeInterval(timeout)
+    while !done() {
+        if Date() > until { return false }
+        usleep(50_000)
+    }
+    return true
 }
 
 final class TrashSpy: @unchecked Sendable {

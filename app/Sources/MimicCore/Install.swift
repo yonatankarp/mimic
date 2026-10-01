@@ -72,7 +72,7 @@ public struct Install: Sendable, Equatable {
         if let root = folder(environment["MIMIC_HOME"]) { return Install(root: root) }
         if let fake = environment["MIMIC_FAKE_HOME"] { return standard(home: URL(fileURLWithPath: fake)) }
         let chosen = folder(defaults.string(forKey: MinisFolder.key))
-        if let root = folder(defaults.string(forKey: "installDir")) {
+        if let root = folder(defaults.string(forKey: SettingsKey.installDir)) {
             let old = Install(root: root), runs = chosen ?? old.runs
             return Install(runs: runs, engine: old.engine, queue: queueFolder(runs, home: home), legacyLab: old.legacyLab)
         }

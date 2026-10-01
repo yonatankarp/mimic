@@ -173,6 +173,36 @@ final class SetupTests: XCTestCase {
         XCTAssertEqual(Int64(server.served), 1_000_000 + (3_000_000 - kept), "more than the remainder was downloaded")
     }
 
+    /// Cancel part way through a file: it stops as cancelled, not as a lost connection, keeps
+    /// the `.part`, and the next try asks only for the rest. The server trickles the file out
+    /// (a cut that's the whole file), so the cancel lands while the bytes are still coming.
+    func testACancelledDownloadKeepsWhatItHadAndCarriesOn() async throws {
+        let body = Self.bytes(8_000_000)
+        let server = try FileServer(["/big": body], cutAfter: ["/big": body.count])
+        defer { server.stop() }
+        let file = server.file("/big", body)
+        let dest = dir.appendingPathComponent("big")
+        let setup = setup(Install(root: dir))
+
+        let started = expectation(description: "bytes arrived")
+        started.assertForOverFulfill = false
+        let task = Task { try await setup.fetch(file, to: dest) { if $0 > 0 { started.fulfill() } } }
+        await fulfillment(of: [started], timeout: 30)
+        task.cancel()
+        let result = await task.result
+        XCTAssertThrowsError(try result.get()) { XCTAssert($0 is CancellationError, "\($0)") }
+
+        let part = URL(fileURLWithPath: dest.path + ".part")
+        let kept = EngineDownload.size(part) ?? 0
+        XCTAssert(kept > 0 && kept < Int64(body.count), "the partial file wasn't kept (\(kept) bytes)")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: dest.path), "a half file was taken for a whole one")
+
+        try await setup.fetch(file, to: dest) { _ in }
+        XCTAssertEqual(EngineDownload.sha256(dest), file.sha256)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: part.path))
+        XCTAssertEqual(server.log.map(\.range), [nil, "bytes=\(kept)-"], "the second request didn't resume")
+    }
+
     func testAServerThatIgnoresRangeStartsTheFileOver() async throws {
         let body = Self.bytes(100_000)
         let server = try FileServer(["/f": body], ignoreRange: true)
@@ -417,7 +447,7 @@ final class SetupTests: XCTestCase {
     }
     /// Every file Mimic downloads is still where it's pinned, at the size it's pinned at. A
     /// release deleted by hand (the engine's was, on 2026-09-29) breaks every new install and
-    /// nothing else notices, so CI runs this on each push and once a day.
+    /// nothing else notices, so CI runs this once a day and before each release.
     /// `MIMIC_CHECK_DOWNLOADS=1` runs it; it asks for each file's size, downloading nothing.
     func testEveryPinnedDownloadIsReachable() async throws {
         guard ProcessInfo.processInfo.environment["MIMIC_CHECK_DOWNLOADS"] != nil else { throw XCTSkip("set MIMIC_CHECK_DOWNLOADS=1") }

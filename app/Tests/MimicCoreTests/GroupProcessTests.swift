@@ -54,4 +54,31 @@ final class GroupProcessTests: XCTestCase {
         try GroupProcess(executable: "/bin/echo", arguments: ["hello from the job"], environment: [:], log: log).wait()
         XCTAssertEqual(try String(contentsOfFile: log, encoding: .utf8), "hello from the job\n")
     }
+
+    /// A job gets only its own input and output, not every file the app has open: one holding
+    /// a Settings check's pipe kept that check from finishing until the job ended.
+    func testAJobDoesNotGetTheAppsOpenFiles() throws {
+        let fd = open("/etc/hosts", O_RDONLY)
+        XCTAssertGreaterThan(fd, 2)
+        defer { close(fd) }
+        XCTAssertEqual(fcntl(fd, F_GETFD) & FD_CLOEXEC, 0, "the file must be one a child would inherit")
+        let log = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".log").path
+        try GroupProcess(executable: "/bin/sh",
+                         arguments: ["-c", "if (: <&\(fd)) 2>/dev/null; then echo open; else echo closed; fi"],
+                         environment: [:], log: log).wait()
+        XCTAssertEqual(try String(contentsOfFile: log, encoding: .utf8), "closed\n")
+    }
+
+    /// The 3D engine's output still reaches the pipe it's given.
+    func testOutputGoesToThePipe() throws {
+        var fds: [Int32] = [0, 0]
+        XCTAssertEqual(pipe(&fds), 0)
+        defer { close(fds[0]) }
+        let p = try GroupProcess(executable: "/bin/sh", arguments: ["-c", "echo out; echo err >&2"], environment: [:],
+                                 output: (fds[1], fds[0]), newSession: false)
+        close(fds[1])
+        let output = FileHandle(fileDescriptor: fds[0], closeOnDealloc: false).readDataToEndOfFile()
+        XCTAssertEqual(p.wait(), 0)
+        XCTAssertEqual(String(decoding: output, as: UTF8.self), "out\nerr\n")
+    }
 }

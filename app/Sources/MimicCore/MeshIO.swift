@@ -62,21 +62,33 @@ public enum GLB {
 
         let accessors = json["accessors"] as? [[String: Any]] ?? []
         let views = json["bufferViews"] as? [[String: Any]] ?? []
-        func int(_ d: [String: Any], _ k: String) -> Int? { (d[k] as? NSNumber)?.intValue }
+        let unreadable = PrepError("the .glb stores its shape in a way Mimic can't read")
+        /// A count, offset or index: missing is nil, anything but a whole number from zero up is
+        /// a broken file, not a default.
+        func whole(_ value: Any) throws -> Int {
+            guard let n = value as? NSNumber, let i = Int(exactly: n.doubleValue), i >= 0 else { throw unreadable }
+            return i
+        }
+        func int(_ d: [String: Any], _ k: String) throws -> Int? { try d[k].map(whole) }
 
         /// Element `i`, component `c` of an accessor, as a Double, wherever its view puts it.
         func reader(_ index: Int) throws -> (count: Int, width: Int, get: (Int, Int) -> Double) {
-            guard index < accessors.count, let a = Optional(accessors[index]), let v = int(a, "bufferView"), v < views.count,
-                  a["sparse"] == nil else { throw PrepError("the .glb stores its shape in a way Mimic can't read") }
+            guard index < accessors.count, let a = Optional(accessors[index]), let v = try int(a, "bufferView"), v < views.count,
+                  a["sparse"] == nil else { throw unreadable }
             let view = views[v]
-            let type = int(a, "componentType") ?? 0
+            let type = try int(a, "componentType") ?? 0
             let size = [5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4][type] ?? 0
             let width = ["SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4][a["type"] as? String ?? ""] ?? 0
-            guard size > 0, width > 0 else { throw PrepError("the .glb stores its shape in a way Mimic can't read") }
-            let start = bin.lowerBound + (int(view, "byteOffset") ?? 0) + (int(a, "byteOffset") ?? 0)
-            let stride = int(view, "byteStride") ?? size * width
-            let count = int(a, "count") ?? 0
-            guard count == 0 || start + (count - 1) * stride + size * width <= bin.upperBound else { throw PrepError("the .glb is cut short") }
+            guard size > 0, width > 0 else { throw unreadable }
+            // Each checked on its own first, so a huge number can't overflow the sums below.
+            let viewOffset = try int(view, "byteOffset") ?? 0, offset = try int(a, "byteOffset") ?? 0
+            let stride = try int(view, "byteStride") ?? size * width
+            let count = try int(a, "count") ?? 0
+            guard stride >= size * width else { throw unreadable }  // elements can't overlap
+            guard viewOffset <= bin.count, offset <= bin.count else { throw PrepError("the .glb is cut short") }
+            let start = bin.lowerBound + viewOffset + offset
+            guard count == 0 || (start + size * width <= bin.upperBound && count - 1 <= (bin.upperBound - start - size * width) / stride)
+            else { throw PrepError("the .glb is cut short") }
             let get: (Int, Int) -> Double = { i, c in
                 data.withUnsafeBytes { b in
                     let o = start + i * stride + c * size
@@ -100,7 +112,7 @@ public enum GLB {
         var uv: [SIMD2<Float>]? = painted ? [] : nil
         var material: Int?
 
-        func local(_ n: [String: Any]) -> simd_double4x4 {
+        func local(_ n: [String: Any]) throws -> simd_double4x4 {
             if let m = n["matrix"] as? [NSNumber], m.count == 16 {
                 let v = m.map(\.doubleValue)
                 return simd_double4x4(columns: (SIMD4(v[0], v[1], v[2], v[3]), SIMD4(v[4], v[5], v[6], v[7]),
@@ -109,6 +121,7 @@ public enum GLB {
             let t = (n["translation"] as? [NSNumber])?.map(\.doubleValue) ?? [0, 0, 0]
             let r = (n["rotation"] as? [NSNumber])?.map(\.doubleValue) ?? [0, 0, 0, 1]
             let s = (n["scale"] as? [NSNumber])?.map(\.doubleValue) ?? [1, 1, 1]
+            guard t.count == 3, r.count == 4, s.count == 3 else { throw PrepError("the .glb places its parts in a way Mimic can't read") }
             let rot = simd_double4x4(simd_quatd(ix: r[0], iy: r[1], iz: r[2], r: r[3]))
             let scale = simd_double4x4(diagonal: SIMD4(s[0], s[1], s[2], 1))
             var m = rot * scale
@@ -119,10 +132,11 @@ public enum GLB {
         func add(mesh index: Int, _ world: simd_double4x4) throws {
             guard index < meshes.count else { return }
             for prim in meshes[index]["primitives"] as? [[String: Any]] ?? [] {
-                guard (int(prim, "mode") ?? 4) == 4 else { continue }  // points and lines have no volume
-                guard let attrs = prim["attributes"] as? [String: Any], let pos = int(attrs, "POSITION") else { continue }
+                guard (try int(prim, "mode") ?? 4) == 4 else { continue }  // points and lines have no volume
+                guard let attrs = prim["attributes"] as? [String: Any], let pos = try int(attrs, "POSITION") else { continue }
                 let p = try reader(pos)
                 guard p.width == 3 else { throw PrepError("the .glb's positions aren't 3D") }
+                guard out.positions.count + p.count <= Int(UInt32.max) else { throw PrepError("the .glb is too big") }
                 let base = UInt32(out.positions.count)
                 out.positions.reserveCapacity(out.positions.count + p.count)
                 for i in 0..<p.count {
@@ -131,7 +145,7 @@ public enum GLB {
                     // Blender's importer makes, so the figure faces +y as it did there.
                     out.positions.append(SIMD3(Float(w.x), Float(-w.z), Float(w.y)))
                 }
-                if uv != nil, let t = int(attrs, "TEXCOORD_0"), let m = int(prim, "material"), material ?? m == m {
+                if uv != nil, let t = try int(attrs, "TEXCOORD_0"), let m = try int(prim, "material"), material ?? m == m {
                     let r = try reader(t)
                     guard r.width == 2, r.count == p.count else { throw PrepError("the .glb's picture places don't match its corners") }
                     material = m
@@ -141,9 +155,14 @@ public enum GLB {
                 }
                 let flip = simd_determinant(world) < 0  // a mirroring transform turns every triangle inside out
                 var idx: [UInt32]
-                if let ii = int(prim, "indices") {
+                if let ii = try int(prim, "indices") {
                     let r = try reader(ii)
-                    idx = (0..<r.count).map { UInt32(r.get($0, 0)) }
+                    let kind = try int(accessors[ii], "componentType")
+                    guard r.width == 1, [5121, 5123, 5125].contains(kind) else { throw unreadable }  // unsigned whole numbers only
+                    idx = try (0..<r.count).map {
+                        guard let i = UInt32(exactly: r.get($0, 0)) else { throw unreadable }
+                        return i
+                    }
                 } else {
                     idx = (0..<UInt32(p.count)).map { $0 }
                 }
@@ -155,17 +174,23 @@ public enum GLB {
             }
         }
 
-        func walk(_ n: Int, _ parent: simd_double4x4, depth: Int) throws {
+        /// `seen` is every node reached from this root: a node listed twice, or among its own
+        /// children, would be walked over and over.
+        func walk(_ n: Int, _ parent: simd_double4x4, depth: Int, seen: inout Set<Int>) throws {
             guard n < nodes.count, depth < 64 else { return }
-            let world = parent * local(nodes[n])
-            if let m = int(nodes[n], "mesh") { try add(mesh: m, world) }
-            for c in nodes[n]["children"] as? [NSNumber] ?? [] { try walk(c.intValue, world, depth: depth + 1) }
+            guard seen.insert(n).inserted else { throw PrepError("the .glb's parts loop back on themselves") }
+            let world = try parent * local(nodes[n])
+            if let m = try int(nodes[n], "mesh") { try add(mesh: m, world) }
+            for c in nodes[n]["children"] as? [Any] ?? [] { try walk(whole(c), world, depth: depth + 1, seen: &seen) }
         }
 
         let scenes = json["scenes"] as? [[String: Any]] ?? []
-        let scene = int(json, "scene") ?? 0
-        let roots = scene < scenes.count ? (scenes[scene]["nodes"] as? [NSNumber] ?? []).map(\.intValue) : Array(nodes.indices)
-        for r in roots { try walk(r, matrix_identity_double4x4, depth: 0) }
+        let scene = try int(json, "scene") ?? 0
+        let roots = try scene < scenes.count ? (scenes[scene]["nodes"] as? [Any] ?? []).map(whole) : Array(nodes.indices)
+        for r in roots {
+            var seen = Set<Int>()
+            try walk(r, matrix_identity_double4x4, depth: 0, seen: &seen)
+        }
         if roots.isEmpty { for m in meshes.indices { try add(mesh: m, matrix_identity_double4x4) } }
         guard !out.triangles.isEmpty else { throw PrepError("no mesh in the .glb") }
         // Material → its base colour texture → that texture's picture → the bytes stored for it.
@@ -173,18 +198,20 @@ public enum GLB {
             guard let a = json[list] as? [[String: Any]], a.indices.contains(i) else { return nil }
             return a[i]
         }
-        func image() -> Data? {
+        func image() throws -> Data? {
             guard let material, let m = entry("materials", material),
                   let pbr = m["pbrMetallicRoughness"] as? [String: Any], let tex = pbr["baseColorTexture"] as? [String: Any],
-                  let t = int(tex, "index"), let texture = entry("textures", t),
+                  let t = try int(tex, "index"), let texture = entry("textures", t),
                   // The engine's WebP pictures are named through EXT_texture_webp instead.
-                  let i = int(texture, "source") ?? ((texture["extensions"] as? [String: Any])?["EXT_texture_webp"] as? [String: Any]).flatMap({ int($0, "source") }),
-                  let img = entry("images", i), let v = int(img, "bufferView"), let view = entry("bufferViews", v) else { return nil }
-            let start = bin.lowerBound + (int(view, "byteOffset") ?? 0), length = int(view, "byteLength") ?? 0
-            guard start + length <= bin.upperBound else { return nil }
-            return data.subdata(in: start..<start + length)
+                  let i = try int(texture, "source") ?? ((texture["extensions"] as? [String: Any])?["EXT_texture_webp"] as? [String: Any]).flatMap({ try int($0, "source") }),
+                  let img = entry("images", i), let v = try int(img, "bufferView"), let view = entry("bufferViews", v) else { return nil }
+            // Checked apart first, as `reader`'s are, so a huge number can't overflow the sum.
+            let offset = try int(view, "byteOffset") ?? 0, length = try int(view, "byteLength") ?? 0
+            guard offset <= bin.count, length <= bin.count - offset else { return nil }
+            return data.subdata(in: (bin.lowerBound + offset)..<(bin.lowerBound + offset + length))
         }
-        guard let uv, let picture = image() else { return (out, nil) }
+        // A picture Mimic can't find leaves the shape, unpainted.
+        guard let uv, let picture = try? image() else { return (out, nil) }
         return (out, Paint(uv: uv, image: picture))
     }
 
@@ -258,7 +285,7 @@ public enum Tabletop {
     @discardableResult
     public static func export(_ mini: Mini, to url: URL, triangles: Int = triangles) throws -> (triangles: Int, bytes: Int, colour: Bool) {
         guard let stl = mini.stl else { throw PrepError("it isn't made yet") }
-        let glb = mini.folder.appendingPathComponent("model.glb")
+        let glb = mini.folder.appendingPathComponent(Mini.modelFile)
         // Grey whenever the colours can't be had: the shape is what a tabletop can't do without.
         let painted: (Mesh, GLB.Paint)? = !inColour(mini.settings) ? nil : try? {
             let read = try GLB.read(painted: glb)

@@ -50,8 +50,8 @@ final class TourTests: XCTestCase {
     }
 
     func testTheToolbarShowsThisMimicsJobUntilSeenElseAnothers() {
-        var mine = JobStatus(name: "dwarf", kind: .generate, step: 2, started: Date())
-        let other = JobStatus(name: "elf", kind: .generate, step: 1, started: Date())
+        var mine = JobStatus(name: "dwarf", kind: .generate, step: .shape, started: Date())
+        let other = JobStatus(name: "elf", kind: .generate, step: .picture, started: Date())
         XCTAssertEqual(JobProgress.inToolbar(mine, keptShown: false, elsewhere: other)?.name, "dwarf", "running")
         mine.running = false
         XCTAssertEqual(JobProgress.inToolbar(mine, keptShown: true, elsewhere: other)?.name, "dwarf", "ended, not seen yet")

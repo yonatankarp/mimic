@@ -52,6 +52,7 @@ final class DrawThingsTests: XCTestCase {
 
     func testPicksTheLargestKleinModel() throws {
         let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: home) }
         let models = home.appendingPathComponent("Library/Containers/com.liuliu.draw-things/Data/Documents/Models")
         try FileManager.default.createDirectory(at: models, withIntermediateDirectories: true)
         for f in ["flux_2_klein_4b_q8p.ckpt", "flux_2_klein_9b_q6p.ckpt", "sdxl_base.ckpt"] {
@@ -102,15 +103,64 @@ final class DrawThingsTests: XCTestCase {
     /// Stop ends the CLI, and reads as stopped, not as Draw Things refusing.
     func testStopEndsTheCLI() throws {
         let cli = FileManager.default.temporaryDirectory.appendingPathComponent("fake-dt-\(UUID().uuidString)")
-        try "#!/bin/sh\nsleep 30\n".write(to: cli, atomically: true, encoding: .utf8)
+        let ran = cli.path + ".ran"
+        try "#!/bin/sh\ntouch '\(ran)'\nsleep 30\n".write(to: cli, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: cli.path)
-        defer { try? FileManager.default.removeItem(at: cli) }
+        defer { try? FileManager.default.removeItem(at: cli); try? FileManager.default.removeItem(atPath: ran) }
         let dt = DrawThings(environment: ["DRAWTHINGS_MODEL": "x"], cli: cli.path)
         XCTAssertNil(try dt.openIfNeeded(), "the CLI needs no app")
-        DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) { dt.cancel() }
+        // Stopped once the CLI runs, so it's the CLI that's ended.
+        DispatchQueue.global().async {
+            _ = eventually { FileManager.default.fileExists(atPath: ran) }
+            dt.cancel()
+        }
         let started = Date()
         XCTAssertThrowsError(try dt.draw(description: "a dwarf", seed: 1)) { XCTAssertEqual($0 as? DrawThingsError, .cancelled) }
         XCTAssertLessThan(Date().timeIntervalSince(started), 10)
+    }
+
+    /// A fake draw-things-cli that writes "png" as the picture and leaves `ran` behind.
+    private func fakeCLI(_ ran: URL) throws -> URL {
+        let cli = FileManager.default.temporaryDirectory.appendingPathComponent("fake-dt-\(UUID().uuidString)")
+        try "#!/bin/sh\ntouch '\(ran.path)'\nfor a; do last=$a; done\nprintf png > \"$last\"\n".write(to: cli, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: cli.path)
+        return cli
+    }
+
+    /// A Stop that lands while the model is looked up or the picture resized, before the
+    /// request goes out, still stops it (#170): the picture isn't made first.
+    func testAStopBeforeTheRequestIsKept() throws {
+        let ran = FileManager.default.temporaryDirectory.appendingPathComponent("dt-ran-\(UUID().uuidString)")
+        let cli = try fakeCLI(ran)
+        defer { try? FileManager.default.removeItem(at: cli); try? FileManager.default.removeItem(at: ran) }
+        let dt = DrawThings(environment: ["DRAWTHINGS_MODEL": "x"], cli: cli.path)
+        dt.cancel()
+        XCTAssertThrowsError(try dt.draw(description: "a dwarf", seed: 1)) { XCTAssertEqual($0 as? DrawThingsError, .cancelled) }
+        let picture = FileManager.default.temporaryDirectory.appendingPathComponent("dt-pic-\(UUID().uuidString).png")
+        try Engine.writePNG([UInt8](repeating: 200, count: 8 * 8 * 4), width: 8, height: 8, to: picture)
+        defer { try? FileManager.default.removeItem(at: picture) }
+        XCTAssertThrowsError(try dt.sculpt(picture: picture, seed: 1)) { XCTAssertEqual($0 as? DrawThingsError, .cancelled) }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: ran.path), "the picture was made after Stop")
+        // Through the API too: stopped, not "isn't answering".
+        let api = DrawThings(environment: ["DRAWTHINGS_URL": "http://127.0.0.1:9", "DRAWTHINGS_MODEL": "x"], cli: nil)
+        api.cancel()
+        XCTAssertThrowsError(try api.draw(description: "a dwarf", seed: 1)) { XCTAssertEqual($0 as? DrawThingsError, .cancelled) }
+        // A new job starts afresh.
+        dt.reset()
+        XCTAssertEqual(try dt.draw(description: "a dwarf", seed: 1), Data("png".utf8))
+    }
+
+    /// The runner forgets a stopped job's Stop when the next job starts: its picture is made.
+    func testTheNextJobIsNotStoppedByTheLastOnesStop() throws {
+        let fx = try Fixture(); try fx.modelFiles()
+        let cli = try fakeCLI(fx.root.appendingPathComponent("ran"))
+        let dt = DrawThings(environment: ["DRAWTHINGS_MODEL": "x"], home: fx.root,
+                            app: DrawThingsApp(enabled: { false }, running: { false }, open: { nil }), cli: cli.path)
+        dt.cancel()  // as the last job's Stop left it
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/false", drawThings: dt), trash: { _ in })
+        try jobs.make(name: "dwarf", picture: .description("a dwarf"), restyle: false, seed: 1, sizes: Sizes(), model: EngineDownload.standard)
+        jobs.waitUntilDone()
+        XCTAssertEqual(try Data(contentsOf: fx.install.runs.appendingPathComponent("dwarf/source.png")), Data("png".utf8))
     }
 
     /// The CLI runs at the same lower priority as the job's other programs (#136): the fake one

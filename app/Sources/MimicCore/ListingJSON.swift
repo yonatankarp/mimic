@@ -82,7 +82,7 @@ public enum ListingJSON {
 
         public init(running: JobStatus?, left: TimeInterval, held: QueueHold?,
                     waiting: [(entry: QueueEntry, estimate: Estimate, ready: TimeInterval)]) {
-            self.running = running.map { Running(name: $0.name, job: ListingJSON.job($0.kind), step: $0.step, started: $0.started, secondsLeft: Int(left.rounded())) }
+            self.running = running.map { Running(name: $0.name, job: ListingJSON.job($0.kind), step: $0.step.rawValue, started: $0.started, secondsLeft: Int(left.rounded())) }
             self.held = held.map { $0 == .paused ? "paused" : "battery" }
             self.waiting = waiting.enumerated().map { i, row in
                 Waiting(place: i + 1, name: row.entry.name, job: ListingJSON.job(row.entry.job), added: row.entry.added,

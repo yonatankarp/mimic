@@ -39,6 +39,22 @@ final class SizeAdviceTests: XCTestCase {
         for (h, b) in [(32.0, 25.0), (100, 40), (150, 60), (200, 80), (15, 25)] { XCTAssertEqual(SizeCard.baseFor(h), b, "\(h)") }
     }
 
+    /// One rule for an object's sizes, in the card and in Terminal (#219).
+    func testAnObjectsSizesAreTheCardsInTerminalToo() {
+        for (h, b) in [(80.0, 65.0), (60, 50), (63, 50), (64, 50), (66, 55), (20, 25), (200, 80)] { XCTAssertEqual(SizeCard.objectBase(h), b, "\(h)") }
+        XCTAssertEqual(["0.2", "0.4", "0.6", nil].map { SizeCard.objectHeight(nozzle: $0) }, [50, 80, 120, 80])
+        XCTAssertEqual(SizeCard.objectHeight(nozzle: "0.3"), 80, "a nozzle Mimic doesn't offer gets the 0.4 mm one's")
+        for n in ["0.2", "0.4", "0.6"] {
+            var card = SizeCard(purpose: .display, nozzle: n, kind: .object)
+            card.noBase = false
+            let typed = Sizes(nozzle: n)
+            XCTAssertEqual(SizeCard.objectSizes(typed, addBase: true), Sizes(height: card.sizes.height, base: card.sizes.base, nozzle: n), n)
+            XCTAssertEqual(SizeCard.objectSizes(typed, addBase: false), Sizes(height: card.sizes.height, nozzle: n, noBase: true), n)
+        }
+        XCTAssertEqual(SizeCard.objectSizes(Sizes(height: "60"), addBase: true), Sizes(height: "60", base: "50"))
+        XCTAssertEqual(SizeCard.objectSizes(Sizes(base: "40"), addBase: true), Sizes(height: "80", base: "40"), "a typed base stays")
+    }
+
     func testCoarseNozzleWarning() {
         var c = SizeCard(purpose: .game, nozzle: "0.4")
         c.setScale(54); c.setRealHeight("1.67")  // 50.1 → 50
@@ -310,6 +326,28 @@ final class SizeAdviceTests: XCTestCase {
         XCTAssertEqual(Filament.short(200), "up to 1 g", "never 0 g")
     }
 
+    /// The extra thickness a nozzle gets when it isn't chosen by hand: 40% of the nozzle, to the
+    /// hundredth of a mm. A nozzle that can't be read counts as 0.4.
+    func testTheExtraThicknessFollowsTheNozzle() {
+        XCTAssertEqual(SizeCard.inflateFor("0.2"), 0.08)
+        XCTAssertEqual(SizeCard.inflateFor("0.4"), 0.16)
+        XCTAssertEqual(SizeCard.inflateFor("0.6"), 0.24)
+        XCTAssertEqual(SizeCard.inflateFor("0.8"), 0.32, "worked out, not looked up")
+        XCTAssertEqual(SizeCard.inflateFor("wide"), 0.16)
+        XCTAssertEqual(SizeCard.inflateFor(""), 0.16)
+    }
+
+    /// PLA at 1.24 g/cm³, on 1.75 mm filament.
+    func testGramsAndMetresOfFilament() {
+        XCTAssertEqual(Filament.grams(0), 0)
+        XCTAssertEqual(Filament.grams(1000), 1.24, accuracy: 1e-9)
+        XCTAssertEqual(Filament.grams(8000), 9.92, accuracy: 1e-9)
+        XCTAssertEqual(Filament.metres(1000), 0.41575, accuracy: 1e-5)
+        XCTAssertEqual(Filament.short(8000), "up to 10 g", "9.92 g rounds to 10")
+        XCTAssertEqual(Filament.short(0), "up to 1 g")
+        XCTAssertEqual(Filament.words(0), "Up to 1 g · 0.1 m", "never 0 m either")
+    }
+
     private func made(_ sizes: Sizes, _ kind: MiniKind = .character) -> [String] {
         PrintTips.made(sizes, kind: kind).map { "\($0.label): \($0.value)" }
     }
@@ -318,8 +356,8 @@ final class SizeAdviceTests: XCTestCase {
 final class JobProgressTests: XCTestCase {
     func testBar() {
         let start = Date(timeIntervalSince1970: 0)
-        let e = Estimate(steps: [3: 60], learned: false)
-        var s = JobStatus(name: "a", kind: .prep, step: 3, started: start)
+        let e = Estimate(steps: [.print: 60], learned: false)
+        var s = JobStatus(name: "a", kind: .prep, step: .print, started: start)
         XCTAssertEqual(JobProgress.fraction(s, estimate: e, now: start.addingTimeInterval(30)), 0.5)
         XCTAssertEqual(JobProgress.fraction(s, estimate: e, now: start.addingTimeInterval(3000)), 0.95)
         s.running = false; s.exit = 0
@@ -329,7 +367,7 @@ final class JobProgressTests: XCTestCase {
     }
 
     func testDrawThingsCause() {
-        var s = JobStatus(name: "a", kind: .generate, step: 1, started: Date(), running: false, exit: 1)
+        var s = JobStatus(name: "a", kind: .generate, step: .picture, started: Date(), running: false, exit: 1)
         XCTAssertFalse(JobProgress.drawThingsCaused(s))
         s.problem = DrawThingsError.notRunning.description
         XCTAssertTrue(JobProgress.drawThingsCaused(s))

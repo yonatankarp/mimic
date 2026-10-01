@@ -14,19 +14,57 @@ on:
 permissions:
   contents: read
 
+# A new push to a pull request stops its older build. Everything else (main, tags, the daily run)
+# gets a group of its own, so it always runs to the end.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
     # macOS 26's SDK: the Liquid Glass look is compiled against it.
     runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      # One Xcode, not whatever the image defaults to: compilers differ (Package.swift's slowCode).
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0  # the packagers name builds by commit
+          persist-credentials: false
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
       - name: Test
         working-directory: app
+        run: swift test --force-resolved-versions --enable-code-coverage
+      - name: Coverage
+        # MimicCore's line coverage, on the run's summary page. Only a report: it never fails the
+        # build. Rough, since MimicCore is optimised in debug builds too (Package.swift).
+        working-directory: app
+        continue-on-error: true
+        run: |
+          bin="$(swift build --show-bin-path)"
+          tests=("$bin"/*.xctest/Contents/MacOS/*)
+          {
+            echo '### MimicCore test coverage'
+            echo '```text'
+            xcrun llvm-cov report "${tests[0]}" -instr-profile "$bin/codecov/default.profdata" \
+              -ignore-filename-regex '(Tests|\.build)/' Sources/MimicCore
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Check downloads
+        # Every pinned download is still there. It asks GitHub and Hugging Face live, so it runs on
+        # the daily build, a manual run and before a release, never on a pull request: an outage
+        # there isn't the pull request's fault.
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+        working-directory: app
         env:
-          MIMIC_CHECK_DOWNLOADS: "1"  # every pinned download is still there
-        run: swift test
+          MIMIC_CHECK_DOWNLOADS: "1"
+        # The same flags as Test, so it reuses that build.
+        run: swift test --force-resolved-versions --enable-code-coverage --filter SetupTests/testEveryPinnedDownloadIsReachable
       - name: Set up signing
         # Mimic's own certificate (made by the maintainer, not Apple's): every release is signed
         # by the same signer, so macOS treats an update as the same app. Pull requests from forks
@@ -56,6 +94,7 @@ jobs:
       - name: Package
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "A version tag looks like v1.2.3, not $GITHUB_REF_NAME."; exit 1; }
             export MIMIC_VERSION="${GITHUB_REF_NAME#v}"
             [ -n "${MIMIC_SIGN_IDENTITY:-}" ] || { echo "A release must be signed with Mimic's certificate."; exit 1; }
           fi
@@ -77,6 +116,7 @@ jobs:
     needs: build
     # macOS: Sparkle's tools read the app inside the disk image.
     runs-on: macos-26
+    timeout-minutes: 15
     permissions:
       contents: write
       pull-requests: read
@@ -84,6 +124,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0  # the notes list the pull requests merged since the last tag
+          persist-credentials: false  # gh publishes with GH_TOKEN; git never pushes
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: mimic
@@ -102,6 +143,8 @@ jobs:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
           [ -n "$SPARKLE_PRIVATE_KEY" ] || { echo "No SPARKLE_PRIVATE_KEY: a release needs its appcast."; exit 1; }
+          # The same Sparkle version as app/Package.resolved, which Dependabot bumps but can't
+          # follow here: when it moves, update this version and the tarball's sha256 to match.
           curl -fsSL -o "$RUNNER_TEMP/sparkle.tar.xz" https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-2.10.0.tar.xz
           echo "c2bf58aa8387266ac179357b1415d6f2635f044da8be41042af32425dae6da0c  $RUNNER_TEMP/sparkle.tar.xz" | shasum -a 256 -c
           mkdir -p "$RUNNER_TEMP/sparkle" "$RUNNER_TEMP/appcast"
@@ -123,5 +166,5 @@ jobs:
         run: |
           version="${GITHUB_REF_NAME#v}"
           cd dist
-          shasum -a 256 * > SHA256SUMS
-          gh release create "$GITHUB_REF_NAME" * --repo "$GITHUB_REPOSITORY" --title "Mimic $version" --notes-file ../notes.md
+          shasum -a 256 -- * > SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" ./* --repo "$GITHUB_REPOSITORY" --title "Mimic $version" --notes-file ../notes.md
