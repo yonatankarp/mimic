@@ -469,7 +469,7 @@ public final class JobRunner: @unchecked Sendable {
         // prep.log is appended to on every run, so only this run's part says whether it's fragile.
         let prepLog = folder.appendingPathComponent("prep.log")
         let prepLogStart = (try? FileManager.default.attributesOfItem(atPath: prepLog.path)[.size] as? UInt64) ?? 0
-        var previous: Int?
+        var previous = plan.first?.number  // begin() started its clock
         for (number, step) in plan {
             if status?.canceled == true { break }
             let began = Date()
