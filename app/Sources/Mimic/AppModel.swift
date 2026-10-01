@@ -21,6 +21,8 @@ enum AppSheet: Identifiable, Equatable {
     case copies([Mini])
     /// Duplicate: the copy's name, then Resize for it.
     case duplicate(Mini)
+    /// Import Model: a 3D model file, to name and size.
+    case importModel(URL)
     var id: String {
         switch self {
         case .make: "make"
@@ -33,6 +35,7 @@ enum AppSheet: Identifiable, Equatable {
         case .renameProject(let p): "rename-project-\(p)"
         case .copies(let m): "copies-\(Gallery.dragged(m.map(\.name)))"
         case .duplicate(let m): "duplicate-\(m.name)"
+        case .importModel(let u): "import-\(u.path)"
         }
     }
 }
@@ -424,6 +427,23 @@ final class AppModel {
 
 
 
+    /// Import Model: a new mini from a 3D model file, print prep only.
+    func importModel(_ file: URL, name: String, shown: String?, sizes: Sizes, kind: MiniKind, project: String?) throws {
+        try start(name) { try $0.importModel(file, name: name, shown: shown, sizes: sizes, kind: kind, project: project) }
+        reload()
+        selection = [name]
+    }
+
+    /// "Making", "Resizing" or "Importing": what the job `s` is doing, in the progress window,
+    /// the toolbar and the list. From the list, so a redraw reads no file.
+    func doing(_ s: JobStatus) -> String { JobRunner.doing(s.kind, importing: s.importing || importing(s.name)) }
+
+    /// An imported mini whose print file isn't made yet: its print prep is its import.
+    func importing(_ name: String) -> Bool { minis.first { $0.name == name }.map { $0.settings.isImported && !$0.finished } ?? false }
+
+    /// A mini imported from a 3D model file, which has nothing of its own to make again.
+    func isImported(_ name: String) -> Bool { minis.first { $0.name == name }?.settings.isImported == true }
+
     func resize(_ mini: Mini, sizes: Sizes) throws {
         try start(mini.name) { try $0.resize(name: mini.name, sizes: sizes) }
     }
@@ -459,7 +479,7 @@ final class AppModel {
     /// A mini that didn't finish and can be tried again: no print file, not waiting or being
     /// made, and it kept what it was asked for.
     func canRetry(_ mini: Mini) -> Bool {
-        mini.stl == nil && waiting(mini.name) == nil && current?.name != mini.name && mini.settings.requested != nil
+        mini.stl == nil && waiting(mini.name) == nil && current?.name != mini.name && mini.settings.requested != nil && !mini.settings.isImported
     }
 
     /// Try Again from a failed mini's page or menus; a refusal is said as an alert.
@@ -572,7 +592,7 @@ final class AppModel {
             // Not with another app in front: it would close unseen. The toolbar item stays.
             guard sheet == nil, !jobPopover, active, NSApp.isActive else { return }
             jobPopover = true
-            if let words = queuedNote?.text ?? current.map({ "\($0.kind == .prep ? "Resizing" : "Making") \(displayName($0.name))" }) {
+            if let words = queuedNote?.text ?? current.map({ "\(doing($0)) \(displayName($0.name))" }) {
                 AccessibilityNotification.Announcement(words).post()
             }
         }

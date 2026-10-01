@@ -101,6 +101,18 @@ struct MiniDetail: View {
                 Button("Report a Problem…") { model.reportProblem(mini) }
                     .help("Makes a file of what happened and opens a form on GitHub to send it with")
             }
+        } else if mini.settings.isImported && mini.hasModel && model.waiting(mini.name) == nil {
+            // An imported model (#96) has nothing of its own to make again: Resize makes its print file.
+            ContentUnavailableView {
+                Label("This mini didn't finish", systemImage: "exclamationmark.triangle")
+            } description: {
+                Text(mini.settings.failed ?? "Its print file isn't made yet.")
+            } actions: {
+                Button("Resize This Mini…") { model.sheet = .resize(mini) }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(model.cantStart != nil)
+                    .help(model.cantStart ?? "Makes its print file. Try Again is off for a model you imported.")
+            }
         } else {
             ContentUnavailableView("This mini isn't finished yet.", systemImage: "hourglass")
         }
@@ -296,6 +308,9 @@ struct MiniDetail: View {
                     Text(description).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                 }
                 ForEach(made.rows, id: \.label) { LabeledContent($0.label, value: $0.value) }
+                if mini.settings.isImported {
+                    Text(AnotherVersionButton.imported).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                }
                 if let description = made.description {
                     Button {
                         NSPasteboard.general.clearContents()

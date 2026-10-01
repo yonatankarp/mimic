@@ -142,6 +142,34 @@ public enum GLB {
         guard !out.triangles.isEmpty else { throw PrepError("no mesh in the .glb") }
         return out
     }
+
+    /// A .glb of `mesh` that `parse` reads back exactly: y up, as glTF is, so the turn `parse`
+    /// makes undoes this one. Shape only, one mesh, for an imported STL (#96).
+    public static func encode(_ mesh: Mesh) -> Data {
+        var bin = Data(capacity: 12 * mesh.positions.count + 12 * mesh.triangles.count)
+        func f32(_ v: Float) { withUnsafeBytes(of: v.bitPattern.littleEndian) { bin.append(contentsOf: $0) } }
+        for p in mesh.positions { f32(p.x); f32(p.z); f32(-p.y) }
+        let indexStart = bin.count
+        for t in mesh.triangles { for v in [t.x, t.y, t.z] { withUnsafeBytes(of: v.littleEndian) { bin.append(contentsOf: $0) } } }
+        let json: [String: Any] = [
+            "asset": ["version": "2.0", "generator": "Mimic"], "scene": 0, "scenes": [["nodes": [0]]],
+            "nodes": [["mesh": 0]],
+            "meshes": [["primitives": [["attributes": ["POSITION": 0], "indices": 1]]]],
+            "accessors": [["bufferView": 0, "componentType": 5126, "count": mesh.positions.count, "type": "VEC3"],
+                          ["bufferView": 1, "componentType": 5125, "count": mesh.triangles.count * 3, "type": "SCALAR"]],
+            "bufferViews": [["buffer": 0, "byteOffset": 0, "byteLength": indexStart],
+                            ["buffer": 0, "byteOffset": indexStart, "byteLength": bin.count - indexStart]],
+            "buffers": [["byteLength": bin.count]],
+        ]
+        var text = (try? JSONSerialization.data(withJSONObject: json)) ?? Data()
+        while text.count % 4 != 0 { text.append(0x20) }
+        var out = Data(capacity: 28 + text.count + bin.count)
+        func u32(_ v: Int) { withUnsafeBytes(of: UInt32(v).littleEndian) { out.append(contentsOf: $0) } }
+        u32(0x4654_6C67); u32(2); u32(12 + 8 + text.count + 8 + bin.count)
+        u32(text.count); u32(0x4E4F_534A); out.append(text)
+        u32(bin.count); u32(0x004E_4942); out.append(bin)
+        return out
+    }
 }
 
 /// Binary STL: what every slicer opens.

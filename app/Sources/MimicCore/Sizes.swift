@@ -160,6 +160,10 @@ public struct MiniSettings: Codable, Equatable, Sendable {
     /// shows the folder's name instead (see `Mini.displayName`). Older minis have neither.
     public var name: String?
     public var nameFolder: String?
+    /// The file it was imported from (#96), when it's a 3D model the person brought rather than
+    /// one Mimic made: it has no picture or description, so only print prep can run on it. A
+    /// field of its own rather than a `source`, which an older Mimic would fail to read.
+    public var imported: String?
 
     public init() {}
 
@@ -173,6 +177,7 @@ public struct MiniSettings: Codable, Equatable, Sendable {
     }
 
     public var isObject: Bool { kind == .object }
+    public var isImported: Bool { imported != nil }
 
     static func file(_ folder: URL) -> URL { folder.appendingPathComponent("settings.json") }
 
