@@ -28,6 +28,9 @@ public struct MadeFrom: Equatable, Sendable {
         case nil: break
         }
         add("Variation number", s.seed.map(String.init))
+        // New 3D Shape keeps the picture's number and gives the shape its own (#141), so without
+        // this two versions read the same.
+        add("3D shape number", s.shapeSeed.map(String.init))
         // No model recorded is Pixal3D, the only one before 0.4.0, but only for a mini that has
         // settings at all: one without says nothing about how it was made.
         if !s.isImported && (s.source != nil || s.requested != nil) { add("3D model", EngineDownload.model(s.model)?.name) }
