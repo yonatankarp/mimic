@@ -110,7 +110,8 @@ public enum RequestError: Error, Equatable, CustomStringConvertible {
     case badName, badNumber(String), badNozzle, nameTaken(String), busy(String, JobKind = .generate), nothingToRetry, noModelYet, notFound, missing(String), modelNotDownloaded(String), unknownModel(String), queued(String), noPicture, unreadablePicture,
          badProjectName, projectTaken(String), projectNotFound, cantMove(String), projectBusy(String, String), noSource(String), noDrawing(String), cantDuplicate(String),
          minisFolderBusy, sameMinisFolder, minisFolderNested, minisFolderClash([String]), movingMinis,
-         imported(String), unreadableModel(String)
+         imported(String), unreadableModel(String),
+         noName, renameWaiting(String)
     public var description: String {
         switch self {
         case .badName: "Names can only use lowercase letters, numbers and dashes."
@@ -137,6 +138,8 @@ public enum RequestError: Error, Equatable, CustomStringConvertible {
         case .noSource(let n): "Mimic can't make another version of \(Mini.displayName(n)): the picture or description it was made from wasn't saved."
         case .noDrawing(let n): "Mimic can't make a new 3D shape of \(Mini.displayName(n)): its picture isn't made yet. Try Make Another Version instead."
         case .cantDuplicate(let n): "\(Mini.displayName(n)) is being made, resized or waiting in the queue. Duplicate it once that's done."
+        case .noName: "Give it a name."
+        case .renameWaiting(let n): "\(Mini.displayName(n)) is waiting in the queue. Rename it once it's made."
         case .imported(let n): "\(Mini.displayName(n)) was imported from a 3D model, so there's no picture or description to make it again from. Resize This Mini makes its print file again."
         case .unreadableModel(let why): "Mimic can't use that file: \(why). It needs a 3D model saved as GLB or STL."
         case .unknownModel(let id): "This Mimic doesn't know a 3D model called \(id). Update Mimic, or make it again with another model."

@@ -487,6 +487,13 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   group, so Stop and the leftover record are unchanged) and is inherited by what they start.
   Measured on an idle M2 Pro, CPU work on every core took as long at nice 10 as at 0 (2.1 s
   and 2.2 s). Not measured: a whole mini, whose long step is the 3D engine on the GPU.
+- **`mimic stop`** (#129) is a different program from the Mimic making the mini, so it can only
+  ask: it writes the running job's name to the queue's `job.stop`, and the runner holding the job lock
+  (the app, or `mimic make` in another Terminal) looks for that file twice a second and stops its
+  job as its own Stop does (a new mini to the Trash, a resize keeps its size). Killing the pid in
+  `job.pid` instead would have been recorded as a failure, not a stop. A request naming another
+  job is dropped, and one nobody answers within 10 seconds (a Mimic from before 0.9.0) is taken
+  back, so it can't stop a later job of the same name.
 - **Reordering the queue** (#72): Move to Front, Up, Down, to End or to a place
   (`JobRunner.move`, `mimic queue move`), and dragging one waiting mini onto another's place in
   the progress popover. Every move is one read-change-write under the queue's lock, so two

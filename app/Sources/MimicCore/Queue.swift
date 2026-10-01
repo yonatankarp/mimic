@@ -66,6 +66,8 @@ public struct JobQueue: Sendable {
     var lockFile: URL { folder.appendingPathComponent("queue.lock") }
     var pausedFile: URL { folder.appendingPathComponent("paused") }
     var jobLockFile: URL { folder.appendingPathComponent("job.lock") }
+    /// `mimic stop` asking whichever Mimic runs the job named in it to stop it (#129).
+    var stopFile: URL { folder.appendingPathComponent("job.stop") }
 
     /// Paused (#89): no job starts, in any Mimic, until it's resumed; one already running
     /// finishes. A file of its own rather than a field in queue.json, which Mimic 0.7.0 read as a

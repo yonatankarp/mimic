@@ -360,12 +360,12 @@ struct MiniDetail: View {
     /// put the version that had the plain name back from the Trash.
     private func rename(to name: String) {
         let old = mini.name
-        do { try Gallery.rename(model.install.runs, from: old, to: name, busyWith: model.busyWith) }
+        do { try model.jobs.rename(old, to: name) }
         catch { model.problem = model.plainWords(error, else: "Couldn't rename it. Is its folder open in another app?"); return }
         model.reload()
         model.selection = [name]
         model.undo?.registerUndo(withTarget: model) { model in
-            do { try Gallery.rename(model.install.runs, from: name, to: old, busyWith: model.busyWith) }
+            do { try model.jobs.rename(name, to: old) }
             catch { model.problem = model.plainWords(error, else: "Couldn't rename it back. Is its folder open in another app?"); return }
             model.reload()
             model.selection = [old]

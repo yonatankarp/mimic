@@ -520,18 +520,10 @@ final class AppModel {
     /// `sizes`, with one note in the job's popover like several dropped pictures. Returns why, in
     /// words, when none could be added.
     func resizeAll(_ group: [Mini], sizes: Sizes) -> String? {
-        let busy = Set(queue.map(\.name) + [current?.name].compactMap { $0 })
-        let picked = Gallery.toResize(group, to: sizes, busy: busy)
-        var added: [String] = [], skipped = picked.skipped, why = "None of these minis can be resized right now."
-        for (mini, sizes) in picked.resize {
-            do { try resize(mini, sizes: sizes); added.append(mini.name) }
-            catch { skipped += 1; why = plainWords(error) }
-        }
-        let same = picked.same == 0 ? "" : " \(picked.same) \(picked.same == 1 ? "was" : "were") already that size."
-        let left = skipped == 0 ? "" : " Skipped \(skipped): not made yet, or already waiting or being made."
-        guard let last = added.last else { return picked.same > 0 && skipped == 0 ? "They're all already that size." : why + same + left }
+        let done = jobs.resizeAll(group, to: sizes) { try self.resize($0, sizes: $1) }
+        guard let last = done.added.last else { return done.nothingAdded(done.failure.map { plainWords($0) }) }
         let ready = queueTimes().first(where: { $0.entry.name == last })?.ready ?? runningLeft()
-        queuedNote = (last, "\(added.count) \(added.count == 1 ? "mini" : "minis") added to the queue. \(whenReady(ready))\(same)\(left)")
+        queuedNote = (last, "\(done.added.count) \(done.added.count == 1 ? "mini" : "minis") added to the queue. \(whenReady(ready))\(done.sameNote)\(done.skippedNote)")
         return nil
     }
 
@@ -574,17 +566,12 @@ final class AppModel {
 
     func trash(_ mini: Mini) {
         do {
-            // Waiting to be made: out of the queue first (a new mini's folder goes to the Trash then).
-            if let entry = queue.first(where: { $0.name == mini.name }) {
-                try jobs.remove(mini.name)
-                refreshQueue()
-                if entry.job == .generate { return reload() }
-            }
-            let (folder, trashed) = try Gallery.moveToTrash(install.runs, name: mini.name, folder: mini.folder, busyWith: busyWith)
-            if let trashed { undoable(folder, trashed) }
+            // Waiting to be made: out of the queue, and a new mini's folder goes to the Trash with it.
+            if let moved = try jobs.moveToTrash(mini), let trashed = moved.trashed { undoable(moved.folder, trashed) }
         } catch {
             problem = plainWords(error, else: "Couldn't move it to the Trash. Try Show in Finder and delete it there.")
         }
+        refreshQueue()
         reload()  // picks the newest mini if this one was selected
     }
 
@@ -609,9 +596,9 @@ final class AppModel {
     /// One being made stays, and says so. Returns whether they all went.
     @discardableResult
     func keep(_ mini: Mini) -> Bool {
-        let others = Gallery.versions(of: mini, in: minis).filter { $0.name != mini.name }
-        for v in others where v.name != busyWith { trash(v) }
-        if let v = others.first(where: { $0.name == busyWith }) {
+        let picked = Gallery.toKeep(mini, in: minis, busyWith: busyWith)
+        for v in picked.trash { trash(v) }
+        if let v = picked.staying {
             problem = (problem.map { $0 + " " } ?? "") + "“\(v.displayName)” is being made, so it wasn't moved to the Trash. Move it there once it's done."
             return false
         }
@@ -806,13 +793,7 @@ final class AppModel {
     // MARK: Slicer
 
     /// Opens a print file in the picked slicer, or the Mac's default app for STL files.
-    func openInSlicer(_ stl: URL) {
-        if let slicer = Slicer.preferred() {
-            NSWorkspace.shared.open([stl], withApplicationAt: slicer.app, configuration: NSWorkspace.OpenConfiguration())
-        } else {
-            NSWorkspace.shared.open(stl)
-        }
-    }
+    func openInSlicer(_ stl: URL) { Slicer.open(stl, in: Slicer.preferred()) }
 
     var slicerName: String { Slicer.preferred()?.name ?? "your slicer" }
 

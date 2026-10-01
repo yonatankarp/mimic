@@ -391,19 +391,6 @@ struct MiniViewer: View {
     }
 }
 
-/// A print file's size in millimetres, base included, and its volume in mm³.
-struct Measured: Equatable, Sendable {
-    let tall: Int, wide: Int, deep: Int
-    var volume = 0.0
-    /// Width, height and depth unrounded, and where the print file's origin (under the base's
-    /// middle) is in the scene: for drawing the size reference.
-    var exact = SIMD3<Float>.zero
-    var origin = SIMD3<Float>.zero
-    var footprint: String { "\(wide) × \(deep) mm" }
-    /// "34 mm tall · 26 × 25 mm", on its glass badge.
-    var caption: String { "\(tall) mm tall · \(footprint)" }
-}
-
 /// How the mini is turned and zoomed: a viewer's own, or shared by the two in Compare Side by Side.
 struct ViewerPose: Equatable {
     var turn = SIMD2<Float>.zero  // yaw, pitch
