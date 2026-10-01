@@ -235,7 +235,13 @@ Want to change Mimic itself? See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Licences
 
-- **Mimic:** MIT (see [LICENSE](LICENSE)).
+- **Mimic:** MIT (see [LICENSE](LICENSE)). The app carries this licence and Sparkle's in
+  `Mimic.app/Contents/Resources/Acknowledgements.txt`.
+- **Sparkle:** MIT, with the notices of the code it includes. It's built into the app, for updates.
+- **pixal3d.cpp and ggml:** MIT. The 3D engine, built from them; Mimic hosts the build that
+  setup downloads, with both licences in it.
+- **draw-things-cli:** GPL-3.0. Setup downloads it from Draw Things' own releases, and Mimic runs
+  it as a separate program.
 - **TRELLIS.2 and Pixal3D:** MIT, except the image encoder their models include, which uses
   Meta's DINOv3 licence.
 - **FLUX.2 Klein:** Black Forest Labs' licence. Check it before selling prints of generated
