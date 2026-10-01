@@ -150,6 +150,24 @@ final class TimingsTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: t.url.path))
     }
 
+    /// The history is written beside itself and put in its place, so a crash halfway never
+    /// leaves it cut short (#179), and jobs finishing together all get their line in.
+    func testTheHistoryIsReplacedWholeAndAppendsTakeTurns() throws {
+        let fx = try Fixture()
+        let t = Timings(url: fx.root.appendingPathComponent("timings.jsonl"))
+        t.append([record(steps: [3: 1])])
+        func inode() throws -> Int { try XCTUnwrap(FileManager.default.attributesOfItem(atPath: t.url.path)[.systemFileNumber] as? Int) }
+        let before = try inode()
+        t.append([record(steps: [3: 2])])
+        XCTAssertNotEqual(try inode(), before, "written in place")
+        XCTAssertEqual(t.load().map(\.total), [1, 2])
+        let one = record(steps: [3: 1])
+        DispatchQueue.concurrentPerform(iterations: 30) { _ in t.append([one]) }
+        XCTAssertEqual(t.load().count, 32)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: fx.root.path).filter { $0.hasPrefix("timings") }.sorted(),
+                       ["timings.jsonl", "timings.jsonl.lock"])
+    }
+
     /// Every job a runner finishes is recorded, with how long each step took and how it ended.
     func testEveryJobIsRecorded() throws {
         let fx = try Fixture(); _ = try fx.mini("a")
