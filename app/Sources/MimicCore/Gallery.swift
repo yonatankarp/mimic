@@ -113,7 +113,7 @@ extension [MiniPreview] {
 /// The minis folder on disk. A mini is a folder Mimic made (see `isMini`); any other folder at
 /// the top is a project, holding minis one level down. Projects don't nest: a folder inside a
 /// project that isn't a mini is ignored. Folders starting with "_" or "." are Mimic's own
-/// scratch, and files at the top (.queue.json, .job.*) are never minis.
+/// scratch, and files at the top are never minis.
 ///
 /// A mini's name is unique across the whole minis folder, projects included, so everything
 /// that names a mini (the queue, `mimic resize <name>`, rename, trash, timings) finds it with

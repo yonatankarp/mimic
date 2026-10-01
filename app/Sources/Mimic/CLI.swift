@@ -38,20 +38,22 @@ enum CLI {
         if ["--version", "-v", "version"].contains(args.first) { print(BuildInfo.line); return 0 }
         if ["--help", "-h", "help"].contains(args.first) { print(usage); return 0 }
         // The job's own steps, each run by a job as its own program: before finding the Mimic
-        // folder or stopping leftovers, since this *is* the program named in runs/.job.pid.
+        // folder or stopping leftovers, since this *is* the program named in the queue's job.pid.
         if args.first == "_engine" { return engine(Array(args.dropFirst())) }
         if args.first == "_prep" { return prep(Array(args.dropFirst())) }
         // Run through a symlink (Settings shows how to put one on the PATH), the binary isn't seen as part of
         // its app, so it would read its own empty settings rather than the app's.
         let defaults = Bundle.main.bundleIdentifier == nil ? UserDefaults(suiteName: "com.mimic.app") ?? .standard : .standard
         let install = Install.locate(defaults: defaults)
+        // The queue's files from before they moved out of the minis folder, as the app does.
+        try? JobQueue(folder: install.queue).moveOldFiles(from: install.runs)
         let power = Power.holds(suite: defaults == .standard ? nil : "com.mimic.app")
         let timings = Timings.standard()
         var rest = Array(args.dropFirst())
         switch args.first {
         case "list":
             JobRunner(install: install).cleanUpLeftovers()
-            let queue = JobQueue(runs: install.runs).entries()
+            let queue = JobQueue(folder: install.queue).entries()
             let minis = Gallery.list(install.runs), projects = Gallery.projects(install.runs)
             func row(_ m: Mini, _ indent: String) {
                 let state = queue.contains { $0.name == m.name } ? "waiting" : m.stl == nil ? "unfinished" : "ready"

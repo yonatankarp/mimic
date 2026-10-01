@@ -116,18 +116,7 @@ struct SettingsView: View {
                 .help("Keeps the queue waiting while your Mac runs on its battery")
             }
         }
-        Section {
-            LabeledContent {
-                Button("Open Minis Folder") {
-                    // A new Mac has none until the first mini.
-                    try? FileManager.default.createDirectory(at: model.install.runs, withIntermediateDirectories: true)
-                    NSWorkspace.shared.open(model.install.runs)
-                }
-            } label: {
-                Text("Your minis are saved in")
-                Text((model.install.runs.path as NSString).abbreviatingWithTildeInPath)
-            }
-        }
+        MinisFolderSection()
         UpdatesSection()
     }
 

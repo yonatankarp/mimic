@@ -80,13 +80,64 @@ final class SetupTests: XCTestCase {
 
         XCTAssertEqual(locate([:]), .standard(home: home), "nothing set: the standard layout")
         defaults.set(old.path, forKey: "installDir")
-        XCTAssertEqual(locate([:]), Install(root: old), "the old installer's folder is still used")
+        let inOld = locate([:]), oldFolder = Install(root: old)
+        XCTAssertEqual([inOld.runs, inOld.engine, inOld.legacyLab], [oldFolder.runs, oldFolder.engine, oldFolder.legacyLab],
+                       "the old installer's folder is still used")
+        XCTAssertEqual(inOld.queue, Install.queueFolder(oldFolder.runs, home: home), "but its queue is on this Mac, not in that folder")
         XCTAssertEqual(locate(["MIMIC_HOME": dev.path]), Install(root: dev), "MIMIC_HOME wins")
         XCTAssertEqual(locate(["MIMIC_FAKE_HOME": "/tmp/fake"]), .standard(home: URL(fileURLWithPath: "/tmp/fake")),
                        "a fake home is a new Mac: installDir must not leak into it")
         try FileManager.default.removeItem(at: old)
         XCTAssertEqual(locate([:]), .standard(home: home), "a Mimic folder that's gone falls back to the standard layout")
         XCTAssertEqual(locate(["MIMIC_HOME": old.path]), .standard(home: home))
+    }
+
+    /// The folder chosen in Settings (#102) holds the minis, in the standard layout and the old
+    /// installer's alike, while it's there; a development Mimic's own folder still wins.
+    func testTheChosenMinisFolderIsUsed() throws {
+        let home = dir.appendingPathComponent("home"), chosen = dir.appendingPathComponent("chosen"), old = dir.appendingPathComponent("old")
+        let dev = dir.appendingPathComponent("dev")
+        for d in [chosen, old, dev] { try FileManager.default.createDirectory(at: d, withIntermediateDirectories: true) }
+        let suite = "mimic-test-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        func locate(_ env: [String: String] = [:]) -> Install { Install.locate(environment: env, defaults: defaults, home: home) }
+
+        defaults.set(chosen.path, forKey: MinisFolder.key)
+        XCTAssertEqual(locate(), .standard(home: home, runs: chosen))
+        XCTAssertEqual(locate().runs, chosen.standardizedFileURL)
+        XCTAssertEqual(locate().engine, Install.standard(home: home).engine, "the engine stays where it is")
+        defaults.set(old.path, forKey: "installDir")
+        XCTAssertEqual(locate().runs, chosen.standardizedFileURL, "chosen over the old installer's folder")
+        XCTAssertEqual(locate().engine, Install(root: old).engine)
+        XCTAssertEqual(locate(["MIMIC_HOME": dev.path]), Install(root: dev), "MIMIC_HOME wins")
+        XCTAssertEqual(locate(["MIMIC_FAKE_HOME": "/tmp/fake"]), .standard(home: URL(fileURLWithPath: "/tmp/fake")),
+                       "a fake home is a new Mac: the chosen folder must not leak into it")
+        XCTAssertTrue(Install.minisFolderIsFixed(environment: ["MIMIC_HOME": dev.path]))
+        XCTAssertTrue(Install.minisFolderIsFixed(environment: ["MIMIC_FAKE_HOME": "/tmp/fake"]))
+        XCTAssertFalse(Install.minisFolderIsFixed(environment: [:]))
+        defaults.removeObject(forKey: "installDir")
+        try FileManager.default.removeItem(at: chosen)
+        XCTAssertEqual(locate(), .standard(home: home), "a chosen folder that's gone falls back to the standard one")
+    }
+
+    /// The queue is never in the minis folder (#102), which iCloud may share between Macs: it's
+    /// on this Mac, one per minis folder, so Mimics using one folder share a queue (the app and
+    /// `mimic` in Terminal, which read the same settings) and Mimics using two never do.
+    func testTheQueueIsOnThisMacOnePerMinisFolder() {
+        let home = dir.appendingPathComponent("home")
+        let support = home.appendingPathComponent("Library/Application Support/Mimic").standardizedFileURL.path
+        let standard = Install.standard(home: home)
+        XCTAssertTrue(standard.queue.path.hasPrefix(support + "/"), standard.queue.path)
+        XCTAssertFalse(standard.queue.path.hasPrefix(standard.runs.path + "/"), "the queue is in the minis folder")
+        XCTAssertEqual(Install.standard(home: home).queue, standard.queue, "the same folder, the same queue")
+        let elsewhere = Install.standard(home: home, runs: dir.appendingPathComponent("elsewhere"))
+        XCTAssertNotEqual(elsewhere.queue, standard.queue, "two minis folders share one queue")
+        let fake = Install.standard(home: dir.appendingPathComponent("fake"))
+        XCTAssertTrue(fake.queue.path.hasPrefix(dir.appendingPathComponent("fake").standardizedFileURL.path + "/"),
+                      "a fake home's queue must stay inside it")
+        XCTAssertEqual(Install(root: dir).queue, dir.appendingPathComponent("queue").standardizedFileURL,
+                       "a Mimic folder (MIMIC_HOME, tests) keeps its queue inside it")
     }
 
     // MARK: Downloading one file

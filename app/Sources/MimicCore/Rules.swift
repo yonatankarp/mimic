@@ -100,7 +100,8 @@ public enum Rules {
 
 public enum RequestError: Error, Equatable, CustomStringConvertible {
     case badName, badNumber(String), badNozzle, nameTaken(String), busy(String, JobKind = .generate), nothingToRetry, noModelYet, notFound, missing(String), modelNotDownloaded(String), unknownModel(String), queued(String), noPicture, unreadablePicture,
-         badProjectName, projectTaken(String), projectNotFound, cantMove(String), projectBusy(String, String), noSource(String), noDrawing(String), cantDuplicate(String)
+         badProjectName, projectTaken(String), projectNotFound, cantMove(String), projectBusy(String, String), noSource(String), noDrawing(String), cantDuplicate(String),
+         minisFolderBusy, sameMinisFolder, minisFolderNested, minisFolderClash([String])
     public var description: String {
         switch self {
         case .badName: "Names can only use lowercase letters, numbers and dashes."
@@ -127,6 +128,11 @@ public enum RequestError: Error, Equatable, CustomStringConvertible {
         case .noDrawing(let n): "Mimic can't make a new 3D shape of \(Mini.displayName(n)): its picture isn't made yet. Try Make Another Version instead."
         case .cantDuplicate(let n): "\(Mini.displayName(n)) is being made, resized or waiting in the queue. Duplicate it once that's done."
         case .unknownModel(let id): "This Mimic doesn't know a 3D model called \(id). Update Mimic, or make it again with another model."
+        case .minisFolderBusy: "A mini is being made or waiting in the queue. Change the folder once they're all done."
+        case .sameMinisFolder: "Your minis are already in that folder."
+        case .minisFolderNested: "Choose a folder that isn't inside the one your minis are in now, and doesn't hold it."
+        case .minisFolderClash(let names):
+            "That folder already has minis or projects called \(ListFormatter.localizedString(byJoining: names)). Rename yours first, or use the folder without moving your minis."
         }
     }
 }
