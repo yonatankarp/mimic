@@ -184,6 +184,7 @@ A mini goes by its name in `mimic list`, or by the name you gave it in Mimic: `m
 | `--restyle` | Redraw that picture as a grey sculpt first (its tabletop export is then grey) |
 | `--back FILE` / `--left FILE` / `--right FILE` | Pictures of the same character from the back and sides, besides `--image` (the front), so the 3D model doesn't guess them. Any of them; TRELLIS.2 only |
 | `--improve` | Let the AI helper chosen in Settings write a fuller description first |
+| `--change "TEXT"` | With `make --image` or `make-another`, redraw the picture with this change first, e.g. `"close the cape so both arms show"`. `make-another` starts from the picture it made, so changes add up. In Terminal it carries straight on; the app stops to show you the picture first |
 | `--height MM` | How tall the character is, feet to top; the base adds about 2 mm |
 | `--scale 28` / `32` / `35` / `54` / `75` | Match the scale your other minis use: sets the height and base for an average human (`--height` and `--base` still win) |
 | `--base MM` | Size of the base: across it, or across the flat sides for a hex |
