@@ -34,7 +34,7 @@ struct MimicApp: App {
             CommandGroup(replacing: .newItem) {
                 Button("New Mini…") { model.showWindow(); model.sheet = .make }
                     .keyboardShortcut("n")
-                    .disabled(!model.setup.installed)
+                    .disabled(!model.setup.installed || model.sheet != nil)
                 // A model made elsewhere, print prep only (#96).
                 Button("Import Model…") { ImportModel.choose(model) }
                     .keyboardShortcut("i", modifiers: [.command, .shift])
