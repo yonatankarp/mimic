@@ -15,16 +15,17 @@
 #
 # Two builds of the same commit with the same Xcode give the same tarball, byte for byte:
 # - it targets macOS 14, the oldest Mimic supports, or the tarball only runs on yours;
-# - source and build paths are mapped away, or every assert message carries them;
+# - source and build paths are mapped away, or every assert message carries them, and the
+#   build tree's own rpath is left out (below);
 # - SOURCE_DATE_EPOCH is the commit's time, which the build stamps in place of the clock;
 # - ggml is built without -mcpu=native, so the binary doesn't depend on the build Mac's chip;
 # - the tar has sorted entries, fixed owners, modes and times, no macOS metadata, and gzip
 #   leaves out its own timestamp.
 #
-# The build finds its libraries through an absolute rpath into the build tree (plus a
-# Linux-style $ORIGIN that macOS ignores), so a moved copy dies at launch. Every rpath is
-# replaced with @loader_path, and everything is re-signed ad hoc because the edit voids the
-# signature.
+# The build would find its libraries through an absolute rpath into the build tree, whose
+# length changes the binaries' layout; it's built with only pixal3d.cpp's install rpath
+# instead, a Linux-style $ORIGIN that macOS ignores. Every rpath is replaced with
+# @loader_path, and everything is re-signed ad hoc because the edit voids the signature.
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd -P)"
@@ -47,7 +48,7 @@ export SOURCE_DATE_EPOCH
 rm -rf "$build"; mkdir -p "$build"
 M="-ffile-prefix-map=$src=pixal3d.cpp -ffile-prefix-map=$build=build"
 cmake -S "$src" -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
-  -DGGML_NATIVE=OFF \
+  -DGGML_NATIVE=OFF -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
   "-DCMAKE_C_FLAGS=$M" "-DCMAKE_CXX_FLAGS=$M" "-DCMAKE_OBJC_FLAGS=$M" "-DCMAKE_OBJCXX_FLAGS=$M"
 cmake --build "$build" --target trellis-cli
 
