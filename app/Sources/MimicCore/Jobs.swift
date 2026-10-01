@@ -63,6 +63,8 @@ public final class JobRunner: @unchecked Sendable {
     private var lockFD: Int32 = -1
     /// Held with the job lock: the Mac doesn't sleep on its own while jobs run (the screen may).
     private var awake: NSObjectProtocol?
+    /// Held with the job lock: looks for `mimic stop` asking this runner to stop its job.
+    private var stopWatch: DispatchSourceTimer?
     /// The Draw Things Mimic opened and hasn't quit yet: left open while the next job needs it.
     private var openedDrawThings: DrawThingsApp.Instance?
     /// Entered while this runner holds the job lock: waitUntilDone waits for it to go idle.
@@ -415,7 +417,11 @@ public final class JobRunner: @unchecked Sendable {
             return false
         }
         let activity = ProcessInfo.processInfo.beginActivity(options: .idleSystemSleepDisabled, reason: "Making minis")
-        lock.withLock { lockFD = fd; awake = activity }
+        let watch = DispatchSource.makeTimerSource(queue: .global())
+        watch.schedule(deadline: .now() + 0.5, repeating: 0.5)
+        watch.setEventHandler { [weak self] in self?.answerStopRequest() }
+        watch.resume()
+        lock.withLock { lockFD = fd; awake = activity; stopWatch = watch }
         idle.enter()
         Leftover.stop(queue: install.queue)
         SharedJob.clear(queue: install.queue)
@@ -423,8 +429,9 @@ public final class JobRunner: @unchecked Sendable {
     }
 
     private func releaseJobLock() {
-        let (fd, activity) = lock.withLock { defer { lockFD = -1; awake = nil }; return (lockFD, awake) }
+        let (fd, activity, watch) = lock.withLock { defer { lockFD = -1; awake = nil; stopWatch = nil }; return (lockFD, awake, stopWatch) }
         guard fd >= 0 else { return }
+        watch?.cancel()
         quitDrawThings()
         SharedJob.clear(queue: install.queue)
         flock(fd, LOCK_UN); close(fd)

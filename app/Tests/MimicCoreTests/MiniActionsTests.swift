@@ -1,0 +1,154 @@
+import XCTest
+@testable import MimicCore
+
+/// What `mimic` in Terminal shares with the app's menus (#129): Stop from another Mimic, Rename,
+/// Move to Trash, Keep This One, Resize All and Info.
+final class MiniActionsTests: XCTestCase {
+    let sizes = Sizes(height: "32", base: "25", nozzle: "0.4")
+
+    /// Holds the job lock as another Mimic would, so jobs asked for wait in the queue.
+    private func anotherMimic(_ fx: Fixture) -> Int32 {
+        let fd = open(fx.install.queue.appendingPathComponent("job.lock").path, O_CREAT | O_RDWR, 0o644)
+        XCTAssertEqual(flock(fd, LOCK_EX | LOCK_NB), 0)
+        return fd
+    }
+
+    /// `mimic stop` is another program than the Mimic making the mini: it can only ask. Two
+    /// runners on one folder are two Mimics as far as the locks are concerned.
+    func testStopAsksTheMimicMakingItToStop() throws {
+        let fx = try Fixture()
+        let started = fx.root.appendingPathComponent("started").path
+        let engine = try fx.script("fake-engine", "touch \(started); sleep 60 & wait")
+        try fx.modelFiles()
+        let maker = JobRunner(install: fx.install, tools: fx.tools(mimic: engine), trash: { _ in })
+        let terminal = JobRunner(install: fx.install, tools: fx.tools())
+        XCTAssertEqual(terminal.stopElsewhere(timeout: 1), .nothing)
+        try maker.make(name: "mini", picture: .image(try fx.picture()), restyle: false, seed: 1, sizes: sizes, model: EngineDownload.standard)
+        for _ in 0..<100 where !FileManager.default.fileExists(atPath: started) { usleep(50_000) }
+
+        // A request left from before, naming another job, is dropped rather than kept for later.
+        try Data("someone-else".utf8).write(to: maker.queue.stopFile)
+        usleep(1_200_000)
+        XCTAssertEqual(maker.status?.running, true, "a request naming another mini stopped this one")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: maker.queue.stopFile.path))
+
+        guard case .stopped(let s) = terminal.stopElsewhere(timeout: 10) else { return XCTFail("the Mimic making it didn't stop it") }
+        XCTAssertEqual(s.name, "mini")
+        maker.waitUntilDone()
+        XCTAssertEqual(maker.status?.canceled, true, "stopped as Stop does, not failed")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: maker.queue.stopFile.path))
+    }
+
+    /// Unanswered (a Mimic from before 0.9.0), the request is taken back, so it can't stop a later
+    /// job of the same name.
+    func testAnUnansweredStopIsTakenBack() throws {
+        let fx = try Fixture()
+        let job = JobStatus(name: "mini", kind: .generate, step: 2, started: Date())
+        SharedJob.write(job, queue: fx.install.queue)  // as if another Mimic were making it, and deaf
+        let terminal = JobRunner(install: fx.install, tools: fx.tools())
+        guard case .noAnswer = terminal.stopElsewhere(timeout: 0.5) else { return XCTFail("no Mimic stopped it") }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: terminal.queue.stopFile.path))
+    }
+
+    func testRenameTakesATypedNameAndRefusesAWaitingMini() throws {
+        let fx = try Fixture(); _ = try fx.mini("a"); _ = try fx.mini("b")
+        let jobs = JobRunner(install: fx.install, tools: fx.tools())
+        XCTAssertEqual(try jobs.rename("b", typed: "  Élodie  "), "elodie")
+        XCTAssertEqual(Mini.displayName("elodie", runs: fx.install.runs), "Élodie")
+        XCTAssertThrowsError(try jobs.rename("elodie", typed: " \n ")) { XCTAssertEqual($0 as? RequestError, .noName) }
+
+        // Waiting: a job finds its folder by name as it starts, so renaming it now would lose it.
+        let fd = anotherMimic(fx); defer { close(fd) }
+        try jobs.resize(name: "a", sizes: sizes)
+        XCTAssertThrowsError(try jobs.rename("a", typed: "Alpha")) { XCTAssertEqual($0 as? RequestError, .renameWaiting("a")) }
+        XCTAssertNotNil(Gallery.folder(fx.install.runs, "a"))
+    }
+
+    func testTrashTakesAWaitingMiniOutOfTheQueueFirst() throws {
+        let fx = try Fixture(); _ = try fx.mini("a")
+        try fx.modelFiles()
+        let runnerTrash = TrashSpy(), trash = TrashSpy()
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(), trash: { runnerTrash($0) })
+        let fd = anotherMimic(fx); defer { close(fd) }
+
+        // Waiting to be resized: out of the queue, then its folder to the Trash.
+        try jobs.resize(name: "a", sizes: sizes)
+        let a = try XCTUnwrap(Gallery.list(fx.install.runs).first { $0.name == "a" })
+        let moved = try jobs.moveToTrash(a, trash: { trash($0) })
+        XCTAssertEqual(moved?.folder.lastPathComponent, "a")
+        XCTAssertEqual(trash.trashed.map(\.lastPathComponent), ["a"])
+        XCTAssertEqual(jobs.queue.entries(), [])
+
+        // A new mini waiting to be made: leaving the queue sends its folder to the Trash already.
+        try jobs.make(name: "new", picture: .image(try fx.picture()), restyle: false, seed: 1, sizes: sizes, model: EngineDownload.standard)
+        let new = try XCTUnwrap(Gallery.list(fx.install.runs).first { $0.name == "new" })
+        XCTAssertNil(try jobs.moveToTrash(new, trash: { trash($0) }))
+        XCTAssertEqual(runnerTrash.trashed.map(\.lastPathComponent), ["new"])
+        XCTAssertEqual(trash.trashed.count, 1, "trashed twice")
+        XCTAssertEqual(jobs.queue.entries(), [])
+    }
+
+    func testKeepTrashesTheOtherVersionsButNotTheOneBeingMade() {
+        func mini(_ name: String, of root: String? = nil, project: String? = nil) -> Mini {
+            var s = MiniSettings(); s.versionOf = root
+            return Mini(name: name, folder: URL(fileURLWithPath: "/runs/\(name)"), madeAt: Date(), project: project, settings: s)
+        }
+        let minis = [mini("orc"), mini("orc-2", of: "orc"), mini("orc-3", of: "orc"), mini("elf"), mini("orc-4", of: "orc", project: "Party")]
+        let kept = Gallery.toKeep(minis[1], in: minis, busyWith: "orc-3")
+        XCTAssertEqual(kept.trash.map(\.name), ["orc"])
+        XCTAssertEqual(kept.staying?.name, "orc-3")
+        XCTAssertEqual(Gallery.toKeep(minis[3], in: minis, busyWith: nil).trash, [])
+    }
+
+    func testResizeAllLeavesOutTheBusyAndThoseAlreadyThatSize() throws {
+        let fx = try Fixture()
+        for n in ["a", "b", "c"] { _ = try fx.mini(n) }
+        try MiniSettings.update(fx.install.runs.appendingPathComponent("b")) { $0.made = self.sizes }
+        let jobs = JobRunner(install: fx.install, tools: fx.tools())
+        let fd = anotherMimic(fx); defer { close(fd) }
+        try jobs.resize(name: "c", sizes: Sizes(height: "50"))  // already waiting
+        var asked: [String] = []
+        let done = jobs.resizeAll(Gallery.list(fx.install.runs), to: sizes) { m, _ in asked.append(m.name) }
+        XCTAssertEqual(asked, ["a"])
+        XCTAssertEqual(done.added, ["a"])
+        XCTAssertEqual(done.same, 1)
+        XCTAssertEqual(done.skipped, 1)
+        XCTAssertNil(done.nothingAdded(nil))
+        XCTAssertEqual(done.sameNote + done.skippedNote, " 1 was already that size. Skipped 1: not made yet, or already waiting or being made.")
+
+        let refused = jobs.resizeAll(Gallery.list(fx.install.runs).filter { $0.name == "a" }, to: sizes) { _, _ in throw RequestError.noModelYet }
+        XCTAssertEqual(refused.nothingAdded("Not yet."), "Not yet. Skipped 1: not made yet, or already waiting or being made.")
+        let same = jobs.resizeAll(Gallery.list(fx.install.runs).filter { $0.name == "b" }, to: sizes) { _, _ in XCTFail("resized a mini already that size") }
+        XCTAssertEqual(same.nothingAdded(nil), "They're all already that size.")
+    }
+
+    /// Measured as the 3D view turns a print file: tall is its Z extent, wide its X, deep its Y.
+    func testMeasuredFromAPrintFile() throws {
+        let fx = try Fixture()
+        // A box 26 wide, 25 deep and 34 tall, as two triangles per side would be; corners are what count.
+        let corners: [SIMD3<Float>] = [[0, 0, 0], [26, 0, 0], [26, 25, 0], [0, 0, 34], [26, 25, 34], [0, 25, 34]]
+        let mesh = Mesh(positions: corners, triangles: [[0, 1, 2], [3, 4, 5]])
+        let stl = fx.root.appendingPathComponent("box.stl")
+        try STL.write(mesh, to: stl)
+        let m = try XCTUnwrap(Measured(stl: stl))
+        XCTAssertEqual([m.tall, m.wide, m.deep], [34, 26, 25])
+        XCTAssertEqual(m.caption, "34 mm tall · 26 × 25 mm")
+        XCTAssertNil(Measured(stl: fx.root.appendingPathComponent("missing.stl")))
+    }
+
+    func testInfoSaysWhatTheMinisPageSays() throws {
+        let fx = try Fixture(); _ = try fx.mini("orc"); let d = try fx.mini("orc-2")
+        try MiniSettings.update(d) {
+            $0.made = self.sizes; $0.source = .desc; $0.desc = "an orc with an axe"; $0.seed = 7; $0.versionOf = "orc"
+            $0.name("Grok 2", folder: "orc-2")
+        }
+        let minis = Gallery.list(fx.install.runs), mini = try XCTUnwrap(minis.first { $0.name == "orc-2" })
+        let lines = MiniInfo(mini, in: minis, waiting: []).lines
+        XCTAssertEqual(lines.first, "Grok 2 (orc-2)")
+        for want in ["State: ready", "Character: 32 mm", "Base: 25 mm", "Nozzle: 0.4 mm", "Source: A description",
+                     "Variation number: 7", "Description: an orc with an axe", "Versions: orc, orc-2 (this one)"] {
+            XCTAssertTrue(lines.contains(want), "missing \(want) in \(lines)")
+        }
+        XCTAssertEqual(MiniInfo(mini, in: minis, waiting: ["orc-2"]).state, .waiting)
+    }
+}
