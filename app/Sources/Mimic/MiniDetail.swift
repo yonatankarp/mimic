@@ -48,7 +48,7 @@ struct MiniDetail: View {
             } message: {
                 Text("Edit → Undo puts them back.")
             }
-            .confirmationDialog("Call it “\(Mini.displayName(offerName ?? ""))”?",
+            .confirmationDialog("Call it “\(mini.displayName(renamedTo: offerName ?? ""))”?",
                                 isPresented: Binding(get: { offerName != nil }, set: { if !$0 { offerName = nil } }),
                                 presenting: offerName) { name in
                 Button("Rename") { rename(to: name) }.keyboardShortcut(.defaultAction)
@@ -65,6 +65,10 @@ struct MiniDetail: View {
             // Another mini, or a sheet from the toolbar or a menu, takes over from it.
             .onChange(of: mini.name) { looking = nil }
             .onChange(of: model.sheet) { if model.sheet != nil { looking = nil } }
+            // Keep This One in Compare Side by Side (#99) asks here, once that sheet has gone.
+            .onChange(of: model.askToKeep == mini.name, initial: true) { _, asked in
+                if asked { model.askToKeep = nil; confirmKeep = true }
+            }
     }
 
     /// The 3D view, edge to edge; or why there isn't one yet.
@@ -98,6 +102,20 @@ struct MiniDetail: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(model.cantStart != nil)
                     .help(model.cantStart ?? "Makes it again from the step that failed")
+                Button("Report a Problem…") { model.reportProblem(mini) }
+                    .help("Makes a file of what happened and opens a form on GitHub to send it with")
+            }
+        } else if mini.settings.isImported && mini.hasModel && model.waiting(mini.name) == nil {
+            // An imported model (#96) has nothing of its own to make again: Resize makes its print file.
+            ContentUnavailableView {
+                Label("This mini didn't finish", systemImage: "exclamationmark.triangle")
+            } description: {
+                Text(mini.settings.failed ?? "Its print file isn't made yet.")
+            } actions: {
+                Button("Resize This Mini…") { model.sheet = .resize(mini) }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(model.cantStart != nil)
+                    .help(model.cantStart ?? "Makes its print file. Try Again is off for a model you imported.")
             }
         } else {
             ContentUnavailableView("This mini isn't finished yet.", systemImage: "hourglass")
@@ -137,7 +155,7 @@ struct MiniDetail: View {
             } label: {
                 Label("More", systemImage: "ellipsis")
             }
-            .help("Print several copies, resize this mini, make it again with changes, or show it in Finder")
+            .help("Print copies, resize, make it again with changes, or show it in Finder")
             Button("Open in \(model.slicerName)") { if let stl = mini.stl { model.openInSlicer(stl) } }
                 .buttonStyle(.glassProminent)
                 .help("Opens the print file in \(model.slicerName) to slice and print")
@@ -266,6 +284,13 @@ struct MiniDetail: View {
             Button("Keep This One…") { confirmKeep = true }
                 .help("Keeps this version and moves the others to the Trash.")
                 .disabled(!canKeep)
+            let finished = versions.filter { $0.stl != nil }
+            Button("Compare Side by Side…") {
+                let i = finished.firstIndex { $0.name == mini.name } ?? 0
+                model.sheet = .compare(finished[i].name, finished[(i + 1) % finished.count].name)
+            }
+            .help("Shows two versions in 3D next to each other, turning and zooming together.")
+            .disabled(finished.count < 2 || model.sheet != nil)
         } header: {
             Label("Versions", systemImage: "square.on.square")
         }
@@ -294,6 +319,9 @@ struct MiniDetail: View {
                     Text(description).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                 }
                 ForEach(made.rows, id: \.label) { LabeledContent($0.label, value: $0.value) }
+                if mini.settings.isImported {
+                    Text(AnotherVersionButton.imported).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                }
                 if let description = made.description {
                     Button {
                         NSPasteboard.general.clearContents()
@@ -306,7 +334,7 @@ struct MiniDetail: View {
                     .help("Copies the description it was drawn from, to use again.")
                 }
             } header: {
-                Label("Made From", systemImage: "wand.and.stars")
+                Label("Made from", systemImage: "wand.and.stars")
             }
         }
     }

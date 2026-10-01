@@ -15,9 +15,12 @@ struct Sidebar: View {
     @SceneStorage("gallerySort") private var sort = GallerySort.made
     @SceneStorage("galleryShow") private var show = GalleryShow.all
     @State private var preview: URL?
+    @FocusState private var searching: Bool
     /// A mini has been picked in the list since it appeared: the gallery tip can show.
     @State private var picked = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The list has the keyboard: the window starts with it there, not on the 3D view.
+    var listFocused: FocusState<Bool>.Binding
 
     var body: some View {
         // Only the search field sits inside the branch: anything attached on the other side
@@ -26,6 +29,7 @@ struct Sidebar: View {
             // Same threshold as the filter, so the field and the filtering never disagree.
             if model.minis.count > Gallery.searchAfter {
                 list.searchable(text: $query, placement: .sidebar, prompt: "Find a mini")
+                    .searchFocused($searching)
             } else {
                 list
             }
@@ -44,18 +48,20 @@ struct Sidebar: View {
         }
         .quickLookPreview($preview)
         // What a search or filter hides is no longer selected, so nothing out of sight is moved,
-        // resized or trashed with what is.
-        .onChange(of: query) { deselectHidden() }
-        .onChange(of: show) { deselectHidden() }
+        // resized or trashed with what is. The model knows them too, for its reloads.
+        .onChange(of: query, initial: true) { model.listQuery = query; deselectHidden() }
+        .onChange(of: show, initial: true) { model.listShow = show; deselectHidden() }
+        .onChange(of: sort, initial: true) { model.listSort = sort }
+        .onChange(of: model.findRequests) { searching = true }  // Edit → Find
+        // View → Sort By and Show change these same choices.
+        .focusedSceneValue(\.gallerySort, $sort)
+        .focusedSceneValue(\.galleryShow, $show)
     }
 
     private var shown: [Mini] { Gallery.arrange(model.minis, query: query, show: show, sort: sort) }
 
     private func deselectHidden() {
-        let shown = self.shown
-        var kept = Gallery.visible(model.selection, in: shown)
-        // Else the next reload picks the first mini of all, which the list may not show.
-        if kept.isEmpty, let first = shown.first { kept = [first.id] }
+        let kept = Gallery.keeping(model.selection, in: shown)
         if kept != model.selection { model.selection = kept }
     }
 
@@ -105,6 +111,7 @@ struct Sidebar: View {
             }
         }
         .listStyle(.sidebar)
+        .focused(listFocused)
         // Like Notes' New Folder: always there, the first project included.
         .safeAreaInset(edge: .bottom) {
             HStack {
@@ -171,9 +178,7 @@ struct Sidebar: View {
     private var arrangeMenu: some View {
         Menu {
             Picker("Sort By", selection: $sort) {
-                Text("Date Made").tag(GallerySort.made)
-                Text("Name").tag(GallerySort.name)
-                Text("Size").tag(GallerySort.size)
+                ForEach(GallerySort.allCases, id: \.self) { Text(Self.title($0)).tag($0) }
             }
             Picker("Show", selection: $show) {
                 ForEach(GalleryShow.allCases, id: \.self) { Text(Self.title($0)).tag($0) }
@@ -188,7 +193,15 @@ struct Sidebar: View {
         .accessibilityLabel("Sort and Show")
     }
 
-    private static func title(_ show: GalleryShow) -> String {
+    static func title(_ sort: GallerySort) -> String {
+        switch sort {
+        case .made: "Date Made"
+        case .name: "Name"
+        case .size: "Size"
+        }
+    }
+
+    static func title(_ show: GalleryShow) -> String {
         switch show {
         case .all: "All Minis"
         case .characters: "Characters"
@@ -220,7 +233,7 @@ struct Sidebar: View {
     /// "Waiting (2nd)" for a mini in the queue, "Being made…" for the one running.
     private func rowStatus(_ mini: Mini) -> String? {
         if let n = model.waiting(mini.name) { return "Waiting (\(AppModel.ordinal(n)))" }
-        if let s = model.current, s.name == mini.name { return s.kind == .prep ? "Resizing…" : "Being made…" }
+        if let s = model.current, s.name == mini.name { return s.kind == .generate ? "Being made…" : "\(model.doing(s))…" }
         return nil
     }
 
@@ -246,10 +259,12 @@ struct Sidebar: View {
         EditAndMakeAgainButton(mini: mini)
         DuplicateButton(mini: mini)
         MoveToProjectMenu(minis: [mini])
+        if model.waiting(mini.name) != nil { MoveInQueueMenu(mini: mini) }
         Divider()
         if model.canRetry(mini) {
             Button("Try Again", systemImage: "arrow.clockwise") { model.tryAgain(mini) }
                 .disabled(model.cantStart != nil)
+            Button("Report a Problem…", systemImage: "exclamationmark.bubble") { model.reportProblem(mini) }
         }
         Button("Rename…", systemImage: "pencil") { model.sheet = .rename(mini) }
             .disabled(model.waiting(mini.name) != nil)
@@ -283,7 +298,7 @@ struct CopiesButton: View {
     @Environment(AppModel.self) private var model
     var body: some View {
         Button { model.sheet = .copies(minis) } label: {
-            if showsIcon { Label("Copies…", systemImage: "square.on.square") } else { Text("Copies…") }
+            if showsIcon { Label("Copies…", systemImage: "square.grid.2x2") } else { Text("Copies…") }
         }
         .help(minis.count == 1 ? "Several of this mini on the plate, in one print file" : "Several of each on the plate, in one print file")
         .disabled(!minis.contains { $0.stl != nil } || model.packing || model.sheet != nil)
@@ -351,14 +366,32 @@ struct CopiesSheet: View {
     @Environment(\.dismiss) private var dismiss
     let minis: [Mini]
     @State private var copies = 2
+    /// The number field beside the stepper, so 20 is a few keys away rather than 18 clicks.
+    /// Text, not a number field: that only takes what's typed once editing ends, and Return
+    /// presses Open first.
+    @State private var typed = "2"
 
     var body: some View {
         let made = minis.filter { $0.stl != nil }
         VStack(alignment: .leading, spacing: 12) {
             Text(made.count == 1 ? "Copies of “\(made[0].displayName)”" : "Copies of \(made.count) minis").font(.headline)
-            Stepper(value: $copies, in: ThreeMF.copies) {
-                Text(made.count == 1 ? (copies == 1 ? "1 copy" : "\(copies) copies") : "\(copies) of each")
+            HStack(spacing: 6) {
+                TextField("Copies", text: $typed)
+                    .labelsHidden()
+                    .frame(width: 44)
+                    .multilineTextAlignment(.trailing)
                     .monospacedDigit()
+                    .accessibilityLabel(made.count == 1 ? "Copies" : "Copies of each")
+                    .onChange(of: typed) {
+                        // Emptied while typing a new number: wait for it.
+                        guard !typed.isEmpty else { return }
+                        copies = ThreeMF.copies(typed: typed) ?? copies
+                        if typed != "\(copies)" { typed = "\(copies)" }
+                    }
+                Stepper(value: $copies, in: ThreeMF.copies) {
+                    Text(made.count == 1 ? (copies == 1 ? "copy" : "copies") : "of each")
+                }
+                .onChange(of: copies) { if typed != "\(copies)" { typed = "\(copies)" } }
             }
             Text("They go side by side on the plate in one print file.").foregroundStyle(.secondary).font(.callout)
             HStack {
@@ -382,7 +415,7 @@ struct GalleryRow: View {
     /// made only for a mini from before its sizes were kept.
     private var line: String {
         if let status { return status }
-        if mini.stl == nil { return "Not finished" }
+        if !mini.finished { return "Not finished" }
         return mini.settings.made.map(PrintTips.shortLine) ?? mini.madeAt.formatted(.relative(presentation: .named))
     }
 
@@ -408,6 +441,8 @@ struct GalleryRow: View {
 
 /// Make Another Version, for the right-click menu and the Mini menu.
 struct AnotherVersionButton: View {
+    /// Why it, New 3D Shape and Edit & Make Again are off for an imported model (#96).
+    static let imported = "Off for a model you imported: there's no picture or description to make it again from. Resize and Duplicate work."
     let mini: Mini
     var showsIcon = true
     @Environment(AppModel.self) private var model
@@ -415,8 +450,8 @@ struct AnotherVersionButton: View {
         Button { model.makeAnotherVersion(mini) } label: {
             if showsIcon { Label("Make Another Version", systemImage: "square.on.square") } else { Text("Make Another Version") }
         }
-            .help("Makes it again from the same picture or description, with a different variation number: "
-                  + "a detail that came out as a blob may come out right. It goes next to this one, and waits its turn if Mimic is busy.")
+            .help(mini.settings.isImported ? Self.imported
+                  : "Makes it again from its picture or description, with a new variation number")
             .disabled(model.cantStart != nil || !JobRunner.canMakeAnotherVersion(mini))
     }
 }
@@ -430,8 +465,8 @@ struct NewShapeButton: View {
         Button { model.makeNewShape(mini) } label: {
             if showsIcon { Label("New 3D Shape", systemImage: "cube") } else { Text("New 3D Shape") }
         }
-            .help("Keeps this picture and makes only the 3D shape again, with a different variation number: "
-                  + "quicker than Make Another Version, and a picture you like stays. It goes next to this one, and waits its turn if Mimic is busy.")
+            .help(mini.settings.isImported ? AnotherVersionButton.imported
+                  : "Keeps this picture and makes only the 3D shape again")
             .disabled(model.cantStart != nil || !JobRunner.canMakeNewShape(mini))
     }
 }
@@ -446,7 +481,8 @@ struct EditAndMakeAgainButton: View {
         Button { model.sheet = .makeAgain(mini) } label: {
             if showsIcon { Label("Edit & Make Again…", systemImage: "slider.horizontal.3") } else { Text("Edit & Make Again…") }
         }
-            .help("Opens New Mini with this mini's picture or description, sizes and choices filled in, to change what you like and make it as a new mini")
+            .help(mini.settings.isImported ? AnotherVersionButton.imported
+                  : "Opens New Mini filled in from this mini, to change what you like")
             .disabled(!model.setup.installed || !JobRunner.canMakeAnotherVersion(mini))
     }
 }

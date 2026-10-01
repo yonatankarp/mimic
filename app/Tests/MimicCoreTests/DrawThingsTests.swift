@@ -112,6 +112,19 @@ final class DrawThingsTests: XCTestCase {
         XCTAssertThrowsError(try dt.draw(description: "a dwarf", seed: 1)) { XCTAssertEqual($0 as? DrawThingsError, .cancelled) }
         XCTAssertLessThan(Date().timeIntervalSince(started), 10)
     }
+
+    /// The CLI runs at the same lower priority as the job's other programs (#136): the fake one
+    /// writes its nice value as the picture.
+    func testCLIRunsAtALowerPriority() throws {
+        let cli = FileManager.default.temporaryDirectory.appendingPathComponent("fake-dt-\(UUID().uuidString)")
+        try "#!/bin/sh\nfor a; do last=$a; done\nps -o nice= -p $$ > \"$last\"\n".write(to: cli, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: cli.path)
+        defer { try? FileManager.default.removeItem(at: cli) }
+        let dt = DrawThings(environment: ["DRAWTHINGS_MODEL": "x"], cli: cli.path)
+        let nice = String(decoding: try dt.draw(description: "a dwarf", seed: 1), as: UTF8.self)
+        // nice adds to what it's started with: whatever runs the tests may already be niced.
+        XCTAssertEqual(nice.trimmingCharacters(in: .whitespacesAndNewlines), String(min(20, getpriority(PRIO_PROCESS, 0) + Int32(JobRunner.nice))))
+    }
 }
 
 /// A real drawing and sculpt through the draw-things-cli setup downloads, about a minute each:

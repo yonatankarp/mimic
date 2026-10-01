@@ -110,24 +110,13 @@ struct SettingsView: View {
         if hasBattery {
             Section {
                 Toggle(isOn: $holdOnBattery) {
-                    Text("Don't start minis on battery")
+                    Text("Start minis only when plugged in")
                     Text("The next mini waits until your Mac is plugged in. One already being made carries on.")
                 }
                 .help("Keeps the queue waiting while your Mac runs on its battery")
             }
         }
-        Section {
-            LabeledContent {
-                Button("Open Minis Folder") {
-                    // A new Mac has none until the first mini.
-                    try? FileManager.default.createDirectory(at: model.install.runs, withIntermediateDirectories: true)
-                    NSWorkspace.shared.open(model.install.runs)
-                }
-            } label: {
-                Text("Your minis are saved in")
-                Text((model.install.runs.path as NSString).abbreviatingWithTildeInPath)
-            }
-        }
+        MinisFolderSection()
         UpdatesSection()
     }
 

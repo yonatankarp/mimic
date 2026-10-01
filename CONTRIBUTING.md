@@ -5,7 +5,13 @@ difference.
 
 ## Reporting a problem
 
-[Open an issue](https://github.com/yonatankarp/mimic/issues/new/choose) and pick **Something
+The quickest way is in Mimic: **Help → Report a Problem…**, or **Report a Problem…** on a mini that
+didn't finish. It makes a file with the logs, the mini's settings, and your Mimic version and Mac,
+with keys and your home folder taken out, shows it in Finder and opens the form below already
+filled in; drag the file in. The mini's picture goes in only if you tick the box, since issues are
+public.
+
+Or [open an issue](https://github.com/yonatankarp/mimic/issues/new/choose) and pick **Something
 went wrong**. The form asks for what helps most:
 
 - Your Mimic version (at the bottom of Settings → Advanced, or Mimic → About Mimic), your Mac (Apple menu → About This Mac) and macOS version.
@@ -28,8 +34,10 @@ the problem matters more than a specific solution.
    they guard against first (see `app/NOTES.md`); keep that habit.
 4. Text people see is plain English, for people who aren't technical. No jargon, no file names.
 5. Open a pull request that says what changed and why, and how you checked it. Its title starts
-   with the kind of change: `feat:` (new), `fix:` or `change:` for what people will notice,
-   `docs:`, `chore:`, `ci:`, `test:` or `refactor:` otherwise.
+   with the kind of change: `feat:` (a new feature), `change:` (an improvement) or `fix:` (a bug
+   fix) for what people will notice, `docs:`, `chore:`, `ci:`, `test:` or `refactor:` otherwise.
+   Add `(cli)` for a change only `mimic` in Terminal has (`fix(cli): ...`): it goes under In
+   Terminal in the release notes.
 6. The release notes are made from pull requests, so there's no need to edit `CHANGELOG.md`. A
    `feat`, `fix` or `change` shows its title there, or the first paragraph under a `## Release note`
    section in the description when it has one: one line for people who use Mimic, like the bullets
@@ -49,7 +57,7 @@ By contributing, you agree that your contribution is licensed under Mimic's
 | `tools/release_notes.py` | Writes a release's notes from the pull requests merged since the last one. |
 | `tools/package_pixal3d.sh`, `tools/pixal3d-steps.patch` | Package the Pixal3D build the app downloads on first launch. |
 | `.github/workflows/release.yml` | Tests every change, builds the disk image, and publishes a release from a version tag. |
-| `runs/`, `engine/` | The dev build's minis and 3D engine (`trellis-cli`, each model set in `engine/models/<id>/`), when this checkout is its Mimic folder. Both are git-ignored. An installed Mimic keeps them in `~/Documents/Mimic` and `~/Library/Application Support/Mimic/engine` instead; `app/NOTES.md` says how it chooses. |
+| `runs/`, `engine/`, `queue/` | The dev build's minis, 3D engine (`trellis-cli`, each model set in `engine/models/<id>/`) and queue, when this checkout is its Mimic folder. All are git-ignored. An installed Mimic keeps them in `~/Documents/Mimic` (or the folder chosen in Settings) and `~/Library/Application Support/Mimic` instead; `app/NOTES.md` says how it chooses. |
 
 ## Building and testing
 
@@ -81,7 +89,8 @@ downloads the real engine and the small model files, never the 8 GB of weights.
 ## Releasing
 
 1. Check the notes it will publish: `tools/release_notes.py 0.3.0 origin/main` lists the pull
-   requests merged since the last version under New, Changed and Fixed. Fix a note by editing that
+   requests merged since the last version under New features, Improvements, Bug fixes and In
+   Terminal, with a line on top that counts them. Fix a note by editing that
    pull request's `## Release note`. A version with no `feat`, `fix` or `change` fails before
    anything is published.
 2. Push a version tag:

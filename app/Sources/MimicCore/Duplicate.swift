@@ -12,6 +12,7 @@ extension JobRunner {
         guard Rules.isValidName(name), Rules.isValidName(new) else { throw RequestError.badName }
         let runs = install.runs, fm = FileManager.default
         try queue.locked { entries in
+            try refuseWhileMoving()
             guard let src = Gallery.folder(runs, name) else { throw RequestError.notFound }
             guard fm.fileExists(atPath: src.appendingPathComponent("model.glb").path) else { throw RequestError.noModelYet }
             if entries.contains(where: { $0.name == name }) || running()?.name == name { throw RequestError.cantDuplicate(name) }
@@ -37,6 +38,13 @@ extension JobRunner {
                 throw error
             }
         }
+    }
+
+    /// What `mimic duplicate` says once `name` is copied to `new`: both by their names as shown
+    /// ("QA Dwarf 35", as typed), and the copy's folder in the command to size it.
+    public func duplicatedSaying(_ name: String, as new: String) -> String {
+        let runs = install.runs
+        return "Duplicated \(Mini.displayName(name, runs: runs)) as \(Mini.displayName(new, runs: runs)). Choose its size: mimic resize \(new) --height MM"
     }
 
     /// What a duplicate leaves behind: the logs of how the original was made, and a print file

@@ -51,6 +51,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>SUFeedURL</key><string>https://github.com/yonatankarp/mimic/releases/latest/download/appcast.xml</string>
   <key>SUPublicEDKey</key><string>Dw9fswgPGLG2UoKzVMTIdvoQZd/m317sFxOecEoDXMk=</string>
   <key>SUEnableAutomaticChecks</key><true/>
+  <key>NSHumanReadableCopyright</key><string>Copyright © 2026 Yonatan Karp-Rudin</string>
   <key>NSHighResolutionCapable</key><true/>
 </dict></plist>
 PLIST

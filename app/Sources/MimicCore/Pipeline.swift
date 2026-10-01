@@ -9,9 +9,11 @@ public struct Tools: Sendable {
     /// The 3D engine's folder (trellis-cli, its libraries, `models/`).
     public var engine: String
     public var environment: [String: String]
+    /// Step 1's Draw Things; nil is the real one. Tests give theirs here, so none reaches the real one.
+    public var drawThings: DrawThings?
 
-    public init(mimic: String, engine: String, environment: [String: String]) {
-        self.mimic = mimic; self.engine = engine; self.environment = environment
+    public init(mimic: String, engine: String, environment: [String: String], drawThings: DrawThings? = nil) {
+        self.mimic = mimic; self.engine = engine; self.environment = environment; self.drawThings = drawThings
     }
 
     public static func resolve(_ install: Install) -> Tools {
@@ -55,12 +57,20 @@ public enum Pipeline {
     /// last step carries on there (#82). Make refuses a folder that has one.
     public static func plan(_ kind: JobKind, folder: URL, settings: MiniSettings, tools: Tools) throws -> [(number: Int, step: Step)] {
         let name = folder.lastPathComponent
-        guard let model = EngineDownload.model(settings.model) else { throw RequestError.unknownModel(settings.model ?? "") }
+        // An imported model (#96) wasn't made by any 3D model here, so it's never turned: it
+        // faces whichever way its own file has it.
+        let turn: Int
+        if settings.isImported {
+            turn = 0
+        } else {
+            guard let model = EngineDownload.model(settings.model) else { throw RequestError.unknownModel(settings.model ?? "") }
+            turn = model.turn
+        }
         // An object is sized by its longest side and stood on its whole bottom, not its feet;
         // a TRELLIS.2 model is turned round to face the front first (Prep turns before it levels).
         let flags = try (settings.requested ?? Sizes()).flags()
             + (settings.isObject ? ["--fit", "longest", "--ground", "bottom"] : [])
-            + (model.turn == 0 ? [] : ["--turn", String(model.turn)])
+            + (turn == 0 ? [] : ["--turn", String(turn)])
             // The stones are laid out by the mini's own number: Try Again lays them the same way,
             // another version differently.
             + (settings.requested?.flags().contains("--base-style") == true ? ["--base-seed", String(settings.seed ?? 42)] : [])
@@ -69,6 +79,8 @@ public enum Pipeline {
                                           folder.appendingPathComponent("\(name).stl").path] + flags,
                               directory: nil, log: folder.appendingPathComponent("prep.log"))
         if kind == .prep { return [(3, prep)] }
+        if settings.isImported { throw RequestError.imported(name) }
+        guard let model = EngineDownload.model(settings.model) else { throw RequestError.unknownModel(settings.model ?? "") }
 
         let seed = settings.seed ?? 42
         let source = folder.appendingPathComponent("source.png")
@@ -90,8 +102,16 @@ public enum Pipeline {
                               arguments: ["_engine", source.path, folder.appendingPathComponent("model.glb").path,
                                           "--seed", String(settings.shapeSeed ?? seed), "--engine", tools.engine, "--model", model.id],
                               directory: nil, log: folder.appendingPathComponent("pixal3d.log"))
-        let drawn = FileManager.default.fileExists(atPath: source.path)
-        let shaped = drawn && FileManager.default.fileExists(atPath: folder.appendingPathComponent("model.glb").path)
-        return (drawn ? [] : [(1, picture)]) + (shaped ? [] : [(2, mesh)]) + [(3, prep)]
+        let skip = skipped(folder)
+        return (skip.contains(1) ? [] : [(1, picture)]) + (skip.contains(2) ? [] : [(2, mesh)]) + [(3, prep)]
+    }
+
+    /// The steps a make of the mini in `folder` skips because what they make is there already:
+    /// the picture (source.png: Try Again, a new 3D shape), and the 3D shape too when it has
+    /// model.glb as well (a make stopped in its last step).
+    public static func skipped(_ folder: URL) -> Set<Int> {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: folder.appendingPathComponent("source.png").path) else { return [] }
+        return fm.fileExists(atPath: folder.appendingPathComponent("model.glb").path) ? [1, 2] : [1]
     }
 }

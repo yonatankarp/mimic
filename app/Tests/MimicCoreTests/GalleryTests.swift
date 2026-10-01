@@ -75,6 +75,20 @@ final class GalleryTests: XCTestCase {
         }
     }
 
+    /// Keep This One asks "Call it …?" with the name the rename then gives it (#128). Planted:
+    /// the name rebuilt from the folder says "Elodie".
+    func testAskingToRenameShowsTheNameItGets() throws {
+        let fx = try Fixture(), runs = fx.install.runs
+        try MiniSettings.update(try fx.mini("elodie-2")) { $0.name("Élodie 2", folder: "elodie-2") }
+        _ = try fx.mini("orc-2")  // an older mini, with no name of its own
+        let minis = Gallery.list(runs)
+        let elodie = try XCTUnwrap(minis.first { $0.name == "elodie-2" })
+        XCTAssertEqual(elodie.displayName(renamedTo: "elodie"), "Élodie")
+        XCTAssertEqual(try XCTUnwrap(minis.first { $0.name == "orc-2" }).displayName(renamedTo: "orc"), "Orc")
+        try Gallery.rename(runs, from: "elodie-2", to: "elodie")
+        XCTAssertEqual(Gallery.list(runs).first { $0.name == "elodie" }?.displayName, elodie.displayName(renamedTo: "elodie"))
+    }
+
     /// Finder wins (#87): a mini renamed there shows its folder's new name, a copy doesn't pass
     /// for the original, and a name typed there with capitals or accents is kept as typed. An
     /// unfinished one (no print file, so never taken over) goes by its folder too.

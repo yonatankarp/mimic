@@ -34,6 +34,7 @@ extension JobRunner {
     public func move(mini name: String, toProject project: String?) throws {
         let runs = install.runs
         try queue.locked { entries in
+            try refuseWhileMoving()
             guard let from = Gallery.folder(runs, name) else { throw RequestError.notFound }
             if entries.contains(where: { $0.name == name }) || running()?.name == name { throw RequestError.cantMove(name) }
             if let project, !Gallery.projects(runs).contains(project) { throw RequestError.projectNotFound }
@@ -52,7 +53,8 @@ extension JobRunner {
         let runs = install.runs
         guard Gallery.list(runs).contains(where: { Gallery.oddFiles($0) != nil }) else { return [] }
         return (try? queue.locked { entries in
-            Gallery.adopt(runs, busy: Set(entries.map(\.name) + [running()?.name].compactMap { $0 }))
+            try refuseWhileMoving()
+            return Gallery.adopt(runs, busy: Set(entries.map(\.name) + [running()?.name].compactMap { $0 }))
         }) ?? []
     }
 
@@ -63,11 +65,12 @@ extension JobRunner {
         let runs = install.runs
         guard let new = Rules.projectName(text) else { throw RequestError.badProjectName }
         return try queue.locked { _ in
+            try refuseWhileMoving()
             guard Gallery.projects(runs).contains(old) else { throw RequestError.projectNotFound }
             guard old != new else { return new }
             guard !Gallery.projectOrMiniExists(runs, new, except: old) else { throw RequestError.projectTaken(new) }
             if let r = running(), Gallery.folder(runs, r.name)?.deletingLastPathComponent().lastPathComponent == old {
-                throw RequestError.projectBusy(old, r.name)
+                throw RequestError.projectBusy(old, Mini.displayName(r.name, runs: runs))
             }
             let from = runs.appendingPathComponent(old), to = runs.appendingPathComponent(new)
             if old.lowercased() == new.lowercased() {
@@ -89,10 +92,11 @@ extension JobRunner {
     public func deleteProject(_ name: String, keepMinis: Bool = true) throws {
         let runs = install.runs
         try queue.locked { entries in
+            try refuseWhileMoving()
             guard Gallery.projects(runs).contains(name) else { throw RequestError.projectNotFound }
             let minis = Gallery.list(runs).filter { $0.project == name }
             let busy = Set(entries.map(\.name) + [running()?.name].compactMap { $0 })
-            if let m = minis.first(where: { busy.contains($0.name) }) { throw RequestError.projectBusy(name, m.name) }
+            if let m = minis.first(where: { busy.contains($0.name) }) { throw RequestError.projectBusy(name, m.displayName) }
             if keepMinis {
                 for m in minis {
                     let to = runs.appendingPathComponent(m.name)

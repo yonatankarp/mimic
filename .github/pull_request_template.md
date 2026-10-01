@@ -1,4 +1,4 @@
-<!-- Thanks! See CONTRIBUTING.md for the checklist. Title: `feat: ...`, `fix: ...` or `change: ...` for what people notice; `docs:`, `chore:`, `ci:`, `test:` or `refactor:` otherwise. -->
+<!-- Thanks! See CONTRIBUTING.md for the checklist. Title: `feat: ...` (new feature), `change: ...` (improvement) or `fix: ...` (bug fix) for what people notice, with `(cli)` when only Terminal changes (`fix(cli): ...`); `docs:`, `chore:`, `ci:`, `test:` or `refactor:` otherwise. -->
 
 **What changed and why**
 

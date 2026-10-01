@@ -6,9 +6,13 @@ import simd
 public struct Measured: Equatable, Sendable {
     public let tall: Int, wide: Int, deep: Int
     public var volume = 0.0
+    /// Width, height and depth unrounded, and where the print file's origin (under the base's
+    /// middle) is in the 3D view's scene: for drawing the size reference.
+    public var exact = SIMD3<Float>.zero
+    public var origin = SIMD3<Float>.zero
 
-    public init(tall: Int, wide: Int, deep: Int, volume: Double = 0) {
-        self.tall = tall; self.wide = wide; self.deep = deep; self.volume = volume
+    public init(tall: Int, wide: Int, deep: Int, volume: Double = 0, exact: SIMD3<Float> = .zero, origin: SIMD3<Float> = .zero) {
+        self.tall = tall; self.wide = wide; self.deep = deep; self.volume = volume; self.exact = exact; self.origin = origin
     }
 
     /// From a print file's triangles, three corners each: Z up, the mini facing +Y. Tall is its

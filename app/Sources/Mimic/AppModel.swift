@@ -1,6 +1,7 @@
 import AppKit
 import MimicCore
 import Observation
+import OSLog
 import SwiftUI
 import UserNotifications
 
@@ -20,6 +21,10 @@ enum AppSheet: Identifiable, Equatable {
     case copies([Mini])
     /// Duplicate: the copy's name, then Resize for it.
     case duplicate(Mini)
+    /// Import Model: a 3D model file, to name and size.
+    case importModel(URL)
+    /// Compare Side by Side: two versions of a mini, by name.
+    case compare(String, String)
     var id: String {
         switch self {
         case .make: "make"
@@ -32,6 +37,8 @@ enum AppSheet: Identifiable, Equatable {
         case .renameProject(let p): "rename-project-\(p)"
         case .copies(let m): "copies-\(Gallery.dragged(m.map(\.name)))"
         case .duplicate(let m): "duplicate-\(m.name)"
+        case .importModel(let u): "import-\(u.path)"
+        case .compare(let a, let b): "compare-\(a)-\(b)"
         }
     }
 }
@@ -40,8 +47,9 @@ enum AppSheet: Identifiable, Equatable {
 /// Views read it from the environment (`@Environment(AppModel.self)`).
 @MainActor @Observable
 final class AppModel {
-    let install: Install
-    let jobs: JobRunner
+    /// Changed only by Settings → General → Change… (`changeMinisFolder`), with the runner.
+    private(set) var install: Install
+    private(set) var jobs: JobRunner
     /// First-launch setup, and Repair from Settings. Here rather than in a view, so a download
     /// carries on when the window closes.
     let setup: SetupModel
@@ -88,7 +96,13 @@ final class AppModel {
     /// starts with Mimic in front. Closing it (a click outside, Esc, the item) may count a
     /// finished job as seen; see `jobSeen`.
     var jobPopover = false {
-        didSet { if oldValue && !jobPopover { jobSeen() } }
+        didSet {
+            guard oldValue && !jobPopover else { return }
+            // Seen once is enough: its "ready in" time doesn't change, while the queue's below it
+            // do (#141). Not when switching away closed it, though, as then it wasn't read.
+            if active { queuedNote = nil }
+            jobSeen()
+        }
     }
     /// The popover has shown how the job ended, with Mimic in front. Only then can closing it
     /// clear the toolbar item.
@@ -107,6 +121,12 @@ final class AppModel {
     }
     /// View → Face Front: bumped for the mini's 3D view to turn back to face you.
     var faceFrontRequests = 0
+    /// Edit → Find: bumped for the sidebar to put the cursor in its search field.
+    var findRequests = 0
+    /// Keep This One from Compare Side by Side: the version to ask about once the sheet has
+    /// gone (`keepWhenClosed`), then on its page (`askToKeep`), whose dialog does the keeping.
+    var keepWhenClosed: String?
+    var askToKeep: String?
     /// The waiting job on "Take it out of the queue?", asked from the job's popover.
     var unqueueing: QueueEntry?
     /// Minis on "Move to Trash?", when one of them waits in the queue: Undo can't put it back
@@ -115,7 +135,9 @@ final class AppModel {
     /// The main window's, for Undo Move to Trash; set by the window.
     @ObservationIgnored weak var undo: UndoManager?
     /// A rename or trash that was refused, shown as an alert.
-    var problem: String?
+    var problem: String? {
+        didSet { if let problem, problem != oldValue { Log.shown.error("\(problem, privacy: .public)") } }
+    }
 
     /// Every job this Mac has finished, which the time estimates come from. On this Mac only.
     let timings: Timings
@@ -132,18 +154,20 @@ final class AppModel {
     /// Jobs that ended since the job's popover was last seen, the latest last: the queue can
     /// start the next straight away, so the popover lists these under the one it shows.
     var ended: [JobStatus] = []
-    /// "Added to the queue — …", at the top of the job's popover until that mini starts.
+    /// "Added to the queue — …", at the top of the job's popover until that mini starts or the
+    /// popover is closed.
     var queuedNote: (name: String, text: String)?
 
     init() {
         let install = Install.locate()
         self.install = install
+        // The queue's files from before they moved out of the minis folder (#102), once.
+        try? JobQueue(folder: install.queue).moveOldFiles(from: install.runs)
         timings = Timings.standard()
         jobs = JobRunner(install: install, timings: timings, version: BuildInfo.version)
         setup = SetupModel(install: install)
         updates.model = self
-        jobs.onChange = { [weak self] s in Task { @MainActor in self?.jobChanged(s) } }
-        jobs.heldForPower = Power.holds(suite: nil)
+        wire(jobs)
         reload()
         // Run the checks at launch, so Make is blocked (and Settings flagged) before anyone opens Settings.
         Health.shared.check(install)
@@ -177,6 +201,44 @@ final class AppModel {
         #endif
     }
 
+    private func wire(_ jobs: JobRunner) {
+        jobs.onChange = { [weak self] s in Task { @MainActor in self?.jobChanged(s) } }
+        jobs.heldForPower = Power.holds(suite: nil)
+    }
+
+    // MARK: The minis folder
+
+    /// A mini is being made or waits, here or in another Mimic using this folder: Change… is
+    /// refused then, and Settings says why before it's asked.
+    var minisFolderBusy: Bool { current != nil || !queue.isEmpty }
+
+    /// Makes `folder` the minis folder (#102), moving the minis there first when asked, or using
+    /// whatever minis it already has. Off the main thread, since a move to another disk copies
+    /// every file. The setting is saved only once that worked; then the gallery, the folder
+    /// watch and the queue follow the new folder.
+    func changeMinisFolder(to folder: URL, moving: Bool) async throws {
+        let jobs = self.jobs
+        // Saved before the move's mark comes off, so a `mimic make` refused meanwhile and asked
+        // again finds the new folder.
+        try await Task.detached {
+            try jobs.changeMinisFolder(to: folder, moving: moving) { UserDefaults.standard.set(folder.path, forKey: MinisFolder.key) }
+        }.value
+        let install = Install.locate()
+        try? JobQueue(folder: install.queue).moveOldFiles(from: install.runs)
+        self.install = install
+        self.jobs = JobRunner(install: install, timings: timings, version: BuildInfo.version)
+        wire(self.jobs)
+        selection = []
+        reload()
+        refreshQueue()
+        Health.shared.check(install)  // the free space is the new folder's disk's
+    }
+
+    /// Whether `folder` already has minis or projects, so Change… asks whether to move these too.
+    nonisolated static func hasMinis(_ folder: URL) -> Bool {
+        !Gallery.list(folder).isEmpty || !Gallery.projects(folder).isEmpty
+    }
+
     /// The one selected mini, whose page shows; nil when none or several are.
     var selected: Mini? { selection.count == 1 ? minis.first { selection.contains($0.id) } : nil }
     /// Every selected mini, in the gallery's order.
@@ -192,8 +254,17 @@ final class AppModel {
         watch.follow(install.runs, projects: folders)
         let kept = selection.filter { id in minis.contains { $0.id == id } }
         if kept != selection { selection = kept }
-        if selection.isEmpty, let first = minis.first { selection = [first.id] }
+        if selection.isEmpty {
+            let first = Gallery.keeping([], in: Gallery.arrange(minis, query: listQuery, show: listShow, sort: listSort))
+            if first != selection { selection = first }
+        }
     }
+
+    /// The search, filter and order the list has (Sidebar keeps them up to date), so a reload
+    /// with nothing selected picks the first mini the list shows.
+    @ObservationIgnored var listQuery = ""
+    @ObservationIgnored var listShow = GalleryShow.all
+    @ObservationIgnored var listSort = GallerySort.made
 
     /// Reloads when a mini or project is added, removed or renamed in the minis folder by
     /// anything else: Finder, `mimic move`, another Mimic (#81).
@@ -204,10 +275,10 @@ final class AppModel {
     private func watchQueue() {
         // A crashed Mimic's job may still be running with nothing watching it: stopped as soon
         // as no live Mimic holds the job lock, queue or no queue.
-        if !running && Leftover.recorded(install.runs) { jobs.cleanUpLeftovers() }
+        if !running && Leftover.recorded(queue: install.queue) { jobs.cleanUpLeftovers() }
         // Not while a required part is broken (the engine needs Repair): each job would fail in
         // turn, so the queue waits until it's fixed.
-        if !running && requiredProblem == nil && setup.installed && !JobQueue(runs: install.runs).entries().isEmpty { jobs.pump() }
+        if !running && requiredProblem == nil && setup.installed && !jobs.queue.entries().isEmpty { jobs.pump() }
         refreshQueue()
         updates.tick()
     }
@@ -215,7 +286,7 @@ final class AppModel {
     func refreshQueue() {
         let q = jobs.queue.entries()
         if q != queue { queue = q; reload() }
-        let other = running ? nil : SharedJob.read(install.runs)?.status
+        let other = running ? nil : SharedJob.read(queue: install.queue)?.status
         if other?.name != elsewhere?.name { reload() }  // another Mimic started, or finished, a mini
         if other != elsewhere { elsewhere = other }
         let h = jobs.hold(), p = jobs.queue.paused
@@ -421,6 +492,23 @@ final class AppModel {
 
 
 
+    /// Import Model: a new mini from a 3D model file, print prep only.
+    func importModel(_ file: URL, name: String, shown: String?, sizes: Sizes, kind: MiniKind, project: String?) throws {
+        try start(name) { try $0.importModel(file, name: name, shown: shown, sizes: sizes, kind: kind, project: project) }
+        reload()
+        selection = [name]
+    }
+
+    /// "Making", "Resizing" or "Importing": what the job `s` is doing, in the progress window,
+    /// the toolbar and the list. From the list, so a redraw reads no file.
+    func doing(_ s: JobStatus) -> String { JobRunner.doing(s.kind, importing: s.importing || importing(s.name)) }
+
+    /// An imported mini whose print file isn't made yet: its print prep is its import.
+    func importing(_ name: String) -> Bool { minis.first { $0.name == name }.map { $0.settings.isImported && !$0.finished } ?? false }
+
+    /// A mini imported from a 3D model file, which has nothing of its own to make again.
+    func isImported(_ name: String) -> Bool { minis.first { $0.name == name }?.settings.isImported == true }
+
     func resize(_ mini: Mini, sizes: Sizes) throws {
         try start(mini.name) { try $0.resize(name: mini.name, sizes: sizes) }
     }
@@ -448,7 +536,7 @@ final class AppModel {
     /// A mini that didn't finish and can be tried again: no print file, not waiting or being
     /// made, and it kept what it was asked for.
     func canRetry(_ mini: Mini) -> Bool {
-        mini.stl == nil && waiting(mini.name) == nil && current?.name != mini.name && mini.settings.requested != nil
+        mini.stl == nil && waiting(mini.name) == nil && current?.name != mini.name && mini.settings.requested != nil && !mini.settings.isImported
     }
 
     /// Try Again from a failed mini's page or menus; a refusal is said as an alert.
@@ -556,7 +644,7 @@ final class AppModel {
             // Not with another app in front: it would close unseen. The toolbar item stays.
             guard sheet == nil, !jobPopover, active, NSApp.isActive else { return }
             jobPopover = true
-            if let words = queuedNote?.text ?? current.map({ "\($0.kind == .prep ? "Resizing" : "Making") \(displayName($0.name))" }) {
+            if let words = queuedNote?.text ?? current.map({ "\(doing($0)) \(displayName($0.name))" }) {
                 AccessibilityNotification.Announcement(words).post()
             }
         }
@@ -745,6 +833,39 @@ final class AppModel {
 
     /// The print file selected in Finder, or the folder when there's no print file yet.
     func showInFinder(_ minis: [Mini]) { NSWorkspace.shared.activateFileViewerSelecting(minis.map { $0.stl ?? $0.folder }) }
+
+    /// Help → Report a Problem…, or a failed mini's (#100): asks about the picture, makes the
+    /// report, shows it in Finder and opens GitHub's bug form to drag it into. Reports are kept
+    /// in the minis folder's `_reports`, which Mimic can already write to (Downloads or the
+    /// Desktop would ask for permission first) and the gallery never lists.
+    func reportProblem(_ mini: Mini? = nil) {
+        let alert = NSAlert()
+        alert.messageText = mini.map { "Report a problem with “\($0.displayName)”?" } ?? "Report a problem?"
+        let what = mini == nil ? "its notes on what happened" : "its notes on making this mini, the mini's settings"
+        alert.informativeText = "Mimic puts \(what), and which Mac and version this is, into one file, "
+            + "with keys and passwords taken out. Then it shows you the file and opens a form on GitHub to attach it to."
+        alert.addButton(withTitle: "Make Report")
+        alert.addButton(withTitle: "Cancel")
+        let hasPicture = mini.flatMap { $0.source ?? $0.upload } != nil
+        // Its own checkbox: the alert's suppression checkbox means "Don't ask again".
+        let include = NSButton(checkboxWithTitle: "Include the picture (the issue is public)", target: nil, action: nil)
+        include.state = .off
+        include.sizeToFit()
+        if hasPicture { alert.accessoryView = include }
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let picture = hasPicture && include.state == .on
+        let folder = install.runs.appendingPathComponent("_reports"), build = BuildInfo.line, mac = Report.mac
+        let failure = mini.map { $0.settings.failed ?? "It stopped before it was done." }
+        Task {
+            let made: URL? = await Task.detached {
+                let log = Log.recent(since: Date().addingTimeInterval(-3600))
+                return try? Report.write(to: folder, mini: mini, picture: picture, build: build, mac: mac, appLog: log)
+            }.value
+            guard let made else { problem = "Couldn't make the report. Check that Mimic's folder is still there, then try again."; return }
+            NSWorkspace.shared.activateFileViewerSelecting([made])
+            NSWorkspace.shared.open(Report.issueURL(build: build, mac: mac, failure: failure))
+        }
+    }
 }
 
 /// A job refused before it started, in words for people.

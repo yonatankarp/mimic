@@ -149,7 +149,8 @@ final class ProjectTests: XCTestCase {
     }
 
     /// A queue file written before projects existed (name, job, added, sizes) still reads, and
-    /// its names are found wherever the minis are now.
+    /// its names are found wherever the minis are now. Written where it was kept then, at the top
+    /// of the minis folder, so it comes through the move to the queue's own folder too (#102).
     func testAQueueFileFromBeforeProjectsStillWorks() throws {
         let fx = try Fixture(), runs = fx.install.runs
         let d = try fx.mini("raven", in: "Tiefling Party")
@@ -164,6 +165,7 @@ final class ProjectTests: XCTestCase {
         ]
         """.write(to: runs.appendingPathComponent(".queue.json"), atomically: true, encoding: .utf8)
         let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.recorder()))
+        try jobs.queue.moveOldFiles(from: runs)
         XCTAssertEqual(jobs.queue.entries().map(\.name), ["raven"])
         jobs.pump()
         jobs.waitUntilDone()
@@ -280,8 +282,12 @@ final class ProjectTests: XCTestCase {
         XCTAssertEqual(try jobs.renameProject("Tieflings", to: "TIEFLINGS"), "TIEFLINGS")
         XCTAssertEqual(Gallery.projects(runs), ["TIEFLINGS"])
         XCTAssertThrowsError(try jobs.renameProject("TIEFLINGS", to: "Dwarf")) { XCTAssertEqual($0 as? RequestError, .projectTaken("Dwarf")) }
+        try MiniSettings.update(try XCTUnwrap(Gallery.folder(runs, "raven"))) { $0.name("Raven the Bold", folder: "raven") }
         try jobs.resize(name: "raven", sizes: sizes)
-        XCTAssertThrowsError(try jobs.renameProject("TIEFLINGS", to: "Other")) { XCTAssertEqual($0 as? RequestError, .projectBusy("TIEFLINGS", "raven")) }
+        XCTAssertThrowsError(try jobs.renameProject("TIEFLINGS", to: "Other")) {
+            XCTAssertEqual($0 as? RequestError, .projectBusy("TIEFLINGS", "Raven the Bold"))
+            XCTAssertEqual("\($0)", "Raven the Bold in TIEFLINGS is being made or waiting in the queue. Wait for it, or take it out of the queue first.")
+        }
         jobs.waitUntilDone()
     }
 
@@ -289,7 +295,7 @@ final class ProjectTests: XCTestCase {
         let fx = try Fixture(), runs = fx.install.runs
         let raven = try fx.mini("raven", in: "Keep")
         fm.createFile(atPath: runs.appendingPathComponent("Keep/my-notes.txt").path, contents: Data([1]))
-        _ = try fx.mini("orc", in: "Bin")
+        try MiniSettings.update(try fx.mini("orc", in: "Bin")) { $0.name("Örc", folder: "orc") }
         let spy = TrashSpy()
         let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.recorder(sleep: 1)), trash: { spy($0) })
 
@@ -300,7 +306,7 @@ final class ProjectTests: XCTestCase {
         XCTAssertNil(Gallery.list(runs).first { $0.name == "raven" }?.project)
 
         try jobs.resize(name: "orc", sizes: sizes)
-        XCTAssertThrowsError(try jobs.deleteProject("Bin", keepMinis: false)) { XCTAssertEqual($0 as? RequestError, .projectBusy("Bin", "orc")) }
+        XCTAssertThrowsError(try jobs.deleteProject("Bin", keepMinis: false)) { XCTAssertEqual($0 as? RequestError, .projectBusy("Bin", "Örc")) }
         jobs.waitUntilDone()
         try jobs.deleteProject("Bin", keepMinis: false)
         XCTAssertEqual(spy.trashed.map(\.lastPathComponent), ["Keep", "Bin"])
@@ -310,7 +316,7 @@ final class ProjectTests: XCTestCase {
 
 extension ProjectTests {
     /// Stop on a new mini in a project trashes that folder, not a same-named one elsewhere, and
-    /// leaves the project. (Leftover needs no test of its own here: it's keyed on runs/.job.pid,
+    /// leaves the project. (Leftover needs no test of its own here: it's keyed on the queue's job.pid,
     /// never on a mini's path.)
     func testStoppingANewMiniInAProjectTrashesItsOwnFolder() throws {
         let fx = try Fixture(), runs = fx.install.runs

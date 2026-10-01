@@ -81,7 +81,7 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   on) or a print file named after the folder, never just any `.stl` (one dragged into a project
   in Finder would turn the project into a mini). Any other folder at the top is a project, empty
   ones included; inside a project only minis count, since projects don't nest. `_` and `.`
-  folders and files at the top (`.queue.json`, `.job.*`) are never either, so a folder from
+  folders and files at the top are never either, so a folder from
   before projects reads exactly as it did. `make` writes settings.json before the picture, and
   removes the folder it made if either fails, so a failed request never leaves an empty folder
   that would read as a project. Names stay unique across the whole minis folder, projects
@@ -128,6 +128,24 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   would count it twice in the estimates) and a half-written print file. It isn't one of the
   original's versions (Keep This One would trash it) and is asked for now. The name offered is
   the next number, as for versions ("Raven 2"), not a size: the size is chosen after, in Resize.
+- **Import Model** (#96, `MimicCore/Import.swift`): a GLB or STL made elsewhere becomes a mini
+  that only print prep runs on. The file is read and checked before anything is written; the
+  new folder gets settings.json (`imported`, the file's name, a field of its own: a new
+  `source` value would make an older Mimic read the whole file as empty) and `model.glb`, then
+  a print prep job joins the queue. With model.glb there, the gallery, Resize and Duplicate
+  treat it as any mini, and no 3D engine is needed. A GLB is y up by its spec; an STL is taken
+  as z up, as slicers take it. Both are written again as a GLB with their triangles joined
+  where their corners meet (to a millionth of its size): an STL keeps no corner shared and many
+  GLBs split them at seams, and print prep finds a model's main pieces (`Mesh.mainBounds`, what
+  an object is sized by, and `Mesh.rest`'s hull) by shared corners. There's no cheap,
+  reliable way to tell an STL's up from its shape, so a wrong one shows in Previews and the 3D
+  view (an object may still be stood on a steadier side by `Mesh.rest`). An STL is taken as
+  millimetres; one under 5 mm or over 500 mm on its longest side gets a line in prep.log saying
+  which unit it was probably in, though sizing rescales it anyway. It's never turned (`--turn`
+  is for what TRELLIS.2 made). With no picture or description, Try Again, Make Another Version,
+  New 3D Shape and Edit & Make Again are off and say why; Resize makes its print file again.
+  Until its first print file is made, its print prep is "Importing", not "Resizing", and taking
+  it out of the queue or stopping it sends it to the Trash, as for a new mini.
 - **A mini has two names** (#87; all in `Rules.swift`, "Names people type"): the one typed,
   kept in settings.json as `name` ("Élodie", "D&D Bard", "McGregor") and shown everywhere
   (list, page, notifications, Open Together's objects, `mimic list`'s last column), and its
@@ -204,6 +222,19 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   on a turn, zoom, resize or new mini, and every frame only while a glide plays: about 1% of a
   core idle in front, 0% behind. It has no default ambient light, so it carries its own grey
   studio light, matched to the old look by brightness.
+- **A size reference in the 3D view** (#98, `MimicCore/SizeReference.swift`, tested). Every
+  mini is shown 1 tall, so a millimetre is 1 / its height: a 25 mm base ring, a 32 mm person
+  or a millimetre grid on the floor, drawn at that scale, one choice for the whole app
+  (`sizeReference`). The print file's origin is under its base's middle (print prep puts it
+  there), so the ring and the grid are centred on it, not on the box, which a raised sword
+  stretches; a file whose origin is outside its footprint is centred on the box. It is a child
+  of the mini's entity, so it turns, zooms and glides with it; the person is two crossed
+  cut-outs so it doesn't vanish edge-on, and stands clear of the mini's box. The ring is a band
+  outside 25 mm, so a 25 mm base doesn't hide it. Grid squares grow to 2, 5 or 10 mm when a
+  millimetre would be under 2.5% of the mini's height (over 40 mm), with bold lines every
+  centimetre; the badge says the square's size. The camera fits the mini and the reference
+  together, as far below the middle as above so the mini stays put, which means a person beside
+  something 10 mm tall makes it small: that's the point.
 - **Jobs run in their own session** (`GroupProcess`, `posix_spawn` + `POSIX_SPAWN_SETSID`),
   so Stop ends the whole chain. Foundation's `Process` can't do that. Proven by
   `GroupProcessTests`, including the test that shows the child surviving without a session.
@@ -215,7 +246,7 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   moment it samples without "PIXAL3D_STEPS=8 overrides", ggml's Metal noise dropped from the
   log. Proven faithful: the wrapper's own cutout of the dwarf through `mimic _engine` gave a
   byte-identical mesh (PLY) and texture to the wrapper's run of the same build and seed. It is
-  handled before the CLI finds the Mimic folder: `.job.pid` names this very
+  handled before the CLI finds the Mimic folder: the queue's `job.pid` names this very
   program, and the leftover-job cleanup would otherwise stop it.
 - **Cutouts: Apple Vision, not rembg or trellis-cli's BiRefNet.** Measured on the four minis'
   pictures against the u2net cutouts the Python wrapper made (`source__matted.png`): masks agree
@@ -295,6 +326,36 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   wins while the folder exists, and `MIMIC_HOME` beats both for development and tests.
   `Install.locate` always answers; a missing engine is setup's job, not a "not installed" screen.
   The first launch shows the one-time ~/Documents permission prompt macOS asks of every app.
+- **The queue is per Mac, and the minis folder can be changed** (#102, `Install.queue`,
+  `MinisFolder.swift`). The queue's files (`queue.json`, `queue.lock`, `paused`, `job.lock`,
+  `job.json`, `job.pid`) were at the top of the minis folder; with Desktop & Documents in iCloud
+  two Macs would share one queue file while each locks only for itself. They're in
+  `~/Library/Application Support/Mimic/queues/<key>`, the key the first 16 hex digits of the
+  SHA-256 of the minis folder's path. One queue per minis folder, not one per Mac or per app:
+  the dev app (its own settings, so its own folder choice) and the installed app share a queue
+  exactly when they share a folder, so two never run jobs in one folder at once and a queued
+  name never resolves in the wrong folder. The path is hashed as given, with links unresolved,
+  since a folder that doesn't exist yet resolves differently once it does; the app and `mimic`
+  read the same settings, so they agree. A Mimic folder (`MIMIC_HOME`, tests) keeps its queue in
+  `queue/` inside it (git-ignored), and `MIMIC_FAKE_HOME` inside the fake home. The files kept
+  in the minis folder before are moved at launch, by the app and `mimic` alike
+  (`JobQueue.moveOldFiles`): no compatibility with 0.8.0 or an old `mimic` sharing the queue,
+  since nobody else used it yet. Settings → General → Change… picks another folder (`minisFolder`
+  in the app's settings, kept by Reset like `installDir`, and ignored under `MIMIC_HOME` and
+  `MIMIC_FAKE_HOME`, where the button is off). The minis either move there or stay put (for a
+  folder that already has minis). Refused while a mini is being made or waits, in any Mimic using
+  the folder, and for a folder inside the current one or holding it (one would become a project
+  of the other). A move takes every mini and project, a project whole with any files of the
+  person's own, and a project whose name is taken there (without case) merges into that one.
+  A mini or project whose name is taken there stops the whole move, naming each: renaming on the
+  way would leave a folder disagreeing with its settings. A failed move puts back what moved,
+  and the setting is saved only after it worked. While the files move the queue is marked
+  `moving` (the mover's pid and start time, so a crash leaves no mark) but its lock isn't held:
+  held, a Make (the app's or `mimic make`) waited on it for the whole move and then wrote its
+  mini into the folder just emptied. Marked, Make, Resize, Try Again, Duplicate, moving a mini
+  and the project changes are refused with "Mimic is moving your minis", and the mark comes
+  off only after the setting is saved, so asking again finds the new folder. The app then makes a new job runner for the new
+  folder; the gallery and the folder watch follow on the next reload.
 - **First launch sets itself up** (`EngineDownload.swift`, ported from `setup.sh`): the pinned
   engine tarball and Hugging Face files, each with its size and sha256 in one manifest that the
   health check also reads. Downloads go to `<name>.part` and resume with HTTP Range (checked
@@ -363,15 +424,33 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   took up to about a minute, so the limit is 300 s. Cloud providers are proven against a local
   fake server only. Key reads happen off the main thread: an ad-hoc-signed update is a new
   identity to the Keychain, so macOS may ask once to let Mimic use the saved key.
+- **Report a Problem makes a zip and opens a filled-in issue** (`MimicCore/Report.swift`, `Log.swift`;
+  #100). A link can't attach a file, so Help → Report a Problem… (or the action on a mini that
+  didn't finish) writes `runs/_reports/mimic-report-….zip`, shows it in Finder, and opens
+  bug.yml's form with `version`, `mac`, `logs` (drag it in) and, for a mini, `what` filled in
+  through the form's field ids. The zip always has the build line, the Mac (`hw.model`, the chip,
+  memory, macOS), the app's own log and, for a mini, every `*.log` in its folder (the last 2 MB of
+  each) and settings.json; the picture only when the alert's "Include the picture (the issue is
+  public)" is ticked, off by default. Renders and the 3D files never. Every text file is scrubbed
+  before it's zipped: API key and token patterns (`sk-ant-`, `sk-`, `hf_`, `gsk_`, GitHub, Slack,
+  AWS, `Bearer …`, `api_key=…`-style values) and the home folder as `~`, also as JSON writes it
+  (`\/Users\/…`). The saved helper key itself isn't read to scrub by: no job log contains it (it's
+  only ever sent in a request header), and reading it may show a Keychain prompt. Reports go in
+  the minis folder because Mimic can already write there; Downloads or the Desktop would ask for
+  permission first. The app's own log is `Logger` (subsystem the bundle id; categories setup,
+  download, queue, shown) at notice and up with `.public` values, since a default-private value
+  reads back as `<private>`. `OSLogStore(scope: .currentProcessIdentifier)` reads it with no
+  permission (checked on this Mac, and by a test); the whole Mac's store needs an administrator.
+  So a report has this launch's last hour only, never an earlier launch or `mimic` in Terminal.
 - **One job at a time, and a queue shared by every Mimic** (`MimicCore/Queue.swift`, `Jobs.swift`;
   0.5.0). A job asked for while one runs, in this Mimic or another (the installed app, a dev
-  build, `mimic` in Terminal), joins `runs/.queue.json`: an array of `{name, job, added, sizes?}`,
+  build, `mimic` in Terminal), joins the queue's `queue.json` (on this Mac, see #102 below): an array of `{name, job, added, sizes?}`,
   oldest first, only ever replaced whole. Everything is checked when it's asked for, and a new
   mini's folder, settings.json and picture are written then, so a queued job can't fail for a
   reason knowable at that moment; a resize keeps its sizes in the entry until it starts, so the
-  mini keeps its size meanwhile. Every change to the queue happens under `runs/.queue.lock`
+  mini keeps its size meanwhile. Every change to the queue happens under `queue.lock`
   (flock, a fresh open per section, since flock doesn't keep apart two threads sharing one open
-  file), and so does every taking and letting go of `runs/.job.lock`. That one rule is what keeps
+  file), and so does every taking and letting go of `job.lock`. That one rule is what keeps
   a job from being lost: a runner that finds nothing waiting releases the job lock *inside* the
   queue lock, so a job added a moment later always finds the lock free and starts itself; a
   runner that finishes a job with more waiting starts the next without letting go. Whoever holds
@@ -384,7 +463,7 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   there, so it carries on from the last step it finished. A log-out, restart or shutdown (the
   quit event's reason) doesn't ask first: the question would hold the Mac up, and quitting
   loses nothing but the step in progress. A crash lets go of the job lock outside
-  that rule, so the app looks every 3 seconds and at launch. `runs/.job.json` names the running
+  that rule, so the app looks every 3 seconds and at launch. `job.json` names the running
   job and its holder's pid and start time, so another Mimic can show it (a record left by a
   crash reads as nothing). Proven with two `JobRunner`s on one folder, which is exactly two
   processes as far as flock is concerned: 16 jobs from two threads never overlap (a step that
@@ -393,8 +472,8 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   now stopped only by a Mimic that got the job lock (before, opening a second Mimic stopped a
   live job it took for a crash's leftover), and the lock files are opened close-on-exec (a job's
   programs inherited them, so after a crash a program still running would have held the lock).
-- **Pausing the queue, and battery** (#89). Paused is `runs/.queue.paused`, a file of its own
-  so every Mimic and `mimic queue pause|resume` share it; a field in `.queue.json` would have
+- **Pausing the queue, and battery** (#89). Paused is the queue's `paused` file, a file of its own
+  so every Mimic and `mimic queue pause|resume` share it; a field in `queue.json` would have
   broken 0.7.0, which reads that file as a bare list (it would see an empty queue and drop the
   pause on its next write). 0.7.0 ignores the pause. It is checked, under the queue's lock,
   wherever a job could start (taking the job lock, and the next job after one ends), so
@@ -409,10 +488,10 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   Measured on an idle M2 Pro, CPU work on every core took as long at nice 10 as at 0 (2.1 s
   and 2.2 s). Not measured: a whole mini, whose long step is the 3D engine on the GPU.
 - **`mimic stop`** (#129) is a different program from the Mimic making the mini, so it can only
-  ask: it writes the running job's name to `runs/.job.stop`, and the runner holding the job lock
+  ask: it writes the running job's name to the queue's `job.stop`, and the runner holding the job lock
   (the app, or `mimic make` in another Terminal) looks for that file twice a second and stops its
   job as its own Stop does (a new mini to the Trash, a resize keeps its size). Killing the pid in
-  `.job.pid` instead would have been recorded as a failure, not a stop. A request naming another
+  `job.pid` instead would have been recorded as a failure, not a stop. A request naming another
   job is dropped, and one nobody answers within 10 seconds (a Mimic from before 0.9.0) is taken
   back, so it can't stop a later job of the same name.
 - **Reordering the queue** (#72): Move to Front, Up, Down, to End or to a place
@@ -482,6 +561,13 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   and a signature that verifies. Not yet seen: a real update from one release to the next.
 
 ## Not yet seen working
+
+- Import Model in the app (File → Import Model…, its sheet, and an imported mini's page and
+  menus): the import itself, an STL through real print prep, and its refusals are tested; the
+  windows weren't looked at, and no real HeroForge STL or other generator's GLB was tried.
+
+- Report a Problem in the app: the alert and its picture box, Finder showing the zip, and the
+  filled-in GitHub form. The zip, the scrubbing, the link and reading the app's log back are tested.
 
 - Dragging a mini onto a project in the sidebar, and the right-click menus on a mini and a
   project's header: seen in the test build were the sections (Unsorted last, an empty project's

@@ -51,7 +51,7 @@ final class QueueTests: XCTestCase {
     /// Hundreds of additions from two Mimics at once: none lost to a read-change-write race.
     func testNoAdditionIsLost() throws {
         let fx = try Fixture()
-        let queues = [JobQueue(runs: fx.install.runs), JobQueue(runs: fx.install.runs)]
+        let queues = [JobQueue(folder: fx.install.queue), JobQueue(folder: fx.install.queue)]
         DispatchQueue.concurrentPerform(iterations: 2) { i in
             for k in 0..<150 {
                 do { try queues[i].locked { $0.append(QueueEntry(name: "q\(i)-\(k)", job: .prep)) } } catch { XCTFail("\(error)") }
@@ -168,7 +168,7 @@ final class QueueTests: XCTestCase {
     /// no addition is lost to a move that read the queue before it.
     func testMovesAndAdditionsFromTwoMimicsLoseNothing() throws {
         let fx = try Fixture()
-        let adder = JobQueue(runs: fx.install.runs)
+        let adder = JobQueue(folder: fx.install.queue)
         let mover = JobRunner(install: fx.install, tools: fx.tools())
         try adder.locked { $0 = (0..<5).map { QueueEntry(name: "start\($0)", job: .prep) } }
         DispatchQueue.concurrentPerform(iterations: 2) { i in
@@ -212,6 +212,22 @@ final class QueueTests: XCTestCase {
         XCTAssertEqual(spy.trashed.map(\.lastPathComponent), ["second"])
         jobs.waitUntilDone()
         XCTAssertEqual(jobs.status?.name, "first", "the removed mini ran anyway")
+    }
+
+    /// mimic queue remove says which mini by its name as shown (#137), read before its folder,
+    /// which keeps that name, goes to the Trash.
+    func testRemovingSaysTheNameAsShown() throws {
+        let fx = try Fixture(); _ = try fx.mini("first")
+        try fx.modelFiles()
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("slow", "sleep 1")),
+                             trash: { try FileManager.default.removeItem(at: $0) })
+        try jobs.resize(name: "first", sizes: sizes)
+        XCTAssertEqual(try jobs.make(name: "big-photo-qa", picture: .image(try fx.picture("photo.jpg")), restyle: false, seed: 1,
+                                     sizes: sizes, model: EngineDownload.standard, shown: "Big Photo QA"), 1)
+        XCTAssertEqual(try jobs.removeSaying("big-photo-qa"), "Took Big Photo QA out of the queue.")
+        XCTAssertNil(Gallery.folder(fx.install.runs, "big-photo-qa"), "its folder went to the Trash")
+        XCTAssertNil(try jobs.removeSaying("big-photo-qa"), "it isn't waiting any more")
+        jobs.waitUntilDone()
     }
 
     /// A queued resize keeps the mini's sizes until it starts, then asks for the new ones.
@@ -265,7 +281,7 @@ final class QueueTests: XCTestCase {
         XCTAssertEqual(jobs.queue.entries().map(\.name), ["c"])
     }
 
-    /// Another Mimic's running job is visible (runs/.job.json) and its program is never taken
+    /// Another Mimic's running job is visible (job.json) and its program is never taken
     /// for a crash's leftover: only a Mimic that gets the job lock stops one.
     func testALiveJobIsNeverStoppedAsALeftover() throws {
         let fx = try Fixture(); _ = try fx.mini("a")
@@ -282,7 +298,7 @@ final class QueueTests: XCTestCase {
         XCTAssertEqual(b.running()?.kind, .prep)
         XCTAssertThrowsError(try b.resize(name: "a", sizes: sizes)) { XCTAssertEqual($0 as? RequestError, .busy("a", .prep)) }
         a.cancel(); a.waitUntilDone()
-        XCTAssertNil(SharedJob.read(fx.install.runs))
+        XCTAssertNil(SharedJob.read(queue: fx.install.queue))
     }
 
     /// A crashed Mimic: its job's program is still running and its queue is still waiting. The
@@ -290,8 +306,8 @@ final class QueueTests: XCTestCase {
     func testAfterACrashTheNextMimicStopsTheLeftoverAndCarriesOn() throws {
         let fx = try Fixture(); _ = try fx.mini("a")
         let orphan = try GroupProcess(executable: "/bin/sleep", arguments: ["60"], environment: [:])
-        Leftover.record(pid: orphan.pid, runs: fx.install.runs)
-        try JobQueue(runs: fx.install.runs).locked { $0.append(QueueEntry(name: "a", job: .prep)) }
+        Leftover.record(pid: orphan.pid, queue: fx.install.queue)
+        try JobQueue(folder: fx.install.queue).locked { $0.append(QueueEntry(name: "a", job: .prep)) }
         let next = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/true"))
         next.pump()
         XCTAssertEqual(orphan.wait(), -15, "the crashed job's program was left running")
@@ -304,18 +320,18 @@ final class QueueTests: XCTestCase {
     func testALeftoverIsStoppedWithAnEmptyQueue() throws {
         let fx = try Fixture()
         let orphan = try GroupProcess(executable: "/bin/sleep", arguments: ["60"], environment: [:])
-        Leftover.record(pid: orphan.pid, runs: fx.install.runs)
-        XCTAssertTrue(Leftover.recorded(fx.install.runs))
+        Leftover.record(pid: orphan.pid, queue: fx.install.queue)
+        XCTAssertTrue(Leftover.recorded(queue: fx.install.queue))
         JobRunner(install: fx.install, tools: fx.tools()).cleanUpLeftovers()
         XCTAssertEqual(orphan.wait(), -15)
-        XCTAssertFalse(Leftover.recorded(fx.install.runs))
+        XCTAssertFalse(Leftover.recorded(queue: fx.install.queue))
     }
 
     /// A job's programs must not inherit the locks: when Mimic crashes, which unlocks nothing,
     /// a program still running would hold the lock, and no Mimic could ever start another job.
     func testTheLocksAreNotInheritedByAJobsPrograms() throws {
         let fx = try Fixture()
-        let url = fx.install.runs.appendingPathComponent(".job.lock")
+        let url = fx.install.queue.appendingPathComponent("job.lock")
         let held = JobQueue.openLock(url)
         XCTAssertEqual(flock(held, LOCK_EX | LOCK_NB), 0)
         let program = try GroupProcess(executable: "/bin/sleep", arguments: ["30"], environment: [:])

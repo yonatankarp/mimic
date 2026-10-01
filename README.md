@@ -47,7 +47,7 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
 
 ## 🧙 Making a mini
 
-![Mimic: your minis on the left; a finished halfling bard in a 3D view in the middle; its size, previews and print tips in a panel on the right](docs/images/app.jpg)
+![Mimic: your minis on the left; a finished halfling bard in a 3D view in the middle; its size, filament, previews and how it was made in a panel on the right](docs/images/app.jpg)
 
 1. Press **New Mini** (⌘N), and choose what you're making: 🧙 **A character** (a tabletop mini) or
    🏺 **Anything else** (a teapot, a car, a chess piece).
@@ -86,6 +86,10 @@ the mini's page shows them side by side, and **Keep This One** moves the others 
 
 Want the same mini at two sizes, say one for the table and one for the shelf? Right-click it →
 **Duplicate…**, name the copy, and choose its size. Only the size is made again: about a minute.
+
+Have a 3D model already, from another generator or HeroForge? **File → Import Model…**, pick the
+GLB or STL file, and choose its sizes and base as for a new mini. Mimic makes it print-ready in
+about a minute. It has no picture, so it can be resized and duplicated but not made again.
 
 ---
 
@@ -133,6 +137,7 @@ mimic make teapot "a round teapot with a curved spout" --object --size 80
 mimic retry tiefling
 mimic make-another tiefling                        # the same, with a new seed: "tiefling-2"
 mimic duplicate tiefling --as "Tiefling Display"   # the same shape, to resize without losing the first
+mimic import "Ogre Chief.stl" --height 32          # print prep for a model made elsewhere (GLB or STL)
 mimic make raven --image raven.png --project "Tiefling Party"
 mimic move tiefling --project "Tiefling Party"     # or --unsorted
 mimic resize --project "Tiefling Party" --height 32 # Resize All: every mini in the project

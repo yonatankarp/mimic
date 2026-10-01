@@ -37,7 +37,7 @@ public enum QueuePlace: Equatable, Sendable {
 public enum QueueHold: Sendable, Equatable {
     /// Paused, in this Mimic or another, or with `mimic queue pause`.
     case paused
-    /// On battery, with Don't start minis on battery on.
+    /// On battery, with Start minis only when plugged in on.
     case battery
 
     /// What the queue is doing, in words: the popover, the menus and `mimic queue`.
@@ -49,28 +49,76 @@ public enum QueueHold: Sendable, Equatable {
     }
 }
 
-/// The jobs waiting, oldest first, in runs/.queue.json: shared by every Mimic on this Mac (the
-/// app, a dev build, `mimic` in Terminal), and kept across quits and crashes.
+/// The jobs waiting, oldest first, in queue.json in the queue's folder (`Install.queue`, on this
+/// Mac): shared by every Mimic on this Mac using the same minis folder (the app, a dev build,
+/// `mimic` in Terminal), and kept across quits and crashes.
 ///
-/// Every change happens under runs/.queue.lock, and so does every taking and releasing of the
-/// job lock (runs/.job.lock). That one rule is what keeps a job from being lost: a runner that
-/// finds the queue empty releases the job lock inside the same locked section, so a job added a
-/// moment later always finds the job lock free and starts itself. A crash releases the job lock
-/// outside that rule; the app looks again every few seconds and at launch.
+/// Every change happens under queue.lock, and so does every taking and releasing of the job lock
+/// (job.lock). That one rule is what keeps a job from being lost: a runner that finds the queue
+/// empty releases the job lock inside the same locked section, so a job added a moment later
+/// always finds the job lock free and starts itself. A crash releases the job lock outside that
+/// rule; the app looks again every few seconds and at launch.
 public struct JobQueue: Sendable {
-    public let runs: URL
-    public init(runs: URL) { self.runs = runs }
+    public let folder: URL
+    public init(folder: URL) { self.folder = folder }
 
-    var file: URL { runs.appendingPathComponent(".queue.json") }
-    var lockFile: URL { runs.appendingPathComponent(".queue.lock") }
-    var pausedFile: URL { runs.appendingPathComponent(".queue.paused") }
+    var file: URL { folder.appendingPathComponent("queue.json") }
+    var lockFile: URL { folder.appendingPathComponent("queue.lock") }
+    var pausedFile: URL { folder.appendingPathComponent("paused") }
+    var jobLockFile: URL { folder.appendingPathComponent("job.lock") }
     /// `mimic stop` asking whichever Mimic runs the job named in it to stop it (#129).
-    var stopFile: URL { runs.appendingPathComponent(".job.stop") }
+    var stopFile: URL { folder.appendingPathComponent("job.stop") }
 
     /// Paused (#89): no job starts, in any Mimic, until it's resumed; one already running
-    /// finishes. A file of its own rather than a field in .queue.json, which Mimic 0.7.0 reads as
-    /// a bare list: it would see an empty queue, and drop the pause the next time it wrote one.
+    /// finishes. A file of its own rather than a field in queue.json, which Mimic 0.7.0 read as a
+    /// bare list.
     public var paused: Bool { FileManager.default.fileExists(atPath: pausedFile.path) }
+
+    /// The minis are moving to another folder (`JobRunner.changeMinisFolder`): nothing may be
+    /// made, resized or moved in this one meanwhile. The mover's pid and start time, so a move
+    /// cut short by a crash reads as over.
+    var movingFile: URL { folder.appendingPathComponent("moving") }
+    public var moving: Bool {
+        guard let text = try? String(contentsOf: movingFile, encoding: .utf8) else { return false }
+        let parts = text.split(separator: " ").compactMap { UInt64($0) }
+        guard parts.count == 2, let pid = pid_t(exactly: parts[0]) else { return false }
+        return Leftover.startTime(pid) == parts[1]
+    }
+
+    func markMoving() throws {
+        let me = getpid()
+        guard let t = Leftover.startTime(me) else { throw POSIXError(.ESRCH) }
+        try "\(me) \(t)".write(to: movingFile, atomically: true, encoding: .utf8)
+    }
+
+    func clearMoving() { try? FileManager.default.removeItem(at: movingFile) }
+
+    /// Moves the queue's files from where Mimic kept them before #102, at the top of the minis
+    /// folder, into the queue's own folder. Once, at launch (the app and `mimic` both): nothing
+    /// to do when none is there. Never overwrites: waiting jobs already here stay, and those
+    /// there join them at the end; a running job's record goes only where there's none. The old
+    /// lock files are removed: new ones are made here when needed.
+    public func moveOldFiles(from runs: URL) throws {
+        let fm = FileManager.default
+        func old(_ name: String) -> URL { runs.appendingPathComponent(name) }
+        let names = [".queue.json", ".queue.paused", ".job.json", ".job.pid", ".queue.lock", ".job.lock"]
+        guard names.contains(where: { fm.fileExists(atPath: old($0).path) }) else { return }
+        try locked { entries in
+            if let data = try? Data(contentsOf: old(".queue.json")),
+               let waiting = try? Self.decoder.decode([QueueEntry].self, from: data) {
+                for e in waiting where !entries.contains(where: { $0.name == e.name }) { entries.append(e) }
+            }
+            if fm.fileExists(atPath: old(".queue.paused").path), !paused {
+                guard fm.createFile(atPath: pausedFile.path, contents: nil) else { throw POSIXError(.EIO) }
+            }
+            for (from, to) in [(".job.json", SharedJob.file(queue: folder)), (".job.pid", Leftover.file(queue: folder))]
+            where fm.fileExists(atPath: old(from).path) && !fm.fileExists(atPath: to.path) {
+                try fm.moveItem(at: old(from), to: to)
+            }
+        }
+        // Only once everything is safely here: a failure above leaves the old files to try again.
+        for n in names { try? fm.removeItem(at: old(n)) }
+    }
 
     /// A snapshot, without the lock: the file is only ever replaced whole, so it reads complete.
     public func entries() -> [QueueEntry] {
@@ -82,7 +130,7 @@ public struct JobQueue: Sendable {
     /// each time: flock doesn't keep apart two threads sharing one open file, and does keep apart
     /// two opens, even in one process. O_CLOEXEC so a job's programs never inherit it.
     public func locked<T>(_ body: (inout [QueueEntry]) throws -> T) throws -> T {
-        try? FileManager.default.createDirectory(at: runs, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let fd = Self.openLock(lockFile)
         guard fd >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
         defer { flock(fd, LOCK_UN); close(fd) }
@@ -107,9 +155,9 @@ public struct JobQueue: Sendable {
     static let decoder: JSONDecoder = { let d = JSONDecoder(); d.dateDecodingStrategy = .iso8601; return d }()
 }
 
-/// The job running right now, in whichever Mimic holds the job lock: runs/.job.json, so another
-/// Mimic (or `mimic queue`) can show it. It names the holder's pid and start time, so a record
-/// left by a crash reads as nothing.
+/// The job running right now, in whichever Mimic holds the job lock: job.json in the queue's
+/// folder, so another Mimic (or `mimic queue`) can show it. It names the holder's pid and start
+/// time, so a record left by a crash reads as nothing.
 public struct SharedJob: Codable, Equatable, Sendable {
     public var name: String
     public var kind: JobKind
@@ -119,21 +167,21 @@ public struct SharedJob: Codable, Equatable, Sendable {
     var pid: Int32
     var pidStart: UInt64
 
-    static func file(_ runs: URL) -> URL { runs.appendingPathComponent(".job.json") }
+    static func file(queue: URL) -> URL { queue.appendingPathComponent("job.json") }
 
-    static func write(_ s: JobStatus, runs: URL) {
+    static func write(_ s: JobStatus, queue: URL) {
         let me = getpid()
         guard let t = Leftover.startTime(me) else { return }
         let record = SharedJob(name: s.name, kind: s.kind, step: s.step, started: s.started,
                                stepStarted: s.stepStarted ?? s.started, pid: me, pidStart: t)
-        try? JobQueue.encoder.encode(record).write(to: file(runs), options: .atomic)
+        try? JobQueue.encoder.encode(record).write(to: file(queue: queue), options: .atomic)
     }
 
-    static func clear(_ runs: URL) { try? FileManager.default.removeItem(at: file(runs)) }
+    static func clear(queue: URL) { try? FileManager.default.removeItem(at: file(queue: queue)) }
 
     /// The running job, or nil when nothing runs (or the Mimic running it has gone).
-    public static func read(_ runs: URL) -> SharedJob? {
-        guard let data = try? Data(contentsOf: file(runs)),
+    public static func read(queue: URL) -> SharedJob? {
+        guard let data = try? Data(contentsOf: file(queue: queue)),
               let r = try? JobQueue.decoder.decode(SharedJob.self, from: data),
               Leftover.startTime(r.pid) == r.pidStart else { return nil }
         return r

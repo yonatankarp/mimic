@@ -87,4 +87,11 @@ extension Gallery {
     public static func visible(_ selection: Set<String>, in shown: [Mini]) -> Set<String> {
         selection.intersection(shown.map(\.id))
     }
+
+    /// The selection once the list shows `shown`: what of it is still shown, else the list's
+    /// first mini, never one a search or filter hides. Empty when the list shows none.
+    public static func keeping(_ selection: Set<String>, in shown: [Mini]) -> Set<String> {
+        let kept = visible(selection, in: shown)
+        return kept.isEmpty ? Set(shown.prefix(1).map(\.id)) : kept
+    }
 }

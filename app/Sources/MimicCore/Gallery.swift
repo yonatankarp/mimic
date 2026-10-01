@@ -45,6 +45,11 @@ public struct Mini: Identifiable, Hashable, Sendable {
     /// without one (older minis, one renamed or copied in Finder) goes by its folder's:
     /// "dwarf-cleric" is shown as "Dwarf Cleric".
     public var displayName: String { settings.shownName(folder: name) ?? Mini.displayName(name) }
+    /// What it's shown as once renamed to `folder`, as `Gallery.rename` names it: so asking
+    /// "Call it …?" shows the name it gets.
+    public func displayName(renamedTo folder: String) -> String {
+        settings.shownName(folder: name, renamedTo: folder) ?? Mini.displayName(folder)
+    }
     public static func displayName(_ name: String) -> String {
         name.split(separator: "-").map { $0.prefix(1).uppercased() + $0.dropFirst() }.joined(separator: " ")
     }
@@ -113,7 +118,7 @@ extension [MiniPreview] {
 /// The minis folder on disk. A mini is a folder Mimic made (see `isMini`); any other folder at
 /// the top is a project, holding minis one level down. Projects don't nest: a folder inside a
 /// project that isn't a mini is ignored. Folders starting with "_" or "." are Mimic's own
-/// scratch, and files at the top (.queue.json, .job.*) are never minis.
+/// scratch, and files at the top are never minis.
 ///
 /// A mini's name is unique across the whole minis folder, projects included, so everything
 /// that names a mini (the queue, `mimic resize <name>`, rename, trash, timings) finds it with
@@ -253,7 +258,7 @@ extension Gallery {
         let fm = FileManager.default
         guard let src = folder(runs, old) else { throw RequestError.notFound }
         let before = MiniSettings.load(src)
-        let keep = shown ?? before.shownName(folder: old).flatMap { Rules.shownName(carrying: $0, to: new) }
+        let keep = shown ?? before.shownName(folder: old, renamedTo: new)
         guard old != new else {
             guard let shown, before.shownName(folder: old) != Rules.shownName(shown) else { return }
             guard busyWith != old else { throw RequestError.busy(old) }

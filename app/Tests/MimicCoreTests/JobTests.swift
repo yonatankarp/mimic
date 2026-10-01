@@ -82,6 +82,31 @@ final class JobTests: XCTestCase {
         XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: settings, tools: tools).map(\.number), [2, 3], "not drawn again")
     }
 
+    /// A job with the fixture's tools never reaches the real Draw Things (#140): on a Mac that
+    /// has it, the test above drew a real picture for minutes and then saw the wrong plan.
+    func testTheFixtureNeverReachesTheRealDrawThings() throws {
+        let fx = try Fixture()
+        let dt = JobRunner(install: fx.install, tools: fx.tools()).drawThings
+        XCTAssertNil(dt.cli, "would run Mimic's own draw-things-cli")
+        XCTAssertEqual(dt.base.port, 9, "would ask the real Draw Things")
+        XCTAssertFalse(dt.app.enabled(), "could open the real Draw Things")
+        XCTAssertNil(dt.app.open())
+    }
+
+    /// Every job in the tests takes the fixture's tools or names its own Draw Things: one made
+    /// without either reaches the real one.
+    func testNoTestJobReachesTheRealDrawThings() throws {
+        let dir = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        var leaks: [String] = []
+        for file in try FileManager.default.contentsOfDirectory(atPath: dir.path) where file.hasSuffix(".swift") {
+            let lines = try String(contentsOf: dir.appendingPathComponent(file), encoding: .utf8).components(separatedBy: .newlines)
+            for (i, line) in lines.enumerated() where line.contains("JobRunner(") && !line.contains(".tools(") && !line.contains("drawThings:") {
+                leaks.append("\(file):\(i + 1)")
+            }
+        }
+        XCTAssertEqual(leaks, [], "give these jobs the fixture's tools")
+    }
+
     /// A new mini records the model it's made with, so Try Again uses that one and not whatever
     /// is in use by then; a model that isn't downloaded is refused before anything is written.
     func testTheModelIsRecordedAndMustBeDownloaded() throws {
@@ -371,7 +396,7 @@ final class JobTests: XCTestCase {
     /// Mimic is gone and anyone looks again.
     func testAnotherMimicHoldingTheLockQueues() throws {
         let fx = try Fixture(); _ = try fx.mini("a")
-        let fd = open(fx.install.runs.appendingPathComponent(".job.lock").path, O_CREAT | O_RDWR, 0o644)
+        let fd = open(fx.install.queue.appendingPathComponent("job.lock").path, O_CREAT | O_RDWR, 0o644)
         XCTAssertEqual(flock(fd, LOCK_EX | LOCK_NB), 0)
         let jobs = JobRunner(install: fx.install, tools: fx.tools())
         XCTAssertEqual(try jobs.resize(name: "a", sizes: sizes), 1)
@@ -390,13 +415,13 @@ final class JobTests: XCTestCase {
     func testLeftoverJobsAreStoppedOnlyWhenTheyAreReallyOurs() throws {
         let fx = try Fixture()
         let orphan = try GroupProcess(executable: "/bin/sleep", arguments: ["60"], environment: [:])
-        Leftover.record(pid: orphan.pid, runs: fx.install.runs)
-        XCTAssertTrue(Leftover.stop(fx.install.runs))
+        Leftover.record(pid: orphan.pid, queue: fx.install.queue)
+        XCTAssertTrue(Leftover.stop(queue: fx.install.queue))
         XCTAssertEqual(orphan.wait(), -15)
 
         let unrelated = try GroupProcess(executable: "/bin/sleep", arguments: ["60"], environment: [:])
-        try "\(unrelated.pid) 12345".write(to: Leftover.file(fx.install.runs), atomically: true, encoding: .utf8)
-        XCTAssertFalse(Leftover.stop(fx.install.runs), "a pid whose start time doesn't match must not be stopped")
+        try "\(unrelated.pid) 12345".write(to: Leftover.file(queue: fx.install.queue), atomically: true, encoding: .utf8)
+        XCTAssertFalse(Leftover.stop(queue: fx.install.queue), "a pid whose start time doesn't match must not be stopped")
         XCTAssertEqual(kill(unrelated.pid, 0), 0)
         unrelated.terminateGroup(); unrelated.wait()
     }

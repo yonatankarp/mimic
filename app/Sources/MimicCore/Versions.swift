@@ -21,6 +21,7 @@ extension JobRunner {
     @discardableResult
     public func makeNewShape(of name: String, as newName: String? = nil, seed: Int? = nil) throws -> (name: String, ahead: Int?) {
         guard let folder = Gallery.folder(install.runs, name) else { throw RequestError.notFound }
+        if MiniSettings.load(folder).isImported { throw RequestError.imported(name) }
         let drawn = folder.appendingPathComponent("source.png")
         guard FileManager.default.fileExists(atPath: drawn.path) else { throw RequestError.noDrawing(name) }
         return try version(of: name, as: newName) { settings in
@@ -42,6 +43,7 @@ extension JobRunner {
     private func version(of name: String, as newName: String?,
                          _ seeds: (MiniSettings) -> (seed: Int, shapeSeed: Int?, drawn: URL?)) throws -> (name: String, ahead: Int?) {
         guard let folder = Gallery.folder(install.runs, name) else { throw RequestError.notFound }
+        if MiniSettings.load(folder).isImported { throw RequestError.imported(name) }
         guard let (picture, restyle, settings) = try? Self.versionSource(folder) else { throw RequestError.noSource(name) }
         guard let model = EngineDownload.model(settings.model) else { throw RequestError.unknownModel(settings.model ?? "") }
         let new = newName ?? Gallery.nextVersionName(install.runs, name)
@@ -160,7 +162,7 @@ public struct MakeForm: Equatable, Sendable {
         guard let (source, restyle, s) = try? JobRunner.versionSource(mini.folder, mini.settings) else { return nil }
         var card = start
         card.setKind(s.kind ?? .character)  // before the sizes: choosing a kind suggests sizes afresh
-        if let sizes = s.requested ?? s.made { card.load(sizes) }
+        if let sizes = s.requested ?? s.made { card.load(sizes.asMade) }
         let new = Gallery.nextVersionName(install.runs, mini.name)
         var form = MakeForm(picture: mini.folder, name: "", card: card)
         form.name = s.shownName(folder: mini.name).flatMap { Rules.shownName(carrying: $0, to: new) } ?? Mini.displayName(new)

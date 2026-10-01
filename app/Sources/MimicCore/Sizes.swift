@@ -26,6 +26,20 @@ public struct Sizes: Equatable, Sendable {
         self.magnet = noBase ? nil : magnet
     }
 
+    /// What print prep made from these sizes: a size left out is print prep's own default. A mini
+    /// made in Terminal without sizes, or an older one, records none ({}), and its row in the list
+    /// says 32 mm; Edit & Make Again and Resize start there, not at the size card last chosen
+    /// (#139). The extra thickness stays out: print prep picks it from the nozzle. So does a base
+    /// that wasn't made, so adding one is sized by the card.
+    public var asMade: Sizes {
+        let prep = PrepOptions(glb: "", stl: "")
+        var s = self
+        s.height = height ?? SizeCard.text(prep.height)
+        s.base = base ?? (noBase ? nil : SizeCard.text(prep.base))
+        s.nozzle = nozzle ?? SizeCard.text(prep.nozzle)
+        return s
+    }
+
     /// Checks every value, then returns print prep's flags. Throws before anything is saved.
     public func flags() throws -> [String] {
         var out: [String] = []
@@ -43,6 +57,18 @@ public struct Sizes: Equatable, Sendable {
         if shape != .round { out += ["--base-shape", shape.rawValue] }
         if style != .plain { out += ["--base-style", style.rawValue] }
         if let magnet { out += ["--magnet", magnet.rawValue] }
+        return out
+    }
+
+    /// A resize's sizes: what wasn't given is kept from the sizes the mini was made with, as the
+    /// app's Resize does. A hex mini on a stone floor with a magnet, made for a 0.2 mm nozzle,
+    /// stays that. The magnet is given even as none, so it says so; a nozzle is given when set.
+    public func resizing(_ was: Sizes?, shapeGiven: Bool, styleGiven: Bool, magnetGiven: Bool) -> Sizes {
+        var out = self
+        if !shapeGiven, let s = was?.shape { out.shape = s }
+        if !styleGiven, let s = was?.style { out.style = s }
+        if !magnetGiven { out.magnet = was?.magnet }
+        if out.nozzle == nil { out.nozzle = was?.nozzle }
         return out
     }
 }
@@ -160,11 +186,21 @@ public struct MiniSettings: Codable, Equatable, Sendable {
     /// shows the folder's name instead (see `Mini.displayName`). Older minis have neither.
     public var name: String?
     public var nameFolder: String?
+    /// The file it was imported from (#96), when it's a 3D model the person brought rather than
+    /// one Mimic made: it has no picture or description, so only print prep can run on it. A
+    /// field of its own rather than a `source`, which an older Mimic would fail to read.
+    public var imported: String?
 
     public init() {}
 
     /// The name to show for the mini in `folder` (its folder's name), or nil when it has none of its own.
     public func shownName(folder: String) -> String? { nameFolder == folder ? name : nil }
+
+    /// The name the mini in `folder` keeps when it's renamed to `new`: its own, carried over
+    /// while it still fits ("Élodie 2" to "elodie" is "Élodie"); nil when it has none that fits.
+    public func shownName(folder: String, renamedTo new: String) -> String? {
+        shownName(folder: folder).flatMap { Rules.shownName(carrying: $0, to: new) }
+    }
 
     /// Keeps `typed` as the name of the mini in the folder named `folder`, or forgets the one
     /// kept when `typed` is nil.
@@ -173,6 +209,7 @@ public struct MiniSettings: Codable, Equatable, Sendable {
     }
 
     public var isObject: Bool { kind == .object }
+    public var isImported: Bool { imported != nil }
 
     static func file(_ folder: URL) -> URL { folder.appendingPathComponent("settings.json") }
 

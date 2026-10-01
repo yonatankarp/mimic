@@ -8,7 +8,7 @@ final class MiniActionsTests: XCTestCase {
 
     /// Holds the job lock as another Mimic would, so jobs asked for wait in the queue.
     private func anotherMimic(_ fx: Fixture) -> Int32 {
-        let fd = open(fx.install.runs.appendingPathComponent(".job.lock").path, O_CREAT | O_RDWR, 0o644)
+        let fd = open(fx.install.queue.appendingPathComponent("job.lock").path, O_CREAT | O_RDWR, 0o644)
         XCTAssertEqual(flock(fd, LOCK_EX | LOCK_NB), 0)
         return fd
     }
@@ -44,7 +44,7 @@ final class MiniActionsTests: XCTestCase {
     func testAnUnansweredStopIsTakenBack() throws {
         let fx = try Fixture()
         let job = JobStatus(name: "mini", kind: .generate, step: 2, started: Date())
-        SharedJob.write(job, runs: fx.install.runs)  // as if another Mimic were making it, and deaf
+        SharedJob.write(job, queue: fx.install.queue)  // as if another Mimic were making it, and deaf
         let terminal = JobRunner(install: fx.install, tools: fx.tools())
         guard case .noAnswer = terminal.stopElsewhere(timeout: 0.5) else { return XCTFail("no Mimic stopped it") }
         XCTAssertFalse(FileManager.default.fileExists(atPath: terminal.queue.stopFile.path))
@@ -145,7 +145,7 @@ final class MiniActionsTests: XCTestCase {
         let minis = Gallery.list(fx.install.runs), mini = try XCTUnwrap(minis.first { $0.name == "orc-2" })
         let lines = MiniInfo(mini, in: minis, waiting: []).lines
         XCTAssertEqual(lines.first, "Grok 2 (orc-2)")
-        for want in ["State: ready", "Character: 32 mm", "Base: 25 mm", "Nozzle: 0.4 mm", "Made from: A description",
+        for want in ["State: ready", "Character: 32 mm", "Base: 25 mm", "Nozzle: 0.4 mm", "Source: A description",
                      "Variation number: 7", "Description: an orc with an axe", "Versions: orc, orc-2 (this one)"] {
             XCTAssertTrue(lines.contains(want), "missing \(want) in \(lines)")
         }

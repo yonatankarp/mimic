@@ -72,7 +72,7 @@ struct MakeView: View {
     var body: some View {
         VStack(spacing: 0) {
             // A sheet shows no window title, so it carries its own.
-            Text("New Mini").font(.title2.bold())
+            Text(again == nil ? "New Mini" : "Edit & Make Again").font(.title2.bold())
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding([.horizontal, .top], 20)
             // Two columns, so the size choices are in sight before Make Mini without scrolling.
@@ -111,7 +111,7 @@ struct MakeView: View {
                         .help("How it's listed, and what its print file is called")
                         .focused($nameFocused)
                         .onChange(of: name) { _, new in
-                            if new != Mini.displayName(MakeAdvice.name(fromDescription: description)) { autoName = false }
+                            if new != MakeAdvice.name(fromDescription: description) { autoName = false }
                         }
                     Picker("Project", selection: $project) {
                         Text("Unsorted").tag("")
@@ -281,7 +281,7 @@ struct MakeView: View {
                 }
                 .onChange(of: description) { _, text in
                     guard name.isEmpty || autoName else { return }
-                    name = Mini.displayName(MakeAdvice.name(fromDescription: text))
+                    name = MakeAdvice.name(fromDescription: text)
                     autoName = true
                 }
             ImproveBox(description: description, kind: card.kind.rawValue, improved: $improved)
@@ -484,7 +484,7 @@ struct ResizeView: View {
         var c = SizeCard.remembered()
         let saved = mini.settings
         c.setKind(saved.kind ?? .character)  // before the sizes: choosing a kind suggests sizes afresh
-        if let sizes = saved.made ?? saved.requested { c.load(sizes) }
+        if let sizes = saved.made ?? saved.requested { c.load(sizes.asMade) }
         _card = State(initialValue: c)
     }
 
@@ -684,7 +684,7 @@ struct SizeSection: View {
                         }
                         .pickerStyle(.segmented).fixedSize()
                         .help("Square and hex bases fit grid and hex maps; the figure faces a flat side")
-                        Picker("Top", selection: $card.style) {
+                        Picker("Base style", selection: $card.style) {
                             ForEach(BaseStyle.allCases, id: \.self) { Text($0.words.capitalizedFirst).tag($0) }
                         }
                         .fixedSize()

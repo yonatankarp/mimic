@@ -11,6 +11,9 @@ struct Fixture {
         root = FileManager.default.temporaryDirectory.appendingPathComponent("mimic-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: root.appendingPathComponent("runs"), withIntermediateDirectories: true)
         install = Install(root: root)
+        // The queue's folder is made by the first change to the queue; some tests write a
+        // running job's record before any.
+        try FileManager.default.createDirectory(at: install.queue, withIntermediateDirectories: true)
     }
 
     /// A shell script to stand in for print prep or the 3D engine.
@@ -22,10 +25,19 @@ struct Fixture {
     }
 
     /// `mimic` stands in for Mimic's own binary, which steps 2 and 3 run as `mimic _engine …`
-    /// and `mimic _prep …`.
-    func tools(mimic: String = "/usr/bin/true") -> Tools {
+    /// and `mimic _prep …`. `drawThings` is step 1's: by default one that fails at once, so a
+    /// test never reaches the real Draw Things on a Mac that has it (#140).
+    func tools(mimic: String = "/usr/bin/true", drawThings: DrawThings? = nil) -> Tools {
         Tools(mimic: mimic, engine: install.engine.path,
-              environment: ["PATH": "/usr/bin:/bin"])
+              environment: ["PATH": "/usr/bin:/bin"], drawThings: drawThings ?? noDrawThings())
+    }
+
+    /// A Draw Things that isn't there: no command line tool, nothing answering (port 9 refuses at
+    /// once), a pinned model and a home of its own so its models folder isn't read, and an app
+    /// that's switched off and never opens.
+    func noDrawThings() -> DrawThings {
+        DrawThings(environment: ["DRAWTHINGS_URL": "http://127.0.0.1:9", "DRAWTHINGS_MODEL": "x"], home: root,
+                   app: DrawThingsApp(enabled: { false }, running: { false }, open: { nil }), cli: nil)
     }
 
     /// Every weight file of `model` at its full size, sparse so gigabytes cost nothing; `short`
