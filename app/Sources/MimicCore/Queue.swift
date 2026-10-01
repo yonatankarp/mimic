@@ -9,10 +9,13 @@ public struct QueueEntry: Codable, Equatable, Sendable, Identifiable {
     public var job: JobKind
     public var added: Date
     public var sizes: Sizes?
+    /// Try Again of a mini that was there before this job (#178): stopped or taken out of the
+    /// queue, it goes back to how it was, failed, instead of to the Trash as a new one does.
+    public var again: Bool?
     public var id: String { name }
 
-    public init(name: String, job: JobKind, added: Date = Date(), sizes: Sizes? = nil) {
-        self.name = name; self.job = job; self.added = added; self.sizes = sizes
+    public init(name: String, job: JobKind, added: Date = Date(), sizes: Sizes? = nil, again: Bool? = nil) {
+        self.name = name; self.job = job; self.added = added; self.sizes = sizes; self.again = again
     }
 }
 
