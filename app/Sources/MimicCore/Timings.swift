@@ -209,27 +209,36 @@ public struct Timings: Sendable {
         return text.split(separator: "\n").compactMap { try? JobQueue.decoder.decode(TimingRecord.self, from: Data($0.utf8)) }
     }
 
-    /// Adds one, dropping the oldest past the cap. Under a lock on the file itself, so two
-    /// Mimics finishing together both get their line in.
-    public func append(_ records: [TimingRecord]) {
+    /// The lock beside the history: the history itself is replaced whole, so a lock on it would
+    /// be let go of with the file it was on.
+    var lockFile: URL { url.appendingPathExtension("lock") }
+
+    /// Runs `body` holding the lock, so two Mimics finishing together both get their line in.
+    private func locked(_ body: () -> Void) {
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let fd = open(url.path, O_CREAT | O_RDWR | O_APPEND | O_CLOEXEC, 0o644)
+        let fd = JobQueue.openLock(lockFile)
         guard fd >= 0 else { return }
         defer { flock(fd, LOCK_UN); close(fd) }
-        flock(fd, LOCK_EX)
-        let h = FileHandle(fileDescriptor: fd, closeOnDealloc: false)
-        var lines = String(decoding: (try? h.readToEnd()) ?? Data(), as: UTF8.self).split(separator: "\n").map(String.init)
-        lines += records.compactMap { (try? Self.encoder.encode($0)).map { String(decoding: $0, as: UTF8.self) } }
-        let kept = lines.suffix(Self.cap)
-        ftruncate(fd, 0)
-        try? h.write(contentsOf: Data((kept.joined(separator: "\n") + (kept.isEmpty ? "" : "\n")).utf8))
+        while flock(fd, LOCK_EX) != 0 { guard errno == EINTR else { return } }
+        body()
+    }
+
+    /// Adds one, dropping the oldest past the cap. Written beside the history and then put in
+    /// its place, so a crash halfway leaves the history as it was.
+    public func append(_ records: [TimingRecord]) {
+        locked {
+            let text = (try? Data(contentsOf: url)).map { String(decoding: $0, as: UTF8.self) } ?? ""
+            var lines = text.split(separator: "\n").map(String.init)
+            lines += records.compactMap { (try? Self.encoder.encode($0)).map { String(decoding: $0, as: UTF8.self) } }
+            let kept = lines.suffix(Self.cap)
+            try? Data((kept.joined(separator: "\n") + (kept.isEmpty ? "" : "\n")).utf8).write(to: url, options: .atomic)
+        }
     }
 
     /// Forgets every job (Settings → Time estimates → Clear). The empty file stays, so the old
     /// minis aren't imported again.
     public func clear() {
-        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? Data().write(to: url, options: .atomic)
+        locked { try? Data().write(to: url, options: .atomic) }
     }
 
     /// The first time this Mimic runs, the minis already made seed the history (`imported`).

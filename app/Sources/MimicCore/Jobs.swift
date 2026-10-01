@@ -275,16 +275,16 @@ public final class JobRunner: @unchecked Sendable {
 
     /// Takes a waiting job out of the queue. A new mini's folder goes to the Trash, as a stopped
     /// one's does, and so does an import's whose print file isn't made yet (#96). False when it
-    /// isn't waiting (it may have just started).
+    /// isn't waiting (it may have just started). Trashed under the queue's lock, so a make with
+    /// the same name (from another Mimic, say) can't take the folder over first.
     @discardableResult
     public func remove(_ name: String) throws -> Bool {
-        let removed = try queue.locked { entries -> QueueEntry? in
-            guard let i = entries.firstIndex(where: { $0.name == name }) else { return nil }
-            return entries.remove(at: i)
+        try queue.locked { entries in
+            guard let i = entries.firstIndex(where: { $0.name == name }) else { return false }
+            let removed = entries.remove(at: i)
+            if let folder = Gallery.folder(install.runs, name), removed.job == .generate || Self.importing(folder) { try? trash(folder) }
+            return true
         }
-        guard let removed else { return false }
-        if let folder = Gallery.folder(install.runs, name), removed.job == .generate || Self.importing(folder) { try? trash(folder) }
-        return true
     }
 
     /// `remove`, for `mimic queue remove`: what it says, by the mini's name as shown. That's read
