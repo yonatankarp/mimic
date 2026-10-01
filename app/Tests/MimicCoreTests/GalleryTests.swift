@@ -3,6 +3,33 @@ import XCTest
 
 /// Ported from tests/test_rename.py.
 final class GalleryTests: XCTestCase {
+    /// A folder is a mini by a file only Mimic writes there, each one alone enough. Any other
+    /// .stl, such as one dragged into a project in Finder, leaves it a project.
+    func testWhatMakesAFolderAMini() throws {
+        let fx = try Fixture(), fm = FileManager.default
+        let folder = fx.install.runs.appendingPathComponent("raven")
+        try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+        XCTAssertFalse(Gallery.isMini(folder), "an empty folder")
+        for other in ["dwarf.stl", "source.png", "raven.3mf"] {
+            fm.createFile(atPath: folder.appendingPathComponent(other).path, contents: Data())
+        }
+        XCTAssertFalse(Gallery.isMini(folder), "files any folder may hold")
+        for marker in ["settings.json", "model.glb", "raven.stl"] {
+            let file = folder.appendingPathComponent(marker)
+            fm.createFile(atPath: file.path, contents: Data())
+            XCTAssertTrue(Gallery.isMini(folder), marker)
+            try fm.removeItem(at: file)
+        }
+        XCTAssertFalse(Gallery.isMini(fx.install.runs.appendingPathComponent("not-there")))
+    }
+
+    /// A new mini goes in its project's folder, or at the top for Unsorted.
+    func testWhereANewMiniGoes() {
+        let runs = URL(fileURLWithPath: "/tmp/minis")
+        XCTAssertEqual(Gallery.newFolder(runs, "raven", project: nil).path, "/tmp/minis/raven")
+        XCTAssertEqual(Gallery.newFolder(runs, "raven", project: "Tiefling Party").path, "/tmp/minis/Tiefling Party/raven")
+    }
+
     /// A mini's settings are read once, with the list (#95): what the list and its page ask of a
     /// mini afterwards comes from the value, however often a redraw asks. Planted by changing
     /// every file after the list was read: an answer read from disk would see the change.

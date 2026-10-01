@@ -10,6 +10,20 @@ final class RulesTests: XCTestCase {
         }
     }
 
+    /// A project's name is kept as typed, trimmed. It's a folder, so it can't hold a slash or a
+    /// colon, nor start with Mimic's own "_" or a hidden ".".
+    func testProjectNames() {
+        XCTAssertEqual(Rules.projectName("  Tiefling Party \n"), "Tiefling Party")
+        XCTAssertEqual(Rules.projectName("Élodie's Band"), "Élodie's Band")
+        XCTAssertEqual(Rules.projectName("v1.2_props"), "v1.2_props", "a dot or underscore inside is fine")
+        XCTAssertEqual(Rules.projectName(String(repeating: "é", count: 64))?.count, 64)
+        XCTAssertNil(Rules.projectName(String(repeating: "a", count: 65)))
+        XCTAssertEqual(Rules.projectName("  " + String(repeating: "a", count: 64) + "  ")?.count, 64, "counted once trimmed")
+        for bad in ["", " \n ", "  _mine", ".hidden", "a/b", "a:b", "a\tb", "a\u{7}b"] {
+            XCTAssertNil(Rules.projectName(bad), bad.debugDescription)
+        }
+    }
+
     func testSlug() {
         XCTAssertEqual(Rules.slug("Dwarf Cleric!"), "dwarf-cleric")
         XCTAssertEqual(Rules.slug("  --Tiefling  Wizard-- "), "tiefling-wizard")

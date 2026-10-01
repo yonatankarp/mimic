@@ -19,6 +19,21 @@ final class VersionTests: XCTestCase {
         XCTAssertEqual(Gallery.nextVersionName(runs, long).count, 64)
     }
 
+    /// A typed name's folder, or the next one free: taken by a mini at the top, by one in a
+    /// project, or by a project itself, in any case.
+    func testAFreeName() throws {
+        let fx = try Fixture(), runs = fx.install.runs
+        _ = try fx.mini("tiefling")
+        _ = try fx.mini("tiefling-2", in: "Party")
+        _ = try fx.mini("mini")
+        XCTAssertEqual(Gallery.freeName(runs, "Dwarf Cleric"), "dwarf-cleric")
+        XCTAssertEqual(Gallery.freeName(runs, "Tiefling"), "tiefling-3", "tiefling-2 is taken, in a project")
+        XCTAssertEqual(Gallery.freeName(runs, "Tiefling 2"), "tiefling-3")
+        XCTAssertEqual(Gallery.freeName(runs, "party"), "party-2", "a project's name is taken too")
+        XCTAssertEqual(Gallery.freeName(runs, "PARTY"), "party-2")
+        XCTAssertEqual(Gallery.freeName(runs, "🐉"), "mini-2", "mini is taken")
+    }
+
     /// Several pictures dropped on New Mini: each named after its file.
     func testANameFromThePicturesFile() throws {
         let fx = try Fixture(), runs = fx.install.runs
