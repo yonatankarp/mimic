@@ -25,6 +25,10 @@ struct MiniViewer: View {
     @State private var failed = false
     /// How to handle it, shown over the view until the first turn or zoom (and always as its tooltip).
     @AppStorage("viewerHintSeen") private var hintSeen = false
+    /// Something of a known size drawn at true scale with the mini (`SizeReference`), the same
+    /// choice for every mini. Built only when the choice or the print file changes.
+    @AppStorage(SizeReference.key) private var reference = SizeReference.none
+    @State private var referenceEntity: Entity?
     static let hint = "Drag to turn · scroll to zoom"
     static let help = "Drag or press the arrow keys to turn · pinch, scroll, ⌘= or ⌘− to zoom · double-click to face front"
     /// The stage's size, running up under the toolbar, and the height below the toolbar.
@@ -64,6 +68,7 @@ struct MiniViewer: View {
         .onChange(of: fit, initial: true) { if unzoomed { camera = fit } }
         .onChange(of: unzoomed) { if unzoomed { camera = fit } }
         .onChange(of: model.faceFrontRequests) { front() }  // View → Face Front
+        .onChange(of: layout, initial: true) { referenceEntity = layout.flatMap(Self.marker(for:)) }
         .overlay(alignment: .topTrailing) { controls.padding(12) }
         .overlay(alignment: .bottom) {
             if mini != nil && !hintSeen {
@@ -122,16 +127,30 @@ struct MiniViewer: View {
         return SIMD3(Float(m.wide), Float(m.tall), Float(m.deep)) / Float(m.tall)
     }
 
-    /// Fits the mini to what's seen: below the toolbar and the controls, above the hint (whose
-    /// room is kept after it's gone, so the mini doesn't move).
+    /// Where the size reference goes and how big it is, once the print file is read.
+    private var layout: ReferenceLayout? {
+        guard let m = measured, m.exact.y > 0 else { return nil }
+        return ReferenceLayout(kind: reference, height: m.exact.y, mini: m.exact / m.exact.y, origin: m.origin)
+    }
+
+    /// Fits the mini, and the size reference with it, to what's seen: below the toolbar and the
+    /// controls, above the hint (whose room is kept after it's gone, so the mini doesn't move).
     private var fit: ViewerCamera {
-        ViewerCamera.fitting(sizeInScene, in: stageSize, top: max(0, stageSize.height - seenHeight) + 48, bottom: 56)
+        ViewerCamera.fitting(layout?.fit ?? sizeInScene, in: stageSize, top: max(0, stageSize.height - seenHeight) + 48, bottom: 56)
+    }
+
+    /// "3D view of Raven, 34 mm tall with base, 26 × 25 mm footprint, beside a 32 mm person".
+    private var spoken: String {
+        guard let measured else { return "3D view of \(name)" }
+        var words = "3D view of \(name), \(measured.tall) mm tall with base, \(measured.footprint) footprint"
+        if let layout, let extra = layout.kind.spoken(gridSquare: layout.gridSquare) { words += ", \(extra)" }
+        return words
     }
 
     private var pitch: simd_quatf { simd_quatf(angle: turn.y, axis: [1, 0, 0]) }
 
     private var stage: some View {
-        Stage(mini: mini, glide: glide, camera: camera,
+        Stage(mini: mini, reference: referenceEntity, glide: glide, camera: camera,
               transform: Transform(scale: SIMD3(repeating: zoom),
                                    rotation: pitch * simd_quatf(angle: turn.x, axis: [0, 1, 0]),
                                    translation: SIMD3(offset, 0)),
@@ -144,7 +163,7 @@ struct MiniViewer: View {
               })
         .opacity(shown ? 1 : 0)
         .accessibilityElement()
-        .accessibilityLabel(measured.map { "3D view of \(name), \($0.tall) mm tall with base, \($0.footprint) footprint" } ?? "3D view of \(name)")
+        .accessibilityLabel(spoken)
         .accessibilityHint("Arrow keys turn and tilt it; Command-Equals and Command-Minus zoom.")
         .accessibilityAdjustableAction { direction in
             switch direction {
@@ -218,22 +237,62 @@ struct MiniViewer: View {
             .accessibilityHidden(true)
     }
 
-    /// Floating over the view, top right: its size beside Face Front, one piece of glass.
+    /// Floating over the view, top right: its size, the size reference and Face Front, one piece of glass.
     private var controls: some View {
         GlassEffectContainer(spacing: 8) {
             HStack(spacing: 8) {
                 if let measured {
-                    Text(measured.caption).font(.callout.monospacedDigit()).foregroundStyle(.secondary)
+                    Text(caption(measured)).font(.callout.monospacedDigit()).foregroundStyle(.secondary)
                         .padding(.horizontal, 12).padding(.vertical, 6)
                         .glassEffect(.regular, in: .capsule)
                         .help("Its size with the base: height, then the footprint it stands on.")
                 }
+                Menu {
+                    Picker("Size Reference", selection: $reference) {
+                        ForEach(SizeReference.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.inline)
+                } label: {
+                    Label("Size Reference", systemImage: "ruler").labelStyle(.iconOnly)
+                }
+                .menuStyle(.button)
+                .buttonStyle(.glass)
+                .fixedSize()
+                .help("Show something of a known size next to the mini, at its true scale")
+                .accessibilityValue(reference.title)
+                .disabled(mini == nil)
                 Button { front() } label: { Label("Face Front", systemImage: "arrow.counterclockwise") }
                     .buttonStyle(.glass)
                     .help("Turn the mini back to face you and zoom back out (⌘0, or double-click it)")
                     .disabled(mini == nil)
             }
         }
+    }
+
+    /// The size badge, with the grid's square when the grid is shown: "34 mm tall · 26 × 25 mm · 1 mm squares".
+    private func caption(_ measured: Measured) -> String {
+        guard let layout, layout.kind == .grid else { return measured.caption }
+        return "\(measured.caption) · \(Int(layout.gridSquare)) mm squares"
+    }
+
+    /// The size reference as RealityKit draws it: flat colour, no lighting, so it reads as a
+    /// marker rather than part of the mini. Nil when there's nothing to draw.
+    static func marker(for layout: ReferenceLayout) -> Entity? {
+        let pieces = layout.meshes
+        guard !pieces.isEmpty else { return nil }
+        let blue = NSColor(srgbRed: 0.2, green: 0.5, blue: 0.95, alpha: 1)
+        let line = NSColor(white: 0.55, alpha: 1)
+        let root = Entity()
+        root.name = "size reference"
+        for piece in pieces {
+            var d = MeshDescriptor(name: "reference")
+            d.positions = MeshBuffers.Positions(piece.positions)
+            d.primitives = .triangles(piece.indices)
+            guard let mesh = try? MeshResource.generate(from: [d]) else { continue }
+            let colour = layout.kind == .grid && !piece.bold ? line : blue
+            root.addChild(ModelEntity(mesh: mesh, materials: [UnlitMaterial(color: colour)]))
+        }
+        return root
     }
 
     /// A studio backdrop that works light or dark: the window's own colour, a shade deeper
@@ -287,10 +346,11 @@ struct MiniViewer: View {
             points.append(v); lo = simd_min(lo, v); hi = simd_max(hi, v)
         }
         let dims = hi - lo
-        let size = Measured(tall: Int(dims.y.rounded()), wide: Int(dims.x.rounded()), deep: Int(dims.z.rounded()),
-                            volume: Filament.volume(points))  // turned, not yet scaled: still mm
         let centre = (lo + hi) / 2  // the middle of the mini, so it turns in place
         let scale = 1 / max(dims.y, 1)  // 1 m tall: fills the default camera's view
+        let size = Measured(tall: Int(dims.y.rounded()), wide: Int(dims.x.rounded()), deep: Int(dims.z.rounded()),
+                            volume: Filament.volume(points),  // turned, not yet scaled: still mm
+                            exact: SIMD3(dims.x, max(dims.y, 1), dims.z), origin: -centre * scale)
         points = points.map { ($0 - centre) * scale }
         // An STL is a list of separate triangles, so one normal per triangle gives the
         // flat-shaded look every slicer shows.
@@ -314,6 +374,10 @@ struct MiniViewer: View {
 struct Measured: Equatable {
     let tall: Int, wide: Int, deep: Int
     var volume = 0.0
+    /// Width, height and depth unrounded, and where the print file's origin (under the base's
+    /// middle) is in the scene: for drawing the size reference.
+    var exact = SIMD3<Float>.zero
+    var origin = SIMD3<Float>.zero
     var footprint: String { "\(wide) × \(deep) mm" }
     /// "34 mm tall · 26 × 25 mm", on its glass badge.
     var caption: String { "\(tall) mm tall · \(footprint)" }
@@ -325,6 +389,8 @@ struct Measured: Equatable {
 /// about 20% of a core with nothing moving.
 private struct Stage: NSViewRepresentable {
     let mini: Entity?
+    /// Drawn with the mini, in its frame (see `MiniViewer.marker`): it turns, zooms and glides along.
+    let reference: Entity?
     /// Seconds to glide to a new `transform`; 0 to follow it at once.
     let glide: Double
     let camera: ViewerCamera
@@ -339,6 +405,7 @@ private struct Stage: NSViewRepresentable {
         context.coordinator.zoomed = zoomed
         context.coordinator.frame(camera)
         context.coordinator.show(mini, transform, glide: glide)
+        context.coordinator.attach(reference)
     }
     static func dismantleNSView(_ view: MTKView, coordinator: Painter) { coordinator.stopWatching() }
 
@@ -352,6 +419,7 @@ private struct Stage: NSViewRepresentable {
         var zoomed: (Float, SIMD2<Float>) -> Bool = { _, _ in false }
         private let renderer = try? RealityRenderer()
         private var mini: Entity?
+        private var reference: Entity?
         /// The pose asked for, and the one last drawn.
         private var target: Transform?
         private var drawn: Transform?
@@ -456,6 +524,16 @@ private struct Stage: NSViewRepresentable {
             } else if entity == nil {
                 view.needsDisplay = true
             }
+        }
+
+        /// Puts the size reference on the mini, as a child so it shares the mini's pose: the old
+        /// one comes off, and one that arrived before its mini goes on once the mini is shown.
+        func attach(_ entity: Entity?) {
+            if entity === reference, entity == nil || entity?.parent === mini { return }
+            reference?.removeFromParent()
+            if let entity, let mini { mini.addChild(entity) }
+            reference = entity
+            view.needsDisplay = true
         }
 
         func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) { view.needsDisplay = true }
