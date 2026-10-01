@@ -240,6 +240,7 @@ enum CLI {
                 }
                 else { return fail(usage) }
                 let into = try request.project.map { try project($0, install) }
+                if request.change != nil && !request.restyle { print("A change redraws the picture, so it gets the grey sculpt too.") }
                 let used = request.change.flatMap { worded($0, cli.defaults, kind: kind) }
                 ahead = try jobs.make(name: name, picture: picture, restyle: request.restyle, seed: request.seed ?? 42, sizes: sizes,
                                       kind: kind, model: request.model ?? EngineDownload.selected(defaults: cli.defaults), project: into,
