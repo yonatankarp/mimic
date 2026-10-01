@@ -563,6 +563,11 @@ final class AppModel {
         present { $0.retried(name) }
     }
 
+    /// Build Shape from a menu; a refusal is said as an alert.
+    func buildShape(_ mini: Mini) {
+        do { try buildShape(mini.name) } catch { problem = plainWords(error) }
+    }
+
     /// Try Again on a picture ready to check (#156): draws it again with a new variation number.
     func redrawPicture(_ name: String) throws {
         try start(name) { try $0.redrawPicture(name: name) }
@@ -571,8 +576,10 @@ final class AppModel {
 
     /// A mini that didn't finish and can be tried again: no print file, not waiting or being
     /// made, and it kept what it was asked for.
+    /// One whose picture is ready to check has Build Shape and its own Try Again instead (#156).
     func canRetry(_ mini: Mini) -> Bool {
         mini.stl == nil && waiting(mini.name) == nil && current?.name != mini.name && mini.settings.requested != nil && !mini.settings.isImported
+            && !Pipeline.pictureToCheck(mini.folder, settings: mini.settings)
     }
 
     /// Try Again from a failed mini's page or menus; a refusal is said as an alert.

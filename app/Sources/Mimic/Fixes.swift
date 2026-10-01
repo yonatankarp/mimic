@@ -56,6 +56,8 @@ struct VersionSheet: View {
     let newShape: Bool
     @State private var change = ""
     @State private var working = false
+    /// The AI helper writing the change; Cancel or closing the sheet stops it making it.
+    @State private var writing: Task<Void, Never>?
 
     var body: some View {
         let settings = mini.settings
@@ -78,7 +80,7 @@ struct VersionSheet: View {
                     Text("Writing the change…").font(.callout).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("Cancel", role: .cancel) { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Cancel", role: .cancel) { writing?.cancel(); dismiss() }.keyboardShortcut(.cancelAction)
                 Button("Make") { make() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(working || model.requiredProblem != nil)
@@ -86,6 +88,7 @@ struct VersionSheet: View {
         }
         .padding(20)
         .frame(width: 380)
+        .onDisappear { writing?.cancel() }
     }
 
     private var canChange: Bool { mini.source != nil && Health.shared.drawThingsReady }
@@ -94,10 +97,10 @@ struct VersionSheet: View {
         let typed = canChange ? change.trimmingCharacters(in: .whitespacesAndNewlines) : ""
         guard !typed.isEmpty, FixWriter.helperOn else { return finish(typed, used: nil) }
         working = true
-        Task {
+        writing = Task {
             let used = await FixWriter.rewrite(typed, kind: mini.settings.kind ?? .character)
             working = false
-            finish(typed, used: used)
+            if !Task.isCancelled { finish(typed, used: used) }
         }
     }
 

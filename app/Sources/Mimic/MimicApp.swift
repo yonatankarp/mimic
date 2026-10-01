@@ -125,6 +125,10 @@ struct MiniCommands: Commands {
                     .keyboardShortcut("r")
                     .disabled(mini?.hasModel != true || model.requiredProblem != nil || !free || mini.flatMap { model.waiting($0.name) } != nil)
             }
+            if let mini, model.pictureToCheck(mini) {
+                Button("Build Shape") { model.buildShape(mini) }
+                    .disabled(model.requiredProblem != nil || !free)
+            }
             if let mini, model.canRetry(mini) {
                 Button("Try Again") { model.tryAgain(mini) }
                     .disabled(model.requiredProblem != nil || !free)

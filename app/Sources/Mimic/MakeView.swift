@@ -50,8 +50,9 @@ struct MakeView: View {
     /// Version's does. Forgotten once another picture is chosen.
     @State private var drawn: URL?
     @State private var drawnSides: [PictureSide: URL] = [:]
-    /// The AI helper is rewriting the change, before it's made.
+    /// The AI helper is rewriting the change, before it's made; Cancel stops it making it.
     @State private var writing = false
+    @State private var writingTask: Task<Void, Never>?
 
     init(room: CGSize, form: MakeForm? = nil, again: Mini? = nil) {
         self.room = room
@@ -128,6 +129,7 @@ struct MakeView: View {
             Divider()
             makeBar
         }
+        .onDisappear { writingTask?.cancel() }  // closed while the helper writes: nothing is made
         .onAppear {
             // The project you're looking at: the one New Mini was asked from, else the selected
             // mini's. Edit & Make Again keeps the mini's own.
@@ -258,7 +260,7 @@ struct MakeView: View {
                 Label(timing, systemImage: "timer").foregroundStyle(.secondary)
             }
             Spacer()
-            Button("Cancel") { TourGuide.shared.newMiniCancelled(); model.sheet = nil }.keyboardShortcut(.cancelAction)
+            Button("Cancel") { writingTask?.cancel(); TourGuide.shared.newMiniCancelled(); model.sheet = nil }.keyboardShortcut(.cancelAction)
             Button("Make Mini") { make() }
                 .help("Takes \(JobProgress.about(estimate.total))\(estimate.learned ? " on this Mac" : ""); keep using your Mac meanwhile")
                 .keyboardShortcut(.defaultAction)
@@ -553,10 +555,10 @@ struct MakeView: View {
         guard missing == nil, !writing else { return }
         guard changing, FixWriter.helperOn else { return make(fixUsed: nil) }
         writing = true
-        Task {
+        writingTask = Task {
             let used = await FixWriter.rewrite(trimmedFix, kind: card.kind)
             writing = false
-            make(fixUsed: used)
+            if !Task.isCancelled { make(fixUsed: used) }
         }
     }
 
@@ -602,9 +604,10 @@ struct MakeView: View {
         let typed = trimmedFix
         if !typed.isEmpty && !health.drawThingsReady { return say("A change needs Draw Things first.", error: true) }
         writing = !typed.isEmpty && FixWriter.helperOn
-        Task {
+        writingTask = Task {
             let used = writing ? await FixWriter.rewrite(typed, kind: card.kind) : nil
             writing = false
+            guard !Task.isCancelled else { return }
             do {
                 if project == .new { project = .existing(try model.createProject(newProjectName)) }
                 if let why = model.make(pictures: pictures, restyle: sculpt, seed: seed, sizes: card.sizes, kind: card.kind,
