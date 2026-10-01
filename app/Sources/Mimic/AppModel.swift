@@ -111,6 +111,8 @@ final class AppModel {
     }
     /// View → Face Front: bumped for the mini's 3D view to turn back to face you.
     var faceFrontRequests = 0
+    /// Edit → Find: bumped for the sidebar to put the cursor in its search field.
+    var findRequests = 0
     /// The waiting job on "Take it out of the queue?", asked from the job's popover.
     var unqueueing: QueueEntry?
     /// Minis on "Move to Trash?", when one of them waits in the queue: Undo can't put it back
