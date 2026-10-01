@@ -3,7 +3,6 @@ import MimicCore
 import Observation
 import OSLog
 import SwiftUI
-import UserNotifications
 
 /// The sheet over the main window, one at a time.
 enum AppSheet: Identifiable, Equatable {
@@ -657,7 +656,7 @@ final class AppModel {
     private func start(_ name: String, _ begin: (JobRunner) throws -> Int?) throws {
         if let requiredProblem { throw Refusal(description: requiredProblem) }
         let ahead = try begin(jobs)
-        askForNotifications()
+        Notifier.ask()
         refreshQueue()
         var note: JobPresentation.QueuedNote?
         if let ahead, let ready = queueTimes().first(where: { $0.entry.name == name })?.ready {
@@ -686,7 +685,7 @@ final class AppModel {
             present { $0.jobFinished(s, onScreen: NSApp.isActive && selection == [s.name]) }
             updateBadge()
             history = timings.load()
-            announce(s)
+            jobEnded(s)
         }
     }
 
@@ -733,49 +732,8 @@ final class AppModel {
 
     // MARK: Telling you it's done
 
-    /// The Mac asks once; after that this is a no-op. Only an app bundle can use notifications:
-    /// the bare binary from `swift build` has none and would crash here.
-    private func askForNotifications() {
-        guard Bundle.main.bundleIdentifier != nil else { return }
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
-    }
-
-    /// A notification when a mini ends and Mimic isn't in front (or its window was closed), with
-    /// Open in the slicer on a ready one and Try Again on a failed one. Clicking it goes to the mini.
-    private func announce(_ s: JobStatus) {
-        guard !s.canceled, !(NSApp.isActive && NSApp.mainWindow != nil), Bundle.main.bundleIdentifier != nil else { return }
-        let who = displayName(s)
-        let content = UNMutableNotificationContent()
-        content.title = s.succeeded ? "\(who) is ready" : "\(who) didn't finish"
-        content.body = s.succeeded ? "Ready to print." : "Something went wrong while \(JobRunner.label(s.step).lowercased())."
-        content.categoryIdentifier = s.succeeded ? MiniNotification.ready : MiniNotification.failed
-        content.userInfo = [MiniNotification.mini: s.name]
-        // Again each time: the ready one names the slicer, which can change in Settings.
-        MiniNotification.register(slicer: slicerName)
-        content.sound = .default
-        // One identifier per mini: a shared one made each notification replace the last, so of
-        // three minis finishing from the queue only the last "ready" was left.
-        let id = "job-\(s.name)-\(Int(Date().timeIntervalSince1970))"
-        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: id, content: content, trigger: nil))
-    }
-
-    /// A notification about `name` was clicked (`action` is the default action) or one of its
-    /// buttons pressed.
-    func notificationAnswered(_ action: String, mini name: String) {
-        switch action {
-        case MiniNotification.retry:
-            // In the background, as the job's popover's Try Again; only a refusal brings Mimic forward.
-            do { try retry(name) } catch {
-                problem = plainWords(error, else: "Couldn't try again. Open the mini and try again from there.")
-                go(to: name)
-            }
-        case MiniNotification.open:
-            reload()
-            if let stl = minis.first(where: { $0.name == name })?.stl { openInSlicer(stl) } else { go(to: name) }
-        default:
-            go(to: name)
-        }
-    }
+    /// A job finished: the app's delegate hands it to `Notifier`, which posts the notification.
+    @ObservationIgnored var jobEnded: @MainActor (JobStatus) -> Void = { _ in }
 
     /// Mimic in front with `name` selected, the window opened again if it was closed.
     func go(to name: String) {
@@ -827,58 +785,8 @@ final class AppModel {
 
     /// The print file selected in Finder, or the folder when there's no print file yet.
     func showInFinder(_ minis: [Mini]) { NSWorkspace.shared.activateFileViewerSelecting(minis.map { $0.stl ?? $0.folder }) }
-
-    /// Help → Report a Problem…, or a failed mini's (#100): asks about the picture, makes the
-    /// report, shows it in Finder and opens GitHub's bug form to drag it into. Reports are kept
-    /// in the minis folder's `_reports`, which Mimic can already write to (Downloads or the
-    /// Desktop would ask for permission first) and the gallery never lists.
-    func reportProblem(_ mini: Mini? = nil) {
-        let alert = NSAlert()
-        alert.messageText = mini.map { "Report a problem with “\($0.displayName)”?" } ?? "Report a problem?"
-        let what = mini == nil ? "its notes on what happened" : "its notes on making this mini, the mini's settings"
-        alert.informativeText = "Mimic puts \(what), and which Mac and version this is, into one file, "
-            + "with keys and passwords taken out. Then it shows you the file and opens a form on GitHub to attach it to."
-        alert.addButton(withTitle: "Make Report")
-        alert.addButton(withTitle: "Cancel")
-        let hasPicture = mini.flatMap { $0.source ?? $0.upload } != nil
-        // Its own checkbox: the alert's suppression checkbox means "Don't ask again".
-        let include = NSButton(checkboxWithTitle: "Include the picture (the issue is public)", target: nil, action: nil)
-        include.state = .off
-        include.sizeToFit()
-        if hasPicture { alert.accessoryView = include }
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        let picture = hasPicture && include.state == .on
-        let folder = install.runs.appendingPathComponent("_reports"), build = BuildInfo.line, mac = Report.mac
-        let failure = mini.map { $0.settings.failed ?? "It stopped before it was done." }
-        Task {
-            let made: URL? = await Task.detached {
-                let log = Log.recent(since: Date().addingTimeInterval(-3600))
-                return try? Report.write(to: folder, mini: mini, picture: picture, build: build, mac: mac, appLog: log)
-            }.value
-            guard let made else { problem = "Couldn't make the report. Check that Mimic's folder is still there, then try again."; return }
-            NSWorkspace.shared.activateFileViewerSelecting([made])
-            NSWorkspace.shared.open(Report.issueURL(build: build, mac: mac, failure: failure))
-        }
-    }
 }
 
 /// A job refused before it started, in words for people.
 struct Refusal: Error, CustomStringConvertible { let description: String }
-
-/// What a finished mini's notification carries, and its buttons.
-enum MiniNotification {
-    static let ready = "mini-ready", failed = "mini-failed"
-    static let retry = "try-again", open = "open-in-slicer"
-    /// The userInfo key holding the mini's name.
-    static let mini = "mini"
-
-    static func register(slicer: String) {
-        UNUserNotificationCenter.current().setNotificationCategories([
-            UNNotificationCategory(identifier: ready, actions: [UNNotificationAction(identifier: open, title: "Open in \(slicer)")],
-                                   intentIdentifiers: []),
-            UNNotificationCategory(identifier: failed, actions: [UNNotificationAction(identifier: retry, title: "Try Again")],
-                                   intentIdentifiers: []),
-        ])
-    }
-}
 

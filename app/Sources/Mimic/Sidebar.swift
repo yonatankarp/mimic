@@ -11,6 +11,7 @@ import UniformTypeIdentifiers
 /// (MainWindowChrome), so the Mini menu can ask too, sidebar hidden or not.
 struct Sidebar: View {
     @Environment(AppModel.self) private var model
+    @Environment(Reporter.self) private var reporter
     @State private var query = ""
     @SceneStorage("gallerySort") private var sort = GallerySort.made
     @SceneStorage("galleryShow") private var show = GalleryShow.all
@@ -264,7 +265,7 @@ struct Sidebar: View {
         if model.canRetry(mini) {
             Button("Try Again", systemImage: "arrow.clockwise") { model.tryAgain(mini) }
                 .disabled(model.requiredProblem != nil)
-            Button("Report a Problem…", systemImage: "exclamationmark.bubble") { model.reportProblem(mini) }
+            Button("Report a Problem…", systemImage: "exclamationmark.bubble") { reporter.report(mini) }
         }
         Button("Rename…", systemImage: "pencil") { model.sheet = .rename(mini) }
             .disabled(model.waiting(mini.name) != nil)

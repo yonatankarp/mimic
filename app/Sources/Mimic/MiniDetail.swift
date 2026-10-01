@@ -9,6 +9,7 @@ import SwiftUI
 struct MiniDetail: View {
     let mini: Mini
     @Environment(AppModel.self) private var model
+    @Environment(Reporter.self) private var reporter
     /// The preview tile ← → move from while the previews have the keyboard.
     @State private var picked: MiniPreview?
     @FocusState private var previewsFocused: Bool
@@ -102,7 +103,7 @@ struct MiniDetail: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(model.requiredProblem != nil)
                     .help(model.requiredProblem ?? "Makes it again from the step that failed")
-                Button("Report a Problem…") { model.reportProblem(mini) }
+                Button("Report a Problem…") { reporter.report(mini) }
                     .help("Makes a file of what happened and opens a form on GitHub to send it with")
             }
         } else if mini.settings.isImported && mini.hasModel && model.waiting(mini.name) == nil {

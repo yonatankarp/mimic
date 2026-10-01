@@ -2,7 +2,6 @@ import AppKit
 import MimicCore
 import SwiftUI
 import TipKit
-import UserNotifications
 
 /// The job's popover under its toolbar item: three steps, a bar, the time so far, the queue,
 /// and what to do when it ends. It never covers the window; a click outside closes it.
@@ -734,6 +733,15 @@ private struct NeedsSetupItem: View {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let model = AppModel()
+    let notifier = Notifier()
+    let reporter = Reporter()
+
+    override init() {
+        super.init()
+        notifier.model = model
+        reporter.model = model
+        model.jobEnded = { [notifier] in notifier.announce($0) }
+    }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let s = model.job, s.running else { return .terminateNow }
@@ -774,11 +782,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         Tips.startUp()
-        // Before launching ends, so a click on a notification that opened Mimic reaches it.
-        if Bundle.main.bundleIdentifier != nil {
-            UNUserNotificationCenter.current().delegate = self
-            MiniNotification.register(slicer: model.slicerName)
-        }
+        notifier.start()
     }
 
     /// Closing the window quits Mimic, except while a mini is being made or waiting, or setup is
@@ -813,18 +817,4 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func showProgress() { model.showWindow(); Task { model.jobPopover = true } }
     @objc private func togglePause() { model.togglePause() }
     @objc private func stopJob() { model.showWindow(); Task { model.confirmingStop = true } }
-}
-
-extension AppDelegate: UNUserNotificationCenterDelegate {
-    /// A finished mini's notification: clicked, Open in the slicer, or Try Again. The center may
-    /// call from any thread, so only plain strings cross to the main actor.
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
-        let action = response.actionIdentifier
-        guard let name = response.notification.request.content.userInfo[MiniNotification.mini] as? String else { return }
-        await MainActor.run { model.notificationAnswered(action, mini: name) }
-    }
-
-    /// Shown even with Mimic in front: it only posts one then when its window is closed.
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async
-        -> UNNotificationPresentationOptions { [.banner, .list, .sound] }
 }
