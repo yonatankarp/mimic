@@ -23,7 +23,9 @@ public final class GroupProcess: @unchecked Sendable {
         var attr = posix_spawnattr_t(nil as OpaquePointer?)
         posix_spawnattr_init(&attr)
         defer { posix_spawnattr_destroy(&attr) }
-        if newSession { posix_spawnattr_setflags(&attr, Int16(POSIX_SPAWN_SETSID)) }
+        // Only the descriptors set up below reach the program, not every one the app has open:
+        // a job holding a Settings check's pipe would keep that check from ever finishing.
+        posix_spawnattr_setflags(&attr, Int16(POSIX_SPAWN_CLOEXEC_DEFAULT | (newSession ? POSIX_SPAWN_SETSID : 0)))
 
         var actions = posix_spawn_file_actions_t(nil as OpaquePointer?)
         posix_spawn_file_actions_init(&actions)
@@ -38,6 +40,11 @@ public final class GroupProcess: @unchecked Sendable {
             posix_spawn_file_actions_adddup2(&actions, output.fd, 2)
             posix_spawn_file_actions_addclose(&actions, output.fd)
             posix_spawn_file_actions_addclose(&actions, output.closeInChild)
+        }
+        // Neither: it writes where this program does, so those two have to be kept open.
+        if log == nil && output == nil {
+            posix_spawn_file_actions_addinherit_np(&actions, 1)
+            posix_spawn_file_actions_addinherit_np(&actions, 2)
         }
         if let workingDirectory { posix_spawn_file_actions_addchdir(&actions, workingDirectory) }
 
