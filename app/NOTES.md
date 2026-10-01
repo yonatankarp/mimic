@@ -392,7 +392,8 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   `MIMIC_FAKE_HOME` (a new Mac's home folder, `installDir` ignored) and `MIMIC_DOWNLOAD_MIRROR`
   (a local server instead of the internet) are for trying it.
 - **Notifications work from the self-assembled app:** `mimic --probe-notifications` inside
-  the bundle reads the settings without a prompt (status 0, not yet asked).
+  the bundle read the settings without a prompt (status 0, not yet asked). The probe has since
+  been removed.
 - **Dev and release builds are different apps** (name and bundle id), so development never
   replaces the Mimic you use or shares its settings.
 - **Draw Things' model is asked for, not looked up.** Its downloads are in its private
