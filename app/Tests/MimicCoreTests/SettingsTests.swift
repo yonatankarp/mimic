@@ -107,4 +107,16 @@ final class SettingsTests: XCTestCase {
         let req = json["requested"] as! [String: String]
         XCTAssertEqual(req, ["height": "32", "nozzle": "0.4", "nobase": "1"])
     }
+
+    /// mimic resize keeps what it isn't told, as the app's Resize does: a mini made for a 0.2 mm
+    /// nozzle was resized for 0.4.
+    func testAResizeKeepsWhatTheMiniWasMadeWith() {
+        let made = Sizes(height: "32", base: "25", nozzle: "0.2", shape: .hex, style: .stone, magnet: .mm5x2)
+        let kept = Sizes(height: "35").resizing(made, shapeGiven: false, styleGiven: false, magnetGiven: false)
+        XCTAssertEqual(kept, Sizes(height: "35", nozzle: "0.2", shape: .hex, style: .stone, magnet: .mm5x2))
+        let given = Sizes(height: "35", nozzle: "0.6", shape: .square, style: .plain)
+            .resizing(made, shapeGiven: true, styleGiven: true, magnetGiven: true)
+        XCTAssertEqual(given, Sizes(height: "35", nozzle: "0.6", shape: .square, style: .plain), "what's given wins, even plain and no magnet")
+        XCTAssertEqual(Sizes(height: "35").resizing(nil, shapeGiven: false, styleGiven: false, magnetGiven: false), Sizes(height: "35"))
+    }
 }
