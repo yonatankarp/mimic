@@ -327,7 +327,7 @@ extension ProjectTests {
         let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("slow", "sleep 5")), trash: { spy($0) })
         XCTAssertNil(try jobs.make(name: "raven", picture: .image(picture), restyle: false, seed: 1, sizes: sizes,
                                    model: EngineDownload.standard, project: "Birds"))
-        for _ in 0..<100 where jobs.status?.step != 2 { usleep(50_000) }
+        for _ in 0..<100 where jobs.status?.step != .shape { usleep(50_000) }
         XCTAssertTrue(jobs.cancel())
         jobs.waitUntilDone()
         XCTAssertEqual(spy.trashed.map(\.path), [runs.appendingPathComponent("Birds/raven").path])

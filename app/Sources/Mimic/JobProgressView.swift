@@ -13,8 +13,8 @@ struct JobProgressView: View {
     @State private var retryDetail: String?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    static let steps = [(1, "Getting the picture ready"), (2, "Building the 3D shape (the long part)"),
-                        (3, "Making the print-ready file")]
+    static let steps: [(JobStep, String)] = [(.picture, "Getting the picture ready"), (.shape, "Building the 3D shape (the long part)"),
+                                             (.print, "Making the print-ready file")]
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -48,9 +48,9 @@ struct JobProgressView: View {
             title(s, who: who).font(.title3.bold())
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(Self.steps.filter { s.kind == .generate || $0.0 == 3 }, id: \.0) { n, label in
+                    ForEach(Self.steps.filter { s.kind == .generate || $0.0 == .print }, id: \.0) { n, label in
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            StepMark(state: state(of: n, in: s), number: n)
+                            StepMark(state: state(of: n, in: s), number: n.rawValue)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(label).foregroundStyle(state(of: n, in: s) == .pending ? .secondary : .primary)
                                 // Its time left, or how long it should take.
@@ -82,7 +82,7 @@ struct JobProgressView: View {
                         Button("Open in \(model.slicerName)") { model.jobPopover = false; model.openInSlicer(stl) }
                             .buttonStyle(.glassProminent)
                             .keyboardShortcut(.defaultAction)
-                    } else if !s.succeeded && !s.canceled {
+                    } else if s.outcome == .failed {
                         if JobProgress.drawThingsCaused(s) {
                             Button("Open Setup") { model.jobPopover = false; SettingsTab.drawThings.select(); openSettings() }
                         }
@@ -103,7 +103,7 @@ struct JobProgressView: View {
         return VStack(alignment: .leading, spacing: 10) {
             Label("\(model.doing(s)) \(model.displayName(s))", systemImage: Self.symbol(s.kind))
                 .font(.title3.bold())
-            Text("Another Mimic is doing this one (another copy of the app, or Terminal): stop it there. Step \(s.step) of 3 · \(JobProgress.about(estimate.left(s, now: now))) left.")
+            Text("Another Mimic is doing this one (another copy of the app, or Terminal): stop it there. Step \(s.step.rawValue) of 3 · \(JobProgress.about(estimate.left(s, now: now))) left.")
                 .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             ProgressView(value: JobProgress.fraction(s, estimate: estimate, now: now)).progressViewStyle(GlidingBar(working: true))
         }
@@ -116,12 +116,11 @@ struct JobProgressView: View {
             Text("Finished while you waited").font(.headline)
             ForEach(Array(model.ended.enumerated().reversed()), id: \.offset) { _, s in
                 HStack {
-                    Image(systemName: s.succeeded ? "checkmark.circle.fill" : s.canceled ? "stop.circle" : "exclamationmark.triangle.fill")
-                        .foregroundStyle(s.succeeded ? .green : s.canceled ? .secondary : .orange)
+                    Image(systemName: s.outcome.symbol).foregroundStyle(s.outcome.color)
                     Text(s.succeeded ? "\(model.displayName(s)) is ready" : s.canceled ? "Stopped \(model.displayName(s))"
                                                                             : "\(model.displayName(s)) didn't finish")
                     Spacer()
-                    if !s.succeeded && !s.canceled {
+                    if s.outcome == .failed {
                         Button("Try Again") { tryAgain(s.name) }
                             .disabled(model.requiredProblem != nil || model.waiting(s.name) != nil || model.isImported(s.name))
                             .help(model.isImported(s.name) ? RequestError.imported(s.name).description : s.problem ?? "")
@@ -133,22 +132,23 @@ struct JobProgressView: View {
 
     @ViewBuilder private func note(_ s: JobStatus, estimate: Estimate, now: Date) -> some View {
         Group {
-            if s.running {
+            switch s.outcome {
+            case .running:
                 Text(JobProgress.note(s, estimate: estimate, now: now))
                     .foregroundStyle(JobProgress.pace(s, estimate: estimate, now: now) == .usual ? Color.secondary : .orange)
                     // The time so far rolls from one second to the next.
                     .contentTransition(.numericText())
                     .animation(reduceMotion ? nil : .default, value: Int(now.timeIntervalSince(s.started)))
-            } else if s.canceled {
+            case .stopped:
                 Text(s.kind == .prep && !s.importing ? "It keeps its previous size." : "Nothing was kept. It's in the Trash if you want the pieces.")
                     .foregroundStyle(.secondary)
-            } else if s.succeeded {
+            case .finished:
                 ForEach(s.notes, id: \.self) { Label($0, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange) }
                 if s.fragile {
                     Label("Your mini is ready, but some thin parts may be fragile. Check it in your slicer before printing.",
                           systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                 }
-            } else {
+            case .failed:
                 VStack(alignment: .leading, spacing: 4) {
                     Text(JobProgress.drawThingsCaused(s) ? "Draw Things didn't answer. Check the setup steps, then try again."
                          : model.isImported(s.name) ? "Try Resize This Mini with other sizes, or check the model in the app it came from."
@@ -169,14 +169,15 @@ struct JobProgressView: View {
     }
 
     @ViewBuilder private func title(_ s: JobStatus, who: String) -> some View {
-        if s.running {
+        switch s.outcome {
+        case .running:
             Label("\(model.doing(s)) \(who)", systemImage: Self.symbol(s.kind))
-        } else if s.canceled {
+        case .stopped:
             Label("Stopped \(model.doing(s).lowercased()) \(who)", systemImage: "stop.circle")
-        } else if s.succeeded {
+        case .finished:
             Label { Text("\(who) is ready") } icon: { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green) }
-        } else {
-            Label { Text("Something went wrong while \(JobRunner.label(s.step).lowercased())").fixedSize(horizontal: false, vertical: true) }
+        case .failed:
+            Label { Text("Something went wrong while \(s.step.label.lowercased())").fixedSize(horizontal: false, vertical: true) }
                 icon: { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange) }
         }
     }
@@ -184,11 +185,13 @@ struct JobProgressView: View {
     /// Making or resizing, as the menus show them.
     static func symbol(_ kind: JobKind) -> String { kind == .prep ? "arrow.up.left.and.arrow.down.right" : "cube" }
 
-    private func state(of n: Int, in s: JobStatus) -> StepMark.State {
-        if s.running { return n < s.step ? .done : n == s.step ? .active : .pending }
-        if s.succeeded { return .done }
-        if s.canceled { return .pending }
-        return n < s.step ? .done : n == s.step ? .failed : .pending
+    private func state(of n: JobStep, in s: JobStatus) -> StepMark.State {
+        switch s.outcome {
+        case .running: n < s.step ? .done : n == s.step ? .active : .pending
+        case .finished: .done
+        case .stopped: .pending
+        case .failed: n < s.step ? .done : n == s.step ? .failed : .pending
+        }
     }
 }
 
@@ -382,8 +385,8 @@ private struct JobPicture: View {
         // moment step 1 writes it.
         let file = shownFile
         let version = (try? FileManager.default.attributesOfItem(atPath: file.path))?[.modificationDate] as? Date
-        let building = status.running && status.kind == .generate && status.step == 2
-        let failed = !status.running && !status.succeeded && !status.canceled
+        let building = status.running && status.kind == .generate && status.step == .shape
+        let failed = status.outcome == .failed
         let shape = RoundedRectangle(cornerRadius: 12)
         Thumbnail(url: version == nil ? nil : file, version: version ?? .distantPast)
             .frame(width: 84, height: 84)
@@ -446,8 +449,8 @@ struct JobToolbarItem: View {
                                 ProgressRing(fraction: JobProgress.fraction(s, estimate: model.estimate(s), now: context.date))
                                     .transition(.opacity)
                             } else {
-                                Image(systemName: s.succeeded ? "checkmark.circle.fill" : s.canceled ? "stop.circle" : "exclamationmark.triangle.fill")
-                                    .foregroundStyle(s.succeeded ? .green : s.canceled ? .secondary : .orange)
+                                Image(systemName: s.outcome.symbol)
+                                    .foregroundStyle(s.outcome.color)
                                     .transition(reduceMotion || !s.succeeded ? .opacity : .scale(scale: 0.3).combined(with: .opacity))
                             }
                             Text(label(s, now: context.date)).monospacedDigit()
@@ -476,9 +479,32 @@ struct JobToolbarItem: View {
     private func label(_ s: JobStatus, now: Date) -> String {
         let who = model.displayName(s)
         let waiting = model.queue.isEmpty ? "" : " · \(model.queue.count) waiting" + (model.paused ? ", paused" : "")
-        if s.running { return "\(model.doing(s)) \(who) · \(JobProgress.clock(now.timeIntervalSince(s.started)))\(waiting)" }
-        if s.canceled { return "Stopped \(who)\(waiting)" }
-        return (s.succeeded ? "\(who) is ready" : "\(who) didn't finish") + waiting
+        switch s.outcome {
+        case .running: return "\(model.doing(s)) \(who) · \(JobProgress.clock(now.timeIntervalSince(s.started)))\(waiting)"
+        case .stopped: return "Stopped \(who)\(waiting)"
+        case .finished: return "\(who) is ready" + waiting
+        case .failed: return "\(who) didn't finish" + waiting
+        }
+    }
+}
+
+/// How an ended job is marked beside its name: in the toolbar, and in the jobs that ended
+/// while the next one went on.
+private extension JobOutcome {
+    var symbol: String {
+        switch self {
+        case .finished: "checkmark.circle.fill"
+        case .stopped: "stop.circle"
+        case .running, .failed: "exclamationmark.triangle.fill"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .finished: .green
+        case .stopped: .secondary
+        case .running, .failed: .orange
+        }
     }
 }
 

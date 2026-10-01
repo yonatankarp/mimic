@@ -30,7 +30,7 @@ final class TimingsTests: XCTestCase {
         let crow = try fx.mini("crow")  // its picture and its 3D shape
         for d in [owl, raven, crow] { try MiniSettings.update(d) { $0.source = .desc; $0.desc = "a bird" } }
         let full = Estimator.estimate(JobShape(.generate, settings: MiniSettings.load(owl)), history: [])
-        let picture = try XCTUnwrap(full.steps[1]), printFile = try XCTUnwrap(full.steps[3])
+        let picture = try XCTUnwrap(full.steps[.picture]), printFile = try XCTUnwrap(full.steps[.print])
         let rows = jobs.queueTimes(["owl", "raven", "crow"].map { QueueEntry(name: $0, job: .generate) }, running: nil, history: [])
         XCTAssertEqual(rows.map(\.estimate.total), [full.total, full.total - picture, printFile])
         XCTAssertEqual(rows.map(\.ready), [full.total, 2 * full.total - picture, 2 * full.total - picture + printFile])
@@ -73,22 +73,22 @@ final class TimingsTests: XCTestCase {
         ]
         let e = Estimator.estimate(make, history: history, machine: mac)
         XCTAssertTrue(e.learned)
-        XCTAssertEqual(e.steps, [1: 50, 2: 300, 3: 6])
+        XCTAssertEqual(e.steps, [.picture: 50, .shape: 300, .print: 6])
         // Only two TRELLIS.2 makes: its 3D step is still the fixed one, the other steps learned.
         let t = Estimator.estimate(JobShape(job: .generate, model: "trellis2-q8", drawn: true, nozzle: "0.4", height: 32), history: history, machine: mac)
         XCTAssertFalse(t.learned)
-        XCTAssertEqual(t.steps[2], Estimator.fixed(JobShape(job: .generate, model: "trellis2-q8", drawn: true)).steps[2])
-        XCTAssertEqual(t.steps[1], 50)
+        XCTAssertEqual(t.steps[.shape], Estimator.fixed(JobShape(job: .generate, model: "trellis2-q8", drawn: true)).steps[.shape])
+        XCTAssertEqual(t.steps[.picture], 50)
     }
 
     /// A copied picture takes seconds; one Draw Things draws takes a minute. They're told apart.
     func testTheFirstStepDependsOnWhereThePictureComesFrom() {
         let drawn = (0..<3).map { _ in record(steps: [1: 70, 2: 300, 3: 6]) }
         let copied = (0..<3).map { _ in record(steps: [1: 1, 2: 300, 3: 6], source: "picture") }
-        XCTAssertEqual(Estimator.estimate(make, history: drawn + copied, machine: mac).steps[1], 70)
+        XCTAssertEqual(Estimator.estimate(make, history: drawn + copied, machine: mac).steps[.picture], 70)
         var shape = make; shape.drawn = false
-        XCTAssertEqual(Estimator.estimate(shape, history: drawn + copied, machine: mac).steps[1], 1)
-        XCTAssertEqual(Estimator.estimate(shape, history: drawn, machine: mac).steps[1], 5, "no copied pictures yet: the fixed seconds")
+        XCTAssertEqual(Estimator.estimate(shape, history: drawn + copied, machine: mac).steps[.picture], 1)
+        XCTAssertEqual(Estimator.estimate(shape, history: drawn, machine: mac).steps[.picture], 5, "no copied pictures yet: the fixed seconds")
     }
 
     /// Print prep grows with the size and a finer nozzle: a resize is estimated from ones like it
@@ -103,42 +103,42 @@ final class TimingsTests: XCTestCase {
             record("resize", steps: [3: 21], nozzle: "0.2", height: 90),
         ]
         let small = Estimator.estimate(JobShape(job: .prep, model: "pixal3d-sv", drawn: false, nozzle: "0.4", height: 32), history: history, machine: mac)
-        XCTAssertEqual(small.steps, [3: 6])
+        XCTAssertEqual(small.steps, [.print: 6])
         XCTAssertTrue(small.learned)
         let big = Estimator.estimate(JobShape(job: .prep, model: "pixal3d-sv", drawn: false, nozzle: "0.2", height: 100), history: history, machine: mac)
-        XCTAssertEqual(big.steps, [3: 21])
+        XCTAssertEqual(big.steps, [.print: 21])
         let unlike = Estimator.estimate(JobShape(job: .prep, model: "pixal3d-sv", drawn: false, nozzle: "0.6", height: 54), history: history, machine: mac)
-        XCTAssertEqual(unlike.steps, [3: 13.5], "nothing similar: every print prep on this Mac")
+        XCTAssertEqual(unlike.steps, [.print: 13.5], "nothing similar: every print prep on this Mac")
     }
 
     /// Time left: the rest of this step (none once it's over its time) and every step after.
     func testTimeLeftPerStep() {
-        let e = Estimate(steps: [1: 60, 2: 300, 3: 30], learned: true)
+        let e = Estimate(steps: [.picture: 60, .shape: 300, .print: 30], learned: true)
         let t0 = Date(timeIntervalSince1970: 0)
-        var s = JobStatus(name: "a", kind: .generate, step: 2, started: t0)
+        var s = JobStatus(name: "a", kind: .generate, step: .shape, started: t0)
         s.stepStarted = t0.addingTimeInterval(60)
         XCTAssertEqual(e.left(s, now: t0.addingTimeInterval(160)), 230)
         XCTAssertEqual(e.fraction(s, now: t0.addingTimeInterval(160)), 160.0 / 390)
         XCTAssertEqual(e.left(s, now: t0.addingTimeInterval(1000)), 30, "past its time, a step has nothing left, the rest still do")
-        XCTAssertEqual(JobProgress.stepNote(2, of: s, estimate: e, now: t0.addingTimeInterval(160)), "about 3 minutes left")
-        XCTAssertEqual(JobProgress.stepNote(3, of: s, estimate: e, now: t0.addingTimeInterval(160)), "seconds")
-        XCTAssertNil(JobProgress.stepNote(1, of: s, estimate: e, now: t0.addingTimeInterval(160)), "a step that's done")
+        XCTAssertEqual(JobProgress.stepNote(.shape, of: s, estimate: e, now: t0.addingTimeInterval(160)), "about 3 minutes left")
+        XCTAssertEqual(JobProgress.stepNote(.print, of: s, estimate: e, now: t0.addingTimeInterval(160)), "seconds")
+        XCTAssertNil(JobProgress.stepNote(.picture, of: s, estimate: e, now: t0.addingTimeInterval(160)), "a step that's done")
         XCTAssertEqual(JobProgress.fraction(s, estimate: e, now: t0.addingTimeInterval(1000)), 360.0 / 390,
                        "a step past its time holds the bar at its end rather than claiming the next")
     }
 
     func testNotesFollowTheEstimate() {
-        let e = Estimate(steps: [1: 60, 2: 300, 3: 30], learned: true)
+        let e = Estimate(steps: [.picture: 60, .shape: 300, .print: 30], learned: true)
         let t0 = Date(timeIntervalSince1970: 0)
-        var s = JobStatus(name: "a", kind: .generate, step: 1, started: t0)
+        var s = JobStatus(name: "a", kind: .generate, step: .picture, started: t0)
         s.stepStarted = t0
         XCTAssertTrue(JobProgress.note(s, estimate: e, now: t0.addingTimeInterval(30)).hasPrefix("About 6 minutes left · 0:30 so far."))
         XCTAssertTrue(JobProgress.note(s, estimate: e, now: t0.addingTimeInterval(390 * 1.35 + 1)).contains("Taking longer than usual"))
         XCTAssertTrue(JobProgress.note(s, estimate: e, now: t0.addingTimeInterval(390 * 2.8 + 1)).contains("unusually slow"))
-        var p = JobStatus(name: "a", kind: .prep, step: 3, started: t0)
+        var p = JobStatus(name: "a", kind: .prep, step: .print, started: t0)
         p.stepStarted = t0
-        XCTAssertEqual(JobProgress.note(p, estimate: Estimate(steps: [3: 45], learned: false), now: t0.addingTimeInterval(12)), "Less than a minute left · 0:12 so far.")
-        XCTAssertEqual(JobProgress.note(p, estimate: Estimate(steps: [3: 45], learned: false), now: t0.addingTimeInterval(100)), "Nearly done · 1:40 so far.",
+        XCTAssertEqual(JobProgress.note(p, estimate: Estimate(steps: [.print: 45], learned: false), now: t0.addingTimeInterval(12)), "Less than a minute left · 0:12 so far.")
+        XCTAssertEqual(JobProgress.note(p, estimate: Estimate(steps: [.print: 45], learned: false), now: t0.addingTimeInterval(100)), "Nearly done · 1:40 so far.",
                        "a short job a minute over isn't called slow")
         XCTAssertEqual(JobProgress.about(8 * 60), "about 8 minutes")
         XCTAssertEqual(JobProgress.about(80 * 60), "about 1 hour 20 minutes")

@@ -32,7 +32,7 @@ final class MiniActionsTests: XCTestCase {
         XCTAssertEqual(maker.status?.running, true, "a request naming another mini stopped this one")
         XCTAssertFalse(FileManager.default.fileExists(atPath: maker.queue.stopFile.path))
         // So is one for an earlier job of the same name (#173).
-        let earlier = JobStatus(name: "mini", kind: .prep, step: 3, started: Date(timeIntervalSinceNow: -3600))
+        let earlier = JobStatus(name: "mini", kind: .prep, step: .print, started: Date(timeIntervalSinceNow: -3600))
         try Data(JobRunner.stopAsk(earlier).utf8).write(to: maker.queue.stopFile)
         XCTAssertTrue(eventually { !FileManager.default.fileExists(atPath: maker.queue.stopFile.path) }, "the request was never read")
         XCTAssertEqual(maker.status?.running, true, "a request for an earlier job of this name stopped this one")
@@ -72,7 +72,7 @@ final class MiniActionsTests: XCTestCase {
     func testAStopThatCameTooLateSaysSoAndIsTakenBack() throws {
         let fx = try Fixture()
         // Just short of a whole second: what `mimic stop` reads from job.json still matches it.
-        let job = JobStatus(name: "mini", kind: .prep, step: 3, started: Date(timeIntervalSince1970: 1_700_000_000.9999))
+        let job = JobStatus(name: "mini", kind: .prep, step: .print, started: Date(timeIntervalSince1970: 1_700_000_000.9999))
         SharedJob.write(job, queue: fx.install.queue)  // another Mimic, which finishes it before it looks
         XCTAssertEqual(JobRunner.stopTime(try XCTUnwrap(SharedJob.read(queue: fx.install.queue)).started), JobRunner.stopTime(job.started))
         let terminal = JobRunner(install: fx.install, tools: fx.tools())
@@ -105,7 +105,7 @@ final class MiniActionsTests: XCTestCase {
     /// job of the same name.
     func testAnUnansweredStopIsTakenBack() throws {
         let fx = try Fixture()
-        let job = JobStatus(name: "mini", kind: .generate, step: 2, started: Date())
+        let job = JobStatus(name: "mini", kind: .generate, step: .shape, started: Date())
         SharedJob.write(job, queue: fx.install.queue)  // as if another Mimic were making it, and deaf
         let terminal = JobRunner(install: fx.install, tools: fx.tools())
         guard case .noAnswer = terminal.stopElsewhere(timeout: 0.5) else { return XCTFail("no Mimic stopped it") }
