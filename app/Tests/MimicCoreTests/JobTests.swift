@@ -316,6 +316,60 @@ final class JobTests: XCTestCase {
         XCTAssertEqual(spy.trashed.map(\.lastPathComponent), ["mini"])
     }
 
+    /// Stop ends the job only once everything it started has ended too (#174): a program slow
+    /// to die on SIGTERM can't hold memory into the next job, or outlive Mimic quitting with
+    /// no record left to stop it by.
+    func testStopWaitsForEverythingTheJobStarted() throws {
+        let fx = try Fixture()
+        let childFile = fx.root.appendingPathComponent("child.pid").path
+        // The engine ends at once; what it started takes 2 s more.
+        let engine = try fx.script("fake-engine", "(trap '' TERM; sleep 2) & echo $! > \(childFile); wait")
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: engine), trash: { _ in })
+        try fx.modelFiles()
+        try jobs.make(name: "mini", picture: .image(try fx.picture()), restyle: false, seed: 1, sizes: sizes, model: EngineDownload.standard)
+        var child: pid_t = 0
+        for _ in 0..<100 {
+            if let s = try? String(contentsOfFile: childFile, encoding: .utf8), let p = pid_t(s.trimmingCharacters(in: .whitespacesAndNewlines)) { child = p; break }
+            usleep(50_000)
+        }
+        XCTAssertGreaterThan(child, 0)
+        XCTAssertTrue(jobs.cancel())
+        jobs.waitUntilDone()
+        XCTAssertNotEqual(kill(child, 0), 0, "the job ended while what it started still ran")
+        XCTAssertFalse(Leftover.recorded(queue: fx.install.queue))
+    }
+
+    /// `mimic make` stops its job when its Terminal window is closed or it's killed, not only on
+    /// Ctrl-C (#174): the job's programs, in a session of their own, don't hear it themselves.
+    func testClosingTheTerminalOrKillStopsTheJob() throws {
+        let saved = [SIGINT, SIGHUP, SIGTERM].map { sig -> (Int32, sigaction) in
+            var old = sigaction()
+            sigaction(sig, nil, &old)
+            return (sig, old)
+        }
+        defer { for (sig, old) in saved { var o = old; sigaction(sig, &o, nil) } }
+        for sig in [SIGHUP, SIGTERM] {
+            let fx = try Fixture()
+            let started = fx.root.appendingPathComponent("started").path, termed = fx.root.appendingPathComponent("termed").path
+            // Ends as soon as it hears SIGTERM, as the 3D engine should.
+            let engine = try fx.script("fake-engine", "trap 'touch \(termed); exit 143' TERM; touch \(started); sleep 60 & wait")
+            let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: engine), trash: { _ in })
+            // Listening before the job starts, as `mimic make` does: its programs still hear Stop.
+            let signals = jobs.stopOnSignals()
+            try fx.modelFiles()
+            try jobs.make(name: "mini", picture: .image(try fx.picture()), restyle: false, seed: 1, sizes: sizes, model: EngineDownload.standard)
+            for _ in 0..<100 where !FileManager.default.fileExists(atPath: started) { usleep(50_000) }
+            let asked = Date()
+            // Until it's heard: the listener may not be up yet.
+            for _ in 0..<100 where jobs.status?.canceled != true { kill(getpid(), sig); usleep(50_000) }
+            jobs.waitUntilDone()
+            signals.forEach { $0.cancel() }
+            XCTAssertEqual(jobs.status?.canceled, true, "signal \(sig) didn't stop the job")
+            XCTAssertTrue(FileManager.default.fileExists(atPath: termed), "the job's program never heard SIGTERM")
+            XCTAssertLessThan(Date().timeIntervalSince(asked), 4, "it took the SIGKILL after the grace to stop it")
+        }
+    }
+
     /// Quitting during a make (#82): the mini goes back to the front of the queue, not to the
     /// Trash, and the next run starts at the step it was on. The step's half-written file goes,
     /// so it isn't taken for a finished one.
