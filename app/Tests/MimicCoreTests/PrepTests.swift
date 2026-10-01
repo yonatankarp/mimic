@@ -645,6 +645,33 @@ final class PrepTests: XCTestCase {
         XCTAssertEqual(read.triangles, [[0, 1, 2]])
         XCTAssertThrowsError(try GLB.parse(Data("not a model".utf8)))
     }
+
+    /// Trimming a 960-triangle ball to 300 keeps it one closed ball: every edge between exactly
+    /// two triangles, facing opposite ways, and still a sphere's count of corners for its faces
+    /// (V - E + F = 2: 152 corners for 300 faces). Its volume barely moves. One already under
+    /// the target is left as it is.
+    func testDecimateKeepsTheBallClosed() {
+        let ball = Self.sphere(radius: 10)
+        XCTAssertEqual(ball.triangles.count, 960)
+        let volume = { (m: Mesh) in Filament.volume(m.triangles.flatMap { t in [t.x, t.y, t.z].map { m.positions[Int($0)] } }) }
+
+        let trimmed = Decimate.run(ball, target: 300)
+        XCTAssertEqual(trimmed.triangles.count, 300, "each collapse takes two triangles, from an even count")
+        XCTAssertEqual(trimmed.positions.count, 152)
+        var edges: [SIMD2<UInt32>: Int] = [:]
+        for t in trimmed.triangles {
+            XCTAssert(t.x != t.y && t.y != t.z && t.z != t.x, "a triangle with a corner twice: \(t)")
+            for (a, b) in [(t.x, t.y), (t.y, t.z), (t.z, t.x)] { edges[SIMD2(a, b), default: 0] += 1 }
+        }
+        XCTAssertEqual(edges.count, 900, "450 edges, each once in each direction")
+        XCTAssertTrue(edges.allSatisfy { $0.value == 1 && edges[SIMD2($0.key.y, $0.key.x)] == 1 }, "an edge isn't between exactly two triangles")
+        XCTAssertEqual(volume(trimmed), volume(ball), accuracy: volume(ball) * 0.08)
+
+        let kept = Decimate.run(ball, target: 1000)
+        XCTAssertEqual(kept.triangles.count, 960)
+        XCTAssertEqual(kept.positions.count, ball.positions.count)
+        XCTAssertEqual(volume(kept), volume(ball), accuracy: 1e-6)
+    }
 }
 
 extension Mesh {
