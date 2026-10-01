@@ -12,6 +12,7 @@ extension JobRunner {
         guard Rules.isValidName(name), Rules.isValidName(new) else { throw RequestError.badName }
         let runs = install.runs, fm = FileManager.default
         try queue.locked { entries in
+            try refuseWhileMoving()
             guard let src = Gallery.folder(runs, name) else { throw RequestError.notFound }
             guard fm.fileExists(atPath: src.appendingPathComponent("model.glb").path) else { throw RequestError.noModelYet }
             if entries.contains(where: { $0.name == name }) || running()?.name == name { throw RequestError.cantDuplicate(name) }
