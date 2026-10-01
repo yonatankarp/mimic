@@ -75,6 +75,15 @@ final class RulesTests: XCTestCase {
         XCTAssertNil(Rules.shownName(carrying: "Élodie", to: "orc"))
     }
 
+    func testPrintFileNamesKeepTheShownNameWithoutSlashes() {
+        XCTAssertEqual(Rules.printFileName("Élodie ×2"), "Élodie ×2.3mf")
+        XCTAssertEqual(Rules.printFileName("AC/DC Roadie ×2"), "AC-DC Roadie ×2.3mf", "not a folder \"AC\"")
+        XCTAssertEqual(Rules.printFileName("Bard: Lute"), "Bard- Lute.3mf")
+        XCTAssertEqual(Rules.printFileName(".hidden"), "hidden.3mf")
+        XCTAssertEqual(Rules.printFileName("🐉"), "minis.3mf")
+        XCTAssertEqual(Rules.printFileName("../.."), "minis.3mf")
+    }
+
     func testNumbersPassThroughAsNumbers() throws {
         XCTAssertEqual(try Sizes(height: "38", base: "25", inflate: "0.08").flags(),
                        ["--height", "38.0", "--base", "25.0", "--inflate", "0.08"])
