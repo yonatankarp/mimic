@@ -196,6 +196,12 @@ public struct MiniSettings: Codable, Equatable, Sendable {
     /// The name to show for the mini in `folder` (its folder's name), or nil when it has none of its own.
     public func shownName(folder: String) -> String? { nameFolder == folder ? name : nil }
 
+    /// The name the mini in `folder` keeps when it's renamed to `new`: its own, carried over
+    /// while it still fits ("Élodie 2" to "elodie" is "Élodie"); nil when it has none that fits.
+    public func shownName(folder: String, renamedTo new: String) -> String? {
+        shownName(folder: folder).flatMap { Rules.shownName(carrying: $0, to: new) }
+    }
+
     /// Keeps `typed` as the name of the mini in the folder named `folder`, or forgets the one
     /// kept when `typed` is nil.
     public mutating func name(_ typed: String?, folder: String) {

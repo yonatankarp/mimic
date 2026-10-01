@@ -111,7 +111,7 @@ struct MakeView: View {
                         .help("How it's listed, and what its print file is called")
                         .focused($nameFocused)
                         .onChange(of: name) { _, new in
-                            if new != Mini.displayName(MakeAdvice.name(fromDescription: description)) { autoName = false }
+                            if new != MakeAdvice.name(fromDescription: description) { autoName = false }
                         }
                     Picker("Project", selection: $project) {
                         Text("Unsorted").tag("")
@@ -281,7 +281,7 @@ struct MakeView: View {
                 }
                 .onChange(of: description) { _, text in
                     guard name.isEmpty || autoName else { return }
-                    name = Mini.displayName(MakeAdvice.name(fromDescription: text))
+                    name = MakeAdvice.name(fromDescription: text)
                     autoName = true
                 }
             ImproveBox(description: description, kind: card.kind.rawValue, improved: $improved)

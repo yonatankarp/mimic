@@ -48,9 +48,10 @@ struct Sidebar: View {
         }
         .quickLookPreview($preview)
         // What a search or filter hides is no longer selected, so nothing out of sight is moved,
-        // resized or trashed with what is.
-        .onChange(of: query) { deselectHidden() }
-        .onChange(of: show) { deselectHidden() }
+        // resized or trashed with what is. The model knows them too, for its reloads.
+        .onChange(of: query, initial: true) { model.listQuery = query; deselectHidden() }
+        .onChange(of: show, initial: true) { model.listShow = show; deselectHidden() }
+        .onChange(of: sort, initial: true) { model.listSort = sort }
         .onChange(of: model.findRequests) { searching = true }  // Edit → Find
         // View → Sort By and Show change these same choices.
         .focusedSceneValue(\.gallerySort, $sort)
@@ -60,10 +61,7 @@ struct Sidebar: View {
     private var shown: [Mini] { Gallery.arrange(model.minis, query: query, show: show, sort: sort) }
 
     private func deselectHidden() {
-        let shown = self.shown
-        var kept = Gallery.visible(model.selection, in: shown)
-        // Else the next reload picks the first mini of all, which the list may not show.
-        if kept.isEmpty, let first = shown.first { kept = [first.id] }
+        let kept = Gallery.keeping(model.selection, in: shown)
         if kept != model.selection { model.selection = kept }
     }
 
@@ -420,7 +418,7 @@ struct GalleryRow: View {
     /// made only for a mini from before its sizes were kept.
     private var line: String {
         if let status { return status }
-        if mini.stl == nil { return "Not finished" }
+        if !mini.finished { return "Not finished" }
         return mini.settings.made.map(PrintTips.shortLine) ?? mini.madeAt.formatted(.relative(presentation: .named))
     }
 

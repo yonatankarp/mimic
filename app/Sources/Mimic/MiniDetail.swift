@@ -48,7 +48,7 @@ struct MiniDetail: View {
             } message: {
                 Text("Edit → Undo puts them back.")
             }
-            .confirmationDialog("Call it “\(Mini.displayName(offerName ?? ""))”?",
+            .confirmationDialog("Call it “\(mini.displayName(renamedTo: offerName ?? ""))”?",
                                 isPresented: Binding(get: { offerName != nil }, set: { if !$0 { offerName = nil } }),
                                 presenting: offerName) { name in
                 Button("Rename") { rename(to: name) }.keyboardShortcut(.defaultAction)

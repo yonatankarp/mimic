@@ -254,8 +254,17 @@ final class AppModel {
         watch.follow(install.runs, projects: folders)
         let kept = selection.filter { id in minis.contains { $0.id == id } }
         if kept != selection { selection = kept }
-        if selection.isEmpty, let first = minis.first { selection = [first.id] }
+        if selection.isEmpty {
+            let first = Gallery.keeping([], in: Gallery.arrange(minis, query: listQuery, show: listShow, sort: listSort))
+            if first != selection { selection = first }
+        }
     }
+
+    /// The search, filter and order the list has (Sidebar keeps them up to date), so a reload
+    /// with nothing selected picks the first mini the list shows.
+    @ObservationIgnored var listQuery = ""
+    @ObservationIgnored var listShow = GalleryShow.all
+    @ObservationIgnored var listSort = GallerySort.made
 
     /// Reloads when a mini or project is added, removed or renamed in the minis folder by
     /// anything else: Finder, `mimic move`, another Mimic (#81).

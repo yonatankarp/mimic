@@ -17,6 +17,27 @@ final class TimingsTests: XCTestCase {
 
     let make = JobShape(job: .generate, model: "pixal3d-sv", drawn: true, nozzle: "0.4", height: 32)
 
+    /// A make waiting with its picture already made (a new 3D shape, Try Again) skips drawing it,
+    /// so the queue doesn't count that step (#128); one with its 3D shape too only makes the
+    /// print file. Planted: every make counted all three steps, about a minute too long.
+    func testAWaitingMakeCountsOnlyTheStepsItRuns() throws {
+        let fx = try Fixture(), fm = FileManager.default
+        let jobs = JobRunner(install: fx.install, tools: fx.tools())
+        let owl = fx.install.runs.appendingPathComponent("owl")  // a new mini: nothing made yet
+        try fm.createDirectory(at: owl, withIntermediateDirectories: true)
+        let raven = try fx.mini("raven")
+        try fm.removeItem(at: raven.appendingPathComponent("model.glb"))  // its picture only
+        let crow = try fx.mini("crow")  // its picture and its 3D shape
+        for d in [owl, raven, crow] { try MiniSettings.update(d) { $0.source = .desc; $0.desc = "a bird" } }
+        let full = Estimator.estimate(JobShape(.generate, settings: MiniSettings.load(owl)), history: [])
+        let picture = try XCTUnwrap(full.steps[1]), printFile = try XCTUnwrap(full.steps[3])
+        let rows = jobs.queueTimes(["owl", "raven", "crow"].map { QueueEntry(name: $0, job: .generate) }, running: nil, history: [])
+        XCTAssertEqual(rows.map(\.estimate.total), [full.total, full.total - picture, printFile])
+        XCTAssertEqual(rows.map(\.ready), [full.total, 2 * full.total - picture, 2 * full.total - picture + printFile])
+        XCTAssertEqual(jobs.estimate("raven", .generate, history: []), full, "the running job keeps its steps")
+        XCTAssertEqual(Pipeline.skipped(owl), [])
+    }
+
     func testTooLittleHistoryUsesTheFixedFigures() {
         let e = Estimator.estimate(make, history: [record(steps: [1: 50, 2: 300, 3: 6]), record(steps: [1: 50, 2: 300, 3: 6])], machine: mac)
         XCTAssertFalse(e.learned)

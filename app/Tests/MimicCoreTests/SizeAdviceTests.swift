@@ -253,13 +253,24 @@ final class SizeAdviceTests: XCTestCase {
     }
 
     func testNameFromDescription() {
-        XCTAssertEqual(MakeAdvice.name(fromDescription: "A dwarf cleric holding a warhammer"), "dwarf-cleric")
-        XCTAssertEqual(MakeAdvice.name(fromDescription: "an elf ranger with a longbow"), "elf-ranger")
-        XCTAssertEqual(MakeAdvice.name(fromDescription: "orc chief with a big axe"), "orc-chief")
-        XCTAssertEqual(MakeAdvice.name(fromDescription: "knight with a sword and a shield"), "knight-with-sword", "one word before the gear is too little to name it")
-        XCTAssertEqual(MakeAdvice.name(fromDescription: "  the Tiefling wizard"), "tiefling-wizard")
-        XCTAssertEqual(MakeAdvice.name(fromDescription: "an"), "an")
-        XCTAssertEqual(MakeAdvice.name(fromDescription: "anvil golem"), "anvil-golem")
+        XCTAssertEqual(MakeAdvice.name(fromDescription: "A dwarf cleric holding a warhammer"), "Dwarf Cleric")
+        XCTAssertEqual(MakeAdvice.name(fromDescription: "an elf ranger with a longbow"), "Elf Ranger")
+        XCTAssertEqual(MakeAdvice.name(fromDescription: "orc chief with a big axe"), "Orc Chief")
+        XCTAssertEqual(MakeAdvice.name(fromDescription: "knight with a sword and a shield"), "Knight With Sword", "one word before the gear is too little to name it")
+        XCTAssertEqual(MakeAdvice.name(fromDescription: "  the Tiefling wizard"), "Tiefling Wizard")
+        XCTAssertEqual(MakeAdvice.name(fromDescription: "an"), "An")
+        XCTAssertEqual(MakeAdvice.name(fromDescription: "anvil golem"), "Anvil Golem")
+        XCTAssertEqual(MakeAdvice.name(fromDescription: "a half-orc bard, holding a lute"), "Half Orc Bard")
+        XCTAssertEqual(MakeAdvice.name(fromDescription: "!!!"), "")
+    }
+
+    /// Accents and other alphabets stay in the name it fills in (#128); only its folder is
+    /// written in plain letters.
+    func testNameFromDescriptionKeepsItsLetters() {
+        XCTAssertEqual(MakeAdvice.name(fromDescription: "élodie the druid with a staff"), "Élodie Druid")
+        XCTAssertEqual(MakeAdvice.name(fromDescription: "Дракон"), "Дракон")
+        XCTAssertEqual(MakeAdvice.name(fromDescription: "a McGregor ranger"), "McGregor Ranger")
+        XCTAssertEqual(Rules.folderName(MakeAdvice.name(fromDescription: "élodie the druid")), "elodie-druid")
     }
 
     func testPictureWarnings() {

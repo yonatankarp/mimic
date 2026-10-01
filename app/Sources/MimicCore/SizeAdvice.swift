@@ -214,8 +214,9 @@ public enum MakeAdvice {
         return notes
     }
 
-    /// "A dwarf cleric holding a warhammer" → "dwarf-cleric-holding-a": the first four words,
-    /// skipping a leading a, an or the.
+    /// "A dwarf cleric holding a warhammer" → "Dwarf Cleric": the name New Mini fills in, in the
+    /// description's own letters ("élodie the druid" → "Élodie Druid"), each word capitalised.
+    /// Its folder comes from it as a typed name's does (`Rules.folderName`).
     public static func name(fromDescription text: String) -> String {
         // The character is what comes before its gear: "a dwarf cleric holding a warhammer" is a
         // dwarf-cleric. Articles go wherever they are, and a name never ends on a joining word.
@@ -226,7 +227,8 @@ public enum MakeAdvice {
         if let cut = words.firstIndex(where: { joining.contains($0.lowercased()) }), cut >= 2 { words = Array(words[..<cut]) }
         words = Array(words.prefix(4))
         while words.count > 1, let last = words.last, joining.contains(last.lowercased()) { words.removeLast() }
-        return Rules.slug(words.joined(separator: " "))
+        let parts = words.joined(separator: " ").split { !$0.isLetter && !$0.isNumber }
+        return Rules.shownName(parts.map { $0.prefix(1).uppercased() + $0.dropFirst() }.joined(separator: " ")) ?? ""
     }
 }
 
