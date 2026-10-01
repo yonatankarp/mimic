@@ -75,14 +75,14 @@ public final class JobRunner: @unchecked Sendable {
     public var onChange: (@Sendable (JobStatus) -> Void)?
 
     /// `timings`: where to record each finished job (nil records nothing, as in tests);
-    /// `version`: this Mimic's, recorded with it.
-    public init(install: Install, tools: Tools? = nil, drawThings: DrawThings = DrawThings(),
+    /// `version`: this Mimic's, recorded with it; `drawThings`: nil takes the one in `tools`, else the real one.
+    public init(install: Install, tools: Tools? = nil, drawThings: DrawThings? = nil,
                 trash: @escaping @Sendable (URL) throws -> Void = { try FileManager.default.trashItem(at: $0, resultingItemURL: nil) },
                 timings: Timings? = nil, version: String = "dev") {
         self.install = install
         self.queue = JobQueue(runs: install.runs)
         self.tools = tools ?? Tools.resolve(install)
-        self.drawThings = drawThings
+        self.drawThings = drawThings ?? self.tools.drawThings ?? DrawThings()
         self.trash = trash
         self.timings = timings
         self.version = version
