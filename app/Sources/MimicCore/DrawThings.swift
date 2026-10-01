@@ -199,7 +199,6 @@ public final class DrawThings: @unchecked Sendable {
     /// Draws a character from a description. Returns PNG data.
     public func draw(description: String, seed: Int, kind: MiniKind = .character) throws -> Data {
         guard let model = model() else { throw DrawThingsError.noModel }
-        lock.withLock { canceled = false }
         if let cli { return try runCLI(cli, model: model, prompt: Self.drawPrompt(description, kind: kind), seed: seed, width: 1024, height: 1024) }
         return try send("sdapi/v1/txt2img", body(model: model, prompt: Self.drawPrompt(description, kind: kind),
                                                  seed: seed, width: 1024, height: 1024))
@@ -209,13 +208,16 @@ public final class DrawThings: @unchecked Sendable {
     public func sculpt(picture: URL, seed: Int, kind: MiniKind = .character) throws -> Data {
         guard let model = model() else { throw DrawThingsError.noModel }
         let (png, w, h) = try Self.fitForEdit(picture)
-        lock.withLock { canceled = false }
         if let cli { return try runCLI(cli, model: model, prompt: Self.redrawPrompt(kind: kind), seed: seed, width: w, height: h, image: png) }
         return try send("sdapi/v1/img2img", body(model: model, prompt: Self.redrawPrompt(kind: kind), seed: seed, width: w, height: h, image: png))
     }
 
-    /// Stops a request in flight (Stop during the picture step).
+    /// Stops a request in flight (Stop during the picture step), or the next one asked for: a
+    /// Stop while the model is looked up or the picture resized still counts (#170).
     public func cancel() { lock.withLock { canceled = true; task?.cancel(); process?.terminate() } }
+
+    /// Forgets an earlier Stop: when a job starts, before it can be stopped.
+    public func reset() { lock.withLock { canceled = false } }
 
     private func send(_ path: String, _ body: [String: Any]) throws -> Data {
         var req = URLRequest(url: base.appendingPathComponent(path))
@@ -238,8 +240,11 @@ public final class DrawThings: @unchecked Sendable {
             }
             result = .success(png)
         }
-        lock.withLock { task = t }
-        t.resume()
+        let stopNow = lock.withLock { () -> Bool in
+            if !canceled { task = t; t.resume() }
+            return canceled
+        }
+        if stopNow { throw DrawThingsError.cancelled }
         done.wait()
         lock.withLock { task = nil }
         return try result.get()
