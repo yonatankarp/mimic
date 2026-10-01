@@ -371,6 +371,26 @@ public final class JobRunner: @unchecked Sendable {
     /// Until this runner has no job left to run (for the command line and tests).
     public func waitUntilDone() { idle.wait() }
 
+    /// For `mimic make`: stops the running job, and the queue after it, when this program is
+    /// told to end: Ctrl-C, its Terminal window closed, or `kill` (#174). The job's programs run
+    /// in a session of their own, so they don't hear these. `heard` is told which it was first.
+    /// Listens while what it returns is kept.
+    public func stopOnSignals(_ heard: @escaping @Sendable (Int32) -> Void = { _ in }) -> [DispatchSourceSignal] {
+        [SIGINT, SIGHUP, SIGTERM].map { sig in
+            // Caught and let be, not ignored: an ignored signal stays ignored in the programs a
+            // job starts, and SIGTERM couldn't stop them; a caught one is back to normal there.
+            signal(sig) { _ in }
+            let source = DispatchSource.makeSignalSource(signal: sig)
+            source.setEventHandler { [self] in
+                heard(sig)
+                keepGoing = { _ in false }
+                cancel()
+            }
+            source.resume()
+            return source
+        }
+    }
+
     // MARK: The queue (every function here runs holding the queue's lock)
 
     private var holding: Bool { lock.withLock { lockFD >= 0 } }
@@ -609,8 +629,22 @@ public final class JobRunner: @unchecked Sendable {
             let stopNow = lock.withLock { () -> Bool in process = p; return current?.canceled == true }
             Leftover.record(pid: p.pid, queue: install.queue)
             if stopNow { p.terminateGroup() }  // Stop pressed while the program was starting
-            return p.wait()
+            let code = p.wait()
+            // Stopped, what it started may outlive it, holding memory and writing into the mini's
+            // folder: the job ends, and its record goes, only once they have too (#174).
+            if status?.canceled == true { Self.waitForGroup(p.pid) }
+            lock.withLock { if process === p { process = nil } }  // a Stop between steps has nothing to signal
+            return code
         }
+    }
+
+    /// Until every program in the group `pid` led has ended, ending whatever is left after
+    /// `grace` seconds, as `GroupProcess.terminateGroup` does from the Stop that ended the leader.
+    static func waitForGroup(_ pid: pid_t, grace: TimeInterval = 5) {
+        let deadline = Date().addingTimeInterval(grace)
+        while kill(-pid, 0) == 0, Date() < deadline { usleep(50_000) }
+        if kill(-pid, 0) == 0 { kill(-pid, SIGKILL) }
+        for _ in 0..<40 where kill(-pid, 0) == 0 { usleep(50_000) }
     }
 
     /// A picture from Draw Things, opening it first when needed and quitting it after if Mimic

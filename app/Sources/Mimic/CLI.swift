@@ -511,13 +511,12 @@ enum CLI {
         }
     }
 
-    /// Runs this terminal's jobs to the end of its own mini; Ctrl-C stops the running job and
-    /// everything it started, and leaves the queue to the app.
+    /// Runs this terminal's jobs to the end of its own mini; Ctrl-C (or closing the window, or
+    /// `kill`) stops the running job and everything it started, and leaves the queue to the app.
     private static func follow(_ jobs: JobRunner, _ mine: Mine) -> Int32 {
-        signal(SIGINT, SIG_IGN)
-        let interrupt = DispatchSource.makeSignalSource(signal: SIGINT)
-        interrupt.setEventHandler { print("\nStopping…"); jobs.keepGoing = { _ in false }; jobs.cancel() }
-        interrupt.resume()
+        // A closed Terminal window has nowhere to say it.
+        let signals = jobs.stopOnSignals { if $0 != SIGHUP { print("\nStopping…") } }
+        defer { signals.forEach { $0.cancel() } }
         if let s = jobs.status { mine.saw(s) }
         jobs.waitUntilDone()
         guard let s = mine.status ?? jobs.status.flatMap({ $0.name == mine.name ? $0 : nil }) else {
