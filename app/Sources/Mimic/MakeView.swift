@@ -328,7 +328,7 @@ struct MakeView: View {
             Toggle(isOn: Binding(get: { restyle || cartoonOn }, set: { restyle = $0 })) {
                 Text("Turn it into a grey sculpt first (recommended)")
                 Text(cartoonOn ? "A cartoon always gets the grey sculpt: without it, it comes out flat."
-                               : "Draw Things redraws it as a grey statue, which the 3D engine understands far better. Turn it off only if your picture is already a grey 3D model.")
+                               : "Draw Things redraws it as a grey statue, which the 3D engine understands far better. Turn it off if your picture is already a grey 3D model, or to keep its colours for Export for Virtual Tabletop: the shape may come out less clean.")
             }
             .disabled(!health.drawThingsReady || cartoonOn)
             .help("Redraws your picture as a grey statue with the same pose")

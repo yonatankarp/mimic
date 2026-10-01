@@ -94,9 +94,11 @@ Want the same mini at two sizes, say one for the table and one for the shelf? Ri
 **Duplicate…**, name the copy, and choose its size. Only the size is made again: about a minute.
 
 Playing online? Right-click a mini → **Export for Virtual Tabletop…** saves a low-poly `.glb`
-of it (about 5,000 triangles) to drag into a virtual tabletop. A mini made from a colour
-picture with the grey sculpt off comes out in the 3D engine's colours (about 1.5 MB); any
-other mini comes out grey (under 100 KB).
+of it (about 5,000 triangles) to drag into a virtual tabletop. It comes out grey (under 100 KB)
+unless the mini was made from a colour picture with **Turn it into a grey sculpt first** off
+(in Terminal, without `--restyle`): then the 3D engine paints it from your picture, back and
+sides too, and the export keeps those colours (about 1.5 MB). The grey sculpt gives the
+cleaner shape, so turn it off for the minis you want in colour.
 
 Have a 3D model already, from another generator or HeroForge? **File → Import Model…**, pick the
 GLB or STL file, and choose its sizes and base as for a new mini. Mimic makes it print-ready in
@@ -179,7 +181,7 @@ A mini goes by its name in `mimic list`, or by the name you gave it in Mimic: `m
 | Option | What it does |
 |---|---|
 | `--image FILE` | Start from your own picture instead of a description |
-| `--restyle` | Redraw that picture as a grey sculpt first |
+| `--restyle` | Redraw that picture as a grey sculpt first (its tabletop export is then grey) |
 | `--back FILE` / `--left FILE` / `--right FILE` | Pictures of the same character from the back and sides, besides `--image` (the front), so the 3D model doesn't guess them. Any of them; TRELLIS.2 only |
 | `--improve` | Let the AI helper chosen in Settings write a fuller description first |
 | `--height MM` | How tall the character is, feet to top; the base adds about 2 mm |
