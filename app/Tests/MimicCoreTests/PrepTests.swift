@@ -202,7 +202,7 @@ final class PrepTests: XCTestCase {
         XCTAssertGreaterThan(out.flatBottom, 0.95 * .pi * 12.5 * 12.5)
     }
 
-    /// A TRELLIS.2 model faces away from the front render; --turn 180 turns it round without
+    /// A Pixal3D model faces away from the front render; --turn 180 turns it round without
     /// mirroring it: the blade that reached out to +x reaches to -x, and it's still one sound solid.
     func testTurningFacesTheFigureTheOtherWay() throws {
         let (_, out, _) = try prep(["--turn", "180", "--faces", "20000"])
@@ -459,8 +459,8 @@ final class PrepTests: XCTestCase {
         XCTAssertLessThanOrEqual(seams { (2.5, $0) }, 2, "along a plank, 24 mm: only its ends, 20 mm apart")
     }
 
-    /// Each view is the figure's own: facing +y, its left is -x. A figure with a nose (+y) and
-    /// its left hand held out (-x): from the front the hand is on the picture's right, as when
+    /// Each view is the figure's own: facing -y, its left is +x. A figure with a nose (-y) and
+    /// its left hand held out (+x): from the front the hand is on the picture's right, as when
     /// facing someone; from its left the nose points left, from its right it points right. The
     /// cross product rules out a mirrored picture, which the silhouettes alone can't.
     func testViewsShowTheFiguresOwnSides() {
@@ -469,8 +469,8 @@ final class PrepTests: XCTestCase {
         }
         var m = Mesh()
         m.add(Self.box(half: [0.2, 0.2, 1]), at: [0, 0, 1])       // body
-        m.add(Self.box(half: [0.1, 0.3, 0.1]), at: [0, 0.5, 1.6])  // nose
-        m.add(Self.box(half: [0.3, 0.1, 0.1]), at: [-0.5, 0, 1])   // left hand
+        m.add(Self.box(half: [0.1, 0.3, 0.1]), at: [0, -0.5, 1.6])  // nose
+        m.add(Self.box(half: [0.3, 0.1, 0.1]), at: [0.5, 0, 1])    // left hand
         // Where the picture leans: the mean column of what's drawn, 0 being the body's middle.
         func lean(_ view: String) -> Float {
             let c = Render.cameras.first { $0.0 == view }!

@@ -280,7 +280,8 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   the viewer (see the side renders), and q4 is hard to tell from q8. TRELLIS.2 runs the plain
   one-picture pipeline at its own defaults (`--image … --output …`: a lone positional after
   `--image` is read as a second picture; `--gss 10` was tuned on Pixal3D only), and writes its
-  figure facing away, so print prep turns it round (`--turn 180`, `EngineModel.turn`).
+  figure facing the other way from Pixal3D's. Print files face -y, a slicer's front (#275), as
+  TRELLIS.2 writes it, so print prep turns Pixal3D's round instead (`--turn 180`, `EngineModel.turn`).
   `PIXAL3D_STEPS=8` applies to every flow of both pipelines, so one guard covers both.
   Rejected: Pixal3D's multiview set (`raven38/pixal3d-q8_0-v1`) wants four pictures of the
   figure; `--trellis2-mv` wants 2–8; TRELLIS.2 at full precision is 15.5 GB. The TRELLIS.2 sets
@@ -330,8 +331,8 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   and back renders gave a whole figure in 615 s against about 222 for one picture, every flow
   printing `[flow-mv] 12 steps`: the multi-image flows ignore `PIXAL3D_STEPS` and show no
   progress bar, so the steps guard never fires and the estimate counts the 3D step 2.8 times
-  as long (`Estimator.multiViewShape`). The figure faces away as from one picture, so the same
-  `--turn 180` faces it front. The sculpt prompt names no view, and a sculpt of the back
+  as long (`Estimator.multiViewShape`). The figure faces the same way as from one picture, so it
+  needs no turn either. The sculpt prompt names no view, and a sculpt of the back
   render stayed a back view (its shoes came out pointing at the camera, the one slip), so side
   pictures share the front's prompt. Step 1 is one run per picture but timed as one step, so
   its time left doesn't start over for each. Pixal3D's single-view set takes one picture, so New Mini shows

@@ -142,7 +142,7 @@ public enum GLB {
                 for i in 0..<p.count {
                     let w = world * SIMD4(p.get(i, 0), p.get(i, 1), p.get(i, 2), 1)
                     // glTF is y-up; print prep, slicers and the renders are z-up. The same turn
-                    // Blender's importer makes, so the figure faces +y as it did there.
+                    // Blender's importer makes: glTF's front (+z) comes out facing -y.
                     out.positions.append(SIMD3(Float(w.x), Float(-w.z), Float(w.y)))
                 }
                 if uv != nil, let t = try int(attrs, "TEXCOORD_0"), let m = try int(prim, "material"), material ?? m == m {
@@ -313,9 +313,8 @@ public enum Tabletop {
             mesh = baked.mesh
             paint = (baked.uv, try jpeg(baked.pixels, size: size))
         }
-        // Print files face +y, which `encode` writes as glTF's back (-z): half a turn about the
-        // vertical first. Both axes, as one alone would mirror it.
-        mesh.positions = mesh.positions.map { SIMD3(-$0.x, -$0.y, $0.z) / 1000 }
+        // Print files face -y, which `encode` writes as glTF's front (+z).
+        mesh.positions = mesh.positions.map { $0 / 1000 }
         let data = GLB.encode(mesh, paint: paint)
         try data.write(to: url, options: .atomic)
         return (mesh.triangles.count, data.count)

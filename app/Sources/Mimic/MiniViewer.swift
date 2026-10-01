@@ -351,9 +351,9 @@ struct MiniViewer: View {
         var lo = SIMD3<Float>(repeating: .greatestFiniteMagnitude), hi = -lo
         for i in 0..<mesh.vertexCount {
             let p = buf.bytes.advanced(by: i * layout.stride + pos.offset).assumingMemoryBound(to: Float.self)
-            // Z-up → Y-up, turned to face the camera: minis face +Y in the print file, and the
+            // Z-up → Y-up, turned to face the camera: minis face -Y in the print file, and the
             // camera looks along -Z.
-            let v = SIMD3<Float>(-p[0], p[2], p[1])
+            let v = SIMD3<Float>(p[0], p[2], -p[1])
             points.append(v); lo = simd_min(lo, v); hi = simd_max(hi, v)
         }
         let dims = hi - lo

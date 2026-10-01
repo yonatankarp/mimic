@@ -53,7 +53,7 @@ public struct PrepOptions: Equatable, Sendable {
     /// Trim to about this many triangles.
     public var faces = 800_000
     /// Turn the model this many degrees about its vertical axis first, so it faces the front:
-    /// TRELLIS.2 writes its figures facing away from where Pixal3D's face (EngineModel.turn).
+    /// Pixal3D writes its figures facing away from where TRELLIS.2's face (EngineModel.turn).
     public var turn = 0.0
     /// A hole under the base for this magnet; none without a base.
     public var magnet: Magnet?
