@@ -784,7 +784,10 @@ final class AppModel {
         guard mini.stl != nil else { return }
         let panel = NSSavePanel()
         panel.title = "Export for Virtual Tabletop"
-        panel.message = "A low-poly model of \(mini.displayName) that a virtual tabletop can load."
+        // Said before saving, so a grey one isn't a surprise (#256).
+        panel.message = Tabletop.inColour(mini.settings)
+            ? "A low-poly model of \(mini.displayName) in its colours, for a virtual tabletop."
+            : "A low-poly model of \(mini.displayName) in grey, for a virtual tabletop. A mini comes out in colour when it's made from a colour picture with “Turn it into a grey sculpt first” off."
         panel.nameFieldStringValue = "\(mini.displayName).glb"
         panel.allowedContentTypes = [UTType(filenameExtension: "glb") ?? .data]
         guard panel.runModal() == .OK, let url = panel.url else { return }
