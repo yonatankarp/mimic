@@ -223,35 +223,19 @@ public enum Engine {
         defer { close(fds[0]) }
 
         var overridden = false
-        var pending = Data()
-        var buffer = [UInt8](repeating: 0, count: 65536)
-        func handle(_ line: String) -> Bool {
+        let readAll = LineReader(fd: fds[0]).lines { line in
             overridden = overridden || line.contains("PIXAL3D_STEPS=")
             if !overridden && samplingStarted(line) { return false }
             if keep(line) { say(line) }
             return true
         }
-        reading: while true {
-            let n = read(fds[0], &buffer, buffer.count)
-            if n < 0 && errno == EINTR { continue }
-            if n <= 0 { break }
-            pending.append(contentsOf: buffer[0..<n])
-            // Progress bars redraw with \r, so it ends a line as much as \n does.
-            while let end = pending.firstIndex(where: { $0 == 10 || $0 == 13 }) {
-                let line = String(decoding: pending[pending.startIndex..<end], as: UTF8.self)
-                pending.removeSubrange(pending.startIndex...end)
-                if line.isEmpty { continue }
-                if !handle(line) {
-                    // Only trellis-cli: stopping the group would end this program before it
-                    // could say why.
-                    kill(process.pid, SIGKILL)
-                    process.wait()
-                    throw Failure("This 3D engine ignores PIXAL3D_STEPS, so it would run the slow way. "
-                                  + "Stopped it before wasting the run. Open Mimic's Settings and press Repair next to the 3D engine.")
-                }
-            }
+        if !readAll {
+            // Only trellis-cli: stopping the group would end this program before it could say why.
+            kill(process.pid, SIGKILL)
+            process.wait()
+            throw Failure("This 3D engine ignores PIXAL3D_STEPS, so it would run the slow way. "
+                          + "Stopped it before wasting the run. Open Mimic's Settings and press Repair next to the 3D engine.")
         }
-        if !pending.isEmpty { _ = handle(String(decoding: pending, as: UTF8.self)) }
         let code = process.wait()
         guard code == 0 else { throw Failure("The 3D engine stopped with exit code \(code).") }
         guard FileManager.default.fileExists(atPath: output.path) else {

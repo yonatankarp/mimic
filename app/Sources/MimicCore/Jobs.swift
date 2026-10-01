@@ -508,15 +508,35 @@ public final class JobRunner: @unchecked Sendable {
 
     // MARK: Running
 
-    private func execute(_ plan: [(number: JobStep, step: Step)], entry: QueueEntry, folder: URL, log: URL, settings: MiniSettings) {
-        let kind = entry.job
+    /// What running a job's plan came to.
+    private struct PlanRun {
         var code: Int32 = 0
-        var done = 0  // runs of the plan finished
+        /// Runs of the plan finished.
+        var done = 0
         var problem: String?
         var took: [JobStep: TimeInterval] = [:]
+    }
+
+    /// How a job ended, once its folder is settled: what `finish` reports and records.
+    private struct Ending {
+        var canceled: Bool
+        var kept: Bool
+        var fragile: Bool
+        var notes: [String]
+    }
+
+    private func execute(_ plan: [(number: JobStep, step: Step)], entry: QueueEntry, folder: URL, log: URL, settings: MiniSettings) {
         // What print prep reports, this run's only: an earlier run's must not follow the mini around.
         let reportFile = folder.appendingPathComponent("prep-result.json")
         try? FileManager.default.removeItem(at: reportFile)
+        var ran = runPlan(plan, log: log)
+        let ending = settle(&ran, plan: plan, kind: entry.job, folder: folder, reportFile: reportFile, settings: settings)
+        finish(ran, ending, entry: entry, settings: settings)
+    }
+
+    /// Runs the plan's steps in turn, until one fails or the job is stopped.
+    private func runPlan(_ plan: [(number: JobStep, step: Step)], log: URL) -> PlanRun {
+        var ran = PlanRun()
         var previous = plan.first?.number  // begin() started its clock
         for (number, step) in plan {
             if status?.canceled == true { break }
@@ -528,39 +548,47 @@ public final class JobRunner: @unchecked Sendable {
             notify()
             append(log, "[\(number.rawValue)/3] \(number.label)\n")
             do {
-                code = try run(step)
+                ran.code = try run(step)
             } catch {
-                code = 1
-                problem = String(describing: error)
+                ran.code = 1
+                ran.problem = String(describing: error)
             }
-            took[number, default: 0] += Date().timeIntervalSince(began)  // step 1 is one run per picture
-            if code != 0 { break }
-            done += 1
+            ran.took[number, default: 0] += Date().timeIntervalSince(began)  // step 1 is one run per picture
+            if ran.code != 0 { break }
+            ran.done += 1
         }
+        return ran
+    }
+
+    /// The mini's folder after its job: a stopped job's work cleared away (or kept, when it was
+    /// stopped by quitting), a finished one's sizes recorded, and how it went kept with the mini.
+    private func settle(_ ran: inout PlanRun, plan: [(number: JobStep, step: Step)], kind: JobKind, folder: URL,
+                        reportFile: URL, settings: MiniSettings) -> Ending {
         let (canceled, kept) = lock.withLock { (current?.canceled == true, keepWork) }
         if canceled {
-            code = code == 0 ? -15 : code
+            ran.code = ran.code == 0 ? -15 : ran.code
             if kept {
                 // What the step it was on had written may be half written, and the next run
                 // skips a step whose file is there: a picture, or the 3D shape. Step 1 is one run
                 // per picture, so the pictures it had finished are kept.
-                for (number, step) in plan.dropFirst(done) where kind == .generate {
+                for (number, step) in plan.dropFirst(ran.done) where kind == .generate {
                     if let file = number == .shape ? folder.appendingPathComponent(Mini.modelFile) : step.makes { try? FileManager.default.removeItem(at: file) }
                 }
             } else if kind == .generate || Self.importing(folder) {
                 try? trash(folder)  // a half-made new mini (or import) is clutter, not a result
             }
-        } else if code == 0, let requested = settings.requested {
+        } else if ran.code == 0, let requested = settings.requested {
             try? MiniSettings.update(folder) { $0.made = requested }  // "Now: …" shows only what a finished run made
         }
         let report = PrepReport.read(folder) ?? PrepReport()
         try? FileManager.default.removeItem(at: reportFile)
         let fragile = report.fragile, notes = report.notes
         // Print prep runs as its own program, so why it failed is only in its report.
-        if code != 0, problem == nil { problem = report.failure.map { String($0.prefix { $0 != "\n" }) } }
+        if ran.code != 0, ran.problem == nil { ran.problem = report.failure.map { String($0.prefix { $0 != "\n" }) } }
         // Kept with the mini, so its page says it after a relaunch too.
         if !canceled {
             let step = status?.step
+            let code = ran.code, problem = ran.problem
             try? MiniSettings.update(folder) { s in
                 if code == 0 {
                     s.notes = notes.isEmpty ? nil : notes; s.fragile = fragile ? true : nil
@@ -570,6 +598,14 @@ public final class JobRunner: @unchecked Sendable {
                 }
             }
         }
+        return Ending(canceled: canceled, kept: kept, fragile: fragile, notes: notes)
+    }
+
+    /// Ends the job: its status, its line in the log and its time, then the queue's next job, or
+    /// a stopped-by-quitting one back at the front.
+    private func finish(_ ran: PlanRun, _ ending: Ending, entry: QueueEntry, settings: MiniSettings) {
+        let kind = entry.job, code = ran.code, problem = ran.problem
+        let canceled = ending.canceled, kept = ending.kept, fragile = ending.fragile, notes = ending.notes
         let ended: JobStatus? = lock.withLock {
             current?.running = false
             current?.exit = code
@@ -581,7 +617,7 @@ public final class JobRunner: @unchecked Sendable {
         }
         let outcome = canceled ? "stopped" : code == 0 ? "finished" : "failed (exit \(code)): \(problem ?? "no reason given")"
         Log.queue.notice("\(kind.rawValue, privacy: .public) of \(entry.name, privacy: .public) \(outcome, privacy: .public)")
-        if let ended { timings?.append([TimingRecord(ended, settings: settings, steps: took, version: version, machine: .current)]) }
+        if let ended { timings?.append([TimingRecord(ended, settings: settings, steps: ran.took, version: version, machine: .current)]) }
         Leftover.clear(queue: install.queue)
         notify()
         // The next job, if any, starts before the lock is let go: no other Mimic can slip in.
