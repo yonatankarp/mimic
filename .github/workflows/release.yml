@@ -111,6 +111,29 @@ jobs:
             codesign --verify --strict "$RUNNER_TEMP/dmg/Mimic.app"
             hdiutil detach "$RUNNER_TEMP/dmg"
           fi
+      - name: Check hardened runtime
+        # The app in the disk image, and an ad hoc dev build (how anyone builds it on their own
+        # Mac), are signed with the hardened runtime inside out, and still start: Sparkle loads
+        # before main, so `--version` would crash here if the runtime refused it.
+        run: |
+          check() {
+            local app="$1"
+            codesign --verify --deep --strict "$app"
+            for code in "$app" "$app/Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate" "$app/Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app"; do
+              flags="$(codesign -dv "$code" 2>&1 | grep -E '^CodeDirectory')"
+              echo "$code: $flags"
+              [[ "$flags" == *runtime* ]] || { echo "$code isn't signed with the hardened runtime."; exit 1; }
+            done
+            codesign -d --entitlements - "$app"
+            codesign -d -r- "$app"
+            "$app/Contents/MacOS/mimic" --version | grep .
+          }
+          mnt="$RUNNER_TEMP/hardened"
+          hdiutil attach -nobrowse -readonly -mountpoint "$mnt" dist/*.dmg
+          check "$mnt/Mimic.app"
+          hdiutil detach "$mnt"
+          MIMIC_SIGN_IDENTITY= app/bundle.sh
+          check "app/build/Mimic Dev.app"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: mimic
