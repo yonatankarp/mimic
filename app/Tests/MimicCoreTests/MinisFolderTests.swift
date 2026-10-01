@@ -146,6 +146,35 @@ final class MinisFolderTests: XCTestCase {
         XCTAssertNotNil(Gallery.folder(new, "dwarf"))
     }
 
+    /// A Make asked for while the minis are moving (here, or `mimic make`) must never land in the
+    /// folder they're leaving: refused until the move is done. Many minis, so the move takes long
+    /// enough for the Make to be asked in the middle of it.
+    func testAMakeDuringAMoveNeverLandsInTheOldFolder() throws {
+        let fx = try Fixture(), runs = fx.install.runs, new = try folder(fx)
+        try fx.modelFiles()
+        let picture = try fx.picture()
+        let count = 4000
+        for i in 0..<count { try miniThere(runs, "m\(i)") }
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(), trash: { _ in })
+        try jobs.setPaused(true)  // a Make that gets in isn't run
+        let mover = JobRunner(install: fx.install, tools: fx.tools())
+        let moved = expectation(description: "moved")
+        DispatchQueue.global().async {
+            do { try mover.changeMinisFolder(to: new, moving: true) } catch { XCTFail("\(error)") }
+            moved.fulfill()
+        }
+        for _ in 0..<5000 where ((try? self.fm.contentsOfDirectory(atPath: new.path)) ?? []).isEmpty { usleep(1000) }
+        var made = false
+        do {
+            try jobs.make(name: "late", picture: .image(picture), restyle: false, seed: 1, sizes: sizes, model: EngineDownload.standard)
+            made = true
+        } catch {}
+        wait(for: [moved], timeout: 120)
+        XCTAssertEqual(Gallery.list(new).count, count)
+        XCTAssertNil(Gallery.folder(runs, "late"), "a Make during the move went into the folder the minis left")
+        if made { XCTAssertNotNil(Gallery.folder(new, "late")) }
+    }
+
     /// The same folder, one inside it, or one holding it: the old folder would turn into a
     /// project of the new, or the new into one of the old.
     func testTheSameOrANestedFolderIsRefused() throws {

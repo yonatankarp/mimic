@@ -312,7 +312,7 @@ final class ProjectTests: XCTestCase {
 
 extension ProjectTests {
     /// Stop on a new mini in a project trashes that folder, not a same-named one elsewhere, and
-    /// leaves the project. (Leftover needs no test of its own here: it's keyed on runs/.job.pid,
+    /// leaves the project. (Leftover needs no test of its own here: it's keyed on the queue's job.pid,
     /// never on a mini's path.)
     func testStoppingANewMiniInAProjectTrashesItsOwnFolder() throws {
         let fx = try Fixture(), runs = fx.install.runs
