@@ -214,6 +214,22 @@ final class QueueTests: XCTestCase {
         XCTAssertEqual(jobs.status?.name, "first", "the removed mini ran anyway")
     }
 
+    /// mimic queue remove says which mini by its name as shown (#137), read before its folder,
+    /// which keeps that name, goes to the Trash.
+    func testRemovingSaysTheNameAsShown() throws {
+        let fx = try Fixture(); _ = try fx.mini("first")
+        try fx.modelFiles()
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("slow", "sleep 1")),
+                             trash: { try FileManager.default.removeItem(at: $0) })
+        try jobs.resize(name: "first", sizes: sizes)
+        XCTAssertEqual(try jobs.make(name: "big-photo-qa", picture: .image(try fx.picture("photo.jpg")), restyle: false, seed: 1,
+                                     sizes: sizes, model: EngineDownload.standard, shown: "Big Photo QA"), 1)
+        XCTAssertEqual(try jobs.removeSaying("big-photo-qa"), "Took Big Photo QA out of the queue.")
+        XCTAssertNil(Gallery.folder(fx.install.runs, "big-photo-qa"), "its folder went to the Trash")
+        XCTAssertNil(try jobs.removeSaying("big-photo-qa"), "it isn't waiting any more")
+        jobs.waitUntilDone()
+    }
+
     /// A queued resize keeps the mini's sizes until it starts, then asks for the new ones.
     func testAQueuedResizeWritesItsSizesWhenItStarts() throws {
         let fx = try Fixture(); _ = try fx.mini("a"); let b = try fx.mini("b")

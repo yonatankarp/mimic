@@ -40,6 +40,13 @@ extension JobRunner {
         }
     }
 
+    /// What `mimic duplicate` says once `name` is copied to `new`: both by their names as shown
+    /// ("QA Dwarf 35", as typed), and the copy's folder in the command to size it.
+    public func duplicatedSaying(_ name: String, as new: String) -> String {
+        let runs = install.runs
+        return "Duplicated \(Mini.displayName(name, runs: runs)) as \(Mini.displayName(new, runs: runs)). Choose its size: mimic resize \(new) --height MM"
+    }
+
     /// What a duplicate leaves behind: the logs of how the original was made, and a print file
     /// print prep hadn't finished.
     static func staysBehind(_ file: String) -> Bool {
