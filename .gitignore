@@ -9,6 +9,13 @@ engine/
 # ~/Library/Application Support/Mimic).
 /queue/
 
+# The DMG that tools/package_dmg.sh builds, and the release notes the release workflow writes.
+dist/
+/notes.md
+
+# Agent worktrees, each with its own multi-GB .build folder.
+.claude/worktrees/
+
 __pycache__/
 *.log
 .DS_Store
