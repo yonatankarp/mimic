@@ -150,6 +150,7 @@ final class MinisFolderTests: XCTestCase {
     /// project of the new, or the new into one of the old.
     func testTheSameOrANestedFolderIsRefused() throws {
         let fx = try Fixture(), runs = fx.install.runs
+        try fm.createDirectory(at: runs.appendingPathComponent("Party"), withIntermediateDirectories: true)  // chosen folders exist
         XCTAssertThrowsError(try MinisFolder.check(from: runs, to: runs)) { XCTAssertEqual($0 as? RequestError, .sameMinisFolder) }
         XCTAssertThrowsError(try MinisFolder.check(from: runs, to: runs.appendingPathComponent("Party"))) {
             XCTAssertEqual($0 as? RequestError, .minisFolderNested)

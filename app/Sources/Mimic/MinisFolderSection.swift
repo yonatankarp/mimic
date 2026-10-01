@@ -51,7 +51,7 @@ struct MinisFolderSection: View {
         } message: {
             Text(picked.map(AppModel.hasMinis) == true
                  ? "That folder already has minis, and Mimic shows them either way. Yours stay where they are now unless you move them."
-                 : "Yours stay where they are now unless you move them, and Mimic won't show them there.")
+                 : "Yours stay where they are now unless you move them, and Mimic shows only the minis in the new folder.")
         }
         .alert("Couldn't change the folder", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
             Button("OK") {}

@@ -104,11 +104,12 @@ final class SetupTests: XCTestCase {
         func locate(_ env: [String: String] = [:]) -> Install { Install.locate(environment: env, defaults: defaults, home: home) }
 
         defaults.set(chosen.path, forKey: MinisFolder.key)
-        XCTAssertEqual(locate(), .standard(home: home, runs: chosen))
-        XCTAssertEqual(locate().runs, chosen.standardizedFileURL)
+        // By path: a folder's URL made once it exists ends in a slash.
+        XCTAssertEqual(locate().runs.path, chosen.path)
+        XCTAssertEqual(locate().queue, Install.standard(home: home, runs: chosen).queue)
         XCTAssertEqual(locate().engine, Install.standard(home: home).engine, "the engine stays where it is")
         defaults.set(old.path, forKey: "installDir")
-        XCTAssertEqual(locate().runs, chosen.standardizedFileURL, "chosen over the old installer's folder")
+        XCTAssertEqual(locate().runs.path, chosen.path, "chosen over the old installer's folder")
         XCTAssertEqual(locate().engine, Install(root: old).engine)
         XCTAssertEqual(locate(["MIMIC_HOME": dev.path]), Install(root: dev), "MIMIC_HOME wins")
         XCTAssertEqual(locate(["MIMIC_FAKE_HOME": "/tmp/fake"]), .standard(home: URL(fileURLWithPath: "/tmp/fake")),
@@ -133,6 +134,10 @@ final class SetupTests: XCTestCase {
         XCTAssertEqual(Install.standard(home: home).queue, standard.queue, "the same folder, the same queue")
         let elsewhere = Install.standard(home: home, runs: dir.appendingPathComponent("elsewhere"))
         XCTAssertNotEqual(elsewhere.queue, standard.queue, "two minis folders share one queue")
+        let p = dir.appendingPathComponent("elsewhere").path
+        XCTAssertEqual(Install.queueFolder(URL(fileURLWithPath: p, isDirectory: true), home: home),
+                       Install.queueFolder(URL(fileURLWithPath: p, isDirectory: false), home: home),
+                       "a folder made since (its URL ends in a slash) has another queue")
         let fake = Install.standard(home: dir.appendingPathComponent("fake"))
         XCTAssertTrue(fake.queue.path.hasPrefix(dir.appendingPathComponent("fake").standardizedFileURL.path + "/"),
                       "a fake home's queue must stay inside it")
