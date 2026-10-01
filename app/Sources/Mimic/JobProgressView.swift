@@ -254,10 +254,13 @@ private struct QueueRow: View {
                     .font(.callout).foregroundStyle(.secondary).monospacedDigit()
             }
             Spacer()
+            // Not on the first, which can't move up; its room is kept so the ✕ buttons line up.
             Button { model.moveInQueue(entry.name, by: -1) } label: { Image(systemName: "arrow.up") }
                 .buttonStyle(.borderless)
                 .disabled(index == 0)
-                .help("Make this one sooner. Drag it, or right-click, to move it further")
+                .opacity(index == 0 ? 0 : 1)
+                .accessibilityHidden(index == 0)
+                .help(index == 0 ? "" : "Make this one sooner. Drag it, or right-click, to move it further")
                 .accessibilityLabel("Move \(who) up")
             Button { unqueue() } label: { Image(systemName: "xmark.circle.fill") }
                 .buttonStyle(.borderless)

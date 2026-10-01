@@ -34,6 +34,19 @@ final class MadeFromTests: XCTestCase {
         XCTAssertFalse(rows(MadeFrom(s, created: made, now: made, timeZone: utc)).contains { $0.hasPrefix("You typed") })
     }
 
+    /// New 3D Shape keeps `seed` and changes only `shapeSeed` (#141): the two versions' Made
+    /// From must differ, and a mini without its own shape number has no row for one.
+    func testANewShapeShowsItsShapeNumber() {
+        var s = MiniSettings()
+        s.source = .image; s.seed = 42; s.requested = Sizes()
+        let first = rows(MadeFrom(s, created: made, now: made, timeZone: utc))
+        XCTAssertFalse(first.contains { $0.hasPrefix("3D shape number") })
+        s.shapeSeed = 977
+        let again = rows(MadeFrom(s, created: made, now: made, timeZone: utc))
+        XCTAssertNotEqual(first, again, "the two versions look identical")
+        XCTAssertTrue(again.contains("3D shape number: 977"))
+    }
+
     /// An older mini leaves out what it didn't record rather than showing blanks. No model
     /// recorded is Pixal3D, the only one then; an unknown one isn't named.
     func testAnOlderMiniShowsOnlyWhatItHas() {
