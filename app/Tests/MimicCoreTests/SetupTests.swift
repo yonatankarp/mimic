@@ -417,7 +417,7 @@ final class SetupTests: XCTestCase {
     }
     /// Every file Mimic downloads is still where it's pinned, at the size it's pinned at. A
     /// release deleted by hand (the engine's was, on 2026-09-29) breaks every new install and
-    /// nothing else notices, so CI runs this on each push and once a day.
+    /// nothing else notices, so CI runs this once a day and before each release.
     /// `MIMIC_CHECK_DOWNLOADS=1` runs it; it asks for each file's size, downloading nothing.
     func testEveryPinnedDownloadIsReachable() async throws {
         guard ProcessInfo.processInfo.environment["MIMIC_CHECK_DOWNLOADS"] != nil else { throw XCTSkip("set MIMIC_CHECK_DOWNLOADS=1") }
