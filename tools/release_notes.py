@@ -4,9 +4,10 @@
     tools/release_notes.py 0.8.0            # the notes for tag v0.8.0
     tools/release_notes.py 0.8.0 origin/main  # a preview, before the tag exists
 
-Each pull request's title says what kind of change it is (`feat: ...`, `fix: ...`, `change: ...`),
-which picks its heading: New, Fixed or Changed. Other kinds (docs, chore, ci, test, refactor) are
-left out. The line is the first paragraph under the PR's `## Release note`, written for people
+Each pull request's title says what kind of change it is, which picks its heading: `feat: ...` is a
+new feature, `change: ...` an improvement and `fix: ...` a bug fix. A `(cli)` scope (`feat(cli): ...`)
+puts it under In Terminal instead, since most people never use it. Other kinds (docs, chore, ci,
+test, refactor) are left out. A line on top counts what the version brings. The line is the first paragraph under the PR's `## Release note`, written for people
 who use Mimic, or its title when it has none; `none` leaves it out.
 
 A version with its own section in CHANGELOG.md (0.7.0 and before) uses that instead.
@@ -17,9 +18,12 @@ import re
 import subprocess
 import sys
 
-HEADINGS = {"feat": "New", "change": "Changed", "fix": "Fixed"}
+HEADINGS = {"feat": "✨ New features", "change": "🔧 Improvements", "fix": "🐞 Bug fixes"}
+TERMINAL = "⌨️ In Terminal"
 KINDS = set(HEADINGS) | {"docs", "chore", "ci", "test", "refactor"}
-TITLE = re.compile(r"^(?P<kind>[a-z]+)(\([^)]*\))?!?: (?P<text>.+)$")
+TITLE = re.compile(r"^(?P<kind>[a-z]+)(\((?P<scope>[^)]*)\))?!?: (?P<text>.+)$")
+COUNTED = {"feat": ("new feature", "new features"), "change": ("improvement", "improvements"),
+           "fix": ("bug fix", "bug fixes"), "cli": ("change in Terminal", "changes in Terminal")}
 
 
 def run(*args):
@@ -70,23 +74,33 @@ def notes(version, ref):
     if written := changelog_section(version):
         return written
     since = run("git", "describe", "--tags", "--abbrev=0", "--match", "v*", f"{ref}^").strip()
-    sections = {heading: [] for heading in HEADINGS.values()}
+    sections = {heading: [] for heading in [*HEADINGS.values(), TERMINAL]}
+    counts = dict.fromkeys(COUNTED, 0)
     for number in pull_requests(since, ref):
         pr = json.loads(run("gh", "pr", "view", number, "--json", "title,body"))
         title = TITLE.match(pr["title"])
         if not title or title["kind"] not in KINDS:
             print(f"#{number} has no kind in its title, left out: {pr['title']}", file=sys.stderr)
             continue
-        heading = HEADINGS.get(title["kind"])
         note = release_note(pr["body"])
-        if heading is None or (note or "").lower().rstrip(".") == "none":
+        if title["kind"] not in HEADINGS or (note or "").lower().rstrip(".") == "none":
             continue
         if not note:
             text = title["text"]
             note = text[0].upper() + text[1:]
-        sections[heading] += bullets(note)
-    return "\n\n".join(f"### {heading}\n" + "\n".join(lines) for heading, lines in sections.items() if lines)
+        terminal = title["scope"] == "cli"
+        lines = bullets(note)
+        sections[TERMINAL if terminal else HEADINGS[title["kind"]]] += lines
+        counts["cli" if terminal else title["kind"]] += len(lines)
+    body = "\n\n".join(f"### {heading}\n" + "\n".join(lines) for heading, lines in sections.items() if lines)
+    return f"{summary(counts)}\n\n{body}" if body else ""
 
+
+def summary(counts):
+    """"This update has 6 new features, 2 improvements and 3 bug fixes."."""
+    parts = [f"{n} {COUNTED[kind][n != 1]}" for kind, n in counts.items() if n]
+    listed = parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " and " + parts[-1]
+    return f"This update has {listed}."
 
 if __name__ == "__main__":
     if len(sys.argv) not in (2, 3):
