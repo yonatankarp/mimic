@@ -9,7 +9,7 @@ public enum Reset {
     public static func run(install: Install, domain: String, removeEngine: Bool,
                            keychainService: String = Keychain.service) throws {
         let defaults = UserDefaults.standard
-        let kept = (defaults.persistentDomain(forName: domain) ?? [:]).filter { ["installDir", MinisFolder.key].contains($0.key) }
+        let kept = (defaults.persistentDomain(forName: domain) ?? [:]).filter { [SettingsKey.installDir, MinisFolder.key].contains($0.key) }
         defaults.setPersistentDomain(kept, forName: domain)
         Keychain.deleteAll(service: keychainService)
         if removeEngine, FileManager.default.fileExists(atPath: install.engine.path) {

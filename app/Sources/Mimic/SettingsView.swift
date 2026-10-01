@@ -29,7 +29,7 @@ struct SettingsView: View {
     @Environment(AppModel.self) private var model
     private var health: Health { .shared }
     @AppStorage(SettingsTab.key) private var tab = SettingsTab.general
-    @AppStorage("slicer") private var slicer = ""
+    @AppStorage(SettingsKey.slicer) private var slicer = ""
     @AppStorage(DrawThingsApp.enabledKey) private var openDrawThings = true
     @AppStorage(Power.key) private var holdOnBattery = false
     /// A MacBook: the battery setting means nothing on a Mac mini.

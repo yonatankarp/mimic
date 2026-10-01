@@ -61,7 +61,7 @@ struct MakeView: View {
         _name = State(initialValue: form.name)
         _seed = State(initialValue: form.seed)
         _card = State(initialValue: form.card)
-        _project = State(initialValue: form.project ?? "")
+        _project = State(initialValue: ProjectChoice(form.project))
         _madeWith = State(initialValue: form.model)
         _shapeSeed = State(initialValue: form.shapeSeed)
     }
@@ -70,10 +70,25 @@ struct MakeView: View {
     /// The raw error behind a message, for the tooltip only.
     @State private var messageDetail: String?
     @FocusState private var nameFocused: Bool
-    /// The project it goes in: "" is Unsorted, `newProject` a project named in `newProjectName`.
-    @State private var project = ""
+    /// The project it goes in; New Project… is one named in `newProjectName`.
+    @State private var project = ProjectChoice.unsorted
     @State private var newProjectName = ""
-    private static let newProject = "\u{1}new"
+
+    /// The Project menu's choice.
+    private enum ProjectChoice: Hashable {
+        case unsorted, existing(String), new
+
+        /// A project's name, nil or empty for Unsorted.
+        init(_ project: String?) {
+            if let project, !project.isEmpty { self = .existing(project) } else { self = .unsorted }
+        }
+
+        /// The project to make it in: nil for Unsorted, and for New Project… until it's made.
+        var name: String? {
+            if case .existing(let p) = self { return p }
+            return nil
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -120,13 +135,13 @@ struct MakeView: View {
                             if new != MakeAdvice.name(fromDescription: description) { autoName = false }
                         }
                     Picker("Project", selection: $project) {
-                        Text("Unsorted").tag("")
-                        ForEach(model.projects, id: \.self) { Text($0).tag($0) }
+                        Text("Unsorted").tag(ProjectChoice.unsorted)
+                        ForEach(model.projects, id: \.self) { Text($0).tag(ProjectChoice.existing($0)) }
                         Divider()
-                        Text("New Project…").tag(Self.newProject)
+                        Text("New Project…").tag(ProjectChoice.new)
                     }
                     .help("The folder it's kept in, and where it's listed on the left.")
-                    if project == Self.newProject {
+                    if project == .new {
                         TextField("New project's name", text: $newProjectName, prompt: Text("e.g. Tiefling Party"))
                     }
                     if let taken = takenName {
@@ -179,7 +194,7 @@ struct MakeView: View {
         .onAppear {
             // The project you're looking at: the one New Mini was asked from, else the selected
             // mini's. Edit & Make Again keeps the mini's own.
-            if again == nil { project = model.makeInProject ?? model.selected?.project ?? "" }
+            if again == nil { project = ProjectChoice(model.makeInProject ?? model.selected?.project) }
             model.makeInProject = nil
         }
         // Two equal columns: 540 each from the default window up (the size column's hints mostly
@@ -442,7 +457,7 @@ struct MakeView: View {
     private var takenName: String? {
         // As Make Mini refuses it: a failed attempt's folder in the same place is made again.
         guard !slug.isEmpty,
-              Gallery.nameTaken(model.install.runs, slug, project: project.isEmpty || project == Self.newProject ? nil : project)
+              Gallery.nameTaken(model.install.runs, slug, project: project.name)
                 || model.waiting(slug) != nil || model.current?.name == slug
         else { return nil }
         return model.displayName(slug)
@@ -472,7 +487,7 @@ struct MakeView: View {
         default: break
         }
         if slug.isEmpty { return "Give your mini a name" }
-        if project == Self.newProject && Rules.projectName(newProjectName) == nil { return "Name the new project" }
+        if project == .new && Rules.projectName(newProjectName) == nil { return "Name the new project" }
         if start == .description && !health.drawThingsReady { return "A description needs Draw Things first" }
         return nil
     }
@@ -489,9 +504,9 @@ struct MakeView: View {
             source = better.isEmpty ? .description(trimmedDescription) : .description(better, original: trimmedDescription)
         }
         do {
-            if project == Self.newProject { project = try model.createProject(newProjectName) }
+            if project == .new { project = .existing(try model.createProject(newProjectName)) }
             try model.make(name: slug, picture: source, restyle: start == .picture && sculpt,
-                           seed: seed, sizes: card.sizes, kind: card.kind, project: project.isEmpty ? nil : project, cartoon: cartoonOn, shown: name,
+                           seed: seed, sizes: card.sizes, kind: card.kind, project: project.name, cartoon: cartoonOn, shown: name,
                            model: madeWith.flatMap { EngineDownload.model($0) }, shapeSeed: shapeSeed, sides: sidesUsed)
         } catch {
             say(model.plainWords(error), error: true)
@@ -503,11 +518,11 @@ struct MakeView: View {
     /// file. Names can be changed afterwards.
     private func make(_ pictures: [URL]) {
         guard model.requiredProblem == nil else { return }
-        if project == Self.newProject && Rules.projectName(newProjectName) == nil { return say("Name the new project, then drop the pictures again.", error: true) }
+        if project == .new && Rules.projectName(newProjectName) == nil { return say("Name the new project, then drop the pictures again.", error: true) }
         do {
-            if project == Self.newProject { project = try model.createProject(newProjectName) }
+            if project == .new { project = .existing(try model.createProject(newProjectName)) }
             if let why = model.make(pictures: pictures, restyle: sculpt, seed: seed, sizes: card.sizes, kind: card.kind,
-                                    project: project.isEmpty ? nil : project, cartoon: cartoonOn) { say(why, error: true) }
+                                    project: project.name, cartoon: cartoonOn) { say(why, error: true) }
         } catch {
             say(model.plainWords(error), error: true)
             messageDetail = "\(error)"

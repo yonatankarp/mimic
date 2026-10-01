@@ -86,7 +86,7 @@ public enum Pipeline {
             // another version differently.
             + (settings.requested?.flags().contains("--base-style") == true ? ["--base-seed", String(settings.seed ?? 42)] : [])
         let prep: Step = .run(executable: tools.mimic,
-                              arguments: ["_prep", folder.appendingPathComponent("model.glb").path,
+                              arguments: ["_prep", folder.appendingPathComponent(Mini.modelFile).path,
                                           folder.appendingPathComponent("\(name).stl").path] + flags,
                               directory: nil, log: folder.appendingPathComponent("prep.log"))
         if kind == .prep { return [(.print, prep)] }
@@ -117,7 +117,7 @@ public enum Pipeline {
         }
         let sides = settings.source == .image ? settings.sides ?? [] : []
         let mesh: Step = .run(executable: tools.mimic,
-                              arguments: ["_engine", source.path, folder.appendingPathComponent("model.glb").path,
+                              arguments: ["_engine", source.path, folder.appendingPathComponent(Mini.modelFile).path,
                                           "--seed", String(settings.shapeSeed ?? seed), "--engine", tools.engine, "--model", model.id]
                                   + sides.flatMap { ["--\($0.rawValue)", folder.appendingPathComponent($0.source).path] },
                               directory: nil, log: folder.appendingPathComponent("pixal3d.log"))
@@ -135,7 +135,7 @@ public enum Pipeline {
     public static func skipped(_ folder: URL, sides: [PictureSide] = []) -> Set<JobStep> {
         let fm = FileManager.default
         guard (["source.png"] + sides.map(\.source)).allSatisfy({ fm.fileExists(atPath: folder.appendingPathComponent($0).path) }) else { return [] }
-        return fm.fileExists(atPath: folder.appendingPathComponent("model.glb").path) ? [.picture, .shape] : [.picture]
+        return fm.fileExists(atPath: folder.appendingPathComponent(Mini.modelFile).path) ? [.picture, .shape] : [.picture]
     }
 }
 

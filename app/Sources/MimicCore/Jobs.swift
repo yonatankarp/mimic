@@ -255,7 +255,7 @@ public final class JobRunner: @unchecked Sendable {
         guard Rules.isValidName(name) else { throw RequestError.badName }
         _ = try sizes.flags()
         guard let folder = Gallery.folder(install.runs, name) else { throw RequestError.notFound }
-        guard FileManager.default.fileExists(atPath: folder.appendingPathComponent("model.glb").path) else { throw RequestError.noModelYet }
+        guard FileManager.default.fileExists(atPath: folder.appendingPathComponent(Mini.modelFile).path) else { throw RequestError.noModelYet }
         var settings = MiniSettings.load(folder)
         settings.requested = sizes
         _ = try Pipeline.plan(.prep, folder: folder, settings: settings, tools: tools)
@@ -275,7 +275,7 @@ public final class JobRunner: @unchecked Sendable {
         // An imported model has nothing of its own to make again; Resize remakes its print file.
         if settings.isImported { throw RequestError.imported(name) }
         guard settings.requested != nil else { throw RequestError.nothingToRetry }
-        let hasModel = FileManager.default.fileExists(atPath: folder.appendingPathComponent("model.glb").path)
+        let hasModel = FileManager.default.fileExists(atPath: folder.appendingPathComponent(Mini.modelFile).path)
         if !hasModel {
             // The same 3D model it was made with, and it has to be here: found out now, not minutes in.
             guard let model = EngineDownload.model(settings.model) else { throw RequestError.unknownModel(settings.model ?? "") }
@@ -545,7 +545,7 @@ public final class JobRunner: @unchecked Sendable {
                 // skips a step whose file is there: a picture, or the 3D shape. Step 1 is one run
                 // per picture, so the pictures it had finished are kept.
                 for (number, step) in plan.dropFirst(done) where kind == .generate {
-                    if let file = number == .shape ? folder.appendingPathComponent("model.glb") : step.makes { try? FileManager.default.removeItem(at: file) }
+                    if let file = number == .shape ? folder.appendingPathComponent(Mini.modelFile) : step.makes { try? FileManager.default.removeItem(at: file) }
                 }
             } else if kind == .generate || Self.importing(folder) {
                 try? trash(folder)  // a half-made new mini (or import) is clutter, not a result
