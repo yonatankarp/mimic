@@ -818,7 +818,7 @@ final class AppModel {
             : projects.count == 1 ? (projects.first! ?? "Unsorted") : "\(made.count) Minis"
         if copies > 1 { name += " ×\(copies)" }
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("Open Together")
-        let url = dir.appendingPathComponent(Rules.slug(name).isEmpty ? "minis.3mf" : "\(name).3mf")
+        let url = dir.appendingPathComponent(Rules.printFileName(name))
         let parts = made.map { ($0.displayName, $0.stl!) }
         packing = true
         Task {

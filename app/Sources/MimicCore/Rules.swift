@@ -93,6 +93,15 @@ public enum Rules {
         return nil
     }
 
+    /// The file name for a print file named after shown names: "AC/DC Roadie ×2" is
+    /// "AC-DC Roadie ×2.3mf", since "/" and ":" can't be in a file name and a leading "." would
+    /// hide it. "minis.3mf" when nothing in it could be a folder name (only emoji, say).
+    public static func printFileName(_ name: String) -> String {
+        let plain = name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
+        let shown = plain.drop { $0 == "." }
+        return slug(String(shown)).isEmpty ? "minis.3mf" : "\(shown).3mf"
+    }
+
     /// A project's folder name, as typed ("Tiefling Party"), trimmed; nil when it can't be one.
     /// "_" and "." folders are Mimic's own scratch and hidden, so a project can't start with either.
     public static func projectName(_ text: String) -> String? {
