@@ -102,6 +102,8 @@ jobs:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
           [ -n "$SPARKLE_PRIVATE_KEY" ] || { echo "No SPARKLE_PRIVATE_KEY: a release needs its appcast."; exit 1; }
+          # The same Sparkle version as app/Package.resolved, which Dependabot bumps but can't
+          # follow here: when it moves, update this version and the tarball's sha256 to match.
           curl -fsSL -o "$RUNNER_TEMP/sparkle.tar.xz" https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-2.10.0.tar.xz
           echo "c2bf58aa8387266ac179357b1415d6f2635f044da8be41042af32425dae6da0c  $RUNNER_TEMP/sparkle.tar.xz" | shasum -a 256 -c
           mkdir -p "$RUNNER_TEMP/sparkle" "$RUNNER_TEMP/appcast"
