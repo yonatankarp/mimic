@@ -28,13 +28,13 @@ final class MiniActionsTests: XCTestCase {
 
         // A request left from before, naming another job, is dropped rather than kept for later.
         try Data("someone-else".utf8).write(to: maker.queue.stopFile)
-        usleep(1_200_000)
+        XCTAssertTrue(eventually { !FileManager.default.fileExists(atPath: maker.queue.stopFile.path) }, "the request was never read")
         XCTAssertEqual(maker.status?.running, true, "a request naming another mini stopped this one")
         XCTAssertFalse(FileManager.default.fileExists(atPath: maker.queue.stopFile.path))
         // So is one for an earlier job of the same name (#173).
         let earlier = JobStatus(name: "mini", kind: .prep, step: 3, started: Date(timeIntervalSinceNow: -3600))
         try Data(JobRunner.stopAsk(earlier).utf8).write(to: maker.queue.stopFile)
-        usleep(1_200_000)
+        XCTAssertTrue(eventually { !FileManager.default.fileExists(atPath: maker.queue.stopFile.path) }, "the request was never read")
         XCTAssertEqual(maker.status?.running, true, "a request for an earlier job of this name stopped this one")
         XCTAssertFalse(FileManager.default.fileExists(atPath: maker.queue.stopFile.path))
 
@@ -75,8 +75,13 @@ final class MiniActionsTests: XCTestCase {
         let job = JobStatus(name: "mini", kind: .prep, step: 3, started: Date(timeIntervalSince1970: 1_700_000_000.9999))
         SharedJob.write(job, queue: fx.install.queue)  // another Mimic, which finishes it before it looks
         XCTAssertEqual(JobRunner.stopTime(try XCTUnwrap(SharedJob.read(queue: fx.install.queue)).started), JobRunner.stopTime(job.started))
-        DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) { SharedJob.clear(queue: fx.install.queue) }
         let terminal = JobRunner(install: fx.install, tools: fx.tools())
+        // Finished once `mimic stop` has asked, not before.
+        let stopFile = terminal.queue.stopFile.path
+        DispatchQueue.global().async {
+            _ = eventually { FileManager.default.fileExists(atPath: stopFile) }
+            SharedJob.clear(queue: fx.install.queue)
+        }
         guard case .ended(let s) = terminal.stopElsewhere(timeout: 10) else { return XCTFail("said it stopped a job that ended on its own") }
         XCTAssertEqual(s.name, "mini")
         XCTAssertFalse(FileManager.default.fileExists(atPath: terminal.queue.stopFile.path), "the request was left for a later job")
@@ -88,7 +93,9 @@ final class MiniActionsTests: XCTestCase {
         let maker = JobRunner(install: fx.install, tools: fx.tools(mimic: prep), trash: { _ in })
         try maker.resize(name: "mini", sizes: sizes)
         for _ in 0..<100 where !FileManager.default.fileExists(atPath: started) { usleep(50_000) }
-        usleep(1_200_000)
+        // It has looked for a request once it drops this one, naming another mini.
+        try Data("someone-else".utf8).write(to: maker.queue.stopFile)
+        XCTAssertTrue(eventually { !FileManager.default.fileExists(atPath: maker.queue.stopFile.path) }, "the request was never read")
         XCTAssertEqual(maker.status?.running, true, "a request from before stopped the next job of that name")
         XCTAssertTrue(maker.cancel())
         maker.waitUntilDone()

@@ -370,11 +370,13 @@ final class GalleryTests: XCTestCase {
 final class SlicerTests: XCTestCase {
     func testFindsInstalledSlicersAndHonoursThePick() throws {
         let apps = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: apps) }
         for b in ["OrcaSlicer.app", "BambuStudio.app"] {
             try FileManager.default.createDirectory(at: apps.appendingPathComponent(b), withIntermediateDirectories: true)
         }
         XCTAssertEqual(Slicer.installed(in: [apps]).map(\.id), ["bambu", "orca"])
-        let d = UserDefaults(suiteName: UUID().uuidString)!
+        let suite = UUID().uuidString, d = UserDefaults(suiteName: suite)!
+        defer { d.removePersistentDomain(forName: suite) }
         XCTAssertEqual(Slicer.preferred(defaults: d, in: [apps])?.id, "bambu", "the first installed when none is picked")
         d.set("orca", forKey: "slicer")
         XCTAssertEqual(Slicer.preferred(defaults: d, in: [apps])?.id, "orca")

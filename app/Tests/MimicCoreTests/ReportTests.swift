@@ -25,6 +25,7 @@ final class ReportTests: XCTestCase {
     /// Unzips `zip` and returns its folder, and every file in it by path.
     func unzip(_ zip: URL) throws -> (URL, [String: Data]) {
         let out = fm.temporaryDirectory.appendingPathComponent("unzip-\(UUID().uuidString)")
+        addTeardownBlock { try? FileManager.default.removeItem(at: out) }
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
         p.arguments = ["-x", "-k", zip.path, out.path]
