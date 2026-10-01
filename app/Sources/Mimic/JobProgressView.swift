@@ -91,10 +91,25 @@ struct JobProgressView: View {
                             .keyboardShortcut(.defaultAction)
                             .disabled(model.requiredProblem != nil || model.waiting(s.name) != nil || model.isImported(s.name))
                             .help(model.isImported(s.name) ? RequestError.imported(s.name).description : "")
+                    } else if s.outcome == .pictureReady {
+                        checkButtons(s.name)
                     }
                 }
             }
         }
+    }
+
+    /// For a make that stopped once its picture was made (#156): draw it again, or carry on.
+    @ViewBuilder private func checkButtons(_ name: String) -> some View {
+        let off = model.requiredProblem != nil || model.waiting(name) != nil || model.current?.name == name
+        Button("Try Again") { redraw(name) }
+            .disabled(off)
+            .help("Draws the picture again with a new variation number")
+        Button("Build Shape") { buildShape(name) }
+            .buttonStyle(.glassProminent)
+            .keyboardShortcut(.defaultAction)
+            .disabled(off)
+            .help("Makes the 3D shape from this picture")
     }
 
     /// Another Mimic (the dev app, or `mimic` in Terminal) is running the job: shown, not controlled.
@@ -118,9 +133,12 @@ struct JobProgressView: View {
                 HStack {
                     Image(systemName: s.outcome.symbol).foregroundStyle(s.outcome.color)
                     Text(s.succeeded ? "\(model.displayName(s)) is ready" : s.canceled ? "Stopped \(model.displayName(s))"
-                                                                            : "\(model.displayName(s)) didn't finish")
+                         : s.outcome == .pictureReady ? "Check the picture of \(model.displayName(s))"
+                         : "\(model.displayName(s)) didn't finish")
                     Spacer()
-                    if s.outcome == .failed {
+                    if s.outcome == .pictureReady {
+                        Button("Show Picture") { model.jobPopover = false; model.go(to: s.name) }
+                    } else if s.outcome == .failed {
                         Button("Try Again") { tryAgain(s.name) }
                             .disabled(model.requiredProblem != nil || model.waiting(s.name) != nil || model.isImported(s.name))
                             .help(model.isImported(s.name) ? RequestError.imported(s.name).description : s.problem ?? "")
@@ -148,6 +166,12 @@ struct JobProgressView: View {
                     Label("Your mini is ready, but some thin parts may be fragile. Check it in your slicer before printing.",
                           systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                 }
+            case .pictureReady:
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Check it before the 3D shape is built. Try Again draws it again.")
+                        .foregroundStyle(.secondary)
+                    if let why = retryProblem { Text(why).font(.callout).foregroundStyle(.secondary).textSelection(.enabled) }
+                }
             case .failed:
                 VStack(alignment: .leading, spacing: 4) {
                     Text(JobProgress.drawThingsCaused(s) ? "Draw Things didn't answer. Check the setup steps, then try again."
@@ -168,6 +192,16 @@ struct JobProgressView: View {
         do { try model.retry(name) } catch { retryProblem = model.plainWords(error); retryDetail = "\(error)" }
     }
 
+    private func buildShape(_ name: String) {
+        retryProblem = nil
+        do { try model.buildShape(name) } catch { retryProblem = model.plainWords(error); retryDetail = "\(error)" }
+    }
+
+    private func redraw(_ name: String) {
+        retryProblem = nil
+        do { try model.redrawPicture(name) } catch { retryProblem = model.plainWords(error); retryDetail = "\(error)" }
+    }
+
     @ViewBuilder private func title(_ s: JobStatus, who: String) -> some View {
         switch s.outcome {
         case .running:
@@ -176,6 +210,8 @@ struct JobProgressView: View {
             Label("Stopped \(model.doing(s).lowercased()) \(who)", systemImage: "stop.circle")
         case .finished:
             Label { Text("\(who) is ready") } icon: { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green) }
+        case .pictureReady:
+            Label { Text("The picture of \(who) is ready") } icon: { Image(systemName: s.outcome.symbol).foregroundStyle(s.outcome.color) }
         case .failed:
             Label { Text("Something went wrong while \(s.step.label.lowercased())").fixedSize(horizontal: false, vertical: true) }
                 icon: { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange) }
@@ -189,6 +225,7 @@ struct JobProgressView: View {
         switch s.outcome {
         case .running: n < s.step ? .done : n == s.step ? .active : .pending
         case .finished: .done
+        case .pictureReady: n == .picture ? .done : .pending
         case .stopped: .pending
         case .failed: n < s.step ? .done : n == s.step ? .failed : .pending
         }
@@ -483,6 +520,7 @@ struct JobToolbarItem: View {
         case .running: return "\(model.doing(s)) \(who) · \(JobProgress.clock(now.timeIntervalSince(s.started)))\(waiting)"
         case .stopped: return "Stopped \(who)\(waiting)"
         case .finished: return "\(who) is ready" + waiting
+        case .pictureReady: return "Check the picture of \(who)" + waiting
         case .failed: return "\(who) didn't finish" + waiting
         }
     }
@@ -494,6 +532,7 @@ private extension JobOutcome {
     var symbol: String {
         switch self {
         case .finished: "checkmark.circle.fill"
+        case .pictureReady: "photo.circle.fill"
         case .stopped: "stop.circle"
         case .running, .failed: "exclamationmark.triangle.fill"
         }
@@ -502,6 +541,7 @@ private extension JobOutcome {
     var color: Color {
         switch self {
         case .finished: .green
+        case .pictureReady: .accentColor
         case .stopped: .secondary
         case .running, .failed: .orange
         }

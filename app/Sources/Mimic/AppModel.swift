@@ -540,6 +540,18 @@ final class AppModel {
         present { $0.retried(name) }
     }
 
+    /// Build Shape, for a mini whose picture is ready to check (#156): carries on from it.
+    func buildShape(_ name: String) throws {
+        try start(name) { try $0.retry(name: name) }
+        present { $0.retried(name) }
+    }
+
+    /// Try Again on a picture ready to check (#156): draws it again with a new variation number.
+    func redrawPicture(_ name: String) throws {
+        try start(name) { try $0.redrawPicture(name: name) }
+        present { $0.retried(name) }
+    }
+
     /// A mini that didn't finish and can be tried again: no print file, not waiting or being
     /// made, and it kept what it was asked for.
     func canRetry(_ mini: Mini) -> Bool {

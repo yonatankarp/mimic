@@ -20,7 +20,8 @@ public enum JobStep: Int, Codable, CaseIterable, Comparable, Sendable {
 
 /// How a job is doing, or how it ended.
 public enum JobOutcome: Sendable {
-    case running, finished, stopped, failed
+    /// `pictureReady`: a make stopped once its picture was made, for the person to check (#156).
+    case running, finished, stopped, failed, pictureReady
 }
 
 /// Where a job is, for the progress window and `mimic make`.
@@ -46,7 +47,11 @@ public struct JobStatus: Equatable, Sendable {
     /// The mini's name as shown ("Élodie the Druid"), read as it starts: a stopped new mini's
     /// folder, which keeps that name, is in the Trash by the time it's named (#166).
     public var shown: String?
-    public var outcome: JobOutcome { running ? .running : canceled ? .stopped : exit == 0 ? .finished : .failed }
+    /// It made the picture and stopped there, for the person to check it before the 3D shape (#156).
+    public var pictureReady = false
+    public var outcome: JobOutcome {
+        running ? .running : canceled ? .stopped : exit != 0 ? .failed : pictureReady ? .pictureReady : .finished
+    }
     public var succeeded: Bool { outcome == .finished }
 
     /// What to call the mini: its name as shown, or from its folder for a job from a Mimic
@@ -169,11 +174,13 @@ public final class JobRunner: @unchecked Sendable {
     /// sides besides `picture`, the front (#66), for a model that can use them. `fixes`: what to
     /// change in a picture, as typed, oldest first, the last one made by this mini's redraw
     /// (#156), which a fix always turns on; `fixUsed` is that last one as the AI helper rewrote it.
+    /// `checkPicture`: stop once the picture is made, for the person to check it (`pictureToCheck`).
     @discardableResult
     public func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes,
                      kind: MiniKind = .character, model: EngineModel, project: String? = nil, versionOf: String? = nil,
                      cartoon: Bool = false, shown: String? = nil, shapeSeed: Int? = nil, drawn: URL? = nil,
-                     sides: [PictureSide: URL] = [:], fixes: [String] = [], fixUsed: String? = nil) throws -> Int? {
+                     sides: [PictureSide: URL] = [:], fixes: [String] = [], fixUsed: String? = nil,
+                     checkPicture: Bool = false) throws -> Int? {
         guard Rules.isValidName(name) else { throw RequestError.badName }
         if let project, !Gallery.projects(install.runs).contains(project) { throw RequestError.projectNotFound }
         _ = try sizes.flags()
@@ -231,6 +238,7 @@ public final class JobRunner: @unchecked Sendable {
                     s.created = Date()  // a failed attempt's folder made again is a new mini
                     s.sides = settings.sides  // always set, like kind
                     s.fixes = settings.fixes; s.fixUsed = settings.fixUsed  // always set, like kind
+                    s.checkPicture = checkPicture ? true : nil  // always set, like kind
                 }
                 // A failed attempt's pictures are from what it was asked for then: made again from
                 // this one's, since the plan starts at the 3D step whenever they're there (#79).
@@ -275,7 +283,8 @@ public final class JobRunner: @unchecked Sendable {
     }
 
     /// Runs a failed mini again, from what it saved: a resize if the 3D model exists, else all
-    /// three steps.
+    /// three steps. It's Build Shape too, for a mini waiting for its picture to be checked
+    /// (#156): its picture is made, so it carries on from the 3D shape.
     @discardableResult
     public func retry(name: String) throws -> Int? {
         guard Rules.isValidName(name) else { throw RequestError.badName }
@@ -295,6 +304,28 @@ public final class JobRunner: @unchecked Sendable {
         return try queue.locked { entries in
             try checkFree(name, entries)
             return enqueue(QueueEntry(name: name, job: kind, again: true), &entries)
+        }
+    }
+
+    /// Try Again for a mini waiting for its picture to be checked (#156): its pictures are
+    /// drawn again with a new number (`seed`, else a random one), since the same number draws
+    /// the same picture, and it stops again once they're made. Stopped, it goes back to how it
+    /// was, without them.
+    @discardableResult
+    public func redrawPicture(name: String, seed: Int? = nil) throws -> Int? {
+        guard Rules.isValidName(name) else { throw RequestError.badName }
+        guard let folder = Gallery.folder(install.runs, name) else { throw RequestError.notFound }
+        let settings = MiniSettings.load(folder)
+        guard Pipeline.pictureToCheck(folder, settings: settings) else { throw RequestError.noPictureToCheck(name) }
+        guard let model = EngineDownload.model(settings.model) else { throw RequestError.unknownModel(settings.model ?? "") }
+        guard model.complete(in: install) else { throw RequestError.modelNotDownloaded(model.name) }
+        return try queue.locked { entries in
+            try checkFree(name, entries)
+            try MiniSettings.update(folder) { $0.seed = Self.newSeed(seed, not: settings.seed ?? 42) }
+            for f in ["source.png", "source__matted.png"] + PictureSide.allCases.flatMap({
+                [$0.source, $0.source.replacingOccurrences(of: ".png", with: "__matted.png")]
+            }) { try? FileManager.default.removeItem(at: folder.appendingPathComponent(f)) }
+            return enqueue(QueueEntry(name: name, job: .generate, again: true), &entries)
         }
     }
 
@@ -533,6 +564,8 @@ public final class JobRunner: @unchecked Sendable {
         var kept: Bool
         var fragile: Bool
         var notes: [String]
+        /// It made its picture and stopped, for the person to check it (#156).
+        var pictureReady = false
     }
 
     private func execute(_ plan: [(number: JobStep, step: Step)], entry: QueueEntry, folder: URL, log: URL, settings: MiniSettings) {
@@ -590,7 +623,10 @@ public final class JobRunner: @unchecked Sendable {
             } else if kind == .generate || Self.importing(folder) {
                 try? trash(folder)  // a half-made new mini (or import) is clutter, not a result
             }
-        } else if ran.code == 0, let requested = settings.requested {
+        }
+        // A make that stops for its picture to be checked has only made the picture (#156).
+        let pictureReady = !canceled && ran.code == 0 && plan.last?.number == .picture
+        if !canceled, !pictureReady, ran.code == 0, let requested = settings.requested {
             try? MiniSettings.update(folder) { $0.made = requested }  // "Now: …" shows only what a finished run made
         }
         let report = PrepReport.read(folder) ?? PrepReport()
@@ -604,14 +640,14 @@ public final class JobRunner: @unchecked Sendable {
             let code = ran.code, problem = ran.problem
             try? MiniSettings.update(folder) { s in
                 if code == 0 {
-                    s.notes = notes.isEmpty ? nil : notes; s.fragile = fragile ? true : nil
+                    if !pictureReady { s.notes = notes.isEmpty ? nil : notes; s.fragile = fragile ? true : nil }
                     s.failed = nil; s.failedStep = nil
                 } else {
                     s.failed = problem ?? "It stopped while \((step ?? .shape).label.lowercased())."; s.failedStep = step?.rawValue
                 }
             }
         }
-        return Ending(canceled: canceled, kept: kept, fragile: fragile, notes: notes)
+        return Ending(canceled: canceled, kept: kept, fragile: fragile, notes: notes, pictureReady: pictureReady)
     }
 
     /// Ends the job: its status, its line in the log and its time, then the queue's next job, or
@@ -625,12 +661,17 @@ public final class JobRunner: @unchecked Sendable {
             current?.problem = canceled ? nil : problem
             current?.fragile = fragile && code == 0
             current?.notes = code == 0 ? notes : []
+            current?.pictureReady = ending.pictureReady
             process = nil
             return current
         }
-        let outcome = canceled ? "stopped" : code == 0 ? "finished" : "failed (exit \(code)): \(problem ?? "no reason given")"
+        let outcome = canceled ? "stopped" : code != 0 ? "failed (exit \(code)): \(problem ?? "no reason given")"
+            : ending.pictureReady ? "stopped for its picture to be checked" : "finished"
         Log.queue.notice("\(kind.rawValue, privacy: .public) of \(entry.name, privacy: .public) \(outcome, privacy: .public)")
-        if let ended { timings?.append([TimingRecord(ended, settings: settings, steps: ran.took, version: version, machine: .current)]) }
+        // Not one that stopped for its picture to be checked: it would count as a whole make.
+        if let ended, !ending.pictureReady {
+            timings?.append([TimingRecord(ended, settings: settings, steps: ran.took, version: version, machine: .current)])
+        }
         Leftover.clear(queue: install.queue)
         notify()
         // The next job, if any, starts before the lock is let go: no other Mimic can slip in.
