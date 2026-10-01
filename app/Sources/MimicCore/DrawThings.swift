@@ -171,10 +171,13 @@ public final class DrawThings: @unchecked Sendable {
         defer { try? FileManager.default.removeItem(at: dir) }
         let input = dir.appendingPathComponent("in.png"), output = dir.appendingPathComponent("out.png")
         if let image { try image.write(to: input) }
+        // At the same lower priority as a job's other programs (#136). nice runs the CLI in its own
+        // place, so Stop still ends it.
         let p = Process()
-        p.executableURL = URL(fileURLWithPath: cli)
-        p.arguments = Self.cliArguments(model: model, prompt: prompt, seed: seed, width: width, height: height,
-                                        image: image == nil ? nil : input.path, output: output.path)
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/nice")
+        p.arguments = ["-n", String(JobRunner.nice), cli]
+            + Self.cliArguments(model: model, prompt: prompt, seed: seed, width: width, height: height,
+                                image: image == nil ? nil : input.path, output: output.path)
         let pipe = Pipe()
         p.standardOutput = pipe; p.standardError = pipe
         let stopNow = try lock.withLock { () -> Bool in
