@@ -44,7 +44,15 @@ public final class DrawThings: @unchecked Sendable {
     public static func drawPrompt(_ description: String, kind: MiniKind) -> String {
         String(format: kind == .object ? objectPrompt : characterPrompt, description)
     }
-    public static func redrawPrompt(kind: MiniKind) -> String { kind == .object ? objectSculptPrompt : sculptPrompt }
+    /// The grey sculpt redraw, with a fix the person typed (#156) said before what it keeps, as
+    /// the one thing to change: so "keep the same weapons" doesn't undo "a shorter sword".
+    public static func redrawPrompt(kind: MiniKind, change: String? = nil) -> String {
+        let prompt = kind == .object ? objectSculptPrompt : sculptPrompt
+        let fix = (change ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !fix.isEmpty else { return prompt }
+        let said = ".!?".contains(fix.last!) ? fix : fix + "."
+        return prompt.replacingOccurrences(of: " Keep the same", with: " Make this one change: \(said) Apart from that change, keep the same")
+    }
 
     public init(environment: [String: String] = ProcessInfo.processInfo.environment,
                 home: URL = FileManager.default.homeDirectoryForCurrentUser, app: DrawThingsApp = .mac,
@@ -204,12 +212,14 @@ public final class DrawThings: @unchecked Sendable {
                                                  seed: seed, width: 1024, height: 1024))
     }
 
-    /// Redraws a picture as a grey sculpt of the same character. Returns PNG data.
-    public func sculpt(picture: URL, seed: Int, kind: MiniKind = .character) throws -> Data {
+    /// Redraws a picture as a grey sculpt of the same character, making `change` when given
+    /// (#156). Returns PNG data.
+    public func sculpt(picture: URL, seed: Int, kind: MiniKind = .character, change: String? = nil) throws -> Data {
         guard let model = model() else { throw DrawThingsError.noModel }
         let (png, w, h) = try Self.fitForEdit(picture)
-        if let cli { return try runCLI(cli, model: model, prompt: Self.redrawPrompt(kind: kind), seed: seed, width: w, height: h, image: png) }
-        return try send("sdapi/v1/img2img", body(model: model, prompt: Self.redrawPrompt(kind: kind), seed: seed, width: w, height: h, image: png))
+        let prompt = Self.redrawPrompt(kind: kind, change: change)
+        if let cli { return try runCLI(cli, model: model, prompt: prompt, seed: seed, width: w, height: h, image: png) }
+        return try send("sdapi/v1/img2img", body(model: model, prompt: prompt, seed: seed, width: w, height: h, image: png))
     }
 
     /// Stops a request in flight (Stop during the picture step), or the next one asked for: a

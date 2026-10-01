@@ -183,6 +183,31 @@ public struct DescriptionHelper: Sendable {
         return out
     }
 
+    /// What the model is told for a fix (#156): the answer goes into DrawThings.redrawPrompt as
+    /// "Make this one change: ___", told to an editing model that sees the picture but not what
+    /// the person meant. `kind` as for `systemPrompt`.
+    public static func fixPrompt(kind: String = "character") -> String {
+        let thing = kind == MiniKind.object.rawValue ? "an object" : "a character"
+        return """
+        You help people fix a picture of \(thing) before it is made into a 3D-printable model. \
+        They say in their own words what to change; you reply with one precise instruction for an \
+        image editing model that redraws the picture. Name the part to change and say plainly how \
+        it should look afterwards, as solid visible shapes. Make only the change they asked for, \
+        nothing else: no style, lighting, camera or background, no glow, smoke or effects. \
+        Write it as a command of at most 40 words, for example "Close the cape at the front so \
+        both arms are visible, held at the sides". \
+        Reply with the instruction only: no preamble, no quotes, no lists.
+        """
+    }
+
+    /// Rewrites a fix as an edit instruction. Throws a HelperError in plain words; callers use
+    /// the fix as typed.
+    public func rewriteFix(_ text: String, kind: String = "character", timeout: TimeInterval = 300) throws -> String {
+        let out = Self.tidy(try send(system: Self.fixPrompt(kind: kind), user: text, maxTokens: 200, timeout: timeout))
+        guard !out.isEmpty else { throw HelperError.empty }
+        return out
+    }
+
     /// Settings' Test button: one tiny call that proves the address, key and model.
     /// Any answer counts, even an empty one: the call only has to prove the address, key and model.
     public func test(timeout: TimeInterval = 300) throws {
@@ -257,14 +282,19 @@ public struct DescriptionHelper: Sendable {
 
     /// Model replies come dressed up now and then: quotes, "a " up front, thinking tags, newlines.
     static func clean(_ raw: String) -> String {
-        var s = raw.replacingOccurrences(of: "(?s)<think>.*?</think>", with: "", options: .regularExpression)
-        s = s.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }.joined(separator: " ")
-        s = s.trimmingCharacters(in: CharacterSet(charactersIn: "\"'“”‘’` ").union(.whitespaces))
+        var s = tidy(raw)
         // Some models repeat the words the answer is dropped after (seen from gemma3).
         s = s.replacingOccurrences(of: "^(a |an )?(full-body )?(fantasy )?(tabletop )?miniature of (a |an )?", with: "",
                                    options: [.regularExpression, .caseInsensitive])
         for article in ["a ", "an ", "the "] where s.lowercased().hasPrefix(article) { s.removeFirst(article.count); break }
         return dropEffects(s.trimmingCharacters(in: .whitespaces))
+    }
+
+    /// A reply on one line, without thinking tags or the quotes around it.
+    static func tidy(_ raw: String) -> String {
+        let s = raw.replacingOccurrences(of: "(?s)<think>.*?</think>", with: "", options: .regularExpression)
+            .components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }.joined(separator: " ")
+        return s.trimmingCharacters(in: CharacterSet(charactersIn: "\"'“”‘’` ").union(.whitespaces))
     }
 
     /// Things that don't print: light, fire, smoke and magic. The prompt forbids them, and small

@@ -166,12 +166,14 @@ public final class JobRunner: @unchecked Sendable {
     /// `shown` is the name as typed ("Élodie"), shown for it; `name` is its folder's. New 3D Shape
     /// passes the picture step 1 made (`drawn`), so it isn't made again, and the 3D engine's own seed (`shapeSeed`);
     /// the pictures it made of `sides` beside it are kept too. `sides`: pictures of the back and
-    /// sides besides `picture`, the front (#66), for a model that can use them.
+    /// sides besides `picture`, the front (#66), for a model that can use them. `fixes`: what to
+    /// change in a picture, as typed, oldest first, the last one made by this mini's redraw
+    /// (#156), which a fix always turns on; `fixUsed` is that last one as the AI helper rewrote it.
     @discardableResult
     public func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes,
                      kind: MiniKind = .character, model: EngineModel, project: String? = nil, versionOf: String? = nil,
                      cartoon: Bool = false, shown: String? = nil, shapeSeed: Int? = nil, drawn: URL? = nil,
-                     sides: [PictureSide: URL] = [:]) throws -> Int? {
+                     sides: [PictureSide: URL] = [:], fixes: [String] = [], fixUsed: String? = nil) throws -> Int? {
         guard Rules.isValidName(name) else { throw RequestError.badName }
         if let project, !Gallery.projects(install.runs).contains(project) { throw RequestError.projectNotFound }
         _ = try sizes.flags()
@@ -189,6 +191,12 @@ public final class JobRunner: @unchecked Sendable {
             if !sides.isEmpty { throw RequestError.sidesNeedAPicture }
             settings.source = .desc; settings.desc = text; settings.descOriginal = original
         }
+        let fixes = fixes.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        if !fixes.isEmpty && settings.source == .desc { throw RequestError.fixNeedsAPicture }
+        let used = fixUsed?.trimmingCharacters(in: .whitespacesAndNewlines)
+        settings.fixes = fixes.isEmpty ? nil : fixes
+        settings.fixUsed = fixes.isEmpty || used?.isEmpty != false || used == fixes.last ? nil : used
+        let restyle = restyle || !fixes.isEmpty
         if !sides.isEmpty && !model.multiView { throw RequestError.oneSideOnly(model.name) }
         var tidiedSides: [(PictureSide, Data)] = []
         for side in PictureSide.allCases {
@@ -222,6 +230,7 @@ public final class JobRunner: @unchecked Sendable {
                     s.shapeSeed = shapeSeed  // always set, as `kind` is
                     s.created = Date()  // a failed attempt's folder made again is a new mini
                     s.sides = settings.sides  // always set, like kind
+                    s.fixes = settings.fixes; s.fixUsed = settings.fixUsed  // always set, like kind
                 }
                 // A failed attempt's pictures are from what it was asked for then: made again from
                 // this one's, since the plan starts at the 3D step whenever they're there (#79).
@@ -651,14 +660,14 @@ public final class JobRunner: @unchecked Sendable {
         case let .drawCharacter(description, seed, to):
             try picture { try drawThings.draw(description: description, seed: seed) }.write(to: to, options: .atomic)
             return 0
-        case let .sculptPicture(from, seed, to):
-            try picture { try drawThings.sculpt(picture: from, seed: seed) }.write(to: to, options: .atomic)
+        case let .sculptPicture(from, seed, to, change):
+            try picture { try drawThings.sculpt(picture: from, seed: seed, change: change) }.write(to: to, options: .atomic)
             return 0
         case let .drawObject(description, seed, to):
             try picture { try drawThings.draw(description: description, seed: seed, kind: .object) }.write(to: to, options: .atomic)
             return 0
-        case let .sculptObject(from, seed, to):
-            try picture { try drawThings.sculpt(picture: from, seed: seed, kind: .object) }.write(to: to, options: .atomic)
+        case let .sculptObject(from, seed, to, change):
+            try picture { try drawThings.sculpt(picture: from, seed: seed, kind: .object, change: change) }.write(to: to, options: .atomic)
             return 0
         case let .run(executable, arguments, directory, log):
             // At a lower priority (#89), so the Mac stays quick to use meanwhile. nice runs the
@@ -710,7 +719,7 @@ public final class JobRunner: @unchecked Sendable {
         guard let next = entries.first, next.job == .generate, keepGoing(entries), hold() == nil else { return false }
         guard let folder = Gallery.folder(install.runs, next.name) else { return false }
         let s = MiniSettings.load(folder)
-        return s.source == .desc || s.restyle == true
+        return s.source == .desc || s.restyle == true || s.change != nil
     }
 
     private func quitDrawThings() {

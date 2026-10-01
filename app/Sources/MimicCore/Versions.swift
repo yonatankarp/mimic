@@ -7,9 +7,14 @@ extension JobRunner {
     /// grey sculpt) and the 3D shape start from, so a small detail that came out a blob may come
     /// out right. Named "<name>-2" (then -3…) unless `as` says. Returns the new name and, like
     /// `make`, its place in the queue.
+    ///
+    /// `change` is what to change in the picture, as typed (#156), and `changeUsed` the AI
+    /// helper's rewrite of it: the new version starts from the picture this one's step 1 made,
+    /// redrawn with that change, and lists it after this one's fixes, so fixes add up.
     @discardableResult
-    public func makeAnotherVersion(of name: String, as newName: String? = nil, seed: Int? = nil) throws -> (name: String, ahead: Int?) {
-        try version(of: name, as: newName) { settings in
+    public func makeAnotherVersion(of name: String, as newName: String? = nil, seed: Int? = nil,
+                                   change: String? = nil, changeUsed: String? = nil) throws -> (name: String, ahead: Int?) {
+        try version(of: name, as: newName, change: change, changeUsed: changeUsed) { settings in
             (seed: Self.newSeed(seed, not: settings.seed ?? 42), shapeSeed: nil, drawn: nil)
         }
     }
@@ -17,14 +22,16 @@ extension JobRunner {
     /// New 3D Shape: a sibling like Make Another Version's, from the picture `name`'s step 1 made
     /// (source.png, copied now so a rename or trash of `name` can't take it away), with a new
     /// seed for the 3D engine alone. The picture isn't made again, so it's faster and a drawing
-    /// you liked is kept; its own seed stays, so Try Again would draw the same one.
+    /// you liked is kept; its own seed stays, so Try Again would draw the same one. With a
+    /// `change`, that picture is redrawn with it first, as Make Another Version's is (#156).
     @discardableResult
-    public func makeNewShape(of name: String, as newName: String? = nil, seed: Int? = nil) throws -> (name: String, ahead: Int?) {
+    public func makeNewShape(of name: String, as newName: String? = nil, seed: Int? = nil,
+                             change: String? = nil, changeUsed: String? = nil) throws -> (name: String, ahead: Int?) {
         guard let folder = Gallery.folder(install.runs, name) else { throw RequestError.notFound }
         if MiniSettings.load(folder).isImported { throw RequestError.imported(name) }
         let drawn = folder.appendingPathComponent("source.png")
         guard FileManager.default.fileExists(atPath: drawn.path) else { throw RequestError.noDrawing(name) }
-        return try version(of: name, as: newName) { settings in
+        return try version(of: name, as: newName, change: change, changeUsed: changeUsed) { settings in
             let old = settings.seed ?? 42
             return (seed: old, shapeSeed: Self.newSeed(seed, not: settings.shapeSeed ?? old), drawn: drawn)
         }
@@ -39,32 +46,55 @@ extension JobRunner {
     }
 
     /// A sibling of `name` in its project, from its saved source and settings, with the seeds
-    /// (and picture) `seeds` picks from them. Named "<name>-2" (then -3…) unless `as` says.
-    private func version(of name: String, as newName: String?,
+    /// (and picture) `seeds` picks from them. Named "<name>-2" (then -3…) unless `as` says. With
+    /// a `change`, from the pictures `name`'s step 1 made instead, redrawn with it (#156).
+    private func version(of name: String, as newName: String?, change: String?, changeUsed: String?,
                          _ seeds: (MiniSettings) -> (seed: Int, shapeSeed: Int?, drawn: URL?)) throws -> (name: String, ahead: Int?) {
         guard let folder = Gallery.folder(install.runs, name) else { throw RequestError.notFound }
         if MiniSettings.load(folder).isImported { throw RequestError.imported(name) }
-        guard let (picture, restyle, settings) = try? Self.versionSource(folder) else { throw RequestError.noSource(name) }
+        guard let source = try? Self.versionSource(folder) else { throw RequestError.noSource(name) }
+        var (picture, restyle) = (source.0, source.restyle)
+        let settings = source.2
         guard let model = EngineDownload.model(settings.model) else { throw RequestError.unknownModel(settings.model ?? "") }
         let new = newName ?? Gallery.nextVersionName(install.runs, name)
-        let (seed, shapeSeed, drawn) = seeds(settings)
+        let seeds = seeds(settings)
+        let (seed, shapeSeed) = (seeds.seed, seeds.shapeSeed)
+        var drawn = seeds.drawn
+        var sides = Self.sidePictures(folder, settings)
+        var fixes = settings.fixes ?? [], fixUsed = settings.fixUsed
+        if let change = change?.trimmingCharacters(in: .whitespacesAndNewlines), !change.isEmpty {
+            let made = folder.appendingPathComponent("source.png")
+            guard FileManager.default.fileExists(atPath: made.path) else { throw RequestError.noPictureToFix(name) }
+            picture = .image(made); restyle = true; drawn = nil
+            sides = Self.madeSidePictures(folder, settings)
+            fixes.append(change); fixUsed = changeUsed
+        }
         let project = folder.deletingLastPathComponent().standardizedFileURL == install.runs.standardizedFileURL
             ? nil : folder.deletingLastPathComponent().lastPathComponent
         let ahead = try make(name: new, picture: picture, restyle: restyle, seed: seed, sizes: settings.requested ?? Sizes(),
                              kind: settings.kind ?? .character, model: model, project: project,
                              versionOf: settings.versionOf ?? name, cartoon: settings.cartoon == true,
                              shown: settings.shownName(folder: name).flatMap { Rules.shownName(carrying: $0, to: new) },
-                             shapeSeed: shapeSeed, drawn: drawn, sides: Self.sidePictures(folder, settings))
+                             shapeSeed: shapeSeed, drawn: drawn, sides: sides, fixes: fixes, fixUsed: fixUsed)
         return (new, ahead)
     }
 
     /// The pictures of the back and sides the mini in `folder` was given (#66), as it keeps
     /// them, to make it again from: those still there.
     public static func sidePictures(_ folder: URL, _ settings: MiniSettings) -> [PictureSide: URL] {
+        sidePictures(folder, settings, \.upload)
+    }
+
+    /// The same, as its step 1 made them: what a fix redraws (#156).
+    static func madeSidePictures(_ folder: URL, _ settings: MiniSettings) -> [PictureSide: URL] {
+        sidePictures(folder, settings, \.source)
+    }
+
+    private static func sidePictures(_ folder: URL, _ settings: MiniSettings, _ file: KeyPath<PictureSide, String>) -> [PictureSide: URL] {
         guard settings.source == .image else { return [:] }
         var found: [PictureSide: URL] = [:]
         for side in settings.sides ?? [] {
-            let url = folder.appendingPathComponent(side.upload)
+            let url = folder.appendingPathComponent(side[keyPath: file])
             if FileManager.default.fileExists(atPath: url.path) { found[side] = url }
         }
         return found

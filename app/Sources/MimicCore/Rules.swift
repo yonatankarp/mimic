@@ -131,7 +131,8 @@ public enum RequestError: Error, Equatable, CustomStringConvertible {
          badProjectName, projectTaken(String), projectNotFound, cantMove(String), projectBusy(String, String), noSource(String), noDrawing(String), cantDuplicate(String),
          minisFolderBusy, sameMinisFolder, minisFolderNested, minisFolderClash([String]), movingMinis,
          imported(String), unreadableModel(String),
-         noName, renameWaiting(String), sidesNeedAPicture, oneSideOnly(String), unreadableSettings(String)
+         noName, renameWaiting(String), sidesNeedAPicture, oneSideOnly(String), unreadableSettings(String), fixNeedsAPicture,
+         noPictureToFix(String)
     public var description: String {
         switch self {
         case .badName: "Names can only use lowercase letters, numbers and dashes."
@@ -171,7 +172,9 @@ public enum RequestError: Error, Equatable, CustomStringConvertible {
             "That folder already has minis or projects called \(ListFormatter.localizedString(byJoining: names)). Rename yours first, or use the folder without moving your minis."
         case .sidesNeedAPicture: "Pictures of the back and sides go with a picture of the front, not a description."
         case .oneSideOnly(let model): "\(model) makes a mini from one picture. Choose TRELLIS.2 in Settings → 3D Model to use pictures of the back and sides too."
-        case .unreadableSettings(let n): "Mimic can't read the settings.json of \(Mini.displayName(n)), so it left it as it is. Fix or remove that file, then try again."
+        case .noPictureToFix(let n): "Mimic can't change the picture of \(Mini.displayName(n)): its picture isn't made yet. Make another version without a change instead."
+        case .fixNeedsAPicture:"What to change goes with a picture. For a description, change the description instead."
+        case .unreadableSettings(let n):"Mimic can't read the settings.json of \(Mini.displayName(n)), so it left it as it is. Fix or remove that file, then try again."
         }
     }
 }

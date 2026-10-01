@@ -39,10 +39,11 @@ public struct Tools: Sendable {
 public enum Step: Equatable, Sendable {
     case copyPicture(from: URL, to: URL)
     case drawCharacter(description: String, seed: Int, to: URL)
-    case sculptPicture(from: URL, seed: Int, to: URL)
+    /// `change`: the fix to make as it's redrawn (#156), or nil.
+    case sculptPicture(from: URL, seed: Int, to: URL, change: String? = nil)
     /// The same two for anything that isn't a character (see `MiniKind`).
     case drawObject(description: String, seed: Int, to: URL)
-    case sculptObject(from: URL, seed: Int, to: URL)
+    case sculptObject(from: URL, seed: Int, to: URL, change: String? = nil)
     case run(executable: String, arguments: [String], directory: String?, log: URL)
 }
 
@@ -50,8 +51,8 @@ extension Step {
     /// The picture step 1 writes.
     var makes: URL? {
         switch self {
-        case let .copyPicture(_, to), let .drawCharacter(_, _, to), let .sculptPicture(_, _, to),
-             let .drawObject(_, _, to), let .sculptObject(_, _, to): to
+        case let .copyPicture(_, to), let .drawCharacter(_, _, to), let .sculptPicture(_, _, to, _),
+             let .drawObject(_, _, to), let .sculptObject(_, _, to, _): to
         case .run: nil
         }
     }
@@ -106,11 +107,13 @@ public enum Pipeline {
         let pictures: [Step]
         switch settings.source {
         case .image:
+            // A fix is made by the redraw, so a picture with one is always redrawn (#156).
+            let change = settings.change
             func made(_ upload: String, _ to: URL) -> Step {
                 let from = folder.appendingPathComponent(upload)
-                return settings.restyle != true ? .copyPicture(from: from, to: to)
-                    : settings.isObject ? .sculptObject(from: from, seed: seed, to: to)
-                    : .sculptPicture(from: from, seed: seed, to: to)
+                return settings.restyle != true && change == nil ? .copyPicture(from: from, to: to)
+                    : settings.isObject ? .sculptObject(from: from, seed: seed, to: to, change: change)
+                    : .sculptPicture(from: from, seed: seed, to: to, change: change)
             }
             pictures = [made("upload.img", source)]
                 + (settings.sides ?? []).map { made($0.upload, folder.appendingPathComponent($0.source)) }

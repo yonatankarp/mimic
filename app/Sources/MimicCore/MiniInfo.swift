@@ -74,6 +74,7 @@ public struct MiniInfo {
         }
         out += madeFrom.rows.map { "\($0.label): \($0.value)" }
         if let d = madeFrom.description { out.append("Description: \(d)") }
+        out += madeFrom.fixes.map { "Changed: \($0)" }
         if versions.count > 1 {
             out.append("Versions: " + versions.map { $0.name == mini.name ? "\($0.name) (this one)" : $0.name }.joined(separator: ", "))
         }

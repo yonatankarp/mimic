@@ -148,6 +148,8 @@ public enum ListingJSON {
             public var model: String?
             public var greySculpt: Bool?
             public var cartoon: Bool?
+            /// What was changed in its picture, as typed, oldest first.
+            public var fixes: [String]?
         }
         public var mini: MiniRow
         public var made: SizesRow?
@@ -169,7 +171,7 @@ public enum ListingJSON {
             madeFrom = MadeFrom(source: s.source.map { $0 == .image ? "picture" : "description" }, description: s.desc, typed: s.descOriginal,
                                 seed: s.seed, shapeSeed: s.shapeSeed,
                                 model: s.source != nil || s.requested != nil ? EngineDownload.model(s.model)?.id : nil, greySculpt: s.source == .image ? s.restyle : nil,
-                                cartoon: s.cartoon)
+                                cartoon: s.cartoon, fixes: s.fixes)
             versions = info.versions.map(\.name)
             failed = info.state == .unfinished ? s.failed : nil
         }
