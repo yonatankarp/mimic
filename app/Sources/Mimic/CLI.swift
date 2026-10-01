@@ -4,47 +4,7 @@ import UserNotifications
 
 /// The command-line mode: the same engine as the app, for the terminal and for scripts.
 enum CLI {
-    static let usage = """
-    usage:
-      mimic make "<name>" "<description>" [--improve] [options]
-      mimic make "<name>" --image <picture> [--restyle] [options]
-      mimic make-another <name> [--new-shape] [--seed N]
-      mimic duplicate <name> --as "<new name>"
-      mimic resize <name> [options]
-      mimic import <file.glb|file.stl> [--object] [--project "<project>"] [options]
-      mimic resize --project "<project>" [options]   Resize All: every mini in the project
-      mimic retry <name>
-      mimic open <name>              opens its print file in your slicer
-      mimic info <name>              its size, filament, how it was made and its versions
-      mimic rename <name> --to "<new name>"
-      mimic trash <name>…            moves it to the Trash, where you can put it back
-      mimic keep <name>              keeps this version and moves its other versions to the Trash
-      mimic stop                     stops the mini being made, in any Mimic
-      mimic list
-      mimic projects
-      mimic project create "<project>"
-      mimic project rename "<project>" --to "<new name>"
-      mimic project delete "<project>" [--trash-minis]   its minis go to Unsorted, or with it to the Trash
-      mimic move <name> --project "<project>" | --unsorted
-      mimic models
-      mimic queue
-      mimic queue remove <name>
-      mimic queue move <name> --to front|end|<place> | --up | --down
-      mimic queue pause | resume     no new mini starts until it's resumed, in any Mimic
-      mimic --version                which Mimic this is (also -v)
-      mimic --help                   this list (also -h)
-    <name>: a mini's name as mimic list shows it, or as you'd type it in Mimic ("Élodie" is elodie)
-    options: --height MM  --scale 28|32|35|54|75  --base MM  --nozzle 0.2|0.4|0.6  --inflate MM  --no-base  --base-shape round|square|hex  --base-style plain|stone|wood|cobble  --magnet 5x2|6x2|8x3|none  --seed N  --model ID
-    anything that isn't a character: make … --object  [--size MM (longest side)]  [--add-base]
-    make … --project "<project>": into that project (made if it's new); a project is a folder in the minis folder
-    make-another: the same picture or description and settings with a new seed, next to it ("<name>-2")
-    make-another --new-shape: keeps the picture it made and makes only the 3D shape again, with a new seed
-    duplicate: a copy with the same shape, next to it, to resize without changing the first
-    import: a 3D model made elsewhere, named after its file, made print-ready (an STL is taken as millimetres, z up)
-    --improve: the AI helper chosen in Settings writes a fuller description first
-    --wait: while another mini is being made, make, resize and retry join the queue and return;
-            --wait stays until this one is made
-    """
+    static var usage: String { Usage.text }
 
     static func run(_ args: [String]) -> Int32 {
         if args.first == "--probe-notifications" { return probeNotifications() }
@@ -54,6 +14,11 @@ enum CLI {
         // folder or stopping leftovers, since this *is* the program named in the queue's job.pid.
         if args.first == "_engine" { return engine(Array(args.dropFirst())) }
         if args.first == "_prep" { return prep(Array(args.dropFirst())) }
+        if args.first == "completions" {
+            guard args.count == 2, let shell = Completions.Shell(rawValue: args[1]) else { return fail("usage: mimic completions zsh|bash|fish") }
+            print(Completions.script(shell), terminator: "")
+            return 0
+        }
         // Run through a symlink (Settings shows how to put one on the PATH), the binary isn't seen as part of
         // its app, so it would read its own empty settings rather than the app's.
         let defaults = Bundle.main.bundleIdentifier == nil ? UserDefaults(suiteName: "com.mimic.app") ?? .standard : .standard
@@ -64,6 +29,14 @@ enum CLI {
         let timings = Timings.standard()
         var rest = Array(args.dropFirst())
         switch args.first {
+        case "_names":
+            // For the completion scripts (not for people, so not in the usage): a name a line.
+            switch rest {
+            case ["minis"]: Gallery.list(install.runs).forEach { print($0.name) }
+            case ["projects"]: Gallery.projects(install.runs).forEach { print($0) }
+            default: return fail("usage: mimic _names minis|projects")
+            }
+            return 0
         case "list":
             JobRunner(install: install).cleanUpLeftovers()
             let waiting = Set(JobQueue(folder: install.queue).entries().map(\.name))
