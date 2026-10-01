@@ -11,7 +11,7 @@ struct DuplicateButton: View {
             if showsIcon { Label("Duplicate…", systemImage: "plus.square.on.square") } else { Text("Duplicate…") }
         }
         .help("Keeps a copy under a new name, then asks what size to make it")
-        .disabled(!mini.hasModel || model.waiting(mini.name) != nil || model.busyWith == mini.name)
+        .disabled(!mini.hasModel || model.waiting(mini.name) != nil || model.current?.name == mini.name)
     }
 }
 

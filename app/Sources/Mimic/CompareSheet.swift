@@ -60,7 +60,7 @@ struct CompareSheet: View {
                     model.keepWhenClosed = v.name
                     dismiss()
                 }
-                .disabled(!Gallery.versions(of: v, in: model.minis).contains { $0.name != v.name && $0.name != model.busyWith })
+                .disabled(!Gallery.versions(of: v, in: model.minis).contains { $0.name != v.name && $0.name != model.current?.name })
                 .help("Keeps this version and moves the others to the Trash.")
                 .padding(.bottom, 4)
             }
