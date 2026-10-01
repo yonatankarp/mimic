@@ -117,10 +117,12 @@ valid to 2036), not by Apple. It doesn't avoid the one-time Open Anyway step, wh
 Developer ID would, but every release has the same signer, so macOS treats an update as the same
 app and doesn't ask again for saved AI keys.
 
-- CI reads it from the repository secrets `MIMIC_SIGNING_P12` (the certificate and its key, as
-  base64) and `MIMIC_SIGNING_PASSWORD`, trusts it on the runner and signs with it. A tag that
-  builds without it fails instead of shipping an ad hoc build. Pull requests from forks are
-  signed ad hoc.
+- CI reads it from the secrets `MIMIC_SIGNING_P12` (the certificate and its key, as base64) and
+  `MIMIC_SIGNING_PASSWORD`, trusts it on the runner and signs with it, only when building a `v*`
+  tag. Pull requests, pushes to main and the daily build are signed ad hoc. A tag that builds
+  without the certificate fails instead of shipping an ad hoc build.
+- Tag builds run in the `release` environment, so these secrets and `SPARKLE_PRIVATE_KEY` can be
+  kept there, limited to `v*` tags, instead of in the repository secrets.
 - The maintainer's copy is `~/.config/mimic/` (`signing.p12`, `signing.password`,
   `signing.crt`), readable only by its owner. Keep a backup: a new certificate works, but every
   user's Mac would ask once more for saved keys after that update.
