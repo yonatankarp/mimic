@@ -29,7 +29,7 @@ struct MiniDetail: View {
         let settings = mini.settings
         let versions = Gallery.versions(of: mini, in: model.minis)
         // One being made stays where it is.
-        let trashable = versions.filter { $0.name != mini.name && $0.name != model.busyWith }.count
+        let trashable = versions.filter { $0.name != mini.name && $0.name != model.current?.name }.count
         page
             .navigationTitle(mini.displayName)
             .toolbar { toolbar(kind: settings.kind ?? .character) }
@@ -41,7 +41,7 @@ struct MiniDetail: View {
                 Button("Move to Trash", role: .destructive) {
                     let root = mini.settings.versionOf ?? mini.name
                     guard model.keep(mini), root != mini.name, !Gallery.nameInUse(model.install.runs, root),
-                          model.waiting(mini.name) == nil, model.busyWith != mini.name else { return }
+                          model.waiting(mini.name) == nil, model.current?.name != mini.name else { return }
                     Task { offerName = root }  // once this dialog has gone
                 }
                 Button("Cancel", role: .cancel) {}
@@ -100,8 +100,8 @@ struct MiniDetail: View {
             } actions: {
                 Button("Try Again") { model.tryAgain(mini) }
                     .buttonStyle(.borderedProminent)
-                    .disabled(model.cantStart != nil)
-                    .help(model.cantStart ?? "Makes it again from the step that failed")
+                    .disabled(model.requiredProblem != nil)
+                    .help(model.requiredProblem ?? "Makes it again from the step that failed")
                 Button("Report a Problem…") { model.reportProblem(mini) }
                     .help("Makes a file of what happened and opens a form on GitHub to send it with")
             }
@@ -114,8 +114,8 @@ struct MiniDetail: View {
             } actions: {
                 Button("Resize This Mini…") { model.sheet = .resize(mini) }
                     .buttonStyle(.borderedProminent)
-                    .disabled(model.cantStart != nil)
-                    .help(model.cantStart ?? "Makes its print file. Try Again is off for a model you imported.")
+                    .disabled(model.requiredProblem != nil)
+                    .help(model.requiredProblem ?? "Makes its print file. Try Again is off for a model you imported.")
             }
         } else {
             ContentUnavailableView("This mini isn't finished yet.", systemImage: "hourglass")
@@ -148,7 +148,7 @@ struct MiniDetail: View {
                 CopiesButton(minis: [mini])
                 Button("Resize This Mini…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resize(mini) }
                     .help("Remakes the print file at new sizes, in about a minute")
-                    .disabled(!mini.hasModel || model.cantStart != nil || model.waiting(mini.name) != nil)
+                    .disabled(!mini.hasModel || model.requiredProblem != nil || model.waiting(mini.name) != nil)
                 EditAndMakeAgainButton(mini: mini)
                 Button("Show in Finder", systemImage: "folder") { model.showInFinder([mini]) }
                     .help("Shows the print file and the previews in Finder.")
