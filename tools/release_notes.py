@@ -10,7 +10,9 @@ puts it under In Terminal instead, since most people never use it. Other kinds (
 test, refactor) are left out. A line on top counts what the version brings. The line is the first paragraph under the PR's `## Release note`, written for people
 who use Mimic, or its title when it has none; `none` leaves it out.
 
-A version with its own section in CHANGELOG.md (0.7.0 and before) uses that instead.
+What it prints is a draft. Before tagging, edit it into release-notes/<version>.md: once that file
+exists, it is what the release publishes, word for word. A version with its own section in
+CHANGELOG.md (0.7.0 and before) uses that instead.
 Needs `git` with the tags fetched, and `gh` signed in (GH_TOKEN on CI).
 """
 import json
@@ -70,8 +72,15 @@ def pull_requests(since, ref):
     return numbers
 
 
+def edited(version):
+    try:
+        return open(f"release-notes/{version}.md").read().strip()
+    except FileNotFoundError:
+        return ""
+
+
 def notes(version, ref):
-    if written := changelog_section(version):
+    if written := edited(version) or changelog_section(version):
         return written
     since = run("git", "describe", "--tags", "--abbrev=0", "--match", "v*", f"{ref}^").strip()
     sections = {heading: [] for heading in [*HEADINGS.values(), TERMINAL]}

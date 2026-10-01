@@ -39,9 +39,9 @@ the problem matters more than a specific solution.
    Add `(cli)` for a change only `mimic` in Terminal has (`fix(cli): ...`): it goes under In
    Terminal in the release notes.
 6. The release notes are made from pull requests, so there's no need to edit `CHANGELOG.md`. A
-   `feat`, `fix` or `change` shows its title there, or the first paragraph under a `## Release note`
-   section in the description when it has one: one line for people who use Mimic, like the bullets
-   in `CHANGELOG.md`, or `none` to leave it out.
+   `feat`, `fix` or `change` goes into the draft under its title, or under the first paragraph of a
+   `## Release note` section in the description: one line for people who use Mimic, starting with a
+   short **bold lead**, about 20 words, saying what they can now do (or `none` to leave it out).
 
 By contributing, you agree that your contribution is licensed under Mimic's
 [MIT licence](LICENSE).
@@ -54,7 +54,7 @@ By contributing, you agree that your contribution is licensed under Mimic's
 |---|---|
 | `app/` | The Mac app, a Swift package. `MimicCore` is everything but the windows (jobs, Draw Things, checks, the gallery on disk); `Mimic` is one binary that is the app, or the `mimic` command with arguments. `app/NOTES.md` has the design decisions and why. Print prep is `MimicCore/Prep.swift`; its header lists every tuning option (`mimic _prep in.glb out.stl …` runs it by hand). |
 | `tools/package_dmg.sh` | Builds `Mimic.app` into the disk image a release publishes. |
-| `tools/release_notes.py` | Writes a release's notes from the pull requests merged since the last one. |
+| `tools/release_notes.py`, `release-notes/` | Drafts a release's notes from the pull requests merged since the last one; `release-notes/<version>.md` is the edited copy a release publishes. |
 | `tools/package_pixal3d.sh`, `tools/pixal3d-steps.patch` | Package the Pixal3D build the app downloads on first launch. |
 | `.github/workflows/release.yml` | Tests every change, builds the disk image, and publishes a release from a version tag. |
 | `runs/`, `engine/`, `queue/` | The dev build's minis, 3D engine (`trellis-cli`, each model set in `engine/models/<id>/`) and queue, when this checkout is its Mimic folder. All are git-ignored. An installed Mimic keeps them in `~/Documents/Mimic` (or the folder chosen in Settings) and `~/Library/Application Support/Mimic` instead; `app/NOTES.md` says how it chooses. |
@@ -88,11 +88,20 @@ downloads the real engine and the small model files, never the 8 GB of weights.
 
 ## Releasing
 
-1. Check the notes it will publish: `tools/release_notes.py 0.3.0 origin/main` lists the pull
-   requests merged since the last version under New features, Improvements, Bug fixes and In
-   Terminal, with a line on top that counts them. Fix a note by editing that
-   pull request's `## Release note`. A version with no `feat`, `fix` or `change` fails before
-   anything is published.
+1. Write the release notes. `tools/release_notes.py 0.3.0 origin/main > release-notes/0.3.0.md`
+   writes a draft from the pull requests merged since the last version, under New features,
+   Improvements, Bug fixes and In Terminal, with a line on top that counts them. Edit it for people
+   who use Mimic, then merge it in a pull request. The release publishes that file word for word,
+   on GitHub and in Mimic's update window.
+   - Put the changes people will care about most first, one per line, each starting with a short
+     **bold lead** that says what they get.
+   - Keep each line to about 20 words. Say what someone can now do, not how it was built: no model,
+     file or code names unless people choose them in Mimic.
+   - Give each fix its own line, and keep Terminal options in In Terminal.
+   - Fix the count line to match.
+
+   Without the file, the draft is published as it is. A version with no `feat`, `fix` or `change`
+   fails before anything is published.
 2. Push a version tag:
 
    ```bash
