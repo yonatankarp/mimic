@@ -173,7 +173,7 @@ extension JobRunner {
                     s.name(shown, folder: name)
                     s.created = Date()
                 }
-                try read.glb.write(to: folder.appendingPathComponent("model.glb"), options: .atomic)
+                try read.glb.write(to: folder.appendingPathComponent(Mini.modelFile), options: .atomic)
                 if let note = read.note { try Data("\(note)\n".utf8).write(to: folder.appendingPathComponent("prep.log")) }
             } catch {
                 try? fm.removeItem(at: folder)

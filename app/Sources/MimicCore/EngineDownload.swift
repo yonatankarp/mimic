@@ -119,7 +119,7 @@ public enum EngineDownload {
     /// The model this Mac makes minis with: the `model` default, or the standard one when it's
     /// unset or names a model this Mimic doesn't know.
     public static func selected(defaults: UserDefaults) -> EngineModel {
-        defaults.string(forKey: "model").flatMap(model) ?? standard
+        defaults.string(forKey: SettingsKey.model).flatMap(model) ?? standard
     }
 
     static let pixal3dURL = URL(string: "https://huggingface.co/raven38/pixal3d-sv-q8_0-v1/resolve/46d399ac986f45a0d7f5b1ca5058614d8729a131")!
