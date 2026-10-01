@@ -10,8 +10,8 @@ puts it under In Terminal instead, since most people never use it. Other kinds (
 test, refactor) are left out. A line on top counts what the version brings. The line is the first paragraph under the PR's `## Release note`, written for people
 who use Mimic, or its title when it has none; `none` leaves it out.
 
-What it prints is a draft. Before tagging, edit it into release-notes/<version>.md: once that file
-exists, it is what the release publishes, word for word. A version with its own section in
+A release-notes/<version>.md file, when there is one, is published instead, word for word: an
+escape hatch for a version whose notes need more than its pull requests say. A version with its own section in
 CHANGELOG.md (0.7.0 and before) uses that instead.
 Needs `git` with the tags fetched, and `gh` signed in (GH_TOKEN on CI).
 """
@@ -25,7 +25,7 @@ TERMINAL = "⌨️ In Terminal"
 KINDS = set(HEADINGS) | {"docs", "chore", "ci", "test", "refactor"}
 TITLE = re.compile(r"^(?P<kind>[a-z]+)(\((?P<scope>[^)]*)\))?!?: (?P<text>.+)$")
 COUNTED = {"feat": ("new feature", "new features"), "change": ("improvement", "improvements"),
-           "fix": ("bug fix", "bug fixes"), "cli": ("change in Terminal", "changes in Terminal")}
+           "fix": ("bug fix", "bug fixes"), "cli": ("", "")}
 
 
 def run(*args):
@@ -106,10 +106,13 @@ def notes(version, ref):
 
 
 def summary(counts):
-    """"This update has 6 new features, 2 improvements and 3 bug fixes."."""
-    parts = [f"{n} {COUNTED[kind][n != 1]}" for kind, n in counts.items() if n]
+    """"This update has 7 new features, 2 improvements and 5 bug fixes, plus more in Terminal."."""
+    parts = [f"{n} {COUNTED[kind][n != 1]}" for kind, n in counts.items() if n and kind != "cli"]
+    terminal = "more in Terminal" if parts else "changes in Terminal"
+    if not parts:
+        return f"This update has {terminal}." if counts["cli"] else ""
     listed = parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " and " + parts[-1]
-    return f"This update has {listed}."
+    return f"This update has {listed}" + (f", plus {terminal}." if counts["cli"] else ".")
 
 if __name__ == "__main__":
     if len(sys.argv) not in (2, 3):

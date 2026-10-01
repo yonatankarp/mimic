@@ -89,8 +89,8 @@ jobs:
           name: mimic
           path: dist
       - name: Release notes
-        # release-notes/<version>.md when it's there, or a draft written from the pull requests
-        # merged since the last version (tools/release_notes.py); 0.7.0 and before use CHANGELOG.md.
+        # Written from the pull requests merged since the last version (tools/release_notes.py);
+        # 0.7.0 and before use their section of CHANGELOG.md.
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 tools/release_notes.py "$GITHUB_REF_NAME" > notes.md
