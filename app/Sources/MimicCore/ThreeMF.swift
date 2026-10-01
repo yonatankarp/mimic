@@ -13,6 +13,11 @@ public enum ThreeMF {
     /// How many copies of each mini one file can hold.
     public static let copies = 1...20
 
+    /// What's typed in Copies' number field, kept within `copies`; nil when it isn't a number.
+    public static func copies(typed: String) -> Int? {
+        Int(typed.trimmingCharacters(in: .whitespaces)).map { min(max($0, Self.copies.lowerBound), Self.copies.upperBound) }
+    }
+
     /// Where each footprint (width, depth) goes: rows left to right, a new row when one is
     /// full, the whole centred on the bed. Returns each one's lower-left corner.
     public static func layout(_ sizes: [SIMD2<Float>], bed: Float = bed, gap: Float = gap) -> [SIMD2<Float>] {
