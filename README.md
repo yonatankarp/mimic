@@ -47,7 +47,7 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
 
 ## 🧙 Making a mini
 
-![Mimic: your minis on the left; a finished halfling bard in a 3D view in the middle; its size, previews and print tips in a panel on the right](docs/images/app.jpg)
+![Mimic: your minis on the left; a finished halfling bard in a 3D view in the middle; its size, filament, previews and how it was made in a panel on the right](docs/images/app.jpg)
 
 1. Press **New Mini** (⌘N), and choose what you're making: 🧙 **A character** (a tabletop mini) or
    🏺 **Anything else** (a teapot, a car, a chess piece).
