@@ -16,9 +16,9 @@ public enum SizeReference: String, CaseIterable, Sendable {
     public var title: String {
         switch self {
         case .none: "None"
-        case .base: "25 mm base"
-        case .person: "32 mm person"
-        case .grid: "Millimetre grid"
+        case .base: "25 mm Base"
+        case .person: "32 mm Person"
+        case .grid: "Millimetre Grid"
         }
     }
 

@@ -251,6 +251,6 @@ final class ImportTests: XCTestCase {
     func testMadeFromSaysImportedAndNoModel() {
         var s = MiniSettings(); s.imported = "ogre.stl"; s.requested = sizes
         let rows = MadeFrom(s, created: .distantPast).rows.map { "\($0.label): \($0.value)" }
-        XCTAssertEqual(rows, ["Made from: A 3D model you imported"])
+        XCTAssertEqual(rows, ["Source: A 3D model you imported"])
     }
 }

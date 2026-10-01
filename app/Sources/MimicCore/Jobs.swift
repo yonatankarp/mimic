@@ -97,7 +97,7 @@ public final class JobRunner: @unchecked Sendable {
         set { lock.withLock { continues = newValue } }
     }
 
-    /// The Mac is on battery with Don't start minis on battery on (`Power.holds`): the queue's
+    /// The Mac is on battery with Start minis only when plugged in on (`Power.holds`): the queue's
     /// next job waits. Asked each time one could start.
     public var heldForPower: @Sendable () -> Bool {
         get { lock.withLock { power } }
