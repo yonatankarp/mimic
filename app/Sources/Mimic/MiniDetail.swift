@@ -86,7 +86,7 @@ struct MiniDetail: View {
                 ContentUnavailableView {
                     Label("Being made", systemImage: "cube")
                 } description: {
-                    Text("Step \(s.step) of 3: \(JobRunner.label(s.step).lowercased()). \(JobProgress.about(model.estimate(s).left(s, now: t.date)).capitalizedFirst) left.")
+                    Text("Step \(s.step.rawValue) of 3: \(s.step.label.lowercased()). \(JobProgress.about(model.estimate(s).left(s, now: t.date)).capitalizedFirst) left.")
                 } actions: {
                     Button("Show Progress") { model.showWindow(); model.jobPopover = true }
                 }

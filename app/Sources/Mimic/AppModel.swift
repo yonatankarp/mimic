@@ -693,7 +693,7 @@ final class AppModel {
         let speed = parts.dropFirst().compactMap(Double.init).first ?? 20
         let resize = parts.contains("resize"), fail = parts.contains("fail"), hold = parts.contains("hold")
         // Pretend seconds at which each step starts, and the end.
-        let plan: [(step: Int, at: Double)] = resize ? [(3, 0)] : [(1, 0), (2, 25), (3, 480)]
+        let plan: [(step: JobStep, at: Double)] = resize ? [(.print, 0)] : [(.picture, 0), (.shape, 25), (.print, 480)]
         let end = resize ? 50.0 : 530
         Task {
             try? await Task.sleep(for: .seconds(1))  // the window first
@@ -712,12 +712,12 @@ final class AppModel {
                 let at = plan.last { $0.at <= t }!
                 s.stepStarted = s.started.addingTimeInterval(at.at)
                 s.step = at.step
-                if fail && s.step == 3 { break }
+                if fail && s.step == .print { break }
                 job = s
             }
             s.running = false
             s.exit = fail ? 1 : 0
-            if fail { s.step = 2; s.problem = "The 3D engine stopped early (pretend)." }
+            if fail { s.step = .shape; s.problem = "The 3D engine stopped early (pretend)." }
             job = s
             reload()
         }

@@ -161,7 +161,7 @@ public struct JobQueue: Sendable {
 public struct SharedJob: Codable, Equatable, Sendable {
     public var name: String
     public var kind: JobKind
-    public var step: Int
+    public var step: JobStep
     public var started: Date
     public var stepStarted: Date
     var pid: Int32

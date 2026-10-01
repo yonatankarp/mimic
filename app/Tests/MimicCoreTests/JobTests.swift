@@ -77,9 +77,9 @@ final class JobTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: src.path), "a new Make draws its own picture")
         jobs.waitUntilDone()
         let settings = MiniSettings.load(d), tools = fx.tools(mimic: "/app/mimic")
-        XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: settings, tools: tools).map(\.number), [1, 2, 3])
+        XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: settings, tools: tools).map(\.number), [.picture, .shape, .print])
         FileManager.default.createFile(atPath: src.path, contents: Data([1]))  // step 1 finished, step 2 failed
-        XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: settings, tools: tools).map(\.number), [2, 3], "not drawn again")
+        XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: settings, tools: tools).map(\.number), [.shape, .print], "not drawn again")
     }
 
     /// A job with the fixture's tools never reaches the real Draw Things (#140): on a Mac that
@@ -319,7 +319,7 @@ final class JobTests: XCTestCase {
             if let s = try? String(contentsOfFile: childFile, encoding: .utf8), let p = pid_t(s.trimmingCharacters(in: .whitespacesAndNewlines)) { child = p; break }
             usleep(50_000)
         }
-        XCTAssertEqual(jobs.status?.step, 2)
+        XCTAssertEqual(jobs.status?.step, .shape)
         XCTAssertTrue(jobs.cancel())
         jobs.waitUntilDone()
         XCTAssertEqual(jobs.status?.canceled, true)
@@ -400,7 +400,7 @@ final class JobTests: XCTestCase {
         try jobs.make(name: "mini", picture: .image(picture), restyle: false, seed: 1, sizes: sizes, model: EngineDownload.standard)
         XCTAssertEqual(try jobs.resize(name: "b", sizes: sizes), 1)
         for _ in 0..<100 where !FileManager.default.fileExists(atPath: started) { usleep(50_000) }
-        XCTAssertEqual(jobs.status?.step, 2)
+        XCTAssertEqual(jobs.status?.step, .shape)
         jobs.keepGoing = { _ in false }
         XCTAssertTrue(jobs.cancel(keepingWork: true))
         jobs.waitUntilDone()
@@ -409,7 +409,7 @@ final class JobTests: XCTestCase {
         XCTAssertEqual(jobs.queue.entries().map(\.name), ["mini", "b"], "it goes back first")
         XCTAssertEqual(jobs.queue.entries().first?.job, .generate)
         XCTAssertFalse(FileManager.default.fileExists(atPath: d.appendingPathComponent("model.glb").path), "a half-built shape was kept")
-        XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: MiniSettings.load(d), tools: fx.tools()).map(\.number), [2, 3],
+        XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: MiniSettings.load(d), tools: fx.tools()).map(\.number), [.shape, .print],
                        "the picture is kept")
         XCTAssertNil(MiniSettings.load(d).failed, "quitting isn't a failure")
     }
@@ -426,14 +426,14 @@ final class JobTests: XCTestCase {
         try fx.modelFiles()
         try jobs.make(name: "mini", picture: .image(picture), restyle: false, seed: 1, sizes: sizes, model: EngineDownload.standard)
         for _ in 0..<100 where !FileManager.default.fileExists(atPath: started) { usleep(50_000) }
-        XCTAssertEqual(jobs.status?.step, 3)
+        XCTAssertEqual(jobs.status?.step, .print)
         jobs.keepGoing = { _ in false }
         XCTAssertTrue(jobs.cancel(keepingWork: true))
         jobs.waitUntilDone()
         let d = fx.install.runs.appendingPathComponent("mini")
         XCTAssertEqual(jobs.queue.entries().map(\.name), ["mini"])
         XCTAssertEqual(try String(contentsOf: d.appendingPathComponent("model.glb"), encoding: .utf8), "shape\n")
-        XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: MiniSettings.load(d), tools: fx.tools()).map(\.number), [3])
+        XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: MiniSettings.load(d), tools: fx.tools()).map(\.number), [.print])
         // The next launch carries on with it, and it finishes.
         let next = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/true"))
         next.pump(); next.waitUntilDone()

@@ -356,8 +356,8 @@ final class SizeAdviceTests: XCTestCase {
 final class JobProgressTests: XCTestCase {
     func testBar() {
         let start = Date(timeIntervalSince1970: 0)
-        let e = Estimate(steps: [3: 60], learned: false)
-        var s = JobStatus(name: "a", kind: .prep, step: 3, started: start)
+        let e = Estimate(steps: [.print: 60], learned: false)
+        var s = JobStatus(name: "a", kind: .prep, step: .print, started: start)
         XCTAssertEqual(JobProgress.fraction(s, estimate: e, now: start.addingTimeInterval(30)), 0.5)
         XCTAssertEqual(JobProgress.fraction(s, estimate: e, now: start.addingTimeInterval(3000)), 0.95)
         s.running = false; s.exit = 0
@@ -367,7 +367,7 @@ final class JobProgressTests: XCTestCase {
     }
 
     func testDrawThingsCause() {
-        var s = JobStatus(name: "a", kind: .generate, step: 1, started: Date(), running: false, exit: 1)
+        var s = JobStatus(name: "a", kind: .generate, step: .picture, started: Date(), running: false, exit: 1)
         XCTAssertFalse(JobProgress.drawThingsCaused(s))
         s.problem = DrawThingsError.notRunning.description
         XCTAssertTrue(JobProgress.drawThingsCaused(s))

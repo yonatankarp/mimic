@@ -465,7 +465,7 @@ enum CLI {
         private let lock = NSLock()
         private var mine: String
         private var last: JobStatus?
-        private var shown: (String, Int)?
+        private var shown: (String, JobStep)?
         private var openingSaid = false
         init(name: String, runs: URL) { mine = name; self.runs = runs }
         /// Resize All follows the last mini it added, so it changes as they're added.
@@ -482,7 +482,7 @@ enum CLI {
                 guard s.running, shown.map({ $0 != (s.name, s.step) }) ?? true else { return nil }
                 shown = (s.name, s.step)
                 let who = s.name == mine ? "" : "\(s.displayName(runs: runs)) (waiting before yours): "
-                return "[\(s.step)/3] \(who)\(JobRunner.label(s.step))"
+                return "[\(s.step.rawValue)/3] \(who)\(s.step.label)"
             }
             if let line { print(line) }
             if s.openingDrawThings, lock.withLock({ () -> Bool in defer { openingSaid = true }; return !openingSaid }) {
@@ -556,7 +556,7 @@ enum CLI {
         if let r = running {
             let left = jobs.estimate(r.name, r.kind, history: history).left(r)
             let importing = Gallery.folder(jobs.install.runs, r.name).map(JobRunner.importing) ?? false
-            print("Now: \(JobRunner.doing(r.kind, importing: importing).lowercased()) \(r.name), step \(r.step) of 3, \(JobProgress.about(left)) left")
+            print("Now: \(JobRunner.doing(r.kind, importing: importing).lowercased()) \(r.name), step \(r.step.rawValue) of 3, \(JobProgress.about(left)) left")
         } else {
             print(queue.isEmpty ? "Nothing is being made." : jobs.hold() != nil ? "Nothing is being made right now."
                   : "Nothing is being made right now: the queue starts when you open Mimic.")

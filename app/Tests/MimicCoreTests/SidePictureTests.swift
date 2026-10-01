@@ -25,7 +25,7 @@ final class SidePictureTests: XCTestCase {
                              "--model", "trellis2-q8"])
 
         let plan = try Pipeline.plan(.generate, folder: d, settings: s, tools: tools)
-        XCTAssertEqual(plan.map(\.number), [1, 1, 1, 2, 3])
+        XCTAssertEqual(plan.map(\.number), [.picture, .picture, .picture, .shape, .print])
         XCTAssertEqual(plan.prefix(3).map(\.step), [.sculptPicture(from: file("upload.img"), seed: 7, to: file("source.png")),
                                                     .sculptPicture(from: file("upload-back.img"), seed: 7, to: file("source-back.png")),
                                                     .sculptPicture(from: file("upload-left.img"), seed: 7, to: file("source-left.png"))])
@@ -40,11 +40,11 @@ final class SidePictureTests: XCTestCase {
         XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: s, tools: tools).map(\.step).first,
                        .copyPicture(from: file("upload-left.img"), to: file("source-left.png")))
         XCTAssertEqual(Pipeline.skipped(d, sides: [.back, .left]), [], "a picture still to make isn't skipped")
-        XCTAssertEqual(Pipeline.skipped(d), [1], "one picture: as before")
+        XCTAssertEqual(Pipeline.skipped(d), [.picture], "one picture: as before")
         fm.createFile(atPath: file("source-left.png").path, contents: Data([1]))
-        XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: s, tools: tools).map(\.number), [2, 3])
+        XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: s, tools: tools).map(\.number), [.shape, .print])
         fm.createFile(atPath: file("model.glb").path, contents: Data([1]))
-        XCTAssertEqual(Pipeline.skipped(d, sides: [.back, .left]), [1, 2])
+        XCTAssertEqual(Pipeline.skipped(d, sides: [.back, .left]), [.picture, .shape])
     }
 
     /// Make keeps each side's picture, tidied, in the mini's folder and says which it has; only a
@@ -101,9 +101,9 @@ final class SidePictureTests: XCTestCase {
         try jobs.make(name: "mini", picture: .image(picture), restyle: false, seed: 1, sizes: sizes, model: EngineDownload.standard,
                       sides: [.back: picture, .left: picture])
         jobs.waitUntilDone()
-        let started = Set(seen.all.filter { $0.step == 1 && $0.running }.compactMap(\.stepStarted))
+        let started = Set(seen.all.filter { $0.step == .picture && $0.running }.compactMap(\.stepStarted))
         XCTAssertEqual(started.count, 1, "step 1 started over for a picture")
-        XCTAssertTrue(seen.all.contains { $0.step == 2 }, "never reached the 3D step")
+        XCTAssertTrue(seen.all.contains { $0.step == .shape }, "never reached the 3D step")
     }
 
     /// Make Another Version and New 3D Shape keep the pictures of the back and sides, as Try
@@ -126,7 +126,7 @@ final class SidePictureTests: XCTestCase {
 
         let shape = try XCTUnwrap(Gallery.folder(runs, try jobs.makeNewShape(of: "elf").name))
         XCTAssertEqual(try Data(contentsOf: shape.appendingPathComponent("source-left.png")), Data("source-left.png".utf8), "not kept")
-        XCTAssertEqual(try Pipeline.plan(.generate, folder: shape, settings: MiniSettings.load(shape), tools: fx.tools()).map(\.number), [2, 3])
+        XCTAssertEqual(try Pipeline.plan(.generate, folder: shape, settings: MiniSettings.load(shape), tools: fx.tools()).map(\.number), [.shape, .print])
         for n in jobs.queue.entries().map(\.name) { try jobs.remove(n) }
         jobs.waitUntilDone()
     }
@@ -152,8 +152,8 @@ final class SidePictureTests: XCTestCase {
     func testTheEstimateCountsEveryPicture() {
         let model = EngineDownload.standard.id
         let one = JobShape(job: .generate, model: model, drawn: true), three = JobShape(job: .generate, model: model, drawn: true, pictures: 3)
-        XCTAssertEqual(Estimator.estimate(three, history: []).steps[1], 3 * Estimator.estimate(one, history: []).steps[1]!)
-        XCTAssertGreaterThan(Estimator.estimate(three, history: []).steps[2]!, Estimator.estimate(one, history: []).steps[2]!)
+        XCTAssertEqual(Estimator.estimate(three, history: []).steps[.picture], 3 * Estimator.estimate(one, history: []).steps[.picture]!)
+        XCTAssertGreaterThan(Estimator.estimate(three, history: []).steps[.shape]!, Estimator.estimate(one, history: []).steps[.shape]!)
 
         func made(_ pictures: Int, picture: Double, shape: Double) -> TimingRecord {
             var r = TimingRecord(date: Date(), version: "t", machine: .current, job: "make", mini: .character, model: model, source: "picture",
@@ -163,10 +163,10 @@ final class SidePictureTests: XCTestCase {
             return r
         }
         let history = (0..<3).map { _ in made(1, picture: 50, shape: 200) } + (0..<3).map { _ in made(2, picture: 100, shape: 300) }
-        XCTAssertEqual(Estimator.estimate(one, history: history).steps[1], 50, "per picture")
-        XCTAssertEqual(Estimator.estimate(three, history: history).steps[1], 150)
-        XCTAssertEqual(Estimator.estimate(one, history: history).steps[2], 200)
-        XCTAssertEqual(Estimator.estimate(three, history: history).steps[2], 300)
+        XCTAssertEqual(Estimator.estimate(one, history: history).steps[.picture], 50, "per picture")
+        XCTAssertEqual(Estimator.estimate(three, history: history).steps[.picture], 150)
+        XCTAssertEqual(Estimator.estimate(one, history: history).steps[.shape], 200)
+        XCTAssertEqual(Estimator.estimate(three, history: history).steps[.shape], 300)
         XCTAssertEqual(JobShape(.generate, settings: { var s = MiniSettings(); s.source = .image; s.sides = [.back, .left]; return s }()).pictures, 3)
     }
 }

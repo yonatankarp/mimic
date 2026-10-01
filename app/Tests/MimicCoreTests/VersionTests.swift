@@ -138,7 +138,7 @@ final class VersionTests: XCTestCase {
         XCTAssertEqual(s.versionOf, "elf")
         // What the job (and Try Again) runs, from the new mini's settings: no drawing, the new seed.
         let plan = try Pipeline.plan(.generate, folder: folder, settings: s, tools: tools)
-        XCTAssertEqual(plan.map(\.number), [2, 3], "the picture isn't drawn again")
+        XCTAssertEqual(plan.map(\.number), [.shape, .print], "the picture isn't drawn again")
         guard case .run(_, let args, _, _) = plan[0].step else { return XCTFail("step 2 isn't the engine") }
         XCTAssertEqual(args[args.firstIndex(of: "--seed")! + 1], String(shape))
         // Gone, the picture is drawn again from the same seed; the shape keeps its own.

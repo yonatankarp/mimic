@@ -5,7 +5,7 @@ final class JobPresentationTests: XCTestCase {
     private let start = Date(timeIntervalSince1970: 1_700_000_000)
 
     private func job(_ name: String, running: Bool = true, exit: Int32? = nil, canceled: Bool = false, at offset: TimeInterval = 0) -> JobStatus {
-        var s = JobStatus(name: name, kind: .generate, step: 1, started: start.addingTimeInterval(offset))
+        var s = JobStatus(name: name, kind: .generate, step: .picture, started: start.addingTimeInterval(offset))
         s.running = running
         s.exit = exit
         s.canceled = canceled

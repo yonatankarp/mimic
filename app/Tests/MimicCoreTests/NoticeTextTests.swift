@@ -3,7 +3,7 @@ import XCTest
 
 /// The words of a finished mini's notification and of Report a Problem's question.
 final class NoticeTextTests: XCTestCase {
-    private func ended(step: Int, exit: Int32) -> JobStatus {
+    private func ended(step: JobStep, exit: Int32) -> JobStatus {
         var s = JobStatus(name: "dwarf", kind: .generate, step: step, started: Date())
         s.running = false
         s.exit = exit
@@ -11,16 +11,16 @@ final class NoticeTextTests: XCTestCase {
     }
 
     func testAReadyMiniSaysSoAndOffersTheSlicer() {
-        let text = MiniNotification.text(ended(step: 3, exit: 0), who: "Élodie the Druid")
+        let text = MiniNotification.text(ended(step: .print, exit: 0), who: "Élodie the Druid")
         XCTAssertEqual(text, .init(title: "Élodie the Druid is ready", body: "Ready to print.", category: MiniNotification.ready))
         XCTAssertEqual(MiniNotification.openTitle(slicer: "Bambu Studio"), "Open in Bambu Studio")
     }
 
     func testAFailedMiniSaysWhichStepItStoppedIn() {
-        let text = MiniNotification.text(ended(step: 2, exit: 1), who: "Dwarf")
+        let text = MiniNotification.text(ended(step: .shape, exit: 1), who: "Dwarf")
         XCTAssertEqual(text, .init(title: "Dwarf didn't finish", body: "Something went wrong while building the 3d shape.",
                                    category: MiniNotification.failed))
-        XCTAssertEqual(MiniNotification.text(ended(step: 1, exit: 1), who: "Dwarf").body,
+        XCTAssertEqual(MiniNotification.text(ended(step: .picture, exit: 1), who: "Dwarf").body,
                        "Something went wrong while getting the picture ready.")
         XCTAssertEqual(MiniNotification.retryTitle, "Try Again")
     }

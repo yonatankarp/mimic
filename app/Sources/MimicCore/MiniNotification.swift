@@ -19,7 +19,7 @@ public enum MiniNotification {
     public static func text(_ s: JobStatus, who: String) -> Text {
         s.succeeded
             ? Text(title: "\(who) is ready", body: "Ready to print.", category: ready)
-            : Text(title: "\(who) didn't finish", body: "Something went wrong while \(JobRunner.label(s.step).lowercased()).",
+            : Text(title: "\(who) didn't finish", body: "Something went wrong while \(s.step.label.lowercased()).",
                    category: failed)
     }
 

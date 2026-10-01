@@ -2,11 +2,32 @@ import Darwin
 import Foundation
 import OSLog
 
+/// The steps of a make, in order; a resize is the last one alone. Numbered as they're shown
+/// ("Step 2 of 3") and saved.
+public enum JobStep: Int, Codable, CaseIterable, Comparable, Sendable {
+    case picture = 1, shape, print
+
+    public var label: String {
+        switch self {
+        case .picture: "Getting the picture ready"
+        case .shape: "Building the 3D shape"
+        case .print: "Making the print-ready file"
+        }
+    }
+
+    public static func < (a: JobStep, b: JobStep) -> Bool { a.rawValue < b.rawValue }
+}
+
+/// How a job is doing, or how it ended.
+public enum JobOutcome: Sendable {
+    case running, finished, stopped, failed
+}
+
 /// Where a job is, for the progress window and `mimic make`.
 public struct JobStatus: Equatable, Sendable {
     public var name: String
     public var kind: JobKind
-    public var step: Int
+    public var step: JobStep
     public var started: Date
     public var running = true
     public var canceled = false
@@ -25,7 +46,8 @@ public struct JobStatus: Equatable, Sendable {
     /// The mini's name as shown ("Élodie the Druid"), read as it starts: a stopped new mini's
     /// folder, which keeps that name, is in the Trash by the time it's named (#166).
     public var shown: String?
-    public var succeeded: Bool { !running && !canceled && exit == 0 }
+    public var outcome: JobOutcome { running ? .running : canceled ? .stopped : exit == 0 ? .finished : .failed }
+    public var succeeded: Bool { outcome == .finished }
 
     /// What to call the mini: its name as shown, or from its folder for a job from a Mimic
     /// before 0.9.0, which didn't say.
@@ -34,7 +56,7 @@ public struct JobStatus: Equatable, Sendable {
 
 // In an extension, so the memberwise initialiser the tests use stays.
 extension JobStatus {
-    public init(name: String, kind: JobKind, step: Int, started: Date) {
+    public init(name: String, kind: JobKind, step: JobStep, started: Date) {
         self.name = name; self.kind = kind; self.step = step; self.started = started
     }
 }
@@ -422,7 +444,7 @@ public final class JobRunner: @unchecked Sendable {
                 return
             } catch {
                 // Checked when it was queued, so rare: its folder went, or its model was removed.
-                var s = JobStatus(name: entry.name, kind: entry.job, step: entry.job == .prep ? 3 : 1, started: Date())
+                var s = JobStatus(name: entry.name, kind: entry.job, step: entry.job == .prep ? .print : .picture, started: Date())
                 s.running = false; s.exit = 1
                 s.problem = (error as? RequestError)?.description ?? String(describing: error)
                 lock.withLock { current = s }
@@ -480,18 +502,18 @@ public final class JobRunner: @unchecked Sendable {
         lock.withLock { current = s; keepWork = false }
         SharedJob.write(s, queue: install.queue)
         notify()
-        Log.queue.notice("Started \(entry.job.rawValue, privacy: .public) of \(entry.name, privacy: .public) at step \(plan[0].number)")
+        Log.queue.notice("Started \(entry.job.rawValue, privacy: .public) of \(entry.name, privacy: .public) at step \(plan[0].number.rawValue)")
         Thread.detachNewThread { [self] in execute(plan, entry: entry, folder: folder, log: log, settings: settings) }
     }
 
     // MARK: Running
 
-    private func execute(_ plan: [(number: Int, step: Step)], entry: QueueEntry, folder: URL, log: URL, settings: MiniSettings) {
+    private func execute(_ plan: [(number: JobStep, step: Step)], entry: QueueEntry, folder: URL, log: URL, settings: MiniSettings) {
         let kind = entry.job
         var code: Int32 = 0
         var done = 0  // runs of the plan finished
         var problem: String?
-        var took: [Int: TimeInterval] = [:]
+        var took: [JobStep: TimeInterval] = [:]
         // What print prep reports, this run's only: an earlier run's must not follow the mini around.
         let reportFile = folder.appendingPathComponent("prep-result.json")
         try? FileManager.default.removeItem(at: reportFile)
@@ -504,7 +526,7 @@ public final class JobRunner: @unchecked Sendable {
             previous = number
             if let s = status { SharedJob.write(s, queue: install.queue) }
             notify()
-            append(log, "[\(number)/3] \(Self.label(number))\n")
+            append(log, "[\(number.rawValue)/3] \(number.label)\n")
             do {
                 code = try run(step)
             } catch {
@@ -523,7 +545,7 @@ public final class JobRunner: @unchecked Sendable {
                 // skips a step whose file is there: a picture, or the 3D shape. Step 1 is one run
                 // per picture, so the pictures it had finished are kept.
                 for (number, step) in plan.dropFirst(done) where kind == .generate {
-                    if let file = number == 2 ? folder.appendingPathComponent("model.glb") : step.makes { try? FileManager.default.removeItem(at: file) }
+                    if let file = number == .shape ? folder.appendingPathComponent("model.glb") : step.makes { try? FileManager.default.removeItem(at: file) }
                 }
             } else if kind == .generate || Self.importing(folder) {
                 try? trash(folder)  // a half-made new mini (or import) is clutter, not a result
@@ -544,7 +566,7 @@ public final class JobRunner: @unchecked Sendable {
                     s.notes = notes.isEmpty ? nil : notes; s.fragile = fragile ? true : nil
                     s.failed = nil; s.failedStep = nil
                 } else {
-                    s.failed = problem ?? "It stopped while \(Self.label(step ?? 2).lowercased())."; s.failedStep = step
+                    s.failed = problem ?? "It stopped while \((step ?? .shape).label.lowercased())."; s.failedStep = step?.rawValue
                 }
             }
         }
@@ -667,10 +689,6 @@ public final class JobRunner: @unchecked Sendable {
 
     /// The nice value job programs run at.
     static let nice = 10
-
-    public static func label(_ step: Int) -> String {
-        ["", "Getting the picture ready", "Building the 3D shape", "Making the print-ready file"][max(0, min(3, step))]
-    }
 }
 
 /// The record of a running job's program, so one orphaned by a crash can be stopped on the next
