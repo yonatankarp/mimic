@@ -479,6 +479,8 @@ public final class JobRunner: @unchecked Sendable {
         s.stepStarted = now
         s.importing = entry.job == .prep && Self.importing(folder)
         s.shown = settings.shownName(folder: entry.name)
+        // Before the job can be stopped, so a Stop while step 1 starts isn't forgotten (#170).
+        drawThings.reset()
         lock.withLock { current = s; keepWork = false }
         SharedJob.write(s, queue: install.queue)
         notify()
