@@ -26,6 +26,20 @@ public struct Sizes: Equatable, Sendable {
         self.magnet = noBase ? nil : magnet
     }
 
+    /// What print prep made from these sizes: a size left out is print prep's own default. A mini
+    /// made in Terminal without sizes, or an older one, records none ({}), and its row in the list
+    /// says 32 mm; Edit & Make Again and Resize start there, not at the size card last chosen
+    /// (#139). The extra thickness stays out: print prep picks it from the nozzle. So does a base
+    /// that wasn't made, so adding one is sized by the card.
+    public var asMade: Sizes {
+        let prep = PrepOptions(glb: "", stl: "")
+        var s = self
+        s.height = height ?? SizeCard.text(prep.height)
+        s.base = base ?? (noBase ? nil : SizeCard.text(prep.base))
+        s.nozzle = nozzle ?? SizeCard.text(prep.nozzle)
+        return s
+    }
+
     /// Checks every value, then returns print prep's flags. Throws before anything is saved.
     public func flags() throws -> [String] {
         var out: [String] = []
