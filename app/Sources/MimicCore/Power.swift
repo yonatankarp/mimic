@@ -1,7 +1,7 @@
 import Foundation
 import IOKit.ps
 
-/// Settings → Don't start minis on battery (#89): while the Mac runs on its battery, no new
+/// Settings → Start minis only when plugged in (#89): while the Mac runs on its battery, no new
 /// mini starts, in the app or in Terminal; one already being made carries on. The app looks
 /// every few seconds, so the queue carries on by itself once the Mac is plugged in.
 public enum Power {

@@ -1,6 +1,6 @@
 import Foundation
 
-/// What a mini's page says it was made from, in its Made From section (#83): only what its
+/// What a mini's page says it was made from, in its Made from section (#83): only what its
 /// settings recorded, so an older mini leaves out a row rather than showing a blank one.
 public struct MadeFrom: Equatable, Sendable {
     public struct Row: Equatable, Sendable {
@@ -18,12 +18,12 @@ public struct MadeFrom: Equatable, Sendable {
     public init(_ s: MiniSettings, created: Date, now: Date = Date(), timeZone: TimeZone = .current) {
         var rows: [Row] = []
         func add(_ label: String, _ value: String?) { if let value { rows.append(Row(label: label, value: value)) } }
-        if s.isImported { add("Made from", "A 3D model you imported") }
+        if s.isImported { add("Source", "A 3D model you imported") }
         switch s.source {
         case .image:
-            add("Made from", "A picture")
+            add("Source", "A picture")
         case .desc:
-            add("Made from", "A description")
+            add("Source", "A description")
             add("You typed", s.descOriginal.flatMap { $0.isEmpty || $0 == s.desc ? nil : $0 })
         case nil: break
         }
