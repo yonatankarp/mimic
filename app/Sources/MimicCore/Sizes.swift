@@ -222,17 +222,32 @@ public struct MiniSettings: Codable, Equatable, Sendable {
     private static let dates = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
 
     /// Unreadable or missing reads as empty: a mini made before settings existed has none.
-    public static func load(_ folder: URL) -> MiniSettings {
+    public static func load(_ folder: URL) -> MiniSettings { (try? read(folder)) ?? MiniSettings() }
+
+    /// What settings.json says: empty when it isn't there (or is empty), and a throw when it's
+    /// there but doesn't read.
+    private static func read(_ folder: URL) throws -> MiniSettings {
+        guard FileManager.default.fileExists(atPath: file(folder).path) else { return MiniSettings() }
+        let data = try Data(contentsOf: file(folder))
+        guard !data.isEmpty else { return MiniSettings() }
         let dec = JSONDecoder()
         dec.dateDecodingStrategy = .custom { try dates.parse($0.singleValueContainer().decode(String.self)) }
-        guard let data = try? Data(contentsOf: file(folder)),
-              let s = try? dec.decode(MiniSettings.self, from: data) else { return MiniSettings() }
-        return s
+        return try dec.decode(MiniSettings.self, from: data)
     }
 
-    /// Read, change, write back: later writes add to earlier ones, like the web version's.
+    /// Read, change, write back: later writes add to earlier ones, like the web version's. Never
+    /// over a file that's there but doesn't read (a hand edit, or a newer Mimic's), which would
+    /// lose all it says: that throws instead. One at a time per mini, even from another Mimic or
+    /// `mimic` in Terminal, under a lock on its folder, which a rename doesn't let go of.
     public static func update(_ folder: URL, _ change: (inout MiniSettings) -> Void) throws {
-        var s = load(folder)
+        let fd = open(folder.path, O_RDONLY | O_CLOEXEC)
+        defer { if fd >= 0 { flock(fd, LOCK_UN); close(fd) } }
+        while fd >= 0, flock(fd, LOCK_EX) != 0, errno == EINTR {}
+        var s: MiniSettings
+        do { s = try read(folder) } catch {
+            Log.queue.error("Left \(file(folder).path, privacy: .public) as it is: it doesn't read (\(String(describing: error), privacy: .public))")
+            throw RequestError.unreadableSettings(folder.lastPathComponent)
+        }
         change(&s)
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
