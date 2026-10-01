@@ -12,7 +12,7 @@ final class MadeFromTests: XCTestCase {
         var s = MiniSettings()
         s.source = .image; s.restyle = true; s.seed = 7; s.model = "trellis2-q8"; s.requested = Sizes(); s.cartoon = true
         let m = MadeFrom(s, created: made, now: made, timeZone: utc)
-        XCTAssertEqual(rows(m), ["Made from: A picture", "Variation number: 7", "3D model: TRELLIS.2", "Grey sculpt: On",
+        XCTAssertEqual(rows(m), ["Source: A picture", "Variation number: 7", "3D model: TRELLIS.2", "Grey sculpt: On",
                                  "Cartoon: Yes", "Made: 21 Sep, 14:13"])
         XCTAssertNil(m.description, "nothing to copy for a picture")
         s.restyle = false; s.cartoon = nil
@@ -28,7 +28,7 @@ final class MadeFromTests: XCTestCase {
         s.model = "pixal3d-sv"; s.requested = Sizes()
         let m = MadeFrom(s, created: made, now: made, timeZone: utc)
         XCTAssertEqual(m.description, "an elf ranger with a longbow")
-        XCTAssertEqual(rows(m), ["Made from: A description", "You typed: elf ranger", "Variation number: 42", "3D model: Pixal3D",
+        XCTAssertEqual(rows(m), ["Source: A description", "You typed: elf ranger", "Variation number: 42", "3D model: Pixal3D",
                                  "Made: 21 Sep, 14:13"])
         s.descOriginal = nil
         XCTAssertFalse(rows(MadeFrom(s, created: made, now: made, timeZone: utc)).contains { $0.hasPrefix("You typed") })
@@ -39,9 +39,9 @@ final class MadeFromTests: XCTestCase {
     func testAnOlderMiniShowsOnlyWhatItHas() {
         var s = MiniSettings()
         s.source = .image; s.requested = Sizes()
-        XCTAssertEqual(rows(MadeFrom(s, created: made, now: made, timeZone: utc)), ["Made from: A picture", "3D model: Pixal3D", "Made: 21 Sep, 14:13"])
+        XCTAssertEqual(rows(MadeFrom(s, created: made, now: made, timeZone: utc)), ["Source: A picture", "3D model: Pixal3D", "Made: 21 Sep, 14:13"])
         s.model = "some-future-model"
-        XCTAssertEqual(rows(MadeFrom(s, created: .distantPast, timeZone: utc)), ["Made from: A picture"])
+        XCTAssertEqual(rows(MadeFrom(s, created: .distantPast, timeZone: utc)), ["Source: A picture"])
     }
 
     /// No settings at all (made before they existed): no section, and no model claimed.

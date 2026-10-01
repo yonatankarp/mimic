@@ -151,7 +151,7 @@ struct MiniDetail: View {
             } label: {
                 Label("More", systemImage: "ellipsis")
             }
-            .help("Print several copies, resize this mini, make it again with changes, or show it in Finder")
+            .help("Print copies, resize, make it again with changes, or show it in Finder")
             Button("Open in \(model.slicerName)") { if let stl = mini.stl { model.openInSlicer(stl) } }
                 .buttonStyle(.glassProminent)
                 .help("Opens the print file in \(model.slicerName) to slice and print")
@@ -323,7 +323,7 @@ struct MiniDetail: View {
                     .help("Copies the description it was drawn from, to use again.")
                 }
             } header: {
-                Label("Made From", systemImage: "wand.and.stars")
+                Label("Made from", systemImage: "wand.and.stars")
             }
         }
     }
