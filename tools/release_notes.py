@@ -8,7 +8,9 @@ Each pull request's title says what kind of change it is, which picks its headin
 new feature, `change: ...` an improvement and `fix: ...` a bug fix. A `(cli)` scope (`feat(cli): ...`)
 puts it under In Terminal instead, since most people never use it. Other kinds (docs, chore, ci,
 test, refactor) are left out. A line on top counts what the version brings. The line is the first paragraph under the PR's `## Release note`, written for people
-who use Mimic, or its title when it has none; `none` leaves it out.
+who use Mimic, or its title when it has none; `none` leaves it out. Links and HTML are taken out
+of it (a link keeps its text), and it's read when the notes are made, at tag time, so preview them
+before tagging: an edit to a merged PR's description still changes them.
 
 A release-notes/<version>.md file, when there is one, is published instead, word for word: an
 escape hatch for a version whose notes need more than its pull requests say. A version with its own section in
@@ -59,7 +61,24 @@ def release_note(body):
     """The first paragraph under the PR's `## Release note`, or None when it has none."""
     body = re.sub(r"<!--.*?-->", "", body or "", flags=re.S)
     match = re.search(r"^##\s*Release notes?\s*$(.*?)(?=^##\s|\Z)", body, flags=re.M | re.S | re.I)
-    return re.split(r"\n\s*\n", match.group(1).strip())[0] if match else None
+    if not match:
+        return None
+    return plain(re.split(r"\n\s*\n", match.group(1).strip())[0]) or None
+
+
+def plain(note):
+    """The note with no links or HTML, since anyone can write or edit a PR's description: a link
+    `[text](url)` or image `![text](url)` keeps its text, a tag or comment goes, and a bare URL loses
+    its `https://` and `www.` so nothing autolinks it. Bold, lists and `code` stay as they are."""
+    note = re.sub(r"!?\[((?:[^\[\]]|\[[^\]]*\])*)\]\([^)]*\)", r"\1", note)
+    parts = re.split(r"(`[^`\n]*`)", note)  # code spans are left alone: `<name>` isn't a tag
+    for i in range(0, len(parts), 2):
+        text = re.sub(r"<!--.*?(-->|\Z)", "", parts[i], flags=re.S)
+        text = re.sub(r"<((?:https?|ftp)://[^>\s]*)>", r"\1", text)
+        text = re.sub(r"</?[A-Za-z][^>]*>", "", text)
+        text = re.sub(r"\b(?:https?|ftp)://(?:www\.)?|\bwww\.", "", text, flags=re.I)
+        parts[i] = re.sub(r"(?<=\S)[ \t]{2,}(?=\S)", " ", text)
+    return "\n".join(line.rstrip() for line in "".join(parts).strip().splitlines())
 
 
 def bullets(note):

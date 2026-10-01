@@ -44,7 +44,7 @@ the problem matters more than a specific solution.
    people who use Mimic: one line (or a short list, one change per line) starting with a short
    **bold lead**, about 20 words, saying what they can now do. No code, model or file names unless
    people choose them in Mimic, and Terminal options only in a `(cli)` pull request. `none` leaves
-   it out.
+   it out. Links and HTML are taken out (a link keeps its text), so don't rely on them.
 
 By contributing, you agree that your contribution is licensed under Mimic's
 [MIT licence](LICENSE).
@@ -94,7 +94,9 @@ downloads the real engine and the small model files, never the 8 GB of weights.
 1. Check the release notes: `tools/release_notes.py 0.3.0 origin/main` prints what the release
    will publish, on GitHub and in Mimic's update window. It lists the pull requests merged since
    the last version under New features, Improvements, Bug fixes and In Terminal, with a line on
-   top that counts them. To change a line, edit that pull request's `## Release note`. A version
+   top that counts them. To change a line, edit that pull request's `## Release note`. The notes
+   are read from the pull requests when the tag is pushed, not when they were merged, so an edit to
+   a merged pull request's description changes them: read this preview right before tagging. A version
    with no `feat`, `fix` or `change` fails before anything is published. (A
    `release-notes/0.3.0.md` file, if you add one, is published instead, word for word.)
 2. Push a version tag:
