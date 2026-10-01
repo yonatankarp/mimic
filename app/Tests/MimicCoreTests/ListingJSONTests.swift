@@ -37,6 +37,14 @@ final class ListingJSONTests: XCTestCase {
         XCTAssertEqual(o["state"] as? String, "ready")
     }
 
+    func testProjectFields() throws {
+        let fx = try Fixture(); let (mini, _) = try fullMini(fx)
+        var inside = mini; inside.project = "Warband"
+        let o = try object(ListingJSON.Project("Warband", minis: [inside, mini]))
+        XCTAssertEqual(keys(o), ["minis", "name"])
+        XCTAssertEqual(o["minis"] as? Int, 1)
+    }
+
     func testQueueFields() throws {
         var running = JobStatus(name: "orc", kind: .prep, step: 3, started: day)
         running.stepStarted = day

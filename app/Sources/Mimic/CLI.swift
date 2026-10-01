@@ -21,7 +21,7 @@ enum CLI {
       mimic keep <name>              keeps this version and moves its other versions to the Trash
       mimic stop                     stops the mini being made, in any Mimic
       mimic list [--json]
-      mimic projects
+      mimic projects [--json]
       mimic project create "<project>"
       mimic project rename "<project>" --to "<new name>"
       mimic project delete "<project>" [--trash-minis]   its minis go to Unsorted, or with it to the Trash
@@ -33,7 +33,7 @@ enum CLI {
       mimic queue pause | resume     no new mini starts until it's resumed, in any Mimic
       mimic --version                which Mimic this is (also -v)
       mimic --help                   this list (also -h)
-    --json: list, queue, models and info as JSON for scripts (the README describes it)
+    --json: list, projects, queue, models and info as JSON for scripts (the README describes it)
     <name>: a mini's name as mimic list shows it, or as you'd type it in Mimic ("Élodie" is elodie)
     options: --height MM  --scale 28|32|35|54|75  --base MM  --nozzle 0.2|0.4|0.6  --inflate MM  --no-base  --base-shape round|square|hex  --base-style plain|stone|wood|cobble  --magnet 5x2|6x2|8x3|none  --seed N  --model ID
     anything that isn't a character: make … --object  [--size MM (longest side)]  [--add-base]
@@ -65,7 +65,7 @@ enum CLI {
         let timings = Timings.standard()
         var rest = Array(args.dropFirst())
         // --json on a listing (#130): taken out first, so each listing reads its arguments as before.
-        let json = ["list", "queue", "models", "info"].contains(args.first) && rest.contains("--json")
+        let json = ["list", "projects", "queue", "models", "info"].contains(args.first) && rest.contains("--json")
         rest.removeAll { $0 == "--json" && json }
         switch args.first {
         case "list":
@@ -90,6 +90,7 @@ enum CLI {
         case "projects":
             guard rest.isEmpty else { return fail(usage) }
             let minis = Gallery.list(install.runs)
+            if json { return printJSON(Gallery.projects(install.runs).map { ListingJSON.Project($0, minis: minis) }) }
             for p in Gallery.projects(install.runs) {
                 let n = minis.filter { $0.project == p }.count
                 print("\(p)\t\(n) mini\(n == 1 ? "" : "s")")
