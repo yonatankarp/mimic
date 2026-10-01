@@ -19,7 +19,7 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
 - **Swift owns everything.** The 3D engine itself is a prebuilt C++ program (`trellis-cli`);
   everything around it, and all of print prep, is this package. The terminal route is
   `mimic make …`, the same code as the app;
-  Settings → Use Mimic from Terminal shows the one command that links the app's binary onto
+  Mimic → Install Command-Line Tool… shows the one command that links the app's binary onto
   the PATH (`sudo`, because `/usr/local/bin` is on every Mac's PATH but a new Mac doesn't have
   it and only an administrator can make it; `~/.local/bin` needs no password but isn't on the
   PATH, which would be a second step). Through the symlink the binary reads `com.mimic.app`'s
@@ -260,14 +260,14 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   an alpha channel: an alpha of opaque noise once became two sheets of geometry.
 - **Three 3D models, chosen once per Mac** (`EngineDownload.catalogue`; 0.4.0). The same
   pinned trellis-cli runs all three; each set lives in `engine/models/<id>/`, the choice is the
-  `model` default (absent = Pixal3D, so installs from before keep working with nothing to
-  download), and each mini records its model in settings.json so Try Again uses it. Only sets
+  `model` default (absent = Pixal3D in 0.4.0, so installs from before kept working with nothing to
+  download; TRELLIS.2 since 0.6.0, below), and each mini records its model in settings.json so Try Again uses it. Only sets
   proven end to end with this engine build are offered. Measured on the dwarf (seed 42, M2 Max
   32 GB, `mimic make … --model <id>` through the app's own `_engine` and `_prep`):
 
   | Model | Download | Flows (sum) | Whole mini | Max RSS of any step |
   |---|---|---|---|---|
-  | Pixal3D (`pixal3d-sv`, default) | 8.1 GB | 5.5 min | 7.5 min | 5.1 GB |
+  | Pixal3D (`pixal3d-sv`, the 0.4.0 default) | 8.1 GB | 5.5 min | 7.5 min | 5.1 GB |
   | TRELLIS.2 (`trellis2-q8`) | 9.1 GB | 11.5 min | 13.5 min | 6.9 GB |
   | TRELLIS.2 Lite (`trellis2-q4`) | 5.7 GB | 9.7 min | 12.3 min | 8.1 GB |
 
