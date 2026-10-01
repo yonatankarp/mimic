@@ -1,13 +1,11 @@
 import Foundation
 import MimicCore
-import UserNotifications
 
 /// The command-line mode: the same engine as the app, for the terminal and for scripts.
 enum CLI {
     static var usage: String { Usage.text }
 
     static func run(_ args: [String]) -> Int32 {
-        if args.first == "--probe-notifications" { return probeNotifications() }
         if ["--version", "-v", "version"].contains(args.first) { print(BuildInfo.line); return 0 }
         if ["--help", "-h", "help"].contains(args.first) { print(usage); return 0 }
         // The job's own steps, each run by a job as its own program: before finding the Mimic
@@ -620,20 +618,6 @@ enum CLI {
             if let stl { try? PrepReport(failure: "\(error)").write(beside: stl) }
             return fail(Prep.failure + "\(error)")
         }
-    }
-
-    private static func probeNotifications() -> Int32 {
-        // Feasibility check: does the notification system accept this self-assembled app?
-        // Reading the settings needs a valid bundle but, unlike asking, shows no prompt.
-        let done = DispatchSemaphore(value: 0)
-        nonisolated(unsafe) var status = "unknown"
-        UNUserNotificationCenter.current().getNotificationSettings { s in
-            status = String(describing: s.authorizationStatus.rawValue)
-            done.signal()
-        }
-        done.wait()
-        print("notifications reachable, authorization status \(status) (0 = not yet asked)")
-        return 0
     }
 
     private static func fail(_ message: String) -> Int32 {
