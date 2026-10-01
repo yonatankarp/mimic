@@ -44,8 +44,9 @@ enum AppSheet: Identifiable, Equatable {
 /// Views read it from the environment (`@Environment(AppModel.self)`).
 @MainActor @Observable
 final class AppModel {
-    let install: Install
-    let jobs: JobRunner
+    /// Changed only by Settings → General → Change… (`changeMinisFolder`), with the runner.
+    private(set) var install: Install
+    private(set) var jobs: JobRunner
     /// First-launch setup, and Repair from Settings. Here rather than in a view, so a download
     /// carries on when the window closes.
     let setup: SetupModel
@@ -151,12 +152,13 @@ final class AppModel {
     init() {
         let install = Install.locate()
         self.install = install
+        // The queue's files from before they moved out of the minis folder (#102), once.
+        try? JobQueue(folder: install.queue).moveOldFiles(from: install.runs)
         timings = Timings.standard()
         jobs = JobRunner(install: install, timings: timings, version: BuildInfo.version)
         setup = SetupModel(install: install)
         updates.model = self
-        jobs.onChange = { [weak self] s in Task { @MainActor in self?.jobChanged(s) } }
-        jobs.heldForPower = Power.holds(suite: nil)
+        wire(jobs)
         reload()
         // Run the checks at launch, so Make is blocked (and Settings flagged) before anyone opens Settings.
         Health.shared.check(install)
@@ -190,6 +192,44 @@ final class AppModel {
         #endif
     }
 
+    private func wire(_ jobs: JobRunner) {
+        jobs.onChange = { [weak self] s in Task { @MainActor in self?.jobChanged(s) } }
+        jobs.heldForPower = Power.holds(suite: nil)
+    }
+
+    // MARK: The minis folder
+
+    /// A mini is being made or waits, here or in another Mimic using this folder: Change… is
+    /// refused then, and Settings says why before it's asked.
+    var minisFolderBusy: Bool { current != nil || !queue.isEmpty }
+
+    /// Makes `folder` the minis folder (#102), moving the minis there first when asked, or using
+    /// whatever minis it already has. Off the main thread, since a move to another disk copies
+    /// every file. The setting is saved only once that worked; then the gallery, the folder
+    /// watch and the queue follow the new folder.
+    func changeMinisFolder(to folder: URL, moving: Bool) async throws {
+        let jobs = self.jobs
+        // Saved before the move's mark comes off, so a `mimic make` refused meanwhile and asked
+        // again finds the new folder.
+        try await Task.detached {
+            try jobs.changeMinisFolder(to: folder, moving: moving) { UserDefaults.standard.set(folder.path, forKey: MinisFolder.key) }
+        }.value
+        let install = Install.locate()
+        try? JobQueue(folder: install.queue).moveOldFiles(from: install.runs)
+        self.install = install
+        self.jobs = JobRunner(install: install, timings: timings, version: BuildInfo.version)
+        wire(self.jobs)
+        selection = []
+        reload()
+        refreshQueue()
+        Health.shared.check(install)  // the free space is the new folder's disk's
+    }
+
+    /// Whether `folder` already has minis or projects, so Change… asks whether to move these too.
+    nonisolated static func hasMinis(_ folder: URL) -> Bool {
+        !Gallery.list(folder).isEmpty || !Gallery.projects(folder).isEmpty
+    }
+
     /// The one selected mini, whose page shows; nil when none or several are.
     var selected: Mini? { selection.count == 1 ? minis.first { selection.contains($0.id) } : nil }
     /// Every selected mini, in the gallery's order.
@@ -217,10 +257,10 @@ final class AppModel {
     private func watchQueue() {
         // A crashed Mimic's job may still be running with nothing watching it: stopped as soon
         // as no live Mimic holds the job lock, queue or no queue.
-        if !running && Leftover.recorded(install.runs) { jobs.cleanUpLeftovers() }
+        if !running && Leftover.recorded(queue: install.queue) { jobs.cleanUpLeftovers() }
         // Not while a required part is broken (the engine needs Repair): each job would fail in
         // turn, so the queue waits until it's fixed.
-        if !running && requiredProblem == nil && setup.installed && !JobQueue(runs: install.runs).entries().isEmpty { jobs.pump() }
+        if !running && requiredProblem == nil && setup.installed && !jobs.queue.entries().isEmpty { jobs.pump() }
         refreshQueue()
         updates.tick()
     }
@@ -228,7 +268,7 @@ final class AppModel {
     func refreshQueue() {
         let q = jobs.queue.entries()
         if q != queue { queue = q; reload() }
-        let other = running ? nil : SharedJob.read(install.runs)?.status
+        let other = running ? nil : SharedJob.read(queue: install.queue)?.status
         if other?.name != elsewhere?.name { reload() }  // another Mimic started, or finished, a mini
         if other != elsewhere { elsewhere = other }
         let h = jobs.hold(), p = jobs.queue.paused
