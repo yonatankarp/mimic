@@ -310,6 +310,28 @@ final class SizeAdviceTests: XCTestCase {
         XCTAssertEqual(Filament.short(200), "up to 1 g", "never 0 g")
     }
 
+    /// The extra thickness a nozzle gets when it isn't chosen by hand: 40% of the nozzle, to the
+    /// hundredth of a mm. A nozzle that can't be read counts as 0.4.
+    func testTheExtraThicknessFollowsTheNozzle() {
+        XCTAssertEqual(SizeCard.inflateFor("0.2"), 0.08)
+        XCTAssertEqual(SizeCard.inflateFor("0.4"), 0.16)
+        XCTAssertEqual(SizeCard.inflateFor("0.6"), 0.24)
+        XCTAssertEqual(SizeCard.inflateFor("0.8"), 0.32, "worked out, not looked up")
+        XCTAssertEqual(SizeCard.inflateFor("wide"), 0.16)
+        XCTAssertEqual(SizeCard.inflateFor(""), 0.16)
+    }
+
+    /// PLA at 1.24 g/cm³, on 1.75 mm filament.
+    func testGramsAndMetresOfFilament() {
+        XCTAssertEqual(Filament.grams(0), 0)
+        XCTAssertEqual(Filament.grams(1000), 1.24, accuracy: 1e-9)
+        XCTAssertEqual(Filament.grams(8000), 9.92, accuracy: 1e-9)
+        XCTAssertEqual(Filament.metres(1000), 0.41575, accuracy: 1e-5)
+        XCTAssertEqual(Filament.short(8000), "up to 10 g", "9.92 g rounds to 10")
+        XCTAssertEqual(Filament.short(0), "up to 1 g")
+        XCTAssertEqual(Filament.words(0), "Up to 1 g · 0.1 m", "never 0 m either")
+    }
+
     private func made(_ sizes: Sizes, _ kind: MiniKind = .character) -> [String] {
         PrintTips.made(sizes, kind: kind).map { "\($0.label): \($0.value)" }
     }
