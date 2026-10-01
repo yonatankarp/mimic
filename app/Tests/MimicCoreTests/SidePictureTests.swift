@@ -89,6 +89,23 @@ final class SidePictureTests: XCTestCase {
         XCTAssertEqual(MadeFrom(s, created: .distantPast).rows.first, .init(label: "Source", value: "Pictures of the front, back and right"))
     }
 
+    /// Step 1 makes each picture in turn but is one step: its time left counts down once, not
+    /// over again for each picture.
+    func testTheFirstStepIsTimedOnceForEveryPicture() throws {
+        let fx = try Fixture()
+        try fx.modelFiles()
+        let picture = try fx.picture()
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/false"), trash: { _ in })
+        let seen = Seen()
+        jobs.onChange = { seen.add($0) }
+        try jobs.make(name: "mini", picture: .image(picture), restyle: false, seed: 1, sizes: sizes, model: EngineDownload.standard,
+                      sides: [.back: picture, .left: picture])
+        jobs.waitUntilDone()
+        let started = Set(seen.all.filter { $0.step == 1 && $0.running }.compactMap(\.stepStarted))
+        XCTAssertEqual(started.count, 1, "step 1 started over for a picture")
+        XCTAssertTrue(seen.all.contains { $0.step == 2 }, "never reached the 3D step")
+    }
+
     /// Make Another Version and New 3D Shape keep the pictures of the back and sides, as Try
     /// Again does (it plans from the same settings).
     func testVersionsKeepThePictures() throws {
@@ -112,6 +129,13 @@ final class SidePictureTests: XCTestCase {
         XCTAssertEqual(try Pipeline.plan(.generate, folder: shape, settings: MiniSettings.load(shape), tools: fx.tools()).map(\.number), [2, 3])
         for n in jobs.queue.entries().map(\.name) { try jobs.remove(n) }
         jobs.waitUntilDone()
+    }
+
+    final class Seen: @unchecked Sendable {
+        private let lock = NSLock()
+        private var statuses: [JobStatus] = []
+        var all: [JobStatus] { lock.withLock { statuses } }
+        func add(_ s: JobStatus) { lock.withLock { statuses.append(s) } }
     }
 
     /// The multi-image mode is given a folder of the pictures, not one picture.

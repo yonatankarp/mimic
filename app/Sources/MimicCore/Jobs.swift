@@ -469,10 +469,13 @@ public final class JobRunner: @unchecked Sendable {
         // prep.log is appended to on every run, so only this run's part says whether it's fragile.
         let prepLog = folder.appendingPathComponent("prep.log")
         let prepLogStart = (try? FileManager.default.attributesOfItem(atPath: prepLog.path)[.size] as? UInt64) ?? 0
+        var previous: Int?
         for (number, step) in plan {
             if status?.canceled == true { break }
             let began = Date()
-            lock.withLock { current?.step = number; current?.stepStarted = began }
+            // Step 1 is one run per picture, timed as one step: its time left mustn't start over.
+            lock.withLock { current?.step = number; if number != previous { current?.stepStarted = began } }
+            previous = number
             if let s = status { SharedJob.write(s, queue: install.queue) }
             notify()
             append(log, "[\(number)/3] \(Self.label(number))\n")

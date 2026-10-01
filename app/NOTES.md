@@ -330,7 +330,10 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   printing `[flow-mv] 12 steps`: the multi-image flows ignore `PIXAL3D_STEPS` and show no
   progress bar, so the steps guard never fires and the estimate counts the 3D step 2.8 times
   as long (`Estimator.multiViewShape`). The figure faces away as from one picture, so the same
-  `--turn 180` faces it front. Pixal3D's single-view set takes one picture, so New Mini shows
+  `--turn 180` faces it front. The sculpt prompt names no view, and a sculpt of the back
+  render stayed a back view (its shoes came out pointing at the camera, the one slip), so side
+  pictures share the front's prompt. Step 1 is one run per picture but timed as one step, so
+  its time left doesn't start over for each. Pixal3D's single-view set takes one picture, so New Mini shows
   the slots switched off with the reason (and a cartoon is always Pixal3D); its four-picture
   multiview set is still not offered. Left out for now: Draw Things drawing the missing views
   from the front, and lining the pictures up (same height, feet on one line) before the engine.
