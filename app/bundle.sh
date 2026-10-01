@@ -64,15 +64,18 @@ PLIST
 # Releases are signed with Mimic's own certificate (MIMIC_SIGN_IDENTITY, set up by CI): the same
 # signer every version, so macOS knows an update is the same app and doesn't ask again for saved
 # AI keys. Anything else is signed ad hoc, which is enough to run on this Mac. Inside out:
-# Sparkle's helpers, then Sparkle, then the app.
+# Sparkle's helpers, then Sparkle, then the app. All with the hardened runtime, so nothing can
+# slip its own code into Mimic (DYLD_INSERT_LIBRARIES) and read the saved keys from inside it;
+# the app gets the one exception it needs to load Sparkle (Mimic.entitlements).
 sign() {
   if [ -n "${MIMIC_SIGN_IDENTITY:-}" ]; then
-    codesign --force --timestamp=none -s "$MIMIC_SIGN_IDENTITY" ${MIMIC_SIGN_KEYCHAIN:+--keychain "$MIMIC_SIGN_KEYCHAIN"} "$1"
+    codesign --force --timestamp=none --options runtime -s "$MIMIC_SIGN_IDENTITY" ${MIMIC_SIGN_KEYCHAIN:+--keychain "$MIMIC_SIGN_KEYCHAIN"} "$@"
   else
-    codesign --force -s - "$1" 2>/dev/null
+    codesign --force --options runtime -s - "$@" 2>/dev/null
   fi
 }
-for code in "$sparkle/Versions/B/Autoupdate" "$sparkle/Versions/B/Updater.app" "$sparkle" "$app"; do sign "$code"; done
+for code in "$sparkle/Versions/B/Autoupdate" "$sparkle/Versions/B/Updater.app" "$sparkle"; do sign "$code"; done
+sign --entitlements Mimic.entitlements "$app"
 # The dev build uses this checkout as its Mimic folder (runs/ and engine/). The release build
 # finds its own: ~/Documents/Mimic and ~/Library/Application Support/Mimic.
 [ "$kind" = release ] || defaults write "$id" installDir "$(cd .. && pwd)"
