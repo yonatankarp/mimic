@@ -256,6 +256,30 @@ final class VersionTests: XCTestCase {
         XCTAssertEqual(f.name, "Old Picture 2")
         XCTAssertNil(MakeForm.again(minis.first { $0.name == "tiefling-sculpt" }!, install: fx.install, card: SizeCard()))
     }
+
+    /// #139: a mini made in Terminal without sizes records none, so print prep made it at its own
+    /// defaults, and its row says "32 mm · 0.4 mm nozzle". Edit & Make Again starts there, not
+    /// at the size card last chosen (here Best print, 100 mm on a 40 mm base). A size that was
+    /// recorded is kept, and the rest are print prep's.
+    func testEditAndMakeAgainOfAMiniWithNoRecordedSizes() throws {
+        let fx = try Fixture()
+        let wizard = try fx.mini("cartoon-wizard")
+        try Data(#"{"source": "image", "seed": 42, "requested": {}, "made": {}}"#.utf8).write(to: wizard.appendingPathComponent("settings.json"))
+        let elf = try fx.mini("elf")
+        try MiniSettings.update(elf) { $0.source = .image; $0.requested = Sizes(nozzle: "0.2"); $0.made = $0.requested }
+        let bestPrint = SizeCard(purpose: .display, nozzle: "0.4")
+        XCTAssertEqual(bestPrint.sizes.height, "100", "the card last chosen is Best print")
+        let minis = Gallery.list(fx.install.runs)
+        let mini = try XCTUnwrap(minis.first { $0.name == "cartoon-wizard" })
+        let f = try XCTUnwrap(MakeForm.again(mini, install: fx.install, card: bestPrint))
+        XCTAssertEqual(f.card.sizes, Sizes(height: "32", base: "25", nozzle: "0.4"))
+        XCTAssertEqual(PrintTips.shortLine(f.card.sizes), PrintTips.shortLine(try XCTUnwrap(mini.settings.made)), "the form says what the row says")
+        let e = try XCTUnwrap(MakeForm.again(minis.first { $0.name == "elf" }!, install: fx.install, card: bestPrint))
+        XCTAssertEqual(e.card.sizes, Sizes(height: "32", base: "25", nozzle: "0.2"))
+        // Resize fills its card the same way; a base that wasn't made is left to the card.
+        XCTAssertEqual(Sizes().asMade, Sizes(height: "32", base: "25", nozzle: "0.4"))
+        XCTAssertEqual(Sizes(height: "70", noBase: true).asMade, Sizes(height: "70", nozzle: "0.4", noBase: true))
+    }
 }
 
 private extension SizeCard {
