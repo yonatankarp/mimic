@@ -38,6 +38,18 @@ final class TimingsTests: XCTestCase {
         XCTAssertEqual(Pipeline.skipped(owl), [])
     }
 
+    /// When a mini just added should be ready, as the popover and Terminal say it (#219): its row
+    /// of the queue's times, and nothing for one that isn't waiting.
+    func testReadyInIsItsRowOfTheQueuesTimes() throws {
+        let fx = try Fixture()
+        let jobs = JobRunner(install: fx.install, tools: fx.tools())
+        let queue = ["owl", "raven", "crow"].map { QueueEntry(name: $0, job: .generate) }
+        let rows = jobs.queueTimes(queue, running: nil, history: [])
+        XCTAssertEqual(queue.map { jobs.readyIn($0.name, queue: queue, running: nil, history: []) }, rows.map { Optional($0.ready) })
+        XCTAssertNil(jobs.readyIn("dwarf", queue: queue, running: nil, history: []))
+        XCTAssertNil(jobs.readyIn("owl", queue: [], running: nil, history: []))
+    }
+
     func testTooLittleHistoryUsesTheFixedFigures() {
         let e = Estimator.estimate(make, history: [record(steps: [1: 50, 2: 300, 3: 6]), record(steps: [1: 50, 2: 300, 3: 6])], machine: mac)
         XCTAssertFalse(e.learned)

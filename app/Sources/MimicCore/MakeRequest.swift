@@ -162,14 +162,7 @@ public struct MakeRequest: Equatable, Sendable {
             if object { throw CommandRefusal.scaleForObject }
             sizes = SizeCard.gameSizes(scale: scale, filling: sizes) ?? sizes
         }
-        if object {
-            if !addBase { sizes.noBase = true }
-            // An object's base goes under its whole shadow, as in the app (SizeCard).
-            else if sizes.base == nil, let h = sizes.height.flatMap(Double.init) ?? SizeCard.objectSize[sizes.nozzle ?? "0.4"] {
-                sizes.base = SizeCard.text(min(80, max(25, (h * 0.8 / 5).rounded() * 5)))
-            }
-            if sizes.height == nil { sizes.height = SizeCard.text(SizeCard.objectSize[sizes.nozzle ?? "0.4"] ?? 80) }
-        }
+        if object { sizes = SizeCard.objectSizes(sizes, addBase: addBase) }
         if command == .make && improve && image != nil { throw CommandRefusal.improveImage }
         return sizes
     }

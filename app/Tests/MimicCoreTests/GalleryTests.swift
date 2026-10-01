@@ -30,6 +30,26 @@ final class GalleryTests: XCTestCase {
         XCTAssertEqual(Gallery.newFolder(runs, "raven", project: "Tiefling Party").path, "/tmp/minis/Tiefling Party/raven")
     }
 
+    /// The name New Mini says is taken is the one Make Mini refuses (#219): any mini or project
+    /// with it, except a failed attempt's folder where the new one would go.
+    func testANewMinisNameIsTakenAsMakeRefusesIt() throws {
+        let fx = try Fixture(), fm = FileManager.default, runs = fx.install.runs
+        _ = try fx.mini("dwarf")
+        let party = runs.appendingPathComponent("Party")
+        let failed = party.appendingPathComponent("raven")
+        try fm.createDirectory(at: failed, withIntermediateDirectories: true)
+        try MiniSettings.update(failed) { $0.source = .image }  // settings, but no 3D model
+        try fm.createDirectory(at: runs.appendingPathComponent("Tieflings"), withIntermediateDirectories: true)
+        XCTAssertTrue(Gallery.nameTaken(runs, "dwarf", project: nil), "a made mini")
+        XCTAssertTrue(Gallery.nameTaken(runs, "dwarf", project: "Party"), "a made mini, in another project")
+        XCTAssertFalse(Gallery.nameTaken(runs, "raven", project: "Party"), "a failed attempt where it would go is made again")
+        XCTAssertTrue(Gallery.nameTaken(runs, "raven", project: nil), "a failed attempt somewhere else keeps its name")
+        XCTAssertTrue(Gallery.nameTaken(runs, "tieflings", project: nil), "a project's name")
+        XCTAssertTrue(Gallery.nameTaken(runs, "party", project: "Party"), "a project's name, though a failed attempt isn't there")
+        XCTAssertFalse(Gallery.nameTaken(runs, "owl", project: nil))
+        XCTAssertFalse(Gallery.nameTaken(runs, "owl", project: "Party"))
+    }
+
     /// A mini's settings are read once, with the list (#95): what the list and its page ask of a
     /// mini afterwards comes from the value, however often a redraw asks. Planted by changing
     /// every file after the list was read: an answer read from disk would see the change.

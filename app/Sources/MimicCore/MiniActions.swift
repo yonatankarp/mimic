@@ -68,6 +68,28 @@ extension JobRunner {
         resizeAll(group, to: sizes) { try self.resize(name: $0.name, sizes: $1) }
     }
 
+    // MARK: Several pictures
+
+    /// Several pictures dropped on New Mini: a mini each, named after its file (`name`, its
+    /// folder's, and `shown`), each asked for with `make` and waiting its turn. A picture that
+    /// can't be used is skipped.
+    public func makeEach(_ pictures: [URL], make: (_ picture: URL, _ name: String, _ shown: String?) throws -> Void) -> MakeEach {
+        var result = MakeEach()
+        for url in pictures {
+            // Named once those before it are made: "dwarf.png" and "dwarf.jpg" don't share a name.
+            let name = Gallery.name(forPicture: url, in: install.runs)
+            let shown = Rules.shownName(fromFile: url.deletingPathExtension().lastPathComponent).map { Rules.shownName($0, numberedAs: name) }
+            do {
+                try make(url, name, shown)
+                result.added.append(name)
+            } catch {
+                result.skipped.append(url.lastPathComponent)
+                if ![.noPicture, .unreadablePicture].contains(error as? RequestError) { result.failure = error }
+            }
+        }
+        return result
+    }
+
     // MARK: Stop
 
     /// `mimic stop`: asks whichever Mimic is running a job (the app, or `mimic` in another
@@ -150,6 +172,19 @@ public struct ResizeAll {
         guard added.isEmpty else { return nil }
         if same > 0 && skipped == 0 { return "They're all already that size." }
         return (why ?? "None of these minis can be resized right now.") + sameNote + skippedNote
+    }
+}
+
+/// How several dropped pictures went: the minis added to the queue, the files skipped, and the
+/// last refusal that wasn't about the picture itself (`failure`).
+public struct MakeEach {
+    public var added: [String] = []
+    public var skipped: [String] = []
+    public var failure: Error?
+
+    /// " Skipped a.png, b.png: Mimic can't use them."
+    public var skippedNote: String {
+        skipped.isEmpty ? "" : " Skipped \(skipped.joined(separator: ", ")): Mimic can't use \(skipped.count == 1 ? "it" : "them")."
     }
 }
 

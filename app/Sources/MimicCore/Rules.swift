@@ -119,6 +119,13 @@ public enum Rules {
     public static let nozzles: Set<String> = ["0.2", "0.4", "0.6"]
 }
 
+/// A refusal of the app's or the command line's own, already in words for people: a job
+/// refused before it started, a project that isn't there.
+public struct Refusal: Error, Equatable, CustomStringConvertible {
+    public let description: String
+    public init(_ description: String) { self.description = description }
+}
+
 public enum RequestError: Error, Equatable, CustomStringConvertible {
     case badName, badNumber(String), badNozzle, nameTaken(String), busy(String, JobKind = .generate), nothingToRetry, noModelYet, notFound, missing(String), modelNotDownloaded(String), unknownModel(String), queued(String), noPicture, unreadablePicture,
          badProjectName, projectTaken(String), projectNotFound, cantMove(String), projectBusy(String, String), noSource(String), noDrawing(String), cantDuplicate(String),

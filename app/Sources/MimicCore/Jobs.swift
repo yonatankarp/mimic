@@ -184,13 +184,7 @@ public final class JobRunner: @unchecked Sendable {
         _ = try Pipeline.plan(.generate, folder: folder, settings: settings, tools: tools)  // an empty description, say
         return try queue.locked { entries in
             try checkFree(name, entries)
-            // A failed attempt's folder in the same place is made again; any other mini (or a
-            // project) with this name, anywhere, keeps it.
-            if let existing = Gallery.folder(install.runs, name),
-               existing.standardizedFileURL != folder.standardizedFileURL || fm.fileExists(atPath: existing.appendingPathComponent("model.glb").path) {
-                throw RequestError.nameTaken(name)
-            }
-            if Gallery.projects(install.runs).contains(where: { $0.lowercased() == name }) { throw RequestError.nameTaken(name) }
+            if Gallery.nameTaken(install.runs, name, project: project) { throw RequestError.nameTaken(name) }
             let created = !fm.fileExists(atPath: folder.path)
             try fm.createDirectory(at: folder, withIntermediateDirectories: true)
             do {

@@ -228,7 +228,7 @@ enum CLI {
                 mine.name = m.name
             }
             if let why = done.nothingAdded(done.failure.map { "\($0)" }) { return fail(why) }
-            print("\(done.added.count) \(done.added.count == 1 ? "mini" : "minis") added to the queue.\(done.sameNote)\(done.skippedNote)")
+            print("\(JobPresentation.QueuedNote.added(done.added.count))\(done.sameNote)\(done.skippedNote)")
             return see(jobs, mine, wait: request.wait, added: added)
         }
         let kind: MiniKind = object ? .object : .character
@@ -268,8 +268,7 @@ enum CLI {
         if ahead != nil, jobs.hold() != nil {
             print("Added to the queue.")
         } else if let ahead {
-            let ready = jobs.queueTimes(jobs.queue.entries(), running: jobs.running(), history: timings.load())
-                .first { $0.entry.name == name }?.ready ?? 0
+            let ready = jobs.readyIn(name, queue: jobs.queue.entries(), running: jobs.running(), history: timings.load()) ?? 0
             print("Added to the queue — \(ahead) ahead of it, ready in \(JobProgress.about(ready)).")
         }
         return see(jobs, mine, wait: request.wait, added: added)
@@ -406,12 +405,6 @@ enum CLI {
     }
 
     private static func notFound(_ text: String) -> String { "There's no mini called \(text). See them all: mimic list" }
-
-    /// A refusal of the command line's own, in words.
-    struct Refusal: Error, CustomStringConvertible {
-        let description: String
-        init(_ description: String) { self.description = description }
-    }
 
     /// Names added on one thread and read on the runner's.
     final class Names: @unchecked Sendable {

@@ -337,4 +337,10 @@ extension JobRunner {
             return (e, est, t)
         }
     }
+
+    /// The seconds until `name`, waiting in `queue`, should be ready; nil when it isn't waiting.
+    public func readyIn(_ name: String, queue: [QueueEntry], running: JobStatus?, history: [TimingRecord], now: Date = Date(),
+                        minis: [Mini] = []) -> TimeInterval? {
+        queueTimes(queue, running: running, history: history, now: now, minis: minis).first { $0.entry.name == name }?.ready
+    }
 }

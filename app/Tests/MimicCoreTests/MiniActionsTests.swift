@@ -184,6 +184,33 @@ final class MiniActionsTests: XCTestCase {
         XCTAssertEqual(same.nothingAdded(nil), "They're all already that size.")
     }
 
+    /// Several dropped pictures: a mini each, named after its file, and those that can't be used
+    /// skipped and named; the last refusal not about the picture is kept to say why (#219).
+    func testMakeEachNamesAMiniAfterEachPicture() throws {
+        let fx = try Fixture()
+        _ = try fx.mini("dwarf")
+        let jobs = JobRunner(install: fx.install, tools: fx.tools())
+        let pictures = ["dwarf.png", "Raven Queen.png", "blurry.png", "owl.png"].map { fx.root.appendingPathComponent($0) }
+        var asked: [String] = [], shown: [String?] = []
+        let done = jobs.makeEach(pictures) { url, name, typed in
+            if url.lastPathComponent == "blurry.png" { throw RequestError.unreadablePicture }
+            if name == "owl" { throw RequestError.busy("owl") }
+            asked.append(name); shown.append(typed)
+        }
+        XCTAssertEqual(asked, ["dwarf-2", "raven-queen"])
+        XCTAssertEqual(shown, ["Dwarf 2", "Raven Queen"])
+        XCTAssertEqual(done.added, ["dwarf-2", "raven-queen"])
+        XCTAssertEqual(done.skipped, ["blurry.png", "owl.png"])
+        XCTAssertEqual(done.failure as? RequestError, .busy("owl"))
+        XCTAssertEqual(done.skippedNote, " Skipped blurry.png, owl.png: Mimic can't use them.")
+
+        let unreadable = jobs.makeEach([pictures[2]]) { _, _, _ in throw RequestError.noPicture }
+        XCTAssertEqual(unreadable.added, [])
+        XCTAssertNil(unreadable.failure, "a picture that can't be read says nothing more")
+        XCTAssertEqual(unreadable.skippedNote, " Skipped blurry.png: Mimic can't use it.")
+        XCTAssertEqual(MakeEach().skippedNote, "")
+    }
+
     /// Measured as the 3D view turns a print file: tall is its Z extent, wide its X, deep its Y.
     func testMeasuredFromAPrintFile() throws {
         let fx = try Fixture()
