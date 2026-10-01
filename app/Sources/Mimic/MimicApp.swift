@@ -47,6 +47,8 @@ struct MimicApp: App {
                 Button("Mimic Help") { NSWorkspace.shared.open(Self.help) }
                 Button("Show Tour") { TourGuide.shared.begin() }
                     .disabled(!model.setup.installed || model.sheet != nil)
+                Divider()
+                Button("Report a Problem…") { model.reportProblem() }
             }
         }
         Settings {
@@ -107,6 +109,8 @@ struct MiniCommands: Commands {
             if let mini, model.canRetry(mini) {
                 Button("Try Again") { model.tryAgain(mini) }
                     .disabled(model.cantStart != nil || !free)
+                Button("Report a Problem…") { model.reportProblem(mini) }
+                    .disabled(!free)
             }
             Button("Rename…") { if let mini { model.sheet = .rename(mini) } }
                 .disabled(mini == nil || !free || mini.flatMap { model.waiting($0.name) } != nil)

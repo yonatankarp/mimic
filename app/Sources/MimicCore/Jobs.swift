@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import OSLog
 
 /// Where a job is, for the progress window and `mimic make`.
 public struct JobStatus: Equatable, Sendable {
@@ -112,6 +113,7 @@ public final class JobRunner: @unchecked Sendable {
     /// Pauses the queue for every Mimic on this Mac, or resumes it and, with `start`, starts its
     /// next job here if none is running. Pausing lets the running job finish: "Pause after this one".
     public func setPaused(_ paused: Bool, start: Bool = true) throws {
+        Log.queue.notice("\(paused ? "Paused" : "Resumed", privacy: .public) the queue")
         try queue.locked { entries in
             let fm = FileManager.default
             if paused {
@@ -318,6 +320,7 @@ public final class JobRunner: @unchecked Sendable {
             return process
         }
         guard status?.canceled == true else { return false }
+        Log.queue.notice("Stop asked for\(keepingWork ? ", to carry on next launch" : "", privacy: .public)")
         drawThings.cancel()
         if let p { DispatchQueue.global().async { p.terminateGroup() } }
         return true
@@ -412,6 +415,7 @@ public final class JobRunner: @unchecked Sendable {
         lock.withLock { current = s; keepWork = false }
         SharedJob.write(s, runs: install.runs)
         notify()
+        Log.queue.notice("Started \(entry.job.rawValue, privacy: .public) of \(entry.name, privacy: .public) at step \(plan[0].number)")
         Thread.detachNewThread { [self] in execute(plan, entry: entry, folder: folder, log: log, settings: settings) }
     }
 
@@ -499,6 +503,8 @@ public final class JobRunner: @unchecked Sendable {
             process = nil
             return current
         }
+        let outcome = canceled ? "stopped" : code == 0 ? "finished" : "failed (exit \(code)): \(problem ?? "no reason given")"
+        Log.queue.notice("\(kind.rawValue, privacy: .public) of \(entry.name, privacy: .public) \(outcome, privacy: .public)")
         if let ended { timings?.append([TimingRecord(ended, settings: settings, steps: took, version: version, machine: .current)]) }
         Leftover.clear(install.runs)
         notify()

@@ -250,6 +250,7 @@ struct Sidebar: View {
         if model.canRetry(mini) {
             Button("Try Again", systemImage: "arrow.clockwise") { model.tryAgain(mini) }
                 .disabled(model.cantStart != nil)
+            Button("Report a Problem…", systemImage: "exclamationmark.bubble") { model.reportProblem(mini) }
         }
         Button("Rename…", systemImage: "pencil") { model.sheet = .rename(mini) }
             .disabled(model.waiting(mini.name) != nil)

@@ -1,6 +1,7 @@
 import AppKit
 import MimicCore
 import Observation
+import OSLog
 import SwiftUI
 import UserNotifications
 
@@ -118,7 +119,9 @@ final class AppModel {
     /// The main window's, for Undo Move to Trash; set by the window.
     @ObservationIgnored weak var undo: UndoManager?
     /// A rename or trash that was refused, shown as an alert.
-    var problem: String?
+    var problem: String? {
+        didSet { if let problem, problem != oldValue { Log.shown.error("\(problem, privacy: .public)") } }
+    }
 
     /// Every job this Mac has finished, which the time estimates come from. On this Mac only.
     let timings: Timings
@@ -784,6 +787,39 @@ final class AppModel {
 
     /// The print file selected in Finder, or the folder when there's no print file yet.
     func showInFinder(_ minis: [Mini]) { NSWorkspace.shared.activateFileViewerSelecting(minis.map { $0.stl ?? $0.folder }) }
+
+    /// Help → Report a Problem…, or a failed mini's (#100): asks about the picture, makes the
+    /// report, shows it in Finder and opens GitHub's bug form to drag it into. Reports are kept
+    /// in the minis folder's `_reports`, which Mimic can already write to (Downloads or the
+    /// Desktop would ask for permission first) and the gallery never lists.
+    func reportProblem(_ mini: Mini? = nil) {
+        let alert = NSAlert()
+        alert.messageText = mini.map { "Report a problem with “\($0.displayName)”?" } ?? "Report a problem?"
+        let what = mini == nil ? "its notes on what happened" : "its notes on making this mini, the mini's settings"
+        alert.informativeText = "Mimic puts \(what), and which Mac and version this is, into one file, "
+            + "with keys and passwords taken out. Then it shows you the file and opens a form on GitHub to attach it to."
+        alert.addButton(withTitle: "Make Report")
+        alert.addButton(withTitle: "Cancel")
+        let hasPicture = mini.flatMap { $0.source ?? $0.upload } != nil
+        if hasPicture {
+            alert.showsSuppressionButton = true
+            alert.suppressionButton?.title = "Include the picture (the issue is public)"
+            alert.suppressionButton?.state = .off
+        }
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let picture = hasPicture && alert.suppressionButton?.state == .on
+        let folder = install.runs.appendingPathComponent("_reports"), build = BuildInfo.line, mac = Report.mac
+        let failure = mini.map { $0.settings.failed ?? "It stopped before it was done." }
+        Task {
+            let made: URL? = await Task.detached {
+                let log = Log.recent(since: Date().addingTimeInterval(-3600))
+                return try? Report.write(to: folder, mini: mini, picture: picture, build: build, mac: mac, appLog: log)
+            }.value
+            guard let made else { problem = "Couldn't make the report. Check that Mimic's folder is still there, then try again."; return }
+            NSWorkspace.shared.activateFileViewerSelecting([made])
+            NSWorkspace.shared.open(Report.issueURL(build: build, mac: mac, failure: failure))
+        }
+    }
 }
 
 /// A job refused before it started, in words for people.

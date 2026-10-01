@@ -98,6 +98,8 @@ struct MiniDetail: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(model.cantStart != nil)
                     .help(model.cantStart ?? "Makes it again from the step that failed")
+                Button("Report a Problem…") { model.reportProblem(mini) }
+                    .help("Makes a file of what happened and opens a form on GitHub to send it with")
             }
         } else if mini.settings.isImported && mini.hasModel && model.waiting(mini.name) == nil {
             // An imported model (#96) has nothing of its own to make again: Resize makes its print file.
