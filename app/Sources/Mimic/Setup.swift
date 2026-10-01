@@ -56,9 +56,6 @@ final class SetupModel {
     /// Bumped by every removal, so views that show what's on disk look again.
     private(set) var removals = 0
 
-    /// An install from the old installer whose engine is still inside image-to-3dlab.
-    var hasOldInstall: Bool { install.legacyLab.map { FileManager.default.fileExists(atPath: $0.path) } ?? false }
-
     /// Downloads what's missing of the engine and `model` (the chosen one if nil), then makes
     /// minis with it.
     func start(_ model: EngineModel? = nil) {
@@ -150,7 +147,6 @@ final class SetupModel {
     var status: String {
         guard let p = progress else { return "Starting…" }
         switch p.activity {
-        case .moving: return "Moving the 3D engine out of your old Mimic folder…"
         case .checking where speed == nil: return "Checking the files already here…"
         default: break
         }

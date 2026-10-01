@@ -149,11 +149,12 @@ final class ProjectTests: XCTestCase {
     }
 
     /// A queue file written before projects existed (name, job, added, sizes) still reads, and
-    /// its names are found wherever the minis are now. Written where it was kept then, at the top
-    /// of the minis folder, so it comes through the move to the queue's own folder too (#102).
+    /// its names are found wherever the minis are now.
     func testAQueueFileFromBeforeProjectsStillWorks() throws {
-        let fx = try Fixture(), runs = fx.install.runs
+        let fx = try Fixture()
         let d = try fx.mini("raven", in: "Tiefling Party")
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.recorder()))
+        try FileManager.default.createDirectory(at: jobs.queue.folder, withIntermediateDirectories: true)
         try """
         [
           {
@@ -163,9 +164,7 @@ final class ProjectTests: XCTestCase {
             "sizes" : { "height" : "54", "nozzle" : "0.4" }
           }
         ]
-        """.write(to: runs.appendingPathComponent(".queue.json"), atomically: true, encoding: .utf8)
-        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.recorder()))
-        try jobs.queue.moveOldFiles(from: runs)
+        """.write(to: jobs.queue.file, atomically: true, encoding: .utf8)
         XCTAssertEqual(jobs.queue.entries().map(\.name), ["raven"])
         jobs.pump()
         jobs.waitUntilDone()
