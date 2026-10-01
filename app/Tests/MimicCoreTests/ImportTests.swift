@@ -173,6 +173,32 @@ final class ImportTests: XCTestCase {
         XCTAssertTrue(JobQueue(runs: runs).entries().isEmpty)
     }
 
+    /// Taken out of the queue before its print file is made, an import goes to the Trash, as a
+    /// waiting new mini does, instead of staying as a mini that never finishes. A resize of one
+    /// already made, taken out, leaves it alone.
+    func testRemovingAWaitingImportTrashesIt() throws {
+        let fx = try Fixture(); _ = try fx.mini("first")
+        let spy = TrashSpy()
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: try fx.script("slow", "sleep 1")), trash: { spy($0) })
+        try jobs.resize(name: "first", sizes: sizes)
+        let file = try stl(PrepTests.box(half: [8, 8, 16]), in: fx.root)
+        XCTAssertEqual(try jobs.importModel(file, name: "ogre", sizes: sizes), 1)
+        XCTAssertTrue(try jobs.remove("ogre"))
+        XCTAssertEqual(spy.trashed.map(\.lastPathComponent), ["ogre"])
+        jobs.waitUntilDone()
+
+        // Made (its print file there), then resized and taken out: kept.
+        try jobs.importModel(file, name: "ogre-2", sizes: sizes)
+        jobs.waitUntilDone()
+        let made = fx.install.runs.appendingPathComponent("ogre-2")
+        fm.createFile(atPath: made.appendingPathComponent("ogre-2.stl").path, contents: Data("stl".utf8))
+        try jobs.resize(name: "first", sizes: Sizes(height: "40", nozzle: "0.4"))
+        XCTAssertEqual(try jobs.resize(name: "ogre-2", sizes: Sizes(height: "60", nozzle: "0.4")), 1)
+        XCTAssertTrue(try jobs.remove("ogre-2"))
+        XCTAssertEqual(spy.trashed.map(\.lastPathComponent), ["ogre"], "a made import was trashed for a resize taken out")
+        jobs.waitUntilDone()
+    }
+
     func testANameInUseIsRefused() throws {
         let fx = try Fixture()
         _ = try fx.mini("ogre")
