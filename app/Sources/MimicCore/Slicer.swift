@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 /// The slicers Mimic can hand a mini to, and which one the person picked.
@@ -50,5 +51,15 @@ public struct Slicer: Hashable, Sendable, Identifiable {
         if picked == macDefault { return nil }
         let all = installed(in: folders)
         return all.first { $0.id == picked } ?? all.first
+    }
+
+    /// Opens a print file in `slicer`, or in the Mac's default app for STL files when it's nil:
+    /// the app's Open in, and `mimic open`. `done` hears back once macOS has answered.
+    public static func open(_ file: URL, in slicer: Slicer?, done: (@Sendable (Error?) -> Void)? = nil) {
+        if let slicer {
+            NSWorkspace.shared.open([file], withApplicationAt: slicer.app, configuration: NSWorkspace.OpenConfiguration()) { _, error in done?(error) }
+        } else {
+            done?(NSWorkspace.shared.open(file) ? nil : CocoaError(.fileReadUnknown))
+        }
     }
 }

@@ -310,15 +310,6 @@ struct MiniViewer: View {
     }
 }
 
-/// A print file's size in millimetres, base included, and its volume in mm³.
-struct Measured: Equatable {
-    let tall: Int, wide: Int, deep: Int
-    var volume = 0.0
-    var footprint: String { "\(wide) × \(deep) mm" }
-    /// "34 mm tall · 26 × 25 mm", on its glass badge.
-    var caption: String { "\(tall) mm tall · \(footprint)" }
-}
-
 /// The 3D scene, drawn by RealityKit's renderer into a Metal view that redraws only when asked:
 /// when the mini turns, zooms, loads or the view resizes, and every frame only while a glide
 /// (Face Front, the grow-in on load) plays. RealityView can't be paused and drew every frame,

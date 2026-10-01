@@ -126,6 +126,7 @@ for your Mac password once). Finish the app's first-launch download first: `make
 
 ```bash
 mimic make dwarf-cleric "dwarf cleric, warhammer held against chest"
+mimic make "Élodie" "an elf druid with a staff"     # a name as you'd type it in Mimic: shown as Élodie
 mimic make tiefling --image art.png --restyle --height 38 --nozzle 0.2
 mimic resize tiefling --height 32 --base 25
 mimic make teapot "a round teapot with a curved spout" --object --size 80
@@ -134,9 +135,21 @@ mimic make-another tiefling                        # the same, with a new seed: 
 mimic duplicate tiefling --as "Tiefling Display"   # the same shape, to resize without losing the first
 mimic make raven --image raven.png --project "Tiefling Party"
 mimic move tiefling --project "Tiefling Party"     # or --unsorted
+mimic resize --project "Tiefling Party" --height 32 # Resize All: every mini in the project
+mimic open tiefling                                # in your slicer
+mimic info tiefling                                # its size, filament, how it was made and its versions
+mimic rename tiefling --to "Tiefling Warlock"
+mimic keep tiefling-2                              # keeps this version, moves the others to the Trash
+mimic trash tiefling-3                             # to the Trash, where you can put it back
+mimic stop                                         # stops the mini being made, in Mimic or another Terminal
+mimic project create "Orc Warband"
+mimic project rename "Orc Warband" --to "Orc Horde"
+mimic project delete "Orc Horde"                   # its minis go to Unsorted; --trash-minis trashes them too
 mimic projects
 mimic list
 ```
+
+A mini goes by its name in `mimic list`, or by the name you gave it in Mimic: `mimic info "Élodie"`.
 
 | Option | What it does |
 |---|---|
@@ -153,7 +166,9 @@ mimic list
 | `--inflate MM` | Extra thickness for thin parts (set from the nozzle unless you give it) |
 | `--no-base` | Keep the character's own base instead of adding one |
 | `--seed N` | Try a different version of the same character |
-| `--project NAME` | Put it in that project (a new one is made if needed) |
+| `--project NAME` | Put it in that project (a new one is made if needed); with `resize`, resize every mini in it |
+| `--to NAME` | The new name, for `rename` and `project rename` |
+| `--trash-minis` | With `project delete`, move the project's minis to the Trash too, instead of to Unsorted |
 | `--object` | Make anything that isn't a character: no base, sized by its longest side, set on its flat bottom |
 | `--size MM` | How big it is: for an object, its longest side (set from the nozzle unless you give it); for a character, the same as `--height` |
 | `--add-base` | Give an object a base too (sized to its shadow unless you give `--base`) |

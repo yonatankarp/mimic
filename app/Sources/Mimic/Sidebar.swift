@@ -331,12 +331,9 @@ struct RenameSheet: View {
     }
 
     private func rename() {
-        let install = model.install
-        guard let shown = Rules.shownName(text) else { problem = "Give it a name."; return }
-        let new = Rules.folderName(shown)
-        guard model.waiting(mini.name) == nil else { problem = "It's waiting in the queue. Rename it once it's made."; return }
+        let new: String
         do {
-            try Gallery.rename(install.runs, from: mini.name, to: new, shown: shown, busyWith: model.busyWith)
+            new = try model.jobs.rename(mini.name, typed: text)
         } catch {
             problem = model.plainWords(error, else: "Couldn't rename it. Is its folder open in another app?"); return
         }

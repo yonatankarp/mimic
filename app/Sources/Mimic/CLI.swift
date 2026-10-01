@@ -11,9 +11,19 @@ enum CLI {
       mimic make-another <name> [--new-shape] [--seed N]
       mimic duplicate <name> --as "<new name>"
       mimic resize <name> [options]
+      mimic resize --project "<project>" [options]   Resize All: every mini in the project
       mimic retry <name>
+      mimic open <name>              opens its print file in your slicer
+      mimic info <name>              its size, filament, how it was made and its versions
+      mimic rename <name> --to "<new name>"
+      mimic trash <name>…            moves it to the Trash, where you can put it back
+      mimic keep <name>              keeps this version and moves its other versions to the Trash
+      mimic stop                     stops the mini being made, in any Mimic
       mimic list
       mimic projects
+      mimic project create "<project>"
+      mimic project rename "<project>" --to "<new name>"
+      mimic project delete "<project>" [--trash-minis]   its minis go to Unsorted, or with it to the Trash
       mimic move <name> --project "<project>" | --unsorted
       mimic models
       mimic queue
@@ -22,6 +32,7 @@ enum CLI {
       mimic queue pause | resume     no new mini starts until it's resumed, in any Mimic
       mimic --version                which Mimic this is (also -v)
       mimic --help                   this list (also -h)
+    <name>: a mini's name as mimic list shows it, or as you'd type it in Mimic ("Élodie" is elodie)
     options: --height MM  --scale 28|32|35|54|75  --base MM  --nozzle 0.2|0.4|0.6  --inflate MM  --no-base  --base-shape round|square|hex  --base-style plain|stone|wood|cobble  --magnet 5x2|6x2|8x3|none  --seed N  --model ID
     anything that isn't a character: make … --object  [--size MM (longest side)]  [--add-base]
     make … --project "<project>": into that project (made if it's new); a project is a folder in the minis folder
@@ -51,10 +62,10 @@ enum CLI {
         switch args.first {
         case "list":
             JobRunner(install: install).cleanUpLeftovers()
-            let queue = JobQueue(runs: install.runs).entries()
+            let waiting = Set(JobQueue(runs: install.runs).entries().map(\.name))
             let minis = Gallery.list(install.runs), projects = Gallery.projects(install.runs)
             func row(_ m: Mini, _ indent: String) {
-                let state = queue.contains { $0.name == m.name } ? "waiting" : m.stl == nil ? "unfinished" : "ready"
+                let state = MiniState(m, waiting: waiting).rawValue
                 print("\(indent)\(m.name)\t\(state)\t\(Mini.listDate(m.created))\t\(m.displayName)")
             }
             // Without projects, the same lines as always; with them, a heading each, then Unsorted.
@@ -77,7 +88,7 @@ enum CLI {
             return 0
         case "move":
             guard rest.count >= 2, !rest[0].hasPrefix("-") else { return fail(usage) }
-            let name = rest[0]
+            let name = mini(rest[0])
             let target: String?
             switch Array(rest.dropFirst()) {
             case ["--unsorted"]: target = nil
@@ -92,9 +103,10 @@ enum CLI {
             guard rest.count == 3, !rest[0].hasPrefix("-"), rest[1] == "--as" else { return fail(usage) }
             // As typed, like a name in the app: "Raven Display" is the folder raven-display.
             let typed = Rules.shownName(rest[2]), new = Rules.folderName(rest[2])
-            do { try JobRunner(install: install).duplicate(rest[0], as: new, shown: Rules.isValidName(rest[2]) ? nil : typed) }
+            let of = mini(rest[0])
+            do { try JobRunner(install: install).duplicate(of, as: new, shown: Rules.isValidName(rest[2]) ? nil : typed) }
             catch { return fail("\(error)") }
-            print("Duplicated \(Mini.displayName(rest[0], runs: install.runs)) as \(new). Choose its size: mimic resize \(new) --height MM")
+            print("Duplicated \(Mini.displayName(of, runs: install.runs)) as \(new). Choose its size: mimic resize \(new) --height MM")
             return 0
         case "models":
             // The app's choice, marked; downloading one is the app's job, where it shows progress.
@@ -119,7 +131,7 @@ enum CLI {
             if rest.first == "move" {
                 let how = "usage: mimic queue move <name> --to front|end|<place> | --up | --down"
                 guard rest.count >= 3 else { return fail(how) }
-                let name = rest[1]
+                let name = mini(rest[1])
                 let moved: Bool
                 do {
                     switch Array(rest.dropFirst(2)) {
@@ -136,23 +148,30 @@ enum CLI {
             }
             if rest.first == "remove" {
                 guard rest.count == 2 else { return fail("usage: mimic queue remove <name>") }
+                let name = mini(rest[1])
                 do {
-                    guard try jobs.remove(rest[1]) else { return fail("\(rest[1]) isn't waiting in the queue.") }
+                    guard try jobs.remove(name) else { return fail("\(rest[1]) isn't waiting in the queue.") }
                 } catch { return fail("\(error)") }
-                print("Took \(Mini.displayName(rest[1], runs: install.runs)) out of the queue.")
+                print("Took \(Mini.displayName(name, runs: install.runs)) out of the queue.")
                 return 0
             }
             guard rest.isEmpty else { return fail(usage) }
             return listQueue(jobs, history: timings.load())
         case "make", "resize", "retry", "make-another":
-            guard let of = rest.first, !of.hasPrefix("-") else { return fail(usage) }
+            // Resize All: `mimic resize --project <project> [options]`, every mini in it.
+            let all = args[0] == "resize" && rest.first == "--project"
+            guard all || rest.first.map({ !$0.hasPrefix("-") }) == true else { return fail(usage) }
+            // A new mini's name as typed, like a name in the app: "Raven Display" is the folder raven-display.
+            let typed = all ? "" : rest[0]
+            let of = args[0] == "make" ? Rules.folderName(typed) : mini(typed)
+            let shown = args[0] == "make" && !Rules.isValidName(typed) ? Rules.shownName(typed) : nil
             // make-another makes a new mini, next to `of`.
-            let name = args[0] == "make-another" ? Gallery.nextVersionName(install.runs, of) : of
+            var name = args[0] == "make-another" ? Gallery.nextVersionName(install.runs, of) : of
             // Setup downloads the engine in the app, where it can show its progress.
             guard args[0] == "resize" || FileManager.default.isExecutableFile(atPath: install.trellisCLI.path) else {
                 return fail("Mimic needs to finish setting up. Open the Mimic app: it downloads what's missing.")
             }
-            rest.removeFirst()
+            if !all { rest.removeFirst() }
             var sizes = Sizes(), image: String?, restyle = false, seed = 42, description: String?, improve = false
             var model = EngineDownload.selected(defaults: defaults)
             var object = false, addBase = false, wait = false, newShape = false, projectName: String?, seedGiven = false, shapeGiven = false, styleGiven = false, magnetGiven = false
@@ -198,6 +217,17 @@ enum CLI {
                     description = a
                 }
             }
+            // Resize All starts from the first mini that can be resized, as the app's card does.
+            var group: [Mini] = []
+            if all {
+                guard let p = projectName.flatMap({ Gallery.project(install.runs, named: $0) }) else {
+                    return fail("There's no project called \(projectName ?? ""). See them all: mimic projects")
+                }
+                group = Gallery.list(install.runs).filter { $0.project == p }
+                guard let first = group.first(where: \.hasModel) else { return fail("None of the minis in \(p) is made yet.") }
+                projectName = nil
+                name = first.name
+            }
             // An object has no round base unless asked for one; a resize keeps what the mini is.
             if args[0] == "resize", let saved = Gallery.folder(install.runs, name).map(MiniSettings.load) {
                 object = saved.isObject
@@ -207,7 +237,7 @@ enum CLI {
                 if !styleGiven, let s = was?.style { sizes.style = s }
                 if !magnetGiven { sizes.magnet = was?.magnet }
             }
-            if projectName != nil && args[0] != "make" { return fail("--project is for mimic make; mimic move moves a mini") }
+            if projectName != nil && args[0] != "make" && !all { return fail("--project is for mimic make and mimic resize --project; mimic move moves a mini") }
             if newShape && args[0] != "make-another" { return fail("--new-shape is for mimic make-another") }
             if let scale {
                 if object { return fail("--scale is for characters; give an object's longest side with --size") }
@@ -225,10 +255,23 @@ enum CLI {
             let jobs = JobRunner(install: install, timings: timings, version: BuildInfo.version)
             jobs.heldForPower = power
             // This terminal runs the queue only until its own mini is made; the app runs the rest.
-            jobs.keepGoing = { $0.contains { $0.name == name } }
+            jobs.keepGoing = { [name] in $0.contains { $0.name == name } }
             let mine = Mine(name: name)
             jobs.onChange = { mine.saw($0) }
             let added = Date()
+            if all {
+                // This terminal runs the queue until the last of them is made, and follows that one.
+                let resized = Names()
+                jobs.keepGoing = { $0.contains { resized.has($0.name) } }
+                let done = jobs.resizeAll(group, to: sizes) { m, s in
+                    try jobs.resize(name: m.name, sizes: s)
+                    resized.add(m.name)
+                    mine.name = m.name
+                }
+                if let why = done.nothingAdded(done.failure.map { "\($0)" }) { return fail(why) }
+                print("\(done.added.count) \(done.added.count == 1 ? "mini" : "minis") added to the queue.\(done.sameNote)\(done.skippedNote)")
+                return see(jobs, mine, wait: wait, added: added)
+            }
             let ahead: Int?
             do {
                 switch args[0] {
@@ -240,7 +283,7 @@ enum CLI {
                     else { return fail(usage) }
                     let into = try projectName.map { try project($0, install) }
                     ahead = try jobs.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes,
-                                          kind: object ? .object : .character, model: model, project: into)
+                                          kind: object ? .object : .character, model: model, project: into, shown: shown)
                 case "make-another":
                     if newShape {
                         ahead = try jobs.makeNewShape(of: of, as: name, seed: seedGiven ? seed : nil).ahead
@@ -262,22 +305,147 @@ enum CLI {
                     .first { $0.entry.name == name }?.ready ?? 0
                 print("Added to the queue — \(ahead) ahead of it, ready in \(JobProgress.about(ready)).")
             }
-            // Running here (this one, or one that was waiting before it): see it through.
-            if jobs.status?.running == true { return follow(jobs, mine) }
-            switch jobs.hold() {
-            case .paused?: print("The queue is paused, so it waits until you resume it: mimic queue resume, or in Mimic.")
-            case .battery?: print(QueueHold.battery.sentence)
-            case nil: break
+            return see(jobs, mine, wait: wait, added: added)
+        case "open":
+            guard rest.count == 1 else { return fail(usage) }
+            guard let m = find(rest[0], install) else { return fail(notFound(rest[0])) }
+            guard let stl = m.stl else { return fail("\(m.displayName) isn't made yet.") }
+            // The slicer picked in the app's Settings: `defaults` are the app's, through the symlink too.
+            let slicer = Slicer.preferred(defaults: defaults)
+            let done = DispatchSemaphore(value: 0)
+            nonisolated(unsafe) var failed: Error?
+            Slicer.open(stl, in: slicer) { failed = $0; done.signal() }
+            _ = done.wait(timeout: .now() + 30)
+            if let failed { return fail("Couldn't open it in \(slicer?.name ?? "your slicer"): \(failed.localizedDescription)") }
+            print("Opened \(m.displayName) in \(slicer?.name ?? "your Mac's app for print files").")
+            return 0
+        case "info":
+            guard rest.count == 1 else { return fail(usage) }
+            let minis = Gallery.list(install.runs)
+            guard let m = minis.first(where: { $0.name == mini(rest[0]) }) else { return fail(notFound(rest[0])) }
+            let waiting = Set(JobQueue(runs: install.runs).entries().map(\.name))
+            MiniInfo(m, in: minis, waiting: waiting).lines.forEach { print($0) }
+            return 0
+        case "rename":
+            guard rest.count == 3, !rest[0].hasPrefix("-"), rest[1] == "--to" else { return fail(usage) }
+            let old = mini(rest[0]), before = Mini.displayName(old, runs: install.runs)
+            do {
+                let new = try JobRunner(install: install).rename(old, typed: rest[2])
+                print("Renamed \(before) to \(Mini.displayName(new, runs: install.runs)) (\(new)).")
+            } catch { return fail("\(error)") }
+            return 0
+        case "trash":
+            guard !rest.isEmpty, !rest.contains(where: { $0.hasPrefix("-") }) else { return fail(usage) }
+            let jobs = JobRunner(install: install)
+            var code: Int32 = 0
+            for text in rest {
+                guard let m = find(text, install) else { code = fail(notFound(text)); continue }
+                do { try jobs.moveToTrash(m); print("Moved \(m.displayName) to the Trash.") } catch { code = fail("\(error)") }
             }
-            guard wait else {
-                if jobs.hold() != nil { return 0 }
-                print("It starts when the one before it is done, in whichever Mimic is making that. If none is open by then, it starts the next time you open Mimic. See the queue: mimic queue")
-                return 0
+            return code
+        case "keep":
+            guard rest.count == 1, !rest[0].hasPrefix("-") else { return fail(usage) }
+            let jobs = JobRunner(install: install)
+            let minis = Gallery.list(install.runs)
+            guard let m = minis.first(where: { $0.name == mini(rest[0]) }) else { return fail(notFound(rest[0])) }
+            let picked = Gallery.toKeep(m, in: minis, busyWith: jobs.running()?.name)
+            guard !picked.trash.isEmpty || picked.staying != nil else { print("\(m.displayName) has no other versions."); return 0 }
+            var code: Int32 = 0
+            for v in picked.trash {
+                do { try jobs.moveToTrash(v); print("Moved \(v.displayName) to the Trash.") } catch { code = fail("\(error)") }
             }
-            return watch(jobs, mine, added: added)
+            if let s = picked.staying { code = fail("\(s.displayName) is being made, so it wasn't moved to the Trash. Move it there once it's done.") }
+            // As the app offers after Keep This One: the plain name, now that it's free.
+            let root = m.settings.versionOf ?? m.name
+            if code == 0, root != m.name, !Gallery.nameInUse(install.runs, root) {
+                let plain = Rules.shownName(carrying: m.displayName, to: root) ?? root
+                print("Its plain name is free now: mimic rename \(m.name) --to \"\(plain)\"")
+            }
+            return code
+        case "stop":
+            guard rest.isEmpty else { return fail(usage) }
+            let jobs = JobRunner(install: install)
+            jobs.cleanUpLeftovers()
+            switch jobs.stopElsewhere() {
+            case .nothing:
+                print("Nothing is being made.")
+            case .stopped(let s):
+                let who = Mini.displayName(s.name, runs: install.runs)
+                print(s.kind == .prep ? "Stopped resizing \(who). It keeps its previous size."
+                                      : "Stopped making \(who). Nothing was kept. It's in the Trash if you want the pieces.")
+            case .noAnswer(let s):
+                return fail("\(Mini.displayName(s.name, runs: install.runs)) didn't stop. Stop it where it's being made: in Mimic, or with Ctrl-C in the Terminal window making it.")
+            }
+            return 0
+        case "project":
+            let jobs = JobRunner(install: install)
+            func existing(_ text: String) throws -> String {
+                guard let p = Gallery.project(install.runs, named: text) else { throw Refusal("There's no project called \(text). See them all: mimic projects") }
+                return p
+            }
+            do {
+                switch rest.first {
+                case "create" where rest.count == 2:
+                    print("Made a new project, \(try Gallery.createProject(install.runs, rest[1])).")
+                case "rename" where rest.count == 4 && rest[2] == "--to":
+                    let old = try existing(rest[1])
+                    print("Renamed the project \(old) to \(try jobs.renameProject(old, to: rest[3])).")
+                case "delete" where rest.count == 2 || (rest.count == 3 && rest[2] == "--trash-minis"):
+                    let p = try existing(rest[1]), keep = rest.count == 2
+                    try jobs.deleteProject(p, keepMinis: keep)
+                    print(keep ? "Deleted the project \(p): its minis are in Unsorted now, and its folder is in the Trash."
+                               : "Deleted the project \(p): it's in the Trash with its minis.")
+                default:
+                    return fail(usage)
+                }
+            } catch { return fail("\(error)") }
+            return 0
         default:
             return fail(usage)
         }
+    }
+
+    /// A mini named on the command line: its folder's name, as `mimic list` shows it, or its name
+    /// as typed in Mimic ("Élodie" is elodie).
+    private static func mini(_ text: String) -> String { Rules.isValidName(text) ? text : Rules.folderName(text) }
+
+    private static func find(_ text: String, _ install: Install) -> Mini? {
+        let name = mini(text)
+        return Gallery.list(install.runs).first { $0.name == name }
+    }
+
+    private static func notFound(_ text: String) -> String { "There's no mini called \(text). See them all: mimic list" }
+
+    /// A refusal of the command line's own, in words.
+    struct Refusal: Error, CustomStringConvertible {
+        let description: String
+        init(_ description: String) { self.description = description }
+    }
+
+    /// Names added on one thread and read on the runner's.
+    final class Names: @unchecked Sendable {
+        private let lock = NSLock()
+        private var names: Set<String> = []
+        func add(_ name: String) { lock.withLock { _ = names.insert(name) } }
+        func has(_ name: String) -> Bool { lock.withLock { names.contains(name) } }
+    }
+
+    /// After a job is asked for: runs it here and follows it when this terminal took the queue,
+    /// else says why it waits, and with `--wait` waits for it.
+    private static func see(_ jobs: JobRunner, _ mine: Mine, wait: Bool, added: Date) -> Int32 {
+        // Running here (this one, or one that was waiting before it): see it through.
+        if jobs.status?.running == true { return follow(jobs, mine) }
+        switch jobs.hold() {
+        case .paused?: print("The queue is paused, so it waits until you resume it: mimic queue resume, or in Mimic.")
+        case .battery?: print(QueueHold.battery.sentence)
+        case nil: break
+        }
+        guard wait else {
+            if jobs.hold() != nil { return 0 }
+            print("It starts when the one before it is done, in whichever Mimic is making that. If none is open by then, it starts the next time you open Mimic. See the queue: mimic queue")
+            return 0
+        }
+        return watch(jobs, mine, added: added)
     }
 
     /// The project named on the command line, as it's spelled on disk ("tiefling party" finds
@@ -309,21 +477,26 @@ enum CLI {
 
     /// The latest status of this command's own mini, as the runner reports it.
     final class Mine: @unchecked Sendable {
-        let name: String
         private let lock = NSLock()
+        private var mine: String
         private var last: JobStatus?
         private var shown: (String, Int)?
         private var openingSaid = false
-        init(name: String) { self.name = name }
+        init(name: String) { mine = name }
+        /// Resize All follows the last mini it added, so it changes as they're added.
+        var name: String {
+            get { lock.withLock { mine } }
+            set { lock.withLock { mine = newValue } }
+        }
         var status: JobStatus? { lock.withLock { last } }
 
         /// Prints each step as it starts, naming the mini when it isn't this one.
         func saw(_ s: JobStatus) {
             let line: String? = lock.withLock {
-                if s.name == name { last = s }
+                if s.name == mine { last = s }
                 guard s.running, shown.map({ $0 != (s.name, s.step) }) ?? true else { return nil }
                 shown = (s.name, s.step)
-                let who = s.name == name ? "" : "\(Mini.displayName(s.name)) (waiting before yours): "
+                let who = s.name == mine ? "" : "\(Mini.displayName(s.name)) (waiting before yours): "
                 return "[\(s.step)/3] \(who)\(JobRunner.label(s.step))"
             }
             if let line { print(line) }
@@ -342,7 +515,7 @@ enum CLI {
         interrupt.resume()
         if let s = jobs.status { mine.saw(s) }
         jobs.waitUntilDone()
-        guard let s = mine.status else {
+        guard let s = mine.status ?? jobs.status.flatMap({ $0.name == mine.name ? $0 : nil }) else {
             // Stopped (Ctrl-C) before its turn came: it's still waiting.
             print("Stopped. \(Mini.displayName(mine.name)) is still in the queue (mimic queue remove \(mine.name) takes it out).")
             return 130
