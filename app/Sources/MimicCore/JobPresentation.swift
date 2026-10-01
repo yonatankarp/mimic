@@ -9,6 +9,10 @@ public struct JobPresentation: Equatable, Sendable {
         public let name: String
         public let text: String
         public init(name: String, text: String) { self.name = name; self.text = text }
+
+        /// "2 minis added to the queue.": how a note for several added at once starts, in the
+        /// popover and in Terminal.
+        public static func added(_ count: Int) -> String { "\(count) \(count == 1 ? "mini" : "minis") added to the queue." }
     }
 
     /// What a new status meant: a job started, or one ended.

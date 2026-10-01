@@ -106,10 +106,10 @@ public struct SizeCard: Equatable, Sendable {
         switch (kind, purpose) {
         case (.object, nil):  // loaded at another size than the suggestion: the note is about the size it is
             h = height
-            let best = Self.objectSize[nozzle] ?? 80
+            let best = Self.objectHeight(nozzle: nozzle)
             note = h < best ? "At \(Int(h)) mm, a \(nozzle) mm nozzle softens fine details a little. For the clearest details, make it about \(Int(best)) mm on its longest side." : ""
         case (.object, _):
-            h = Self.objectSize[nozzle] ?? 80
+            h = Self.objectHeight(nozzle: nozzle)
             note = "Sized so details come out clearly on a \(nozzle) mm nozzle: about \(Int(h)) mm on its longest side. Change it to the size you want."
         case (_, .game), (_, nil):  // nil: loaded sizes that match neither, so the note is about their height
             h = purpose == .game ? Self.gameHeight(real: realHeight, scale: scale) : height
@@ -131,7 +131,7 @@ public struct SizeCard: Equatable, Sendable {
         if !heightTouched { height = Self.clamp(h, Self.heightRange, step: 1) }
         // An object's base goes under its whole shadow, which is about its longest side.
         if !baseTouched {
-            base = kind == .object ? min(80, max(25, (height * 0.8 / 5).rounded() * 5))
+            base = kind == .object ? Self.objectBase(height)
                 : max(purpose == .game ? Self.scaleBase[scale] ?? 25 : 25, Self.baseFor(height))
         }
     }
@@ -179,6 +179,25 @@ public struct SizeCard: Equatable, Sendable {
     /// The round base for a character height: 40% of it, in steps of 5, 25 to 80 mm.
     public static func baseFor(_ height: Double) -> Double {
         min(80, max(25, (height * 0.4 / 5).rounded() * 5))
+    }
+
+    /// An object's suggested longest side on `nozzle` (nil is the 0.4 mm one).
+    public static func objectHeight(nozzle: String?) -> Double { objectSize[nozzle ?? "0.4"] ?? 80 }
+
+    /// The round base for an object, under its whole shadow: 80% of its longest side, in steps
+    /// of 5, 25 to 80 mm.
+    public static func objectBase(_ height: Double) -> Double {
+        min(80, max(25, (height * 0.8 / 5).rounded() * 5))
+    }
+
+    /// An object's sizes in Terminal, as the card sizes one: its longest side as typed, else the
+    /// suggested one, and no base unless `addBase`, then one under its whole shadow unless typed.
+    public static func objectSizes(_ typed: Sizes, addBase: Bool) -> Sizes {
+        var sizes = typed
+        if !addBase { sizes.noBase = true }
+        else if sizes.base == nil { sizes.base = text(objectBase(typed.height.flatMap(Double.init) ?? objectHeight(nozzle: typed.nozzle))) }
+        if sizes.height == nil { sizes.height = text(objectHeight(nozzle: typed.nozzle)) }
+        return sizes
     }
 
     public static func inflateFor(_ nozzle: String) -> Double {

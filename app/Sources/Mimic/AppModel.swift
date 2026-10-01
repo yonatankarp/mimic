@@ -398,6 +398,11 @@ final class AppModel {
         jobs.queueTimes(queue, running: current, history: history, now: now, minis: minis)
     }
 
+    /// When `name`, waiting in the queue, should be ready; nil when it isn't waiting.
+    func readyIn(_ name: String) -> TimeInterval? {
+        jobs.readyIn(name, queue: queue, running: current, history: history, minis: minis)
+    }
+
     /// Minutes a mini takes with `m` on this Mac, when it has made enough to know (Settings).
     func learnedMinutes(_ m: EngineModel) -> Int? {
         let e = Estimator.estimate(JobShape(job: .generate, model: m.id, drawn: true), history: history)
@@ -427,24 +432,13 @@ final class AppModel {
     /// way, with one note in the job's popover. A picture that can't be used is skipped and named
     /// there. Returns why, in words, when none could be used.
     func make(pictures: [URL], restyle: Bool, seed: Int, sizes: Sizes, kind: MiniKind, project: String?, cartoon: Bool = false) -> String? {
-        var added: [String] = [], skipped: [String] = [], why = "Mimic can't read these pictures."
-        for url in pictures {
-            let name = Gallery.name(forPicture: url, in: install.runs)
-            let shown = Rules.shownName(fromFile: url.deletingPathExtension().lastPathComponent).map { Rules.shownName($0, numberedAs: name) }
-            do {
-                guard Picture(url) != nil else { throw RequestError.noPicture }
-                try make(name: name, picture: .image(url), restyle: restyle, seed: seed, sizes: sizes, kind: kind, project: project, cartoon: cartoon, shown: shown)
-                added.append(name)
-            } catch {
-                skipped.append(url.lastPathComponent)
-                if ![.noPicture, .unreadablePicture].contains(error as? RequestError) { why = plainWords(error) }
-            }
+        let done = jobs.makeEach(pictures) { url, name, shown in
+            guard Picture(url) != nil else { throw RequestError.noPicture }
+            try self.make(name: name, picture: .image(url), restyle: restyle, seed: seed, sizes: sizes, kind: kind, project: project, cartoon: cartoon, shown: shown)
         }
-        guard let last = added.last else { return why }
-        let ready = queueTimes().first(where: { $0.entry.name == last })?.ready ?? runningLeft()
-        var text = "\(added.count) \(added.count == 1 ? "mini" : "minis") added to the queue. \(whenReady(ready))"
-        if !skipped.isEmpty { text += " Skipped \(skipped.joined(separator: ", ")): Mimic can't use \(skipped.count == 1 ? "it" : "them")." }
-        present { $0.noteQueued(.init(name: last, text: text)) }
+        guard let last = done.added.last else { return done.failure.map { plainWords($0) } ?? "Mimic can't read these pictures." }
+        let ready = readyIn(last) ?? runningLeft()
+        present { $0.noteQueued(.init(name: last, text: "\(JobPresentation.QueuedNote.added(done.added.count)) \(whenReady(ready))\(done.skippedNote)")) }
         return nil
     }
 
@@ -534,8 +528,8 @@ final class AppModel {
     func resizeAll(_ group: [Mini], sizes: Sizes) -> String? {
         let done = jobs.resizeAll(group, to: sizes) { try self.resize($0, sizes: $1) }
         guard let last = done.added.last else { return done.nothingAdded(done.failure.map { plainWords($0) }) }
-        let ready = queueTimes().first(where: { $0.entry.name == last })?.ready ?? runningLeft()
-        present { $0.noteQueued(.init(name: last, text: "\(done.added.count) \(done.added.count == 1 ? "mini" : "minis") added to the queue. \(whenReady(ready))\(done.sameNote)\(done.skippedNote)")) }
+        let ready = readyIn(last) ?? runningLeft()
+        present { $0.noteQueued(.init(name: last, text: "\(JobPresentation.QueuedNote.added(done.added.count)) \(whenReady(ready))\(done.sameNote)\(done.skippedNote)")) }
         return nil
     }
 
@@ -654,12 +648,12 @@ final class AppModel {
     /// Starts the job, or adds it to the queue, and shows its popover either way; the window
     /// stays free to use.
     private func start(_ name: String, _ begin: (JobRunner) throws -> Int?) throws {
-        if let requiredProblem { throw Refusal(description: requiredProblem) }
+        if let requiredProblem { throw Refusal(requiredProblem) }
         let ahead = try begin(jobs)
         Notifier.ask()
         refreshQueue()
         var note: JobPresentation.QueuedNote?
-        if let ahead, let ready = queueTimes().first(where: { $0.entry.name == name })?.ready {
+        if let ahead, let ready = readyIn(name) {
             let before = ahead == 0 ? "" : " \(ahead) ahead of it."
             note = .init(name: name, text: "Added to the queue.\(before) \(whenReady(ready))")
         } else {
@@ -786,7 +780,3 @@ final class AppModel {
     /// The print file selected in Finder, or the folder when there's no print file yet.
     func showInFinder(_ minis: [Mini]) { NSWorkspace.shared.activateFileViewerSelecting(minis.map { $0.stl ?? $0.folder }) }
 }
-
-/// A job refused before it started, in words for people.
-struct Refusal: Error, CustomStringConvertible { let description: String }
-

@@ -106,4 +106,11 @@ final class RulesTests: XCTestCase {
         XCTAssertEqual(try Sizes(noBase: true).flags(), ["--no-base"])
         XCTAssertEqual(try Sizes().flags(), [])
     }
+
+    /// The app's and Terminal's own refusals are one kind, said as they're written (#219).
+    func testARefusalSaysItsOwnWords() {
+        let said = "There's no project called Party. See them all: mimic projects"
+        XCTAssertEqual(Refusal(said).description, said)
+        XCTAssertEqual("\(Refusal(said) as Error)", said)
+    }
 }

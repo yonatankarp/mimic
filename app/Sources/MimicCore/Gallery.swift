@@ -219,6 +219,18 @@ public enum Gallery {
         folder(runs, name) != nil || projects(runs).contains { $0.lowercased() == name.lowercased() }
     }
 
+    /// Whether a new mini can't be called `name` in `project`: any other mini (or a project) with
+    /// the name, anywhere, keeps it. A failed attempt's folder in that same place doesn't: making
+    /// it there makes it again.
+    public static func nameTaken(_ runs: URL, _ name: String, project: String?) -> Bool {
+        if let existing = folder(runs, name),
+           existing.standardizedFileURL != newFolder(runs, name, project: project).standardizedFileURL
+            || FileManager.default.fileExists(atPath: existing.appendingPathComponent("model.glb").path) {
+            return true
+        }
+        return projects(runs).contains { $0.lowercased() == name.lowercased() }
+    }
+
     /// The folder's name as it is on disk, which on a case-insensitive disk may differ from the
     /// one asked for.
     static func exactName(_ folder: URL, _ name: String) -> Bool {

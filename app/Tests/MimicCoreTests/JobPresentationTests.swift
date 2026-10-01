@@ -14,6 +14,12 @@ final class JobPresentationTests: XCTestCase {
 
     private func ready(_ name: String, at offset: TimeInterval = 0) -> JobStatus { job(name, running: false, exit: 0, at: offset) }
 
+    /// Several added at once, said the same in the popover and in Terminal (#219).
+    func testSeveralAddedAtOnce() {
+        XCTAssertEqual(JobPresentation.QueuedNote.added(1), "1 mini added to the queue.")
+        XCTAssertEqual(JobPresentation.QueuedNote.added(3), "3 minis added to the queue.")
+    }
+
     /// A job started, ran and finished with the popover never opened.
     private func finishedUnseen(_ name: String) -> JobPresentation {
         var p = JobPresentation()

@@ -39,6 +39,22 @@ final class SizeAdviceTests: XCTestCase {
         for (h, b) in [(32.0, 25.0), (100, 40), (150, 60), (200, 80), (15, 25)] { XCTAssertEqual(SizeCard.baseFor(h), b, "\(h)") }
     }
 
+    /// One rule for an object's sizes, in the card and in Terminal (#219).
+    func testAnObjectsSizesAreTheCardsInTerminalToo() {
+        for (h, b) in [(80.0, 65.0), (60, 50), (63, 50), (64, 50), (66, 55), (20, 25), (200, 80)] { XCTAssertEqual(SizeCard.objectBase(h), b, "\(h)") }
+        XCTAssertEqual(["0.2", "0.4", "0.6", nil].map { SizeCard.objectHeight(nozzle: $0) }, [50, 80, 120, 80])
+        XCTAssertEqual(SizeCard.objectHeight(nozzle: "0.3"), 80, "a nozzle Mimic doesn't offer gets the 0.4 mm one's")
+        for n in ["0.2", "0.4", "0.6"] {
+            var card = SizeCard(purpose: .display, nozzle: n, kind: .object)
+            card.noBase = false
+            let typed = Sizes(nozzle: n)
+            XCTAssertEqual(SizeCard.objectSizes(typed, addBase: true), Sizes(height: card.sizes.height, base: card.sizes.base, nozzle: n), n)
+            XCTAssertEqual(SizeCard.objectSizes(typed, addBase: false), Sizes(height: card.sizes.height, nozzle: n, noBase: true), n)
+        }
+        XCTAssertEqual(SizeCard.objectSizes(Sizes(height: "60"), addBase: true), Sizes(height: "60", base: "50"))
+        XCTAssertEqual(SizeCard.objectSizes(Sizes(base: "40"), addBase: true), Sizes(height: "80", base: "40"), "a typed base stays")
+    }
+
     func testCoarseNozzleWarning() {
         var c = SizeCard(purpose: .game, nozzle: "0.4")
         c.setScale(54); c.setRealHeight("1.67")  // 50.1 → 50

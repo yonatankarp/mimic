@@ -440,16 +440,9 @@ struct MakeView: View {
     private var slug: String { Rules.shownName(name) == nil ? "" : Rules.folderName(name) }
 
     private var takenName: String? {
-        let runs = model.install.runs
-        // Any mini or project with the name, in any project, except a failed attempt's folder,
-        // which Make Mini makes again.
-        let failedAttempt = Gallery.folder(runs, slug).map {
-            !FileManager.default.fileExists(atPath: $0.appendingPathComponent("model.glb").path)
-                && $0.deletingLastPathComponent().standardizedFileURL
-                    == (project.isEmpty || project == Self.newProject ? runs : runs.appendingPathComponent(project)).standardizedFileURL
-        } ?? false
+        // As Make Mini refuses it: a failed attempt's folder in the same place is made again.
         guard !slug.isEmpty,
-              Gallery.nameInUse(runs, slug) && !failedAttempt
+              Gallery.nameTaken(model.install.runs, slug, project: project.isEmpty || project == Self.newProject ? nil : project)
                 || model.waiting(slug) != nil || model.current?.name == slug
         else { return nil }
         return model.displayName(slug)
