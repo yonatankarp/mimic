@@ -255,6 +255,14 @@ public final class JobRunner: @unchecked Sendable {
         return true
     }
 
+    /// `remove`, for `mimic queue remove`: what it says, by the mini's name as shown. That's read
+    /// first, since a new mini's folder, which keeps the name, goes to the Trash. Nil when it
+    /// isn't waiting.
+    public func removeSaying(_ name: String) throws -> String? {
+        let shown = Mini.displayName(name, runs: install.runs)
+        return try remove(name) ? "Took \(shown) out of the queue." : nil
+    }
+
     /// Moves a waiting job `by` places, earlier (negative) or later. False when it isn't waiting.
     @discardableResult
     public func move(_ name: String, by offset: Int) throws -> Bool {

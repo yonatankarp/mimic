@@ -63,6 +63,17 @@ final class DuplicateTests: XCTestCase {
         XCTAssertEqual(try files(runs.appendingPathComponent("Tiefling Party")), ["raven", "raven-2"])
     }
 
+    /// mimic duplicate names both minis as they're shown (#137); the command to size the copy
+    /// takes its folder's name.
+    func testWhatMimicDuplicateSays() throws {
+        let fx = try Fixture()
+        _ = try raven(fx)
+        let jobs = JobRunner(install: fx.install, tools: fx.tools())
+        try jobs.duplicate("raven", as: "qa-raven-35", shown: "QA Raven 35")
+        XCTAssertEqual(jobs.duplicatedSaying("raven", as: "qa-raven-35"),
+                       "Duplicated Raven the Bold as QA Raven 35. Choose its size: mimic resize qa-raven-35 --height MM")
+    }
+
     func testDuplicateIsRefusedWhileBusyWithoutAShapeOrUnderATakenName() throws {
         let fx = try Fixture(), runs = fx.install.runs
         _ = try raven(fx)
