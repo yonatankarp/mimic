@@ -1,4 +1,4 @@
-# Tests every change, builds the disk image, and publishes a release when a version tag is pushed:
+# Tests every change, builds the disk image, and drafts a release when a version tag is pushed:
 #   git tag v0.2.0 && git push origin v0.2.0
 name: Build and release
 
@@ -167,7 +167,8 @@ jobs:
       - name: Appcast
         # What Mimic's updater (Sparkle) reads: the new version, its disk image signed with
         # Sparkle's key, and the release notes. Published with each release, so
-        # releases/latest/download/appcast.xml is always the newest.
+        # releases/latest/download/appcast.xml is always the newest. Its download links are the
+        # tag's, which work once the draft is published.
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
@@ -190,10 +191,12 @@ jobs:
           grep -q 'sparkle:edSignature=' "$RUNNER_TEMP/appcast/appcast.xml" || { echo "The appcast isn't signed: SPARKLE_PRIVATE_KEY doesn't match SUPublicEDKey."; exit 1; }
           cp "$RUNNER_TEMP/appcast/appcast.xml" dist/
       - name: Publish
+        # A draft, never "latest", so no Mimic sees it until the maintainer checks it and clicks
+        # Publish (CONTRIBUTING.md, Releasing).
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           version="${GITHUB_REF_NAME#v}"
           cd dist
           shasum -a 256 -- * > SHA256SUMS
-          gh release create "$GITHUB_REF_NAME" ./* --repo "$GITHUB_REPOSITORY" --title "Mimic $version" --notes-file ../notes.md
+          gh release create "$GITHUB_REF_NAME" ./* --repo "$GITHUB_REPOSITORY" --title "Mimic $version" --notes-file ../notes.md --draft
