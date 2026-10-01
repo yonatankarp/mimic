@@ -170,7 +170,7 @@ final class ImportTests: XCTestCase {
             }
         }
         XCTAssertEqual(try fm.contentsOfDirectory(atPath: runs.path).filter { !$0.hasPrefix(".") }, [], "a folder was left behind")
-        XCTAssertTrue(JobQueue(runs: runs).entries().isEmpty)
+        XCTAssertTrue(JobQueue(folder: fx.install.queue).entries().isEmpty)
     }
 
     /// Taken out of the queue before its print file is made, an import goes to the Trash, as a
