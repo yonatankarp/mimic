@@ -727,6 +727,7 @@ struct SizeSection: View {
                             .help("How tall the character would be in real life, in metres or feet.")
                         Text("m")
                     }
+                    .fixedSize()  // the label's long hint wraps instead of squeezing "1.80" (#167)
                 } label: {
                     Text("How tall is the character?")
                     // SizeCard.gameHeight: blank, or what can't be read, counts as 1.8 m; the problem says so.
@@ -849,6 +850,7 @@ struct SizeSection: View {
                         .labelsHidden().accessibilityLabel(label).frame(width: 56).multilineTextAlignment(.trailing)
                     Text(unit)
                 }
+                .fixedSize()  // as the real height's field: the hint wraps, the number stays whole
             } label: {
                 Text(label)
                 if let hint { Text(hint) }
