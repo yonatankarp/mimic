@@ -205,11 +205,7 @@ enum CLI {
             // An object has no round base unless asked for one; a resize keeps what the mini is.
             if args[0] == "resize", let saved = Gallery.folder(install.runs, name).map(MiniSettings.load) {
                 object = saved.isObject
-                // A hex mini on a stone floor resized stays that, as in the app.
-                let was = saved.made ?? saved.requested
-                if !shapeGiven, let s = was?.shape { sizes.shape = s }
-                if !styleGiven, let s = was?.style { sizes.style = s }
-                if !magnetGiven { sizes.magnet = was?.magnet }
+                sizes = sizes.resizing(saved.made ?? saved.requested, shapeGiven: shapeGiven, styleGiven: styleGiven, magnetGiven: magnetGiven)
             }
             if projectName != nil && !["make", "import"].contains(args[0]) { return fail("--project is for mimic make and import; mimic move moves a mini") }
             if args[0] == "import" && (image != nil || restyle || improve || seedGiven || modelGiven || newShape || description != nil) {
