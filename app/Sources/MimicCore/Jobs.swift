@@ -22,7 +22,14 @@ public struct JobStatus: Equatable, Sendable {
     public var openingDrawThings = false
     /// A print prep that is an import's first (#96), not a resize: said as "Importing".
     public var importing = false
+    /// The mini's name as shown ("Élodie the Druid"), read as it starts: a stopped new mini's
+    /// folder, which keeps that name, is in the Trash by the time it's named (#166).
+    public var shown: String?
     public var succeeded: Bool { !running && !canceled && exit == 0 }
+
+    /// What to call the mini: its name as shown, or from its folder for a job from a Mimic
+    /// before 0.9.0, which didn't say.
+    public func displayName(runs: URL) -> String { shown ?? Mini.displayName(name, runs: runs) }
 }
 
 // In an extension, so the memberwise initialiser the tests use stays.
@@ -451,6 +458,7 @@ public final class JobRunner: @unchecked Sendable {
         var s = JobStatus(name: entry.name, kind: entry.job, step: plan[0].number, started: now)
         s.stepStarted = now
         s.importing = entry.job == .prep && Self.importing(folder)
+        s.shown = settings.shownName(folder: entry.name)
         lock.withLock { current = s; keepWork = false }
         SharedJob.write(s, queue: install.queue)
         notify()

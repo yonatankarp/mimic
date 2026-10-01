@@ -43,7 +43,7 @@ struct JobProgressView: View {
     }
 
     private func content(_ s: JobStatus, now: Date) -> some View {
-        let who = model.displayName(s.name)
+        let who = model.displayName(s)
         let estimate = model.estimate(s)
         return VStack(alignment: .leading, spacing: 14) {
             title(s, who: who).font(.title3.bold())
@@ -102,7 +102,7 @@ struct JobProgressView: View {
     private func elsewhere(_ s: JobStatus, now: Date) -> some View {
         let estimate = model.estimate(s)
         return VStack(alignment: .leading, spacing: 10) {
-            Label("\(model.doing(s)) \(model.displayName(s.name))", systemImage: Self.symbol(s.kind))
+            Label("\(model.doing(s)) \(model.displayName(s))", systemImage: Self.symbol(s.kind))
                 .font(.title3.bold())
             Text("Another Mimic is doing this one (another copy of the app, or Terminal): stop it there. Step \(s.step) of 3 · \(JobProgress.about(estimate.left(s, now: now))) left.")
                 .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -119,8 +119,8 @@ struct JobProgressView: View {
                 HStack {
                     Image(systemName: s.succeeded ? "checkmark.circle.fill" : s.canceled ? "stop.circle" : "exclamationmark.triangle.fill")
                         .foregroundStyle(s.succeeded ? .green : s.canceled ? .secondary : .orange)
-                    Text(s.succeeded ? "\(model.displayName(s.name)) is ready" : s.canceled ? "Stopped \(model.displayName(s.name))"
-                                                                            : "\(model.displayName(s.name)) didn't finish")
+                    Text(s.succeeded ? "\(model.displayName(s)) is ready" : s.canceled ? "Stopped \(model.displayName(s))"
+                                                                            : "\(model.displayName(s)) didn't finish")
                     Spacer()
                     if !s.succeeded && !s.canceled {
                         Button("Try Again") { tryAgain(s.name) }
@@ -328,7 +328,7 @@ private struct JobQuestions: ViewModifier {
     }
 
     private func stopTitle(_ s: JobStatus) -> String {
-        "Stop \(model.doing(s).lowercased()) “\(model.displayName(s.name))”?"
+        "Stop \(model.doing(s).lowercased()) “\(model.displayName(s))”?"
     }
 }
 
@@ -475,7 +475,7 @@ struct JobToolbarItem: View {
     }
 
     private func label(_ s: JobStatus, now: Date) -> String {
-        let who = model.displayName(s.name)
+        let who = model.displayName(s)
         let waiting = model.queue.isEmpty ? "" : " · \(model.queue.count) waiting" + (model.paused ? ", paused" : "")
         if s.running { return "\(model.doing(s)) \(who) · \(JobProgress.clock(now.timeIntervalSince(s.started)))\(waiting)" }
         if s.canceled { return "Stopped \(who)\(waiting)" }
@@ -742,7 +742,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // nothing is lost by not asking.
         if !Self.systemQuit {
             let alert = NSAlert()
-            let who = model.displayName(s.name)
+            let who = model.displayName(s)
             alert.messageText = s.kind == .prep ? "Mimic is still resizing “\(who)”" : "Mimic is still making “\(who)”"
             let waiting = model.queue.count
             alert.informativeText = "Quitting stops it for now. The next time you open Mimic, it carries on from the last step it finished."

@@ -166,6 +166,8 @@ public struct SharedJob: Codable, Equatable, Sendable {
     public var stepStarted: Date
     var pid: Int32
     var pidStart: UInt64
+    /// `JobStatus.shown`, so `mimic stop` names it as shown once it's in the Trash.
+    public var shown: String?
 
     static func file(queue: URL) -> URL { queue.appendingPathComponent("job.json") }
 
@@ -173,7 +175,7 @@ public struct SharedJob: Codable, Equatable, Sendable {
         let me = getpid()
         guard let t = Leftover.startTime(me) else { return }
         let record = SharedJob(name: s.name, kind: s.kind, step: s.step, started: s.started,
-                               stepStarted: s.stepStarted ?? s.started, pid: me, pidStart: t)
+                               stepStarted: s.stepStarted ?? s.started, pid: me, pidStart: t, shown: s.shown)
         try? JobQueue.encoder.encode(record).write(to: file(queue: queue), options: .atomic)
     }
 
@@ -190,6 +192,7 @@ public struct SharedJob: Codable, Equatable, Sendable {
     public var status: JobStatus {
         var s = JobStatus(name: name, kind: kind, step: step, started: started)
         s.stepStarted = stepStarted
+        s.shown = shown
         return s
     }
 }
