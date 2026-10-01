@@ -204,6 +204,19 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   on a turn, zoom, resize or new mini, and every frame only while a glide plays: about 1% of a
   core idle in front, 0% behind. It has no default ambient light, so it carries its own grey
   studio light, matched to the old look by brightness.
+- **A size reference in the 3D view** (#98, `MimicCore/SizeReference.swift`, tested). Every
+  mini is shown 1 tall, so a millimetre is 1 / its height: a 25 mm base ring, a 32 mm person
+  or a millimetre grid on the floor, drawn at that scale, one choice for the whole app
+  (`sizeReference`). The print file's origin is under its base's middle (print prep puts it
+  there), so the ring and the grid are centred on it, not on the box, which a raised sword
+  stretches; a file whose origin is outside its footprint is centred on the box. It is a child
+  of the mini's entity, so it turns, zooms and glides with it; the person is two crossed
+  cut-outs so it doesn't vanish edge-on, and stands clear of the mini's box. The ring is a band
+  outside 25 mm, so a 25 mm base doesn't hide it. Grid squares grow to 2, 5 or 10 mm when a
+  millimetre would be under 2.5% of the mini's height (over 40 mm), with bold lines every
+  centimetre; the badge says the square's size. The camera fits the mini and the reference
+  together, as far below the middle as above so the mini stays put, which means a person beside
+  something 10 mm tall makes it small: that's the point.
 - **Jobs run in their own session** (`GroupProcess`, `posix_spawn` + `POSIX_SPAWN_SETSID`),
   so Stop ends the whole chain. Foundation's `Process` can't do that. Proven by
   `GroupProcessTests`, including the test that shows the child surviving without a session.
