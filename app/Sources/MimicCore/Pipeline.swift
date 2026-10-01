@@ -9,9 +9,11 @@ public struct Tools: Sendable {
     /// The 3D engine's folder (trellis-cli, its libraries, `models/`).
     public var engine: String
     public var environment: [String: String]
+    /// Step 1's Draw Things; nil is the real one. Tests give theirs here, so none reaches the real one.
+    public var drawThings: DrawThings?
 
-    public init(mimic: String, engine: String, environment: [String: String]) {
-        self.mimic = mimic; self.engine = engine; self.environment = environment
+    public init(mimic: String, engine: String, environment: [String: String], drawThings: DrawThings? = nil) {
+        self.mimic = mimic; self.engine = engine; self.environment = environment; self.drawThings = drawThings
     }
 
     public static func resolve(_ install: Install) -> Tools {
