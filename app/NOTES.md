@@ -81,7 +81,7 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   on) or a print file named after the folder, never just any `.stl` (one dragged into a project
   in Finder would turn the project into a mini). Any other folder at the top is a project, empty
   ones included; inside a project only minis count, since projects don't nest. `_` and `.`
-  folders and files at the top (`.queue.json`, `.job.*`) are never either, so a folder from
+  folders and files at the top are never either, so a folder from
   before projects reads exactly as it did. `make` writes settings.json before the picture, and
   removes the folder it made if either fails, so a failed request never leaves an empty folder
   that would read as a project. Names stay unique across the whole minis folder, projects
@@ -246,7 +246,7 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   moment it samples without "PIXAL3D_STEPS=8 overrides", ggml's Metal noise dropped from the
   log. Proven faithful: the wrapper's own cutout of the dwarf through `mimic _engine` gave a
   byte-identical mesh (PLY) and texture to the wrapper's run of the same build and seed. It is
-  handled before the CLI finds the Mimic folder: `.job.pid` names this very
+  handled before the CLI finds the Mimic folder: the queue's `job.pid` names this very
   program, and the leftover-job cleanup would otherwise stop it.
 - **Cutouts: Apple Vision, not rembg or trellis-cli's BiRefNet.** Measured on the four minis'
   pictures against the u2net cutouts the Python wrapper made (`source__matted.png`): masks agree
@@ -326,6 +326,36 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   wins while the folder exists, and `MIMIC_HOME` beats both for development and tests.
   `Install.locate` always answers; a missing engine is setup's job, not a "not installed" screen.
   The first launch shows the one-time ~/Documents permission prompt macOS asks of every app.
+- **The queue is per Mac, and the minis folder can be changed** (#102, `Install.queue`,
+  `MinisFolder.swift`). The queue's files (`queue.json`, `queue.lock`, `paused`, `job.lock`,
+  `job.json`, `job.pid`) were at the top of the minis folder; with Desktop & Documents in iCloud
+  two Macs would share one queue file while each locks only for itself. They're in
+  `~/Library/Application Support/Mimic/queues/<key>`, the key the first 16 hex digits of the
+  SHA-256 of the minis folder's path. One queue per minis folder, not one per Mac or per app:
+  the dev app (its own settings, so its own folder choice) and the installed app share a queue
+  exactly when they share a folder, so two never run jobs in one folder at once and a queued
+  name never resolves in the wrong folder. The path is hashed as given, with links unresolved,
+  since a folder that doesn't exist yet resolves differently once it does; the app and `mimic`
+  read the same settings, so they agree. A Mimic folder (`MIMIC_HOME`, tests) keeps its queue in
+  `queue/` inside it (git-ignored), and `MIMIC_FAKE_HOME` inside the fake home. The files kept
+  in the minis folder before are moved at launch, by the app and `mimic` alike
+  (`JobQueue.moveOldFiles`): no compatibility with 0.8.0 or an old `mimic` sharing the queue,
+  since nobody else used it yet. Settings → General → Change… picks another folder (`minisFolder`
+  in the app's settings, kept by Reset like `installDir`, and ignored under `MIMIC_HOME` and
+  `MIMIC_FAKE_HOME`, where the button is off). The minis either move there or stay put (for a
+  folder that already has minis). Refused while a mini is being made or waits, in any Mimic using
+  the folder, and for a folder inside the current one or holding it (one would become a project
+  of the other). A move takes every mini and project, a project whole with any files of the
+  person's own, and a project whose name is taken there (without case) merges into that one.
+  A mini or project whose name is taken there stops the whole move, naming each: renaming on the
+  way would leave a folder disagreeing with its settings. A failed move puts back what moved,
+  and the setting is saved only after it worked. While the files move the queue is marked
+  `moving` (the mover's pid and start time, so a crash leaves no mark) but its lock isn't held:
+  held, a Make (the app's or `mimic make`) waited on it for the whole move and then wrote its
+  mini into the folder just emptied. Marked, Make, Resize, Try Again, Duplicate, moving a mini
+  and the project changes are refused with "Mimic is moving your minis", and the mark comes
+  off only after the setting is saved, so asking again finds the new folder. The app then makes a new job runner for the new
+  folder; the gallery and the folder watch follow on the next reload.
 - **First launch sets itself up** (`EngineDownload.swift`, ported from `setup.sh`): the pinned
   engine tarball and Hugging Face files, each with its size and sha256 in one manifest that the
   health check also reads. Downloads go to `<name>.part` and resume with HTTP Range (checked
@@ -414,13 +444,13 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   So a report has this launch's last hour only, never an earlier launch or `mimic` in Terminal.
 - **One job at a time, and a queue shared by every Mimic** (`MimicCore/Queue.swift`, `Jobs.swift`;
   0.5.0). A job asked for while one runs, in this Mimic or another (the installed app, a dev
-  build, `mimic` in Terminal), joins `runs/.queue.json`: an array of `{name, job, added, sizes?}`,
+  build, `mimic` in Terminal), joins the queue's `queue.json` (on this Mac, see #102 below): an array of `{name, job, added, sizes?}`,
   oldest first, only ever replaced whole. Everything is checked when it's asked for, and a new
   mini's folder, settings.json and picture are written then, so a queued job can't fail for a
   reason knowable at that moment; a resize keeps its sizes in the entry until it starts, so the
-  mini keeps its size meanwhile. Every change to the queue happens under `runs/.queue.lock`
+  mini keeps its size meanwhile. Every change to the queue happens under `queue.lock`
   (flock, a fresh open per section, since flock doesn't keep apart two threads sharing one open
-  file), and so does every taking and letting go of `runs/.job.lock`. That one rule is what keeps
+  file), and so does every taking and letting go of `job.lock`. That one rule is what keeps
   a job from being lost: a runner that finds nothing waiting releases the job lock *inside* the
   queue lock, so a job added a moment later always finds the lock free and starts itself; a
   runner that finishes a job with more waiting starts the next without letting go. Whoever holds
@@ -433,7 +463,7 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   there, so it carries on from the last step it finished. A log-out, restart or shutdown (the
   quit event's reason) doesn't ask first: the question would hold the Mac up, and quitting
   loses nothing but the step in progress. A crash lets go of the job lock outside
-  that rule, so the app looks every 3 seconds and at launch. `runs/.job.json` names the running
+  that rule, so the app looks every 3 seconds and at launch. `job.json` names the running
   job and its holder's pid and start time, so another Mimic can show it (a record left by a
   crash reads as nothing). Proven with two `JobRunner`s on one folder, which is exactly two
   processes as far as flock is concerned: 16 jobs from two threads never overlap (a step that
@@ -442,8 +472,8 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   now stopped only by a Mimic that got the job lock (before, opening a second Mimic stopped a
   live job it took for a crash's leftover), and the lock files are opened close-on-exec (a job's
   programs inherited them, so after a crash a program still running would have held the lock).
-- **Pausing the queue, and battery** (#89). Paused is `runs/.queue.paused`, a file of its own
-  so every Mimic and `mimic queue pause|resume` share it; a field in `.queue.json` would have
+- **Pausing the queue, and battery** (#89). Paused is the queue's `paused` file, a file of its own
+  so every Mimic and `mimic queue pause|resume` share it; a field in `queue.json` would have
   broken 0.7.0, which reads that file as a bare list (it would see an empty queue and drop the
   pause on its next write). 0.7.0 ignores the pause. It is checked, under the queue's lock,
   wherever a job could start (taking the job lock, and the next job after one ends), so
