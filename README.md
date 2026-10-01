@@ -205,6 +205,20 @@ value is left out.
   `seed`, `shapeSeed`, `model`, `greySculpt`, `cartoon`), `versions` (names, itself included) and
   `failed` (why its last run didn't finish).
 
+#### Completing as you type
+
+`mimic completions zsh`, `bash` or `fish` prints a script that completes commands, options, their
+choices, and your minis' and projects' names as you press Tab. Add it once:
+
+| Shell | Add this |
+|---|---|
+| zsh (the Mac's) | `source <(mimic completions zsh)` at the end of `~/.zshrc` |
+| bash | `eval "$(mimic completions bash)"` at the end of `~/.bash_profile` |
+| fish | Run `mimic completions fish > ~/.config/fish/completions/mimic.fish` once |
+
+Then open a new Terminal window. In zsh it needs completion turned on, which most setups already
+have; if Tab does nothing, put `autoload -Uz compinit && compinit` above that line.
+
 Want to change Mimic itself? See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Licences
