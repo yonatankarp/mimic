@@ -11,8 +11,10 @@ public struct MadeFrom: Equatable, Sendable {
     public let rows: [Row]
     /// The description it was drawn from, for Copy Description; nil for a picture.
     public let description: String?
+    /// What was changed in its picture, as typed, oldest first (#156): what tells versions apart.
+    public let fixes: [String]
 
-    public var isEmpty: Bool { rows.isEmpty && description == nil }
+    public var isEmpty: Bool { rows.isEmpty && description == nil && fixes.isEmpty }
 
     /// `created` is when it was asked for (`Mini.created`), which a resize leaves alone.
     public init(_ s: MiniSettings, created: Date, now: Date = Date(), timeZone: TimeZone = .current) {
@@ -42,5 +44,6 @@ public struct MadeFrom: Equatable, Sendable {
         if created != .distantPast { add("Made", Mini.listDate(created, now: now, timeZone: timeZone)) }
         self.rows = rows
         description = s.source == .desc ? s.desc.flatMap { $0.isEmpty ? nil : $0 } : nil
+        fixes = s.fixes ?? []
     }
 }

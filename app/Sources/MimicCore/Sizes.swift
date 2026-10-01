@@ -193,6 +193,12 @@ public struct MiniSettings: Codable, Equatable, Sendable {
     /// The extra pictures it was given besides the front one (#66), in `PictureSide` order;
     /// absent (older minis, and most) is the front one alone.
     public var sides: [PictureSide]?
+    /// What to change in the picture, as typed, oldest first (#156): each version made with a fix
+    /// starts from the picture of the one before, so this lists every fix it has had. The last
+    /// is the one its own redraw makes; absent (most minis) is none.
+    public var fixes: [String]?
+    /// The last fix as the redraw is told it, when the AI helper rewrote it; absent is as typed.
+    public var fixUsed: String?
 
     public init() {}
 
@@ -215,6 +221,8 @@ public struct MiniSettings: Codable, Equatable, Sendable {
     /// How many pictures it's made from: the front, and those of the back and sides (#66).
     public var pictures: Int { source == .image ? 1 + (sides?.count ?? 0) : 1 }
     public var isImported: Bool { imported != nil }
+    /// What the redraw is told to change, or nil when it has no fix.
+    public var change: String? { fixes?.last.map { fixUsed ?? $0 } }
 
     static func file(_ folder: URL) -> URL { folder.appendingPathComponent("settings.json") }
 
