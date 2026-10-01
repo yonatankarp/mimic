@@ -372,6 +372,10 @@ enum CLI {
                 let who = s.displayName(runs: install.runs)
                 print(s.kind == .prep ? "Stopped resizing \(who). It keeps its previous size."
                                       : "Stopped making \(who). Nothing was kept. It's in the Trash if you want the pieces.")
+            case .ended(let s):
+                let who = s.displayName(runs: install.runs)
+                print(s.kind == .prep ? "Resizing \(who) had already ended, so it wasn't stopped."
+                                      : "Making \(who) had already ended, so it wasn't stopped.")
             case .noAnswer(let s):
                 return fail("\(s.displayName(runs: install.runs)) didn't stop. Stop it where it's being made: in Mimic, or with Ctrl-C in the Terminal window making it.")
             }
