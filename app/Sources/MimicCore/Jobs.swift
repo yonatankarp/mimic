@@ -326,6 +326,7 @@ public final class JobRunner: @unchecked Sendable {
     private var holding: Bool { lock.withLock { lockFD >= 0 } }
 
     func checkFree(_ name: String, _ entries: [QueueEntry]) throws {
+        try refuseWhileMoving()
         if entries.contains(where: { $0.name == name }) { throw RequestError.queued(name) }
         if let r = running(), r.name == name { throw RequestError.busy(name, r.kind) }
     }

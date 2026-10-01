@@ -331,7 +331,12 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   person's own, and a project whose name is taken there (without case) merges into that one.
   A mini or project whose name is taken there stops the whole move, naming each: renaming on the
   way would leave a folder disagreeing with its settings. A failed move puts back what moved,
-  and the setting is saved only after it worked. The app then makes a new job runner for the new
+  and the setting is saved only after it worked. While the files move the queue is marked
+  `moving` (the mover's pid and start time, so a crash leaves no mark) but its lock isn't held:
+  held, a Make (the app's or `mimic make`) waited on it for the whole move and then wrote its
+  mini into the folder just emptied. Marked, Make, Resize, Try Again, Duplicate, moving a mini
+  and the project changes are refused with "Mimic is moving your minis", and the mark comes
+  off only after the setting is saved, so asking again finds the new folder. The app then makes a new job runner for the new
   folder; the gallery and the folder watch follow on the next reload.
 - **First launch sets itself up** (`EngineDownload.swift`, ported from `setup.sh`): the pinned
   engine tarball and Hugging Face files, each with its size and sha256 in one manifest that the

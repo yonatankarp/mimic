@@ -72,6 +72,25 @@ public struct JobQueue: Sendable {
     /// bare list.
     public var paused: Bool { FileManager.default.fileExists(atPath: pausedFile.path) }
 
+    /// The minis are moving to another folder (`JobRunner.changeMinisFolder`): nothing may be
+    /// made, resized or moved in this one meanwhile. The mover's pid and start time, so a move
+    /// cut short by a crash reads as over.
+    var movingFile: URL { folder.appendingPathComponent("moving") }
+    public var moving: Bool {
+        guard let text = try? String(contentsOf: movingFile, encoding: .utf8) else { return false }
+        let parts = text.split(separator: " ").compactMap { UInt64($0) }
+        guard parts.count == 2, let pid = pid_t(exactly: parts[0]) else { return false }
+        return Leftover.startTime(pid) == parts[1]
+    }
+
+    func markMoving() throws {
+        let me = getpid()
+        guard let t = Leftover.startTime(me) else { throw POSIXError(.ESRCH) }
+        try "\(me) \(t)".write(to: movingFile, atomically: true, encoding: .utf8)
+    }
+
+    func clearMoving() { try? FileManager.default.removeItem(at: movingFile) }
+
     /// Moves the queue's files from where Mimic kept them before #102, at the top of the minis
     /// folder, into the queue's own folder. Once, at launch (the app and `mimic` both): nothing
     /// to do when none is there. Never overwrites: waiting jobs already here stay, and those

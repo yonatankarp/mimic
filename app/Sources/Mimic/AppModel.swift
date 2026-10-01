@@ -196,8 +196,11 @@ final class AppModel {
     /// watch and the queue follow the new folder.
     func changeMinisFolder(to folder: URL, moving: Bool) async throws {
         let jobs = self.jobs
-        try await Task.detached { try jobs.changeMinisFolder(to: folder, moving: moving) }.value
-        UserDefaults.standard.set(folder.path, forKey: MinisFolder.key)
+        // Saved before the move's mark comes off, so a `mimic make` refused meanwhile and asked
+        // again finds the new folder.
+        try await Task.detached {
+            try jobs.changeMinisFolder(to: folder, moving: moving) { UserDefaults.standard.set(folder.path, forKey: MinisFolder.key) }
+        }.value
         let install = Install.locate()
         try? JobQueue(folder: install.queue).moveOldFiles(from: install.runs)
         self.install = install

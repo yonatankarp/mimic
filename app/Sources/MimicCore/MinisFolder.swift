@@ -80,15 +80,36 @@ public enum MinisFolder {
 }
 
 extension JobRunner {
-    /// Makes `new` the minis folder's contents (`moving`) or just checks it can be (the minis stay
-    /// where they are). Refused while a mini is being made or waits, in any Mimic using this
-    /// folder: a job finds its mini by name in this folder. Under the queue's lock, so none can
-    /// start meanwhile. The setting itself is the caller's to save, once this returns.
-    public func changeMinisFolder(to new: URL, moving: Bool) throws {
+    /// Moves the minis into `new` (`moving`), or only checks they can go (they stay where they
+    /// are), then calls `save`, which saves the setting. Refused while a mini is being made or
+    /// waits, in any Mimic using this folder: a job finds its mini by name in this folder.
+    ///
+    /// The queue is marked as moving under its lock, and stays marked until `save` has run, so a
+    /// Make asked for meanwhile, here or in another Mimic (`mimic make`), is refused rather than
+    /// landing in the folder the minis are leaving; so are resizing, retrying, duplicating and
+    /// moving minis. The lock itself isn't held while the files move, which can take minutes to
+    /// another disk: a Make would wait that long for it, then write into the old folder.
+    public func changeMinisFolder(to new: URL, moving: Bool, save: () -> Void = {}) throws {
         try MinisFolder.check(from: install.runs, to: new)
         try queue.locked { entries in
-            guard entries.isEmpty, running() == nil else { throw RequestError.minisFolderBusy }
-            if moving { try MinisFolder.move(from: install.runs, to: new) }
+            guard entries.isEmpty, running() == nil, !queue.moving else { throw RequestError.minisFolderBusy }
+            try queue.markMoving()
         }
+        do {
+            if moving { try MinisFolder.move(from: install.runs, to: new) }
+        } catch {
+            try? queue.locked { _ in queue.clearMoving() }
+            throw error
+        }
+        try? queue.locked { _ in
+            save()
+            queue.clearMoving()
+        }
+        queue.clearMoving()  // even if the lock couldn't be had: this Mimic would refuse everything
+    }
+
+    /// Thrown inside the queue's lock by anything that changes the minis folder's contents.
+    func refuseWhileMoving() throws {
+        if queue.moving { throw RequestError.movingMinis }
     }
 }
