@@ -128,6 +128,21 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   would count it twice in the estimates) and a half-written print file. It isn't one of the
   original's versions (Keep This One would trash it) and is asked for now. The name offered is
   the next number, as for versions ("Raven 2"), not a size: the size is chosen after, in Resize.
+- **Import Model** (#96, `MimicCore/Import.swift`): a GLB or STL made elsewhere becomes a mini
+  that only print prep runs on. The file is read and checked before anything is written; the
+  new folder gets settings.json (`imported`, the file's name, a field of its own: a new
+  `source` value would make an older Mimic read the whole file as empty) and `model.glb`, then
+  a print prep job joins the queue. With model.glb there, the gallery, Resize and Duplicate
+  treat it as any mini, and no 3D engine is needed. A GLB is kept as it is (glTF is y up by
+  its spec). An STL becomes a GLB: taken as z up, as slicers take it, and its separate
+  triangles joined where their corners meet (to a millionth of its size), since print prep
+  keeps only the largest connected piece and unjoined that is one triangle. There's no cheap,
+  reliable way to tell an STL's up from its shape, so a wrong one shows in Previews and the 3D
+  view (an object may still be stood on a steadier side by `Mesh.rest`). An STL is taken as
+  millimetres; one under 5 mm or over 500 mm on its longest side gets a line in prep.log saying
+  which unit it was probably in, though sizing rescales it anyway. It's never turned (`--turn`
+  is for what TRELLIS.2 made). With no picture or description, Try Again, Make Another Version,
+  New 3D Shape and Edit & Make Again are off and say why; Resize makes its print file again.
 - **A mini has two names** (#87; all in `Rules.swift`, "Names people type"): the one typed,
   kept in settings.json as `name` ("Élodie", "D&D Bard", "McGregor") and shown everywhere
   (list, page, notifications, Open Together's objects, `mimic list`'s last column), and its
@@ -475,6 +490,10 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   and a signature that verifies. Not yet seen: a real update from one release to the next.
 
 ## Not yet seen working
+
+- Import Model in the app (File → Import Model…, its sheet, and an imported mini's page and
+  menus): the import itself, an STL through real print prep, and its refusals are tested; the
+  windows weren't looked at, and no real HeroForge STL or other generator's GLB was tried.
 
 - Dragging a mini onto a project in the sidebar, and the right-click menus on a mini and a
   project's header: seen in the test build were the sections (Unsorted last, an empty project's

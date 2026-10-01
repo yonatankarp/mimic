@@ -55,12 +55,20 @@ public enum Pipeline {
     /// last step carries on there (#82). Make refuses a folder that has one.
     public static func plan(_ kind: JobKind, folder: URL, settings: MiniSettings, tools: Tools) throws -> [(number: Int, step: Step)] {
         let name = folder.lastPathComponent
-        guard let model = EngineDownload.model(settings.model) else { throw RequestError.unknownModel(settings.model ?? "") }
+        // An imported model (#96) wasn't made by any 3D model here, so it's never turned: it
+        // faces whichever way its own file has it.
+        let turn: Int
+        if settings.isImported {
+            turn = 0
+        } else {
+            guard let model = EngineDownload.model(settings.model) else { throw RequestError.unknownModel(settings.model ?? "") }
+            turn = model.turn
+        }
         // An object is sized by its longest side and stood on its whole bottom, not its feet;
         // a TRELLIS.2 model is turned round to face the front first (Prep turns before it levels).
         let flags = try (settings.requested ?? Sizes()).flags()
             + (settings.isObject ? ["--fit", "longest", "--ground", "bottom"] : [])
-            + (model.turn == 0 ? [] : ["--turn", String(model.turn)])
+            + (turn == 0 ? [] : ["--turn", String(turn)])
             // The stones are laid out by the mini's own number: Try Again lays them the same way,
             // another version differently.
             + (settings.requested?.flags().contains("--base-style") == true ? ["--base-seed", String(settings.seed ?? 42)] : [])
@@ -69,6 +77,8 @@ public enum Pipeline {
                                           folder.appendingPathComponent("\(name).stl").path] + flags,
                               directory: nil, log: folder.appendingPathComponent("prep.log"))
         if kind == .prep { return [(3, prep)] }
+        if settings.isImported { throw RequestError.imported(name) }
+        guard let model = EngineDownload.model(settings.model) else { throw RequestError.unknownModel(settings.model ?? "") }
 
         let seed = settings.seed ?? 42
         let source = folder.appendingPathComponent("source.png")

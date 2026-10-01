@@ -411,6 +411,8 @@ struct GalleryRow: View {
 
 /// Make Another Version, for the right-click menu and the Mini menu.
 struct AnotherVersionButton: View {
+    /// Why it, New 3D Shape and Edit & Make Again are off for an imported model (#96).
+    static let imported = "Off for a model you imported: there's no picture or description to make it again from. Resize and Duplicate work."
     let mini: Mini
     var showsIcon = true
     @Environment(AppModel.self) private var model
@@ -418,7 +420,8 @@ struct AnotherVersionButton: View {
         Button { model.makeAnotherVersion(mini) } label: {
             if showsIcon { Label("Make Another Version", systemImage: "square.on.square") } else { Text("Make Another Version") }
         }
-            .help("Makes it again from the same picture or description, with a different variation number: "
+            .help(mini.settings.isImported ? Self.imported
+                  : "Makes it again from the same picture or description, with a different variation number: "
                   + "a detail that came out as a blob may come out right. It goes next to this one, and waits its turn if Mimic is busy.")
             .disabled(model.cantStart != nil || !JobRunner.canMakeAnotherVersion(mini))
     }
@@ -433,7 +436,8 @@ struct NewShapeButton: View {
         Button { model.makeNewShape(mini) } label: {
             if showsIcon { Label("New 3D Shape", systemImage: "cube") } else { Text("New 3D Shape") }
         }
-            .help("Keeps this picture and makes only the 3D shape again, with a different variation number: "
+            .help(mini.settings.isImported ? AnotherVersionButton.imported
+                  : "Keeps this picture and makes only the 3D shape again, with a different variation number: "
                   + "quicker than Make Another Version, and a picture you like stays. It goes next to this one, and waits its turn if Mimic is busy.")
             .disabled(model.cantStart != nil || !JobRunner.canMakeNewShape(mini))
     }
@@ -449,7 +453,8 @@ struct EditAndMakeAgainButton: View {
         Button { model.sheet = .makeAgain(mini) } label: {
             if showsIcon { Label("Edit & Make Again…", systemImage: "slider.horizontal.3") } else { Text("Edit & Make Again…") }
         }
-            .help("Opens New Mini with this mini's picture or description, sizes and choices filled in, to change what you like and make it as a new mini")
+            .help(mini.settings.isImported ? AnotherVersionButton.imported
+                  : "Opens New Mini with this mini's picture or description, sizes and choices filled in, to change what you like and make it as a new mini")
             .disabled(!model.setup.installed || !JobRunner.canMakeAnotherVersion(mini))
     }
 }

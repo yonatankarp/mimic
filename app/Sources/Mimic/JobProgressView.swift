@@ -90,7 +90,8 @@ struct JobProgressView: View {
                         Button("Try Again") { tryAgain(s.name) }
                             .buttonStyle(.glassProminent)
                             .keyboardShortcut(.defaultAction)
-                            .disabled(model.cantStart != nil || model.waiting(s.name) != nil)
+                            .disabled(model.cantStart != nil || model.waiting(s.name) != nil || model.isImported(s.name))
+                            .help(model.isImported(s.name) ? RequestError.imported(s.name).description : "")
                     }
                 }
             }
@@ -123,8 +124,8 @@ struct JobProgressView: View {
                     Spacer()
                     if !s.succeeded && !s.canceled {
                         Button("Try Again") { tryAgain(s.name) }
-                            .disabled(model.cantStart != nil || model.waiting(s.name) != nil)
-                            .help(s.problem ?? "")
+                            .disabled(model.cantStart != nil || model.waiting(s.name) != nil || model.isImported(s.name))
+                            .help(model.isImported(s.name) ? RequestError.imported(s.name).description : s.problem ?? "")
                     }
                 }
             }
@@ -151,7 +152,8 @@ struct JobProgressView: View {
             } else {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(JobProgress.drawThingsCaused(s) ? "Draw Things didn't answer. Check the setup steps, then try again."
-                                                         : "Try again, or use a clearer, full-body picture.")
+                         : model.isImported(s.name) ? "Try Resize This Mini with other sizes, or check the model in the app it came from."
+                         : "Try again, or use a clearer, full-body picture.")
                     if let why = retryProblem ?? model.cantStart ?? s.problem {
                         Text(why).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
                             .help(retryProblem != nil ? retryDetail ?? "" : "")
@@ -656,6 +658,7 @@ struct MainWindowChrome: ViewModifier {
                 case .renameProject(let p): ProjectNameSheet(renaming: p)
                 case .copies(let group): CopiesSheet(minis: group)
                 case .duplicate(let mini): DuplicateSheet(mini: mini)
+                case .importModel(let file): ImportSheet(file: file, room: room)
                 }
             }
             .modifier(JobQuestions())

@@ -220,6 +220,8 @@ public final class JobRunner: @unchecked Sendable {
         guard Rules.isValidName(name) else { throw RequestError.badName }
         guard let folder = Gallery.folder(install.runs, name) else { throw RequestError.notFound }
         let settings = MiniSettings.load(folder)
+        // An imported model has nothing of its own to make again; Resize remakes its print file.
+        if settings.isImported { throw RequestError.imported(name) }
         guard settings.requested != nil else { throw RequestError.nothingToRetry }
         let hasModel = FileManager.default.fileExists(atPath: folder.appendingPathComponent("model.glb").path)
         if !hasModel {
@@ -330,7 +332,7 @@ public final class JobRunner: @unchecked Sendable {
         if let r = running(), r.name == name { throw RequestError.busy(name, r.kind) }
     }
 
-    private func enqueue(_ entry: QueueEntry, _ entries: inout [QueueEntry]) -> Int? {
+    func enqueue(_ entry: QueueEntry, _ entries: inout [QueueEntry]) -> Int? {
         entries.append(entry)
         pumpLocked(&entries)
         // Still waiting: one is running (ours, or another Mimic's), or the queue is held.

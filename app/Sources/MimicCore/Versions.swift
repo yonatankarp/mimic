@@ -21,6 +21,7 @@ extension JobRunner {
     @discardableResult
     public func makeNewShape(of name: String, as newName: String? = nil, seed: Int? = nil) throws -> (name: String, ahead: Int?) {
         guard let folder = Gallery.folder(install.runs, name) else { throw RequestError.notFound }
+        if MiniSettings.load(folder).isImported { throw RequestError.imported(name) }
         let drawn = folder.appendingPathComponent("source.png")
         guard FileManager.default.fileExists(atPath: drawn.path) else { throw RequestError.noDrawing(name) }
         return try version(of: name, as: newName) { settings in
@@ -42,6 +43,7 @@ extension JobRunner {
     private func version(of name: String, as newName: String?,
                          _ seeds: (MiniSettings) -> (seed: Int, shapeSeed: Int?, drawn: URL?)) throws -> (name: String, ahead: Int?) {
         guard let folder = Gallery.folder(install.runs, name) else { throw RequestError.notFound }
+        if MiniSettings.load(folder).isImported { throw RequestError.imported(name) }
         guard let (picture, restyle, settings) = try? Self.versionSource(folder) else { throw RequestError.noSource(name) }
         guard let model = EngineDownload.model(settings.model) else { throw RequestError.unknownModel(settings.model ?? "") }
         let new = newName ?? Gallery.nextVersionName(install.runs, name)

@@ -11,6 +11,7 @@ enum CLI {
       mimic make-another <name> [--new-shape] [--seed N]
       mimic duplicate <name> --as "<new name>"
       mimic resize <name> [options]
+      mimic import <file.glb|file.stl> [--object] [--project "<project>"] [options]
       mimic retry <name>
       mimic list
       mimic projects
@@ -28,6 +29,7 @@ enum CLI {
     make-another: the same picture or description and settings with a new seed, next to it ("<name>-2")
     make-another --new-shape: keeps the picture it made and makes only the 3D shape again, with a new seed
     duplicate: a copy with the same shape, next to it, to resize without changing the first
+    import: a 3D model made elsewhere, named after its file, made print-ready (an STL is taken as millimetres, z up)
     --improve: the AI helper chosen in Settings writes a fuller description first
     --wait: while another mini is being made, make, resize and retry join the queue and return;
             --wait stays until this one is made
@@ -144,19 +146,21 @@ enum CLI {
             }
             guard rest.isEmpty else { return fail(usage) }
             return listQueue(jobs, history: timings.load())
-        case "make", "resize", "retry", "make-another":
+        case "make", "resize", "retry", "make-another", "import":
             guard let of = rest.first, !of.hasPrefix("-") else { return fail(usage) }
-            // make-another makes a new mini, next to `of`.
-            let name = args[0] == "make-another" ? Gallery.nextVersionName(install.runs, of) : of
-            // Setup downloads the engine in the app, where it can show its progress.
-            guard args[0] == "resize" || FileManager.default.isExecutableFile(atPath: install.trellisCLI.path) else {
+            // make-another makes a new mini, next to `of`; import names it after its file, `of`.
+            let imported = args[0] == "import" ? ModelImport.names(for: URL(fileURLWithPath: of), in: install.runs) : nil
+            let name = args[0] == "make-another" ? Gallery.nextVersionName(install.runs, of) : imported?.folder ?? of
+            // Setup downloads the engine in the app, where it can show its progress. Resize and
+            // import only run print prep.
+            guard args[0] == "resize" || args[0] == "import" || FileManager.default.isExecutableFile(atPath: install.trellisCLI.path) else {
                 return fail("Mimic needs to finish setting up. Open the Mimic app: it downloads what's missing.")
             }
             rest.removeFirst()
             var sizes = Sizes(), image: String?, restyle = false, seed = 42, description: String?, improve = false
             var model = EngineDownload.selected(defaults: defaults)
             var object = false, addBase = false, wait = false, newShape = false, projectName: String?, seedGiven = false, shapeGiven = false, styleGiven = false, magnetGiven = false
-            var scale: Int?
+            var scale: Int?, modelGiven = false
             while let a = rest.first {
                 rest.removeFirst()
                 func value() -> String? { rest.isEmpty ? nil : rest.removeFirst() }
@@ -192,7 +196,7 @@ enum CLI {
                     guard let v = value().flatMap(EngineDownload.model) else {
                         return fail("--model needs one of: \(EngineDownload.catalogue.map(\.id).joined(separator: ", ")) (see mimic models)")
                     }
-                    model = v
+                    model = v; modelGiven = true
                 default:
                     guard description == nil, !a.hasPrefix("-") else { return fail("unknown option: \(a)\n\(usage)") }
                     description = a
@@ -207,7 +211,10 @@ enum CLI {
                 if !styleGiven, let s = was?.style { sizes.style = s }
                 if !magnetGiven { sizes.magnet = was?.magnet }
             }
-            if projectName != nil && args[0] != "make" { return fail("--project is for mimic make; mimic move moves a mini") }
+            if projectName != nil && !["make", "import"].contains(args[0]) { return fail("--project is for mimic make and import; mimic move moves a mini") }
+            if args[0] == "import" && (image != nil || restyle || improve || seedGiven || modelGiven || newShape || description != nil) {
+                return fail("mimic import takes the model as it is: only size options, --object, --add-base and --project")
+            }
             if newShape && args[0] != "make-another" { return fail("--new-shape is for mimic make-another") }
             if let scale {
                 if object { return fail("--scale is for characters; give an object's longest side with --size") }
@@ -249,6 +256,11 @@ enum CLI {
                         ahead = try jobs.makeAnotherVersion(of: of, as: name, seed: seedGiven ? seed : nil).ahead
                         print("Making \(name), another version of \(of).")
                     }
+                case "import":
+                    let into = try projectName.map { try project($0, install) }
+                    ahead = try jobs.importModel(URL(fileURLWithPath: of), name: name, shown: imported?.shown, sizes: sizes,
+                                                 kind: object ? .object : .character, project: into)
+                    print("Importing it as \(imported?.shown ?? name).")
                 case "resize": ahead = try jobs.resize(name: name, sizes: sizes)
                 default: ahead = try jobs.retry(name: name)
                 }
