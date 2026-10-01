@@ -1,13 +1,11 @@
 import Foundation
 import MimicCore
-import UserNotifications
 
 /// The command-line mode: the same engine as the app, for the terminal and for scripts.
 enum CLI {
     static var usage: String { Usage.text }
 
     static func run(_ args: [String]) -> Int32 {
-        if args.first == "--probe-notifications" { return probeNotifications() }
         if ["--version", "-v", "version"].contains(args.first) { print(BuildInfo.line); return 0 }
         if ["--help", "-h", "help"].contains(args.first) { print(usage); return 0 }
         // The job's own steps, each run by a job as its own program: before finding the Mimic
@@ -41,6 +39,7 @@ enum CLI {
         case "queue": return queue(rest, cli, json: json)
         case "make", "resize", "retry", "make-another", "import": return make(args, cli)
         case "open": return open(rest, cli)
+        case "export": return export(rest, cli)
         case "info": return info(rest, cli, json: json)
         case "rename": return rename(rest, cli)
         case "trash": return trash(rest, cli)
@@ -286,6 +285,29 @@ enum CLI {
         _ = done.wait(timeout: .now() + 30)
         if let failed { return fail("Couldn't open it in \(slicer?.name ?? "your slicer"): \(failed.localizedDescription)") }
         print("Opened \(m.displayName) in \(slicer?.name ?? "your Mac's app for print files").")
+        return 0
+    }
+
+    /// `mimic export <name> --vtt [--triangles N]`: `--vtt` is the one kind for now (#158); a
+    /// print file is what `open` is for.
+    private static func export(_ rest: [String], _ cli: Context) -> Int32 {
+        var triangles = Tabletop.triangles
+        switch Array(rest.dropFirst()) {
+        case ["--vtt"]: break
+        case let a where a.count == 3 && a[0] == "--vtt" && a[1] == "--triangles":
+            guard let n = Int(a[2]), n > 0 else { return fail("--triangles takes a number, like 5000.") }
+            triangles = n
+        default: return fail(usage)
+        }
+        guard !rest[0].hasPrefix("-") else { return fail(usage) }
+        guard let m = find(rest[0], cli.install) else { return fail(notFound(rest[0])) }
+        guard m.stl != nil else { return fail("\(m.displayName) isn't made yet.") }
+        let out = URL(fileURLWithPath: "\(m.name).glb")
+        do {
+            let made = try Tabletop.export(m, to: out, triangles: triangles)
+            let size = ByteCountFormatter.string(fromByteCount: Int64(made.bytes), countStyle: .file)
+            print("Exported \(m.displayName) for a virtual tabletop: \(out.path), \(made.triangles) triangles, \(made.colour ? "in colour" : "grey"), \(size).")
+        } catch { return fail("Couldn't export \(m.displayName): \(error)") }
         return 0
     }
 
@@ -620,20 +642,6 @@ enum CLI {
             if let stl { try? PrepReport(failure: "\(error)").write(beside: stl) }
             return fail(Prep.failure + "\(error)")
         }
-    }
-
-    private static func probeNotifications() -> Int32 {
-        // Feasibility check: does the notification system accept this self-assembled app?
-        // Reading the settings needs a valid bundle but, unlike asking, shows no prompt.
-        let done = DispatchSemaphore(value: 0)
-        nonisolated(unsafe) var status = "unknown"
-        UNUserNotificationCenter.current().getNotificationSettings { s in
-            status = String(describing: s.authorizationStatus.rawValue)
-            done.signal()
-        }
-        done.wait()
-        print("notifications reachable, authorization status \(status) (0 = not yet asked)")
-        return 0
     }
 
     private static func fail(_ message: String) -> Int32 {
