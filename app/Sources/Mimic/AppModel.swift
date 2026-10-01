@@ -89,7 +89,8 @@ final class AppModel {
     @ObservationIgnored var openMainWindow: () -> Void = {}
     /// The job's latest status, updated on the main thread; nil before the first job.
     var job: JobStatus?
-    /// Why a job can't start (a required check failed), or nil: the latest health checks.
+    /// Why Make, Resize or Try Again can't start right now (a required check failed), or nil: the
+    /// latest health checks. A job already running is no reason: the new one waits its turn.
     var requiredProblem: String? { Health.shared.blocking }
     var sheet: AppSheet?
     /// The job's popover under its toolbar item: opened by clicking it, and by itself when a job
@@ -416,10 +417,6 @@ final class AppModel {
 
     // MARK: Jobs
 
-    /// Why Make, Resize or Try Again can't start right now, or nil. A job already running is
-    /// no reason: the new one waits its turn.
-    var cantStart: String? { requiredProblem }
-
     func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes, kind: MiniKind = .character,
               project: String? = nil, cartoon: Bool = false, shown: String? = nil, model: EngineModel? = nil, shapeSeed: Int? = nil,
               sides: [PictureSide: URL] = [:]) throws {
@@ -562,9 +559,6 @@ final class AppModel {
 
     func stop() { jobs.cancel() }
 
-    /// A mini that can't be renamed or trashed right now: being made here or in another Mimic.
-    var busyWith: String? { current?.name }
-
     /// Move to Trash from the sidebar or the Mini menu, for one mini or several: at once, as
     /// Edit → Undo puts them back; asked first only when one waits in the queue, which Undo
     /// can't put back in it.
@@ -575,7 +569,7 @@ final class AppModel {
     /// Moves minis to the Trash; one Undo puts them all back (grouped by event). The one being
     /// made stays, and says so.
     func trash(_ group: [Mini]) {
-        let picked = Gallery.toTrash(group, busyWith: busyWith)
+        let picked = Gallery.toTrash(group, busyWith: current?.name)
         trashEach(picked.trash)
         if let s = picked.staying { problem = "“\(s.displayName)” is being made, so it stayed. Move it to the Trash once it's done." }
     }
@@ -617,7 +611,7 @@ final class AppModel {
     /// One being made stays, and says so. Returns whether they all went.
     @discardableResult
     func keep(_ mini: Mini) -> Bool {
-        let picked = Gallery.toKeep(mini, in: minis, busyWith: busyWith)
+        let picked = Gallery.toKeep(mini, in: minis, busyWith: current?.name)
         trashEach(picked.trash)
         if let v = picked.staying {
             problem = (problem.map { $0 + " " } ?? "") + "“\(v.displayName)” is being made, so it wasn't moved to the Trash. Move it there once it's done."

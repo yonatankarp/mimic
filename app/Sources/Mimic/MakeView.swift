@@ -154,7 +154,7 @@ struct MakeView: View {
 
             Divider()
             HStack(alignment: .firstTextBaseline) {
-                if let reason = model.cantStart {
+                if let reason = model.requiredProblem {
                     CantStart(reason: reason)
                 } else if let message, messageIsError {
                     Text(message).foregroundStyle(.red).help(messageDetail ?? "")
@@ -170,7 +170,7 @@ struct MakeView: View {
                 Button("Make Mini") { make() }
                     .help("Takes \(JobProgress.about(estimate.total))\(estimate.learned ? " on this Mac" : ""); keep using your Mac meanwhile")
                     .keyboardShortcut(.defaultAction)
-                    .disabled(model.cantStart != nil || takenName != nil || missing != nil)
+                    .disabled(model.requiredProblem != nil || takenName != nil || missing != nil)
                     .tourCallout(.make, arrow: .top)
             }
             .padding(16)
@@ -509,7 +509,7 @@ struct MakeView: View {
     /// Several pictures dropped at once: a mini each, with this card's settings, named after its
     /// file. Names can be changed afterwards.
     private func make(_ pictures: [URL]) {
-        guard model.cantStart == nil else { return }
+        guard model.requiredProblem == nil else { return }
         if project == Self.newProject && Rules.projectName(newProjectName) == nil { return say("Name the new project, then drop the pictures again.", error: true) }
         do {
             if project == Self.newProject { project = try model.createProject(newProjectName) }
@@ -594,7 +594,7 @@ struct ResizeView: View {
                 .reportsHeight(0, into: $forms)
             Divider()
             HStack(alignment: .firstTextBaseline) {
-                if let reason = model.cantStart {
+                if let reason = model.requiredProblem {
                     CantStart(reason: reason)
                 } else if let problem {
                     Label(problem.words, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
@@ -610,7 +610,7 @@ struct ResizeView: View {
                     }
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(model.cantStart != nil || (group == nil && model.waiting(mini.name) != nil))
+                .disabled(model.requiredProblem != nil || (group == nil && model.waiting(mini.name) != nil))
             }
             .padding(16)
             .fixedSize(horizontal: false, vertical: true)

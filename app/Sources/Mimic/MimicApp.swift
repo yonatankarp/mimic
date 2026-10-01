@@ -117,15 +117,15 @@ struct MiniCommands: Commands {
             if several {
                 Button("Resize \(chosen.count) Minis…") { model.sheet = .resizeSeveral(chosen) }
                     .keyboardShortcut("r")
-                    .disabled(!chosen.contains(where: \.hasModel) || model.cantStart != nil || !free)
+                    .disabled(!chosen.contains(where: \.hasModel) || model.requiredProblem != nil || !free)
             } else {
                 Button("Resize This Mini…") { if let mini { model.sheet = .resize(mini) } }
                     .keyboardShortcut("r")
-                    .disabled(mini?.hasModel != true || model.cantStart != nil || !free || mini.flatMap { model.waiting($0.name) } != nil)
+                    .disabled(mini?.hasModel != true || model.requiredProblem != nil || !free || mini.flatMap { model.waiting($0.name) } != nil)
             }
             if let mini, model.canRetry(mini) {
                 Button("Try Again") { model.tryAgain(mini) }
-                    .disabled(model.cantStart != nil || !free)
+                    .disabled(model.requiredProblem != nil || !free)
                 Button("Report a Problem…") { model.reportProblem(mini) }
                     .disabled(!free)
             }
