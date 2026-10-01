@@ -162,7 +162,7 @@ public struct MakeForm: Equatable, Sendable {
         guard let (source, restyle, s) = try? JobRunner.versionSource(mini.folder, mini.settings) else { return nil }
         var card = start
         card.setKind(s.kind ?? .character)  // before the sizes: choosing a kind suggests sizes afresh
-        if let sizes = s.requested ?? s.made { card.load(sizes) }
+        if let sizes = s.requested ?? s.made { card.load(sizes.asMade) }
         let new = Gallery.nextVersionName(install.runs, mini.name)
         var form = MakeForm(picture: mini.folder, name: "", card: card)
         form.name = s.shownName(folder: mini.name).flatMap { Rules.shownName(carrying: $0, to: new) } ?? Mini.displayName(new)
