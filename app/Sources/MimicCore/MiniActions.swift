@@ -76,27 +76,49 @@ extension JobRunner {
     public func stopElsewhere(timeout: TimeInterval = 10) -> StopRequest {
         guard let job = running() else { return .nothing }
         let file = queue.stopFile
-        guard (try? Data(job.name.utf8).write(to: file, options: .atomic)) != nil else { return .noAnswer(job) }
+        let ask = Self.stopAsk(job)
+        guard (try? Data(ask.utf8).write(to: file, options: .atomic)) != nil else { return .noAnswer(job) }
         let until = Date().addingTimeInterval(timeout)
         while Date() < until {
             if let now = running(), now.name == job.name, now.started == job.started {
                 Thread.sleep(forTimeInterval: 0.2)
                 continue
             }
-            return .stopped(job)
+            // Stopped only when the Mimic making it said so: it may have ended on its own first
+            // (#173). Either way the request goes, so it can't stop a later job.
+            let answer = try? String(contentsOf: file, encoding: .utf8)
+            try? FileManager.default.removeItem(at: file)
+            return answer == ask + Self.stopAnswer ? .stopped(job) : .ended(job)
         }
         // Not heard: taken back, so it can't stop a later job of the same name.
         try? FileManager.default.removeItem(at: file)
         return .noAnswer(job)
     }
 
-    /// Run while this runner holds the job lock: stops its job when `mimic stop` asks for it by
-    /// name. A request naming any other job is from before it and is dropped.
+    /// What `mimic stop` writes in job.stop: the job's name and when it started, so a request
+    /// left behind can't stop a later job of the same name (#173).
+    static func stopAsk(_ job: JobStatus) -> String { job.name + "\n" + stopTime(job.started) }
+    /// Added to the request by the Mimic that stopped the job.
+    static let stopAnswer = "\nstopped"
+    /// Written as job.json writes it, so the time `mimic stop` read there matches this Mimic's
+    /// own to the second (a formatter of its own may round where job.json's drops the rest).
+    static func stopTime(_ date: Date) -> String {
+        (try? JobQueue.encoder.encode([date])).map { String(decoding: $0, as: UTF8.self).filter { !$0.isWhitespace } } ?? ""
+    }
+
+    /// Run while this runner holds the job lock: stops its job when `mimic stop` asks for it,
+    /// and answers. Any other request is from before it and is dropped. A request with only a
+    /// name is from a Mimic before 0.10.0.
     func answerStopRequest() {
         let file = queue.stopFile
-        guard let asked = try? String(contentsOf: file, encoding: .utf8), let s = status, s.running else { return }
-        try? FileManager.default.removeItem(at: file)
-        if asked == s.name { cancel() }
+        guard let asked = try? String(contentsOf: file, encoding: .utf8) else { return }
+        let lines = asked.components(separatedBy: "\n")
+        if lines.count > 2 { return }  // answered: `mimic stop` takes it away
+        if let s = status, s.running, lines[0] == s.name, lines.count == 1 || lines[1] == Self.stopTime(s.started), cancel() {
+            try? Data((asked + Self.stopAnswer).utf8).write(to: file, options: .atomic)
+        } else {
+            try? FileManager.default.removeItem(at: file)
+        }
     }
 }
 
@@ -105,6 +127,8 @@ public enum StopRequest: Equatable, Sendable {
     /// Nothing was being made.
     case nothing
     case stopped(JobStatus)
+    /// It ended on its own, finished or failed, before it could be stopped.
+    case ended(JobStatus)
     /// The Mimic making it didn't stop it in time (or is from before `mimic stop`).
     case noAnswer(JobStatus)
 }
