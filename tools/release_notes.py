@@ -13,7 +13,8 @@ who use Mimic, or its title when it has none; `none` leaves it out.
 A release-notes/<version>.md file, when there is one, is published instead, word for word: an
 escape hatch for a version whose notes need more than its pull requests say. A version with its own section in
 CHANGELOG.md (0.7.0 and before) uses that instead.
-Needs `git` with the tags fetched, and `gh` signed in (GH_TOKEN on CI).
+Needs `git` with the tags fetched, and `gh` signed in (GH_TOKEN on CI). A commit on main with no
+pull request number is left out with a warning, and a failed command stops it with one line.
 """
 import json
 import re
@@ -28,8 +29,15 @@ COUNTED = {"feat": ("new feature", "new features"), "change": ("improvement", "i
            "fix": ("bug fix", "bug fixes"), "cli": ("", "")}
 
 
-def run(*args):
-    return subprocess.run(args, check=True, capture_output=True, text=True).stdout
+def run(*args, failed=None):
+    """A command's output. When it fails, stops with one line: `failed`, or the command, then why."""
+    try:
+        return subprocess.run(args, check=True, capture_output=True, text=True).stdout
+    except FileNotFoundError:
+        sys.exit(f"{args[0]} isn't installed: the release notes need git and gh.")
+    except subprocess.CalledProcessError as error:
+        why = error.stderr.strip().splitlines()
+        sys.exit(f"{failed or ' '.join(args)}: {why[0] if why else f'exit {error.returncode}'}")
 
 
 def changelog_section(version):
@@ -67,7 +75,9 @@ def pull_requests(since, ref):
     numbers = []
     for subject in reversed(subjects):  # oldest first, the order they landed in
         match = re.match(r"Merge pull request #(\d+)", subject) or re.search(r"\(#(\d+)\)$", subject)
-        if match and match.group(1) not in numbers:
+        if not match:
+            print(f"No pull request number, left out: {subject}", file=sys.stderr)
+        elif match.group(1) not in numbers:
             numbers.append(match.group(1))
     return numbers
 
@@ -82,11 +92,13 @@ def edited(version):
 def notes(version, ref):
     if written := edited(version) or changelog_section(version):
         return written
-    since = run("git", "describe", "--tags", "--abbrev=0", "--match", "v*", f"{ref}^").strip()
+    since = run("git", "describe", "--tags", "--abbrev=0", "--match", "v*", f"{ref}^",
+                failed=f"No earlier v* tag before {ref} to list the changes from").strip()
     sections = {heading: [] for heading in [*HEADINGS.values(), TERMINAL]}
     counts = dict.fromkeys(COUNTED, 0)
     for number in pull_requests(since, ref):
-        pr = json.loads(run("gh", "pr", "view", number, "--json", "title,body"))
+        pr = json.loads(run("gh", "pr", "view", number, "--json", "title,body",
+                            failed=f"Couldn't read pull request #{number}"))
         title = TITLE.match(pr["title"])
         if not title or title["kind"] not in KINDS:
             print(f"#{number} has no kind in its title, left out: {pr['title']}", file=sys.stderr)
