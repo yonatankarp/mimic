@@ -73,13 +73,14 @@ final class PrepTests: XCTestCase {
     }
 
     /// A .glb of `mesh` the way the 3D engine writes one: y up, and here placed by its node
-    /// (nowhere near the origin), so the reader's axes and transforms are both on trial.
-    static func glb(_ mesh: Mesh, translation: SIMD3<Float>) -> Data {
+    /// (nowhere near the origin), so the reader's axes and transforms are both on trial. `edit`
+    /// changes the scene description, to try the reader on a damaged file.
+    static func glb(_ mesh: Mesh, translation: SIMD3<Float>, edit: (inout [String: Any]) -> Void = { _ in }) -> Data {
         var bin = Data()
         for p in mesh.positions { for v in [p.x, p.z, -p.y] { withUnsafeBytes(of: v) { bin.append(contentsOf: $0) } } }
         let indexStart = bin.count
         for t in mesh.triangles { for v in [t.x, t.y, t.z] { withUnsafeBytes(of: v) { bin.append(contentsOf: $0) } } }
-        let json: [String: Any] = [
+        var json: [String: Any] = [
             "asset": ["version": "2.0"], "scene": 0, "scenes": [["nodes": [0]]],
             "nodes": [["mesh": 0, "translation": [translation.x, translation.z, -translation.y]]],
             "meshes": [["primitives": [["attributes": ["POSITION": 0], "indices": 1]]]],
@@ -89,6 +90,7 @@ final class PrepTests: XCTestCase {
                             ["buffer": 0, "byteOffset": indexStart, "byteLength": bin.count - indexStart]],
             "buffers": [["byteLength": bin.count]],
         ]
+        edit(&json)
         var text = try! JSONSerialization.data(withJSONObject: json)
         while text.count % 4 != 0 { text.append(0x20) }
         var out = Data()
