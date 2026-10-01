@@ -5,7 +5,13 @@ difference.
 
 ## Reporting a problem
 
-[Open an issue](https://github.com/yonatankarp/mimic/issues/new/choose) and pick **Something
+The quickest way is in Mimic: **Help → Report a Problem…**, or **Report a Problem…** on a mini that
+didn't finish. It makes a file with the logs, the mini's settings, and your Mimic version and Mac,
+with keys and your home folder taken out, shows it in Finder and opens the form below already
+filled in; drag the file in. The mini's picture goes in only if you tick the box, since issues are
+public.
+
+Or [open an issue](https://github.com/yonatankarp/mimic/issues/new/choose) and pick **Something
 went wrong**. The form asks for what helps most:
 
 - Your Mimic version (at the bottom of Settings → Advanced, or Mimic → About Mimic), your Mac (Apple menu → About This Mac) and macOS version.

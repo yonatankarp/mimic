@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import OSLog
 
 /// One file Mimic downloads, pinned: where from, how big, and its sha256.
 public struct EngineFile: Sendable, Equatable {
@@ -422,16 +423,22 @@ public struct EngineSetup: Sendable {
         }
         if !fm.fileExists(atPath: part.path) { fm.createFile(atPath: part.path, contents: nil) }
 
+        Log.download.notice("Downloading \(file.name, privacy: .public)\(have > 0 ? " from byte \(have)" : "", privacy: .public)")
         var request = URLRequest(url: file.url)
         if have > 0 { request.setValue("bytes=\(have)-", forHTTPHeaderField: "Range") }
         let transfer = try Transfer(part: part, have: have, progress: progress)
-        try await transfer.run(request, session: session)
+        do { try await transfer.run(request, session: session) } catch {
+            Log.download.error("\(file.name, privacy: .public) stopped: \(String(describing: error), privacy: .public)")
+            throw error
+        }
 
         guard EngineDownload.size(part) == file.bytes, EngineDownload.sha256(part) == file.sha256 else {
             try? fm.removeItem(at: part)
+            Log.download.error("\(file.name, privacy: .public) arrived damaged")
             throw SetupError.damaged(file.name)
         }
         try fm.moveItem(at: part, to: destination)
+        Log.download.notice("Downloaded \(file.name, privacy: .public)")
     }
 }
 

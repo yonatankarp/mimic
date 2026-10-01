@@ -98,6 +98,8 @@ struct MiniDetail: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(model.cantStart != nil)
                     .help(model.cantStart ?? "Makes it again from the step that failed")
+                Button("Report a Problem…") { model.reportProblem(mini) }
+                    .help("Makes a file of what happened and opens a form on GitHub to send it with")
             }
         } else {
             ContentUnavailableView("This mini isn't finished yet.", systemImage: "hourglass")
