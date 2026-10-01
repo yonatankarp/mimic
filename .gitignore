@@ -5,6 +5,10 @@ runs/
 # (the app downloads both, at pinned versions, into ~/Library/Application Support/Mimic otherwise).
 engine/
 
+# The dev build's queue, when this checkout is its Mimic folder (an installed Mimic keeps it in
+# ~/Library/Application Support/Mimic).
+/queue/
+
 __pycache__/
 *.log
 .DS_Store
