@@ -14,7 +14,7 @@ final class SizeReferenceTests: XCTestCase {
         // Renaming one would quietly put everyone's choice back to none.
         XCTAssertEqual(SizeReference.allCases.map(\.rawValue), ["none", "base", "person", "grid"])
         XCTAssertEqual(SizeReference.key, "sizeReference")
-        XCTAssertEqual(SizeReference.allCases.map(\.title), ["None", "25 mm base", "32 mm person", "Millimetre grid"])
+        XCTAssertEqual(SizeReference.allCases.map(\.title), ["None", "25 mm Base", "32 mm Person", "Millimetre Grid"])
     }
 
     func testAMillimetreIsOneOverThePrintsHeight() {
