@@ -15,6 +15,7 @@ struct Sidebar: View {
     @SceneStorage("gallerySort") private var sort = GallerySort.made
     @SceneStorage("galleryShow") private var show = GalleryShow.all
     @State private var preview: URL?
+    @FocusState private var searching: Bool
     /// A mini has been picked in the list since it appeared: the gallery tip can show.
     @State private var picked = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -28,6 +29,7 @@ struct Sidebar: View {
             // Same threshold as the filter, so the field and the filtering never disagree.
             if model.minis.count > Gallery.searchAfter {
                 list.searchable(text: $query, placement: .sidebar, prompt: "Find a mini")
+                    .searchFocused($searching)
             } else {
                 list
             }
@@ -49,6 +51,10 @@ struct Sidebar: View {
         // resized or trashed with what is.
         .onChange(of: query) { deselectHidden() }
         .onChange(of: show) { deselectHidden() }
+        .onChange(of: model.findRequests) { searching = true }  // Edit → Find
+        // View → Sort By and Show change these same choices.
+        .focusedSceneValue(\.gallerySort, $sort)
+        .focusedSceneValue(\.galleryShow, $show)
     }
 
     private var shown: [Mini] { Gallery.arrange(model.minis, query: query, show: show, sort: sort) }
@@ -174,9 +180,7 @@ struct Sidebar: View {
     private var arrangeMenu: some View {
         Menu {
             Picker("Sort By", selection: $sort) {
-                Text("Date Made").tag(GallerySort.made)
-                Text("Name").tag(GallerySort.name)
-                Text("Size").tag(GallerySort.size)
+                ForEach(GallerySort.allCases, id: \.self) { Text(Self.title($0)).tag($0) }
             }
             Picker("Show", selection: $show) {
                 ForEach(GalleryShow.allCases, id: \.self) { Text(Self.title($0)).tag($0) }
@@ -191,7 +195,15 @@ struct Sidebar: View {
         .accessibilityLabel("Sort and Show")
     }
 
-    private static func title(_ show: GalleryShow) -> String {
+    static func title(_ sort: GallerySort) -> String {
+        switch sort {
+        case .made: "Date Made"
+        case .name: "Name"
+        case .size: "Size"
+        }
+    }
+
+    static func title(_ show: GalleryShow) -> String {
         switch show {
         case .all: "All Minis"
         case .characters: "Characters"
@@ -249,6 +261,7 @@ struct Sidebar: View {
         EditAndMakeAgainButton(mini: mini)
         DuplicateButton(mini: mini)
         MoveToProjectMenu(minis: [mini])
+        if model.waiting(mini.name) != nil { MoveInQueueMenu(mini: mini) }
         Divider()
         if model.canRetry(mini) {
             Button("Try Again", systemImage: "arrow.clockwise") { model.tryAgain(mini) }
@@ -358,14 +371,32 @@ struct CopiesSheet: View {
     @Environment(\.dismiss) private var dismiss
     let minis: [Mini]
     @State private var copies = 2
+    /// The number field beside the stepper, so 20 is a few keys away rather than 18 clicks.
+    /// Text, not a number field: that only takes what's typed once editing ends, and Return
+    /// presses Open first.
+    @State private var typed = "2"
 
     var body: some View {
         let made = minis.filter { $0.stl != nil }
         VStack(alignment: .leading, spacing: 12) {
             Text(made.count == 1 ? "Copies of “\(made[0].displayName)”" : "Copies of \(made.count) minis").font(.headline)
-            Stepper(value: $copies, in: ThreeMF.copies) {
-                Text(made.count == 1 ? (copies == 1 ? "1 copy" : "\(copies) copies") : "\(copies) of each")
+            HStack(spacing: 6) {
+                TextField("Copies", text: $typed)
+                    .labelsHidden()
+                    .frame(width: 44)
+                    .multilineTextAlignment(.trailing)
                     .monospacedDigit()
+                    .accessibilityLabel(made.count == 1 ? "Copies" : "Copies of each")
+                    .onChange(of: typed) {
+                        // Emptied while typing a new number: wait for it.
+                        guard !typed.isEmpty else { return }
+                        copies = ThreeMF.copies(typed: typed) ?? copies
+                        if typed != "\(copies)" { typed = "\(copies)" }
+                    }
+                Stepper(value: $copies, in: ThreeMF.copies) {
+                    Text(made.count == 1 ? (copies == 1 ? "copy" : "copies") : "of each")
+                }
+                .onChange(of: copies) { if typed != "\(copies)" { typed = "\(copies)" } }
             }
             Text("They go side by side on the plate in one print file.").foregroundStyle(.secondary).font(.callout)
             HStack {

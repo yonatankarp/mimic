@@ -39,7 +39,18 @@ struct MimicApp: App {
                 Button("Import Model…") { ImportModel.choose(model) }
                     .keyboardShortcut("i", modifiers: [.command, .shift])
                     .disabled(!model.setup.installed || model.sheet != nil)
+                // ⌘N is New Mini; ⇧⌘N a new project, as a new folder is in Finder.
+                Button("New Project…") { model.showWindow(); model.sheet = .newProject(moving: []) }
+                    .keyboardShortcut("n", modifiers: [.command, .shift])
+                    .disabled(!model.setup.installed || model.sheet != nil)
             }
+            // The search field only shows past `Gallery.searchAfter` minis.
+            CommandGroup(after: .textEditing) {
+                Button("Find") { model.showWindow(); model.findRequests += 1 }
+                    .keyboardShortcut("f")
+                    .disabled(model.minis.count <= Gallery.searchAfter || model.sheet != nil)
+            }
+            GalleryCommands(model: model)
             SidebarCommands()
             ImportFromDevicesCommands()  // File → Import from iPhone, for New Mini's picture
             MiniCommands(model: model)
@@ -67,6 +78,7 @@ struct MimicApp: App {
 /// The mini page's own toolbar and 3D view controls are in the View menu.
 struct MiniCommands: Commands {
     let model: AppModel
+    @AppStorage(SizeReference.key) private var reference = SizeReference.none
 
     var body: some Commands {
         CommandGroup(after: .sidebar) {
@@ -79,6 +91,11 @@ struct MiniCommands: Commands {
             Button("Face Front") { model.faceFrontRequests += 1 }
                 .keyboardShortcut("0")
                 .disabled(model.selected?.stl == nil || model.sheet != nil)
+            // The 3D view's ruler, one choice for the whole app.
+            Picker("Size Reference", selection: $reference) {
+                ForEach(SizeReference.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
+            .disabled(model.selected?.stl == nil || model.sheet != nil)
         }
         CommandMenu("Mini") {
             let mini = model.selected, chosen = model.chosen, several = chosen.count > 1
@@ -131,10 +148,6 @@ struct MiniCommands: Commands {
             } else {
                 Button("Move to Project") {}.disabled(true)
             }
-            // ⌘N is New Mini; ⇧⌘N a new project, as a new folder is in Finder.
-            Button("New Project…") { model.sheet = .newProject(moving: []) }
-                .keyboardShortcut("n", modifiers: [.command, .shift])
-                .disabled(!free || !model.setup.installed)
             Divider()
             // The job's toolbar item, from the keyboard.
             Button("Show Progress") { model.showWindow(); model.jobPopover = true }
@@ -142,20 +155,7 @@ struct MiniCommands: Commands {
             Button(model.stopCommand ?? "Stop Making…") { model.showWindow(); model.confirmingStop = true }
                 .disabled(model.stopCommand == nil || !free)
             // The selected mini's place in the queue, while it waits (#72).
-            let place = mini.flatMap { model.waiting($0.name) }
-            Menu("Move in Queue") {
-                Button("Move to Front") { if let mini { model.moveInQueue(mini.name, to: .front) } }
-                    .disabled(place == nil || place == 1)
-                Button("Move Up") { if let mini { model.moveInQueue(mini.name, by: -1) } }
-                    .keyboardShortcut(.upArrow, modifiers: [.command, .option])
-                    .disabled(place == nil || place == 1)
-                Button("Move Down") { if let mini { model.moveInQueue(mini.name, by: 1) } }
-                    .keyboardShortcut(.downArrow, modifiers: [.command, .option])
-                    .disabled(place == nil || place == model.queue.count)
-                Button("Move to End") { if let mini { model.moveInQueue(mini.name, to: .end) } }
-                    .disabled(place == nil || place == model.queue.count)
-            }
-            .disabled(place == nil || !free)
+            MoveInQueueMenu(mini: mini, showsIcon: false).environment(model)
             // Shared with every Mimic on this Mac: resuming here resumes a pause made anywhere.
             Button(model.pauseCommand) { model.togglePause() }
                 .disabled(!model.paused && model.current == nil && model.queue.isEmpty)
@@ -165,6 +165,66 @@ struct MiniCommands: Commands {
                 .disabled(chosen.isEmpty || !free)
         }
     }
+}
+
+/// Move in Queue ▸, for a mini waiting its turn: in the Mini menu and the mini's right-click
+/// menu, as the job popover's queue rows have it.
+struct MoveInQueueMenu: View {
+    let mini: Mini?
+    var showsIcon = true
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let place = mini.flatMap { model.waiting($0.name) }
+        let entry = mini.flatMap { m in model.queue.first { $0.name == m.name } }
+        Menu {
+            Button("Move to Front") { if let mini { model.moveInQueue(mini.name, to: .front) } }
+                .disabled(place == nil || place == 1)
+            Button("Move Up") { if let mini { model.moveInQueue(mini.name, by: -1) } }
+                .keyboardShortcut(.upArrow, modifiers: [.command, .option])
+                .disabled(place == nil || place == 1)
+            Button("Move Down") { if let mini { model.moveInQueue(mini.name, by: 1) } }
+                .keyboardShortcut(.downArrow, modifiers: [.command, .option])
+                .disabled(place == nil || place == model.queue.count)
+            Button("Move to End") { if let mini { model.moveInQueue(mini.name, to: .end) } }
+                .disabled(place == nil || place == model.queue.count)
+            Divider()
+            // Asks first, as the queue row's button does; a waiting resize keeps its size.
+            Button(entry.map { $0.job == .prep && !model.importing($0.name) } == true ? "Don't Resize…" : "Take Out of Queue…") {
+                model.showWindow(); model.unqueueing = entry
+            }
+            .disabled(entry == nil)
+        } label: {
+            if showsIcon { Label("Move in Queue", systemImage: "arrow.up.arrow.down") } else { Text("Move in Queue") }
+        }
+        .disabled(place == nil || model.sheet != nil)
+    }
+}
+
+/// View → Sort By and Show, the sidebar's own choices (kept per window), as in Finder's View menu.
+struct GalleryCommands: Commands {
+    let model: AppModel
+    @FocusedValue(\.gallerySort) private var sort
+    @FocusedValue(\.galleryShow) private var show
+
+    var body: some Commands {
+        CommandGroup(before: .toolbar) {
+            Picker("Sort By", selection: sort ?? .constant(.made)) {
+                ForEach(GallerySort.allCases, id: \.self) { Text(Sidebar.title($0)).tag($0) }
+            }
+            .disabled(sort == nil || model.sheet != nil)
+            Picker("Show", selection: show ?? .constant(.all)) {
+                ForEach(GalleryShow.allCases, id: \.self) { Text(Sidebar.title($0)).tag($0) }
+            }
+            .disabled(show == nil || model.sheet != nil)
+            Divider()
+        }
+    }
+}
+
+extension FocusedValues {
+    @Entry var gallerySort: Binding<GallerySort>?
+    @Entry var galleryShow: Binding<GalleryShow>?
 }
 
 struct ContentView: View {

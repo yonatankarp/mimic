@@ -115,6 +115,8 @@ final class AppModel {
     }
     /// View → Face Front: bumped for the mini's 3D view to turn back to face you.
     var faceFrontRequests = 0
+    /// Edit → Find: bumped for the sidebar to put the cursor in its search field.
+    var findRequests = 0
     /// Keep This One from Compare Side by Side: the version to ask about once the sheet has
     /// gone (`keepWhenClosed`), then on its page (`askToKeep`), whose dialog does the keeping.
     var keepWhenClosed: String?

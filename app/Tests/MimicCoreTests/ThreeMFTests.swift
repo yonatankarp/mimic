@@ -102,4 +102,17 @@ final class ThreeMFTests: XCTestCase {
             }
         }
     }
+
+    /// Copies' number field: a typed 50 is 20 and 0 is 1, as the stepper's ends, rather than a
+    /// file with more than the bed can take; what isn't a number is ignored. Without the clamp,
+    /// 50 came back as 50.
+    func testTypedCopiesStayInRange() {
+        XCTAssertEqual(ThreeMF.copies(typed: "7"), 7)
+        XCTAssertEqual(ThreeMF.copies(typed: " 12 "), 12)
+        XCTAssertEqual(ThreeMF.copies(typed: "50"), ThreeMF.copies.upperBound)
+        XCTAssertEqual(ThreeMF.copies(typed: "0"), ThreeMF.copies.lowerBound)
+        XCTAssertEqual(ThreeMF.copies(typed: "-3"), ThreeMF.copies.lowerBound)
+        XCTAssertNil(ThreeMF.copies(typed: "two"))
+        XCTAssertNil(ThreeMF.copies(typed: ""))
+    }
 }
