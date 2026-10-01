@@ -6,8 +6,8 @@ public enum Usage {
     public static let text = """
     usage:
       mimic make "<name>" "<description>" [--improve] [options]
-      mimic make "<name>" --image <picture> [--back <picture>] [--left <picture>] [--right <picture>] [--restyle] [options]
-      mimic make-another <name> [--new-shape] [--seed N]
+      mimic make "<name>" --image <picture> [--back <picture>] [--left <picture>] [--right <picture>] [--restyle] [--change "<change>"] [options]
+      mimic make-another <name> [--new-shape] [--change "<change>"] [--seed N]
       mimic duplicate <name> --as "<new name>"
       mimic resize <name> [options]
       mimic import <file.glb|file.stl> [--object] [--project "<project>"] [options]
@@ -45,6 +45,9 @@ public enum Usage {
     duplicate: a copy with the same shape, next to it, to resize without changing the first
     import: a 3D model made elsewhere, named after its file, made print-ready (an STL is taken as millimetres, z up)
     --improve: the AI helper chosen in Settings writes a fuller description first
+    --change: redraws the picture with this change ("close the cape so both arms show"), with the grey sculpt;
+              make-another starts from its picture, so changes add up. The AI helper, when set up, words it first.
+              The app stops to show you the picture before the 3D shape; here it carries straight on
     --wait: while another mini is being made, make, resize and retry join the queue and return;
             --wait stays until this one is made
     """

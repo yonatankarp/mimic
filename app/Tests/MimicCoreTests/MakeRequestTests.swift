@@ -219,6 +219,24 @@ final class MakeRequestTests: XCTestCase {
         XCTAssertEqual(refusal { try resize.checkedSizes(resize.sizes, object: true) }, said)
     }
 
+    /// --change (#156): what to change in a picture, for a make from one and make-another.
+    func testChangeGoesWithAPicture() throws {
+        XCTAssertEqual(try parse("make", "a", "--image", "f.png", "--change", "  close the cape  ").change, "close the cape")
+        XCTAssertEqual(try parse("make-another", "a", "--new-shape", "--change", "no helmet").change, "no helmet")
+        XCTAssertNil(try parse("make", "a", "--image", "f.png").change)
+        for given in [["--change"], ["--change", "  "]] {
+            XCTAssertEqual(refusal { try self.checkedArray(["make", "a", "--image", "f.png"] + given) }, "--change needs what to change, in quotes")
+        }
+        let said = "--change goes with mimic make … --image and mimic make-another; for a description, change the description"
+        for args in [["make", "a", "a dwarf"], ["resize", "a"], ["retry", "a"], ["resize", "--project", "P"]] {
+            XCTAssertEqual(refusal { try self.checkedArray(args + ["--change", "x"]) }, said, "\(args)")
+        }
+        XCTAssertEqual(refusal { try self.checked("import", "a.glb", "--change", "x") },
+                       "mimic import takes the model as it is: only size options, --object, --add-base and --project")
+        XCTAssertNoThrow(try checked("make", "a", "--image", "f.png", "--change", "x"))
+        XCTAssertNoThrow(try checked("make-another", "a", "--change", "x"))
+    }
+
     func testImproveWorksOnADescription() throws {
         XCTAssertEqual(refusal { try self.checked("make", "a", "--image", "f.png", "--improve") }, "--improve works on a description, not --image")
         XCTAssertNoThrow(try checked("make", "a", "a dwarf", "--improve"))

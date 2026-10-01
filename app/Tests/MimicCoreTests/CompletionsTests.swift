@@ -46,6 +46,8 @@ final class CompletionsTests: XCTestCase {
         XCTAssertEqual(option("make", "--no-base"), .flag)
         XCTAssertEqual(option("make", "--height"), .text)
         XCTAssertEqual(option("make", "--wait"), .flag)
+        XCTAssertEqual(option("make", "--change"), .text)
+        XCTAssertEqual(option("make-another", "--change"), .text)
         XCTAssertEqual(option("queue move", "--to"), .choice(["front", "end"]))
         XCTAssertEqual(option("rename", "--to"), .text)
         XCTAssertEqual(option("make", "--model"), .choice(EngineDownload.catalogue.map(\.id)))
