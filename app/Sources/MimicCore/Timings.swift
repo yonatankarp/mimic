@@ -195,7 +195,7 @@ public struct Timings: Sendable {
     public static func standard(environment: [String: String] = ProcessInfo.processInfo.environment,
                                 home: URL = FileManager.default.homeDirectoryForCurrentUser) -> Timings {
         if let path = environment["MIMIC_TIMINGS"] { return Timings(url: URL(fileURLWithPath: path)) }
-        if let root = environment["MIMIC_HOME"] { return Timings(url: URL(fileURLWithPath: root).appendingPathComponent("timings.jsonl")) }
+        if let root = Install.folder(environment["MIMIC_HOME"]) { return Timings(url: root.appendingPathComponent("timings.jsonl")) }
         let base = environment["MIMIC_FAKE_HOME"].map { URL(fileURLWithPath: $0) } ?? home
         return Timings(url: base.appendingPathComponent("Library/Application Support/Mimic/timings.jsonl"))
     }
@@ -226,13 +226,16 @@ public struct Timings: Sendable {
     /// Adds one, dropping the oldest past the cap. Written beside the history and then put in
     /// its place, so a crash halfway leaves the history as it was.
     public func append(_ records: [TimingRecord]) {
-        locked {
-            let text = (try? Data(contentsOf: url)).map { String(decoding: $0, as: UTF8.self) } ?? ""
-            var lines = text.split(separator: "\n").map(String.init)
-            lines += records.compactMap { (try? Self.encoder.encode($0)).map { String(decoding: $0, as: UTF8.self) } }
-            let kept = lines.suffix(Self.cap)
-            try? Data((kept.joined(separator: "\n") + (kept.isEmpty ? "" : "\n")).utf8).write(to: url, options: .atomic)
-        }
+        locked { add(records) }
+    }
+
+    /// `append`, for one already holding the lock.
+    private func add(_ records: [TimingRecord]) {
+        let text = (try? Data(contentsOf: url)).map { String(decoding: $0, as: UTF8.self) } ?? ""
+        var lines = text.split(separator: "\n").map(String.init)
+        lines += records.compactMap { (try? Self.encoder.encode($0)).map { String(decoding: $0, as: UTF8.self) } }
+        let kept = lines.suffix(Self.cap)
+        try? Data((kept.joined(separator: "\n") + (kept.isEmpty ? "" : "\n")).utf8).write(to: url, options: .atomic)
     }
 
     /// Forgets every job (Settings → Time estimates → Clear). The empty file stays, so the old
@@ -242,12 +245,13 @@ public struct Timings: Sendable {
     }
 
     /// The first time this Mimic runs, the minis already made seed the history (`imported`).
-    /// The file existing at all is the marker, so this happens once.
+    /// The file existing at all is the marker, so this happens once: checked and written under
+    /// one lock, so the app and `mimic` starting together don't both seed (#333).
     public func seedIfNeeded(runs: URL, machine: Machine = .current) {
-        guard !FileManager.default.fileExists(atPath: url.path) else { return }
-        let found = Self.importPast(runs: runs, machine: machine)
-        clear()
-        append(found)
+        locked {
+            guard !FileManager.default.fileExists(atPath: url.path) else { return }
+            add(Self.importPast(runs: runs, machine: machine))
+        }
     }
 
     /// Past makes worked out from their files, when those can be trusted. The job log is created
