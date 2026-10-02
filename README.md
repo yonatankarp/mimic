@@ -67,18 +67,18 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
 Your minis are saved in **Documents → Mimic**.
 
 Projects, versions, sizes and bases, magnets, exporting for virtual tabletops, importing
-models, every setting and shortcut: the **[Mimic guide](https://yonatankarp.github.io/mimic/)**
+models, every setting and shortcut: the **[Mimic guide](https://yonatankarp.com/mimic/)**
 explains it all.
 
 ---
 
 ## 🛠️ More
 
-- **[Mimic from a terminal](https://yonatankarp.github.io/mimic/cli/):** Mimic is also a `mimic`
+- **[Mimic from a terminal](https://yonatankarp.com/mimic/cli/):** Mimic is also a `mimic`
   command, with JSON for scripts and completion as you type.
-- **[How it works](https://yonatankarp.github.io/mimic/how-it-works/):** from a picture to a
+- **[How it works](https://yonatankarp.com/mimic/how-it-works/):** from a picture to a
   print-ready STL, all on your Mac.
-- **[Report a problem or an idea](https://yonatankarp.github.io/mimic/report/):** found a bug,
+- **[Report a problem or an idea](https://yonatankarp.com/mimic/report/):** found a bug,
   or want Mimic to do something new? Tell us, no code needed.
 - **[Working on Mimic](CONTRIBUTING.md#working-on-mimic):** building, testing and
   releasing. To send a change, see [CONTRIBUTING.md](CONTRIBUTING.md).
