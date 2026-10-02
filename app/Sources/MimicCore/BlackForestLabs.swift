@@ -17,6 +17,9 @@ public final class BlackForestLabs: OnlineClient, OnlineImages, @unchecked Senda
     /// Klein 9B: the model Mimic's prompts were written for, and BFL's least expensive.
     public static let model = "flux-2-klein-9b"
 
+    /// Why it failed when the picture's download link stopped working, after "couldn't make the picture: ".
+    static let expired = "the link to download it had stopped working. Try again."
+
     /// How often to ask whether the picture is ready.
     var poll: TimeInterval = 0.5
 
@@ -65,6 +68,10 @@ public final class BlackForestLabs: OnlineClient, OnlineImages, @unchecked Senda
             let until = Date().addingTimeInterval(poll)
             while Date() < until, !isCanceled { usleep(20_000) }
         }
+        // The request is paid for already: a hiccup while asking, or while fetching the picture,
+        // is tried again until the deadline.
+        let hiccups: [OnlineImagesError.Problem] = [.busy, .timedOut, .unreachable, .noInternet]
+        var dead: URL?
         while true {
             if isCanceled { throw fail(.cancelled) }
             if Date() > deadline { throw fail(.timedOut) }
@@ -72,17 +79,26 @@ public final class BlackForestLabs: OnlineClient, OnlineImages, @unchecked Senda
             authorize(&ask, key: key)
             ask.timeoutInterval = 30
             let reply: [String: Any]
-            do { reply = try json(ask) } catch let e as OnlineImagesError where [.busy, .timedOut, .unreachable, .noInternet].contains(e.problem) {
-                // The request is paid for already: a hiccup while asking is asked again, until the deadline.
-                wait(); continue
-            }
+            do { reply = try json(ask) } catch let e as OnlineImagesError where hiccups.contains(e.problem) { wait(); continue }
             switch reply["status"] as? String {
             case "Ready":
                 guard let sample = ((reply["result"] as? [String: Any])?["sample"] as? String).flatMap(URL.init(string:)) else {
                     throw fail(.failed("no picture in the reply"))
                 }
-                // The delivery address is signed: it needs no key, so none is sent there.
-                return try png(fetch(URLRequest(url: sample)).data, width: width, height: height)
+                // The delivery address is signed: it needs no key, so none is sent there. Not
+                // through json(): its 403 means a wrong key, and no key goes here.
+                let got: (status: Int, data: Data)
+                do { got = try fetch(URLRequest(url: sample)) } catch let e as OnlineImagesError where hiccups.contains(e.problem) { wait(); continue }
+                switch got.status {
+                case 200: return try png(got.data, width: width, height: height)
+                // Asked again, so the next try gets the address afresh.
+                case 429, 500...599: wait(); continue
+                default:
+                    // An expired signed address is 403 or 404. Asking again may give a fresh one
+                    // (whether BFL signs it anew isn't known); the same one again is gone.
+                    if sample == dead { throw fail(.failed(Self.expired)) }
+                    dead = sample; continue
+                }
             case "Request Moderated", "Content Moderated":
                 let reasons = ((reply["details"] as? [String: Any])?["Moderation Reasons"] as? [String]) ?? []
                 throw fail(.refused(reasons))

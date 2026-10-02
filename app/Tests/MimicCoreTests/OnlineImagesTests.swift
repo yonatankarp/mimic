@@ -15,10 +15,12 @@ final class OnlineImagesTests: XCTestCase {
     /// A fake BFL: submits answer with a polling address on this server, which says `status`
     /// (Ready after `pending` asks), and the picture is at /sample.png.
     /// `hiccups`: how many of the first asks fail with `hiccup` (a status, or 0 for a dropped
-    /// connection) before it answers.
+    /// connection) before it answers. `downloads`: how the first fetches of the picture answer
+    /// (a status, 0 for a dropped connection) before it's sent. `resigned`: each Ready names the
+    /// picture at a new signed address, else always the same one.
     static func fake(status: String = "Ready", pending: Int = 0, submit: Int = 200, details: String = "null",
-                     hiccups: Int = 0, hiccup: Int = 503) throws -> FakeLLM {
-        let asked = Counter()
+                     hiccups: Int = 0, hiccup: Int = 503, downloads: [Int] = [], resigned: Bool = false) throws -> FakeLLM {
+        let asked = Counter(), fetched = Counter()
         nonisolated(unsafe) var port: UInt16 = 0
         let server = try FakeLLM { r in
             let path = r.head.split(separator: " ").dropFirst().first.map(String.init) ?? ""
@@ -29,11 +31,15 @@ final class OnlineImagesTests: XCTestCase {
                 let n = asked.next()
                 if n < hiccups { return (hiccup, Data()) }
                 let s = n - hiccups < pending ? "Pending" : status
-                let result = s == "Ready" ? #"{"sample":"http://127.0.0.1:\#(port)/sample.png"}"# : "null"
+                let sig = resigned ? "?sig=\(n)" : ""
+                let result = s == "Ready" ? #"{"sample":"http://127.0.0.1:\#(port)/sample.png\#(sig)"}"# : "null"
                 // As api.bfl.ai answers an id it doesn't know: 404, with the status in the body.
                 return (s == "Task not found" ? 404 : 200, Data(#"{"id":"t1","status":"\#(s)","result":\#(result),"details":\#(details)}"#.utf8))
             }
-            if path == "/sample.png" { return (200, OnlineImagesTests.picture) }
+            if path.hasPrefix("/sample.png") {
+                let n = fetched.next()
+                return n < downloads.count ? (downloads[n], Data()) : (200, OnlineImagesTests.picture)
+            }
             if path == "/v1/credits" { return (submit, Data(#"{"credits":12.5}"#.utf8)) }
             return (404, Data())
         }
@@ -190,6 +196,42 @@ final class OnlineImagesTests: XCTestCase {
             XCTAssertEqual(($0 as? OnlineImagesError)?.problem, .failed(""))
         }
         XCTAssertEqual(lost.requests.filter { $0.head.contains("get_result") }.count, 1)
+    }
+
+    /// The picture is ready and paid for: a busy moment or a dropped connection while fetching it
+    /// is fetched again, from the address a fresh ask gives, and never with the key.
+    func testAHiccupWhileFetchingThePictureIsFetchedAgain() throws {
+        for downloads in [[503], [429, 500], [0, 0, 0, 0, 0, 0]] {  // URLSession tries a dropped GET three times itself
+            let server = try Self.fake(downloads: downloads)
+            defer { server.stop() }
+            let s = service(server)
+            s.timeout = 10
+            XCTAssertEqual(Self.size(try s.draw(description: "a dwarf", seed: 1, kind: .character)), [1024, 1024], "\(downloads)")
+            let fetches = server.requests.filter { $0.head.contains("sample.png") }
+            XCTAssertGreaterThan(fetches.count, 1, "\(downloads)")
+            for f in fetches { XCTAssertFalse(f.head.lowercased().contains("x-key"), "the picture's address got the key") }
+        }
+    }
+
+    /// A picture whose address stops working (an expired signed one answers 403 or 404) is asked
+    /// for once more, in case a fresh address comes; the same dead address again says so plainly,
+    /// rather than calling the picture unreadable or waiting until it times out.
+    func testAPictureWhoseAddressStopsWorking() throws {
+        for code in [403, 404] {
+            let gone = try Self.fake(downloads: [code, code, code])
+            defer { gone.stop() }
+            let s = service(gone)
+            s.timeout = 5
+            XCTAssertThrowsError(try s.draw(description: "a dwarf", seed: 1, kind: .character)) {
+                XCTAssertEqual(($0 as? OnlineImagesError)?.problem, .failed(BlackForestLabs.expired), "\($0)")
+            }
+            XCTAssertEqual(gone.requests.filter { $0.head.contains("get_result") }.count, 2)
+            XCTAssertEqual(gone.requests.filter { $0.head.contains("sample.png") }.count, 2)
+
+            let resigned = try Self.fake(downloads: [code], resigned: true)
+            defer { resigned.stop() }
+            XCTAssertEqual(Self.size(try service(resigned).draw(description: "a dwarf", seed: 1, kind: .character)), [1024, 1024])
+        }
     }
 
     /// Stop on a mini whose picture is being made online stops the request, and the new mini goes

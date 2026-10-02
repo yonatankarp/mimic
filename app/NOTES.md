@@ -508,7 +508,13 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
     base64. PNG is asked for (the default is JPEG). The API is async: submit, then ask the
     `polling_url` every 0.5 s for up to 300 s (a 5xx, 429, timeout or dropped connection meanwhile
     is asked again, since the picture is paid for; "Task not found", a 404, is final), then fetch
-    `result.sample`, which needs no key and gets none. Seen live with made-up keys: none or an
+    `result.sample`, which needs no key and gets none (#309). The fetch has to be a 200: a 429, a
+    5xx, a timeout or a dropped connection goes back to asking, until the same deadline, so the next
+    try uses the address the next Ready gives. Anything else (an expired signed address is 403 or
+    404) asks once more, in case BFL signs a fresh address; whether it does isn't known, so the same
+    address failing again ends the job saying the download link stopped working, rather than
+    waiting out the 300 s. The fetch doesn't go through the JSON reply's statuses, where 403 means
+    a wrong key. Seen live with made-up keys: none or an
     unknown one is 403 "Not authenticated", one not shaped like a key is 422 "Invalid API key
     format"; both read as a wrong key. The key is `x-key`, to https `*.bfl.ai` (polling addresses
     can be regional), Keychain account `bfl`, checked by `GET /v1/credits`. There's no cancel in
