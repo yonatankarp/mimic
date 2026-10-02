@@ -24,7 +24,8 @@ extension Mesh {
     /// further: the engine keeps the picture's up, and the real models laid on their sides or
     /// backs were upright figures that can't stand without a base (a hoodie guy on small feet, a
     /// raven on a perch), not objects that came out lying down.
-    mutating func rest(limit: Float = 30, standing: Double = 10, minTip: Double = 8) -> Float? {
+    mutating func rest(limit: Float = 30, standing: Double = 10, minTip: Double = 8,
+                       moved: (simd_quatf, SIMD3<Float>) -> Void = { _, _ in }) -> Float? {
         let keep = mainTriangles()  // floating specks sit on the hull too, and aren't what it rests on
         var used = [Bool](repeating: false, count: positions.count)
         for (t, k) in zip(triangles, keep) where k { used[Int(t.x)] = true; used[Int(t.y)] = true; used[Int(t.z)] = true }
@@ -84,6 +85,7 @@ extension Mesh {
         let turn = from.z > 0.9999 ? simd_quatf(angle: .pi, axis: [1, 0, 0]) : simd_quatf(from: from, to: [0, 0, -1])
         let centre = (lo + hi) / 2
         for n in positions.indices { positions[n] = turn.act(positions[n] - centre) + centre }
+        moved(turn, centre)
         return acos(max(-1, min(1, -from.z))) * 180 / .pi
     }
 

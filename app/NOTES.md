@@ -695,6 +695,31 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   doesn't match `SUPublicEDKey` fails the release rather than publishing an unsigned update.
   Checked locally with a throwaway key: the enclosure URL, `sparkle:version`, the Markdown notes
   and a signature that verifies. Not yet seen: a real update from one release to the next.
+- **Colour from the 3D engine, through where print prep put its model (#256).** The tabletop
+  export (#158) colours the trimmed print file, not the engine's own model: the print file has
+  the base and the thickened parts a tabletop mini should have, and the engine's model can have
+  holes. For each point of it, `EngineColours` undoes print prep's placement, finds the nearest
+  point on the engine's model (a uniform grid, `Nearest`) and samples its base colour texture at
+  that point's place on the picture. Projecting the picture from the front was tried first and
+  looked bad from a tabletop's angles (streaks down the sides, the front seen through on the
+  back), so colour has to come from the engine, which paints all round.
+  - **Placement is recorded, not worked out again.** Print prep keeps one matrix next to the
+    float work, step by step (the engine's turn, levelling and resting an object, the scale, the
+    shift, then the --flatten `run` takes off after the solid), and writes it to placement.json
+    beside the print file, in the z-up frame `GLB.read` (and Blender) gives the model. Working it
+    out again from settings at export time would follow settings changed since the print file
+    was made, and the first version of the export left out the --flatten, putting its colours
+    0.4 mm high. Minis prepped before the record are still placed again, as print prep places
+    them now: about a second.
+  - **A baked texture, not vertex colours.** 5,000 triangles have about 2,500 corners, so vertex
+    colours (`COLOR_0`) would give a face a handful of colours; a 2048-pixel texture gives each
+    triangle a cell about 28 pixels wide (1.5 MB against under 100 KB grey; a tabletop loads it
+    once). Each triangle has a cell of its own, so a texture's smoothing never reaches a
+    neighbour's colours. Which tabletops draw it as intended hasn't been checked (Phroller's
+    demo, Foundry, Owlbear Rodeo, TaleSpire).
+  - A point further from the model than 3% of its height takes the base's grey: that's the base.
+  - The same lookup is what the colour print file (#41) and "Keep the picture's colours" (#256's
+    step 4) can call.
 
 ## Not yet seen working
 

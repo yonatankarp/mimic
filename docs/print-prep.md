@@ -49,7 +49,11 @@ takes 6 s and 1.5 GB. At 100 mm on a 0.4 mm nozzle, 157 s and 13.2 GB against 14
     3D engine for the graphics chip. They come before the STL on purpose: a resize stopped while
     they're drawn keeps the old print file.
 13. **Writes the STL**, to a `.part.stl` first, then puts it in place in one go.
-14. **Says how it went**: the size, how many loose pieces it dropped, and any warnings. See
+14. **Notes where it put the model** in `placement.json` beside the STL: one matrix for the turn,
+    the levelling, the scale and every shift, from the 3D model to the print file. Export for
+    Virtual Tabletop reads it to find each part's colour on the 3D model. See
+    [Where your files are](files.md#placementjson).
+15. **Says how it went**: the size, how many loose pieces it dropped, and any warnings. See
     [What it says](#what-it-says).
 
 ## The options
@@ -147,8 +151,8 @@ may change between versions. With the command-line tool installed (see
 `/Applications/Mimic.app/Contents/MacOS/mimic _prep`.
 
 !!! warning
-    Work on a copy, never in a mini's own folder. Print prep overwrites the STL and its previews and
-    leaves a `prep-result.json` beside them. To give a mini new sizes, use **Resize This Mini…** or
+    Work on a copy, never in a mini's own folder. Print prep overwrites the STL, its previews and
+    `placement.json`, and leaves a `prep-result.json` beside them. To give a mini new sizes, use **Resize This Mini…** or
     `mimic resize` instead.
 
 ```bash
@@ -163,8 +167,8 @@ Add `--turn 180` when the mini was made with Pixal3D (its `settings.json` says
 be a GLB: for an STL, import it with File → Import Model… or `mimic import` first, and use the
 `model.glb` that makes.
 
-It writes `dwarf.stl`, `dwarf_front.png`, `dwarf_left.png`, `dwarf_right.png`, `dwarf_back.png` and
-`prep-result.json`, and prints what it did. It exits with 0 when it worked, or prints
+It writes `dwarf.stl`, `dwarf_front.png`, `dwarf_left.png`, `dwarf_right.png`, `dwarf_back.png`,
+`placement.json` and `prep-result.json`, and prints what it did. It exits with 0 when it worked, or prints
 `mini_prep: FAILED: …` and exits with 2.
 
 Things worth trying that the app doesn't offer:

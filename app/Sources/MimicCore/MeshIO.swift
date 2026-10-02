@@ -277,33 +277,29 @@ public enum Tabletop {
     static let size = 2048
 
     /// Made from a colour picture without the grey sculpt: the 3D engine was shown the colours
-    /// and painted them all round. With the sculpt it painted grey, and a description is drawn grey.
-    public static func inColour(_ s: MiniSettings) -> Bool { s.source == .image && s.restyle != true && !s.isImported }
+    /// and painted them all round. With the sculpt it painted grey, as with a fix to the picture
+    /// (always redrawn as one, #156), and a description is drawn grey.
+    public static func inColour(_ s: MiniSettings) -> Bool { s.source == .image && s.restyle != true && s.change == nil && !s.isImported }
 
     /// Writes `mini`'s .glb to `url`, and says how many triangles and bytes it came to, and
     /// whether it's in colour.
     @discardableResult
     public static func export(_ mini: Mini, to url: URL, triangles: Int = triangles) throws -> (triangles: Int, bytes: Int, colour: Bool) {
         guard let stl = mini.stl else { throw PrepError("it isn't made yet") }
-        let glb = mini.folder.appendingPathComponent(Mini.modelFile)
         // Grey whenever the colours can't be had: the shape is what a tabletop can't do without.
-        let painted: (Mesh, GLB.Paint)? = !inColour(mini.settings) ? nil : try? {
-            let read = try GLB.read(painted: glb)
-            guard let paint = read.paint else { return nil }
-            // Placed as print prep placed it, so it lies over the print file.
-            var model = read.mesh
-            _ = try Prep.place(&model, PrepOptions.parse([glb.path, stl.path] + Pipeline.prepFlags(mini.settings)))
-            return (model, paint)
-        }()
-        let made = try export(stl, to: url, triangles: triangles, painted: painted, facesAway: mini.facesAway)
-        return (made.triangles, made.bytes, painted != nil)
+        // `facesAway` and a `Placement` never meet: a record is only ever beside the print file
+        // it was written with, and a print file written since 0.10.0 faces front (`Mini.facesAway`
+        // goes by its date). A turned print file's colours come from its model placed again.
+        let colours = try? EngineColours.of(mini)
+        let made = try export(stl, to: url, triangles: triangles, colours: colours, facesAway: mini.facesAway)
+        return (made.triangles, made.bytes, colours != nil)
     }
 
-    /// Writes the .glb of `stl` to `url`, painted from `painted`'s model when given: the trim can
-    /// stop short of `triangles` where a collapse would tear the surface. A print file that
+    /// Writes the .glb of `stl` to `url`, painted with `colours` when given: the trim can stop
+    /// short of `triangles` where a collapse would tear the surface. A print file that
     /// `facesAway` is turned round first, to face the front as the model is placed now.
     @discardableResult
-    static func export(_ stl: URL, to url: URL, triangles: Int = triangles, painted: (Mesh, GLB.Paint)? = nil,
+    static func export(_ stl: URL, to url: URL, triangles: Int = triangles, colours: EngineColours? = nil,
                        facesAway: Bool = false) throws -> (triangles: Int, bytes: Int) {
         var solid = ModelImport.weld(try STL.read(stl))
         // Half a turn about the vertical: both axes, as one alone would mirror it.
@@ -312,8 +308,8 @@ public enum Tabletop {
         // Trimmed in millimetres: Decimate's thresholds are.
         var mesh = solid.triangles.count > triangles ? Decimate.run(solid, target: triangles) : solid
         var paint: (uv: [SIMD2<Float>], jpeg: Data)?
-        if let (model, colours) = painted {
-            let baked = try bake(mesh, from: model, colours)
+        if let colours {
+            let baked = bake(mesh, colours)
             mesh = baked.mesh
             paint = (baked.uv, try jpeg(baked.pixels, size: size))
         }
@@ -325,21 +321,14 @@ public enum Tabletop {
     }
 
     /// The base's grey, and anything else the model isn't near.
-    static let grey: [UInt8] = [150, 150, 150]
+    static let grey = SIMD3<UInt8>(150, 150, 150)
 
-    /// Colours `low` from `model` (the engine's, where print prep put it): each triangle gets a
-    /// cell of its own on a `size`-pixel square, every pixel of it the colour of the nearest point
-    /// on the model. A cell is the whole square around its triangle, so a pixel the texture's
-    /// smoothing reaches past the edge has the edge's colour, not a neighbour's. Corners aren't
-    /// shared any more: a corner's place differs in each of its triangles' cells.
-    static func bake(_ low: Mesh, from model: Mesh, _ paint: GLB.Paint, size: Int = size) throws -> (mesh: Mesh, uv: [SIMD2<Float>], pixels: [UInt8]) {
-        guard let source = CGImageSourceCreateWithData(paint.image as CFData, nil),
-              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { throw PrepError("couldn't read the 3D model's colours") }
-        let picture = try Engine.rgba(image, opaque: true), pw = image.width, ph = image.height
-        let grid = Nearest(model)
-        let (lo, hi) = model.bounds
-        let far = 0.03 * (hi.z - lo.z)  // past this, the model isn't what's there: Mimic's base
-
+    /// Colours `low`, the trimmed print file: each triangle gets a cell of its own on a
+    /// `size`-pixel square, every pixel of it the engine's colour there (`EngineColours`). A cell
+    /// is the whole square around its triangle, so a pixel the texture's smoothing reaches past
+    /// the edge has the edge's colour, not a neighbour's. Corners aren't shared any more: a
+    /// corner's place differs in each of its triangles' cells.
+    static func bake(_ low: Mesh, _ colours: EngineColours, size: Int = size) -> (mesh: Mesh, uv: [SIMD2<Float>], pixels: [UInt8]) {
         let n = Int(Double(low.triangles.count).squareRoot().rounded(.up)), cell = size / n
         let inset: Float = 1  // pixels between a cell's edge and its triangle
         var mesh = Mesh(), uv: [SIMD2<Float>] = []
@@ -365,17 +354,9 @@ public enum Tabletop {
                         // Where this pixel is on the triangle, the square's far half folded back onto it.
                         var s = max(0, (Float(x - x0) + 0.5 - inset) / span), r = max(0, (Float(y - y0) + 0.5 - inset) / span)
                         if s + r > 1 { let sum = s + r; s /= sum; r /= sum }
-                        let p = a * (1 - s - r) + b * s + c * r
-                        var rgb = grey
-                        if let hit = grid.nearest(p, within: far) {
-                            let m = model.triangles[hit.triangle]
-                            let place = paint.uv[Int(m.x)] * hit.weights.x + paint.uv[Int(m.y)] * hit.weights.y + paint.uv[Int(m.z)] * hit.weights.z
-                            let px = min(max(Int(place.x * Float(pw)), 0), pw - 1), py = min(max(Int(place.y * Float(ph)), 0), ph - 1)
-                            let o = 4 * (py * pw + px)
-                            rgb = [picture[o], picture[o + 1], picture[o + 2]]
-                        }
+                        let rgb = colours.colour(at: a * (1 - s - r) + b * s + c * r) ?? grey
                         let o = 4 * (y * size + x)
-                        out[o] = rgb[0]; out[o + 1] = rgb[1]; out[o + 2] = rgb[2]
+                        out[o] = rgb.x; out[o + 1] = rgb.y; out[o + 2] = rgb.z
                     }
                 }
             }
@@ -396,98 +377,6 @@ public enum Tabletop {
         CGImageDestinationAddImage(dest, image, [kCGImageDestinationLossyCompressionQuality: 0.85] as CFDictionary)
         guard CGImageDestinationFinalize(dest) else { throw PrepError("couldn't make the colours' picture") }
         return data as Data
-    }
-
-    /// The nearest point on a mesh's surface, found through a grid of cells about two triangles
-    /// wide, each listing the triangles that reach into it.
-    struct Nearest {
-        let mesh: Mesh, lo: SIMD3<Float>, cell: Float, dims: SIMD3<Int32>
-        var start: [Int32] = [], items: [Int32] = []
-
-        init(_ mesh: Mesh) {
-            self.mesh = mesh
-            let b = mesh.bounds
-            var edges: Float = 0
-            for t in mesh.triangles { edges += simd_distance(mesh.positions[Int(t.x)], mesh.positions[Int(t.y)]) }
-            let span = b.hi - b.lo
-            // Two edges wide, but no more than 256 cells along any side.
-            cell = max(2 * edges / Float(max(1, mesh.triangles.count)), span.max() / 256, 1e-6)
-            lo = b.lo
-            dims = SIMD3<Int32>((span / cell).rounded(.down)) &+ 1
-            let cells = Int(dims.x) * Int(dims.y) * Int(dims.z)
-            func range(_ t: SIMD3<UInt32>) -> (SIMD3<Int32>, SIMD3<Int32>) {
-                let a = mesh.positions[Int(t.x)], b = mesh.positions[Int(t.y)], c = mesh.positions[Int(t.z)]
-                return (key(simd_min(simd_min(a, b), c)), key(simd_max(simd_max(a, b), c)))
-            }
-            var count = [Int32](repeating: 0, count: cells + 1)
-            for t in mesh.triangles {
-                let (l, h) = range(t)
-                for z in l.z...h.z { for y in l.y...h.y { for x in l.x...h.x { count[index(SIMD3(x, y, z))] += 1 } } }
-            }
-            start = [Int32](repeating: 0, count: cells + 1)
-            for i in 0..<cells { start[i + 1] = start[i] + count[i] }
-            items = [Int32](repeating: 0, count: Int(start[cells]))
-            var fill = Array(start.dropLast())
-            for (n, t) in mesh.triangles.enumerated() {
-                let (l, h) = range(t)
-                for z in l.z...h.z { for y in l.y...h.y { for x in l.x...h.x {
-                    let i = index(SIMD3(x, y, z))
-                    items[Int(fill[i])] = Int32(n); fill[i] += 1
-                } } }
-            }
-        }
-
-        func key(_ p: SIMD3<Float>) -> SIMD3<Int32> {
-            simd_clamp(SIMD3<Int32>(((p - lo) / cell).rounded(.down)), .zero, dims &- 1)
-        }
-        func index(_ k: SIMD3<Int32>) -> Int { Int(k.x) + Int(dims.x) * (Int(k.y) + Int(dims.y) * Int(k.z)) }
-
-        /// The nearest triangle within `within` of `p`, and where on it: its corners' weights.
-        func nearest(_ p: SIMD3<Float>, within: Float) -> (triangle: Int, weights: SIMD3<Float>)? {
-            let c = SIMD3<Int32>(((p - lo) / cell).rounded(.down))
-            var best = within * within, found: (Int, SIMD3<Float>)?
-            let reach = Int32((within / cell).rounded(.up)) + 1
-            for r in 0...reach {
-                // Cells r away and beyond are at least (r - 1) cells from p: done once one's nearer.
-                if found != nil, Float(r - 1) * cell >= best.squareRoot() { break }
-                for z in (c.z - r)...(c.z + r) { for y in (c.y - r)...(c.y + r) { for x in (c.x - r)...(c.x + r) {
-                    guard max(abs(x - c.x), abs(y - c.y), abs(z - c.z)) == r,  // this ring only
-                          x >= 0, y >= 0, z >= 0, x < dims.x, y < dims.y, z < dims.z else { continue }
-                    let i = index(SIMD3(x, y, z))
-                    for k in start[i]..<start[i + 1] {
-                        let n = Int(items[Int(k)]), t = mesh.triangles[n]
-                        let hit = Tabletop.closest(p, mesh.positions[Int(t.x)], mesh.positions[Int(t.y)], mesh.positions[Int(t.z)])
-                        if hit.d2 < best { best = hit.d2; found = (n, hit.weights) }
-                    }
-                } } }
-            }
-            return found.map { (triangle: $0.0, weights: $0.1) }
-        }
-    }
-
-    /// The point of triangle abc nearest p, as its corners' weights, and its squared distance
-    /// (Ericson, Real-Time Collision Detection 5.1.5, as `Solid.distance2`).
-    static func closest(_ p: SIMD3<Float>, _ a: SIMD3<Float>, _ b: SIMD3<Float>, _ c: SIMD3<Float>) -> (d2: Float, weights: SIMD3<Float>) {
-        func at(_ w: SIMD3<Float>) -> (Float, SIMD3<Float>) { (simd_length_squared(p - (a * w.x + b * w.y + c * w.z)), w) }
-        let ab = b - a, ac = c - a, ap = p - a
-        let d1 = simd_dot(ab, ap), d2 = simd_dot(ac, ap)
-        if d1 <= 0 && d2 <= 0 { return at([1, 0, 0]) }
-        let bp = p - b
-        let d3 = simd_dot(ab, bp), d4 = simd_dot(ac, bp)
-        if d3 >= 0 && d4 <= d3 { return at([0, 1, 0]) }
-        let vc = d1 * d4 - d3 * d2
-        if vc <= 0 && d1 >= 0 && d3 <= 0 { let v = d1 / (d1 - d3); return at([1 - v, v, 0]) }
-        let cp = p - c
-        let d5 = simd_dot(ab, cp), d6 = simd_dot(ac, cp)
-        if d6 >= 0 && d5 <= d6 { return at([0, 0, 1]) }
-        let vb = d5 * d2 - d1 * d6
-        if vb <= 0 && d2 >= 0 && d6 <= 0 { let w = d2 / (d2 - d6); return at([1 - w, 0, w]) }
-        let va = d3 * d6 - d5 * d4
-        if va <= 0 && (d4 - d3) >= 0 && (d5 - d6) >= 0 {
-            let w = (d4 - d3) / ((d4 - d3) + (d5 - d6)); return at([0, 1 - w, w])
-        }
-        let denom = 1 / (va + vb + vc), v = vb * denom, w = vc * denom
-        return at([1 - v - w, v, w])
     }
 }
 

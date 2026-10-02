@@ -12,7 +12,8 @@ import simd
 /// inflate the surface by --inflate (thickens blades and staffs by twice that), stand it on a
 /// base (round, square or hex; --base is its width, across the flats for a hex; its top plain
 /// or a floor pressed into it, laid out by --base-seed, and a hole underneath for --magnet), make everything one watertight
-/// solid, keep the largest piece, slice the bottom flat, trim the face count, write the STL, render front/left/right/back PNGs next to it.
+/// solid, keep the largest piece, slice the bottom flat, trim the face count, write the STL, render front/left/right/back PNGs next to it,
+/// and say in placement.json beside it where the model was put (`Placement`).
 ///
 /// Ported from pipeline/mini_prep.py, which ran inside Blender; every step exists because of a
 /// real failure, and the comments keep why. It runs as its own program (a hidden subcommand of
@@ -182,6 +183,38 @@ public struct PrepReport: Codable, Equatable, Sendable {
     public static let footprintNote = "The bottom of the figure reaches past the edge of its base. Resize This Mini with a bigger base size to fit it on."
 }
 
+/// Where print prep put the 3D engine's model (#256), in placement.json beside the print file:
+/// where each point of model.glb, read z up as Blender imports it (`GLB.read`), lands on the print
+/// file, in millimetres. One matrix for every step that moves it (the turn round, levelling and
+/// resting an object, the scale, the shift onto the base and the flattened bottom), so a colour
+/// can be found on the engine's model for any point of the print file. Minis prepped before it
+/// have none: `EngineColours` places their model again.
+public struct Placement: Codable, Equatable, Sendable {
+    /// Row by row: the print file's (x, y, z, 1) is this times the model's (x, y, z, 1).
+    public var matrix: [[Double]]
+
+    public init(_ m: simd_double4x4) { matrix = (0..<4).map { r in (0..<4).map { m[$0][r] } } }
+
+    /// The matrix, or nil when the file's isn't one that can be undone.
+    public var toPrint: simd_double4x4? {
+        guard matrix.count == 4, matrix.allSatisfy({ $0.count == 4 && $0.allSatisfy(\.isFinite) }) else { return nil }
+        let m = simd_double4x4(rows: matrix.map { SIMD4($0[0], $0[1], $0[2], $0[3]) })
+        return abs(simd_determinant(m)) > 1e-12 ? m : nil
+    }
+
+    public static let file = "placement.json"
+
+    public func write(beside stl: URL) throws {
+        try JSONEncoder().encode(self).write(to: stl.deletingLastPathComponent().appendingPathComponent(Self.file), options: .atomic)
+    }
+
+    /// The record in `folder`, or nil when there's none that reads.
+    public static func read(_ folder: URL) -> simd_double4x4? {
+        guard let data = try? Data(contentsOf: folder.appendingPathComponent(file)) else { return nil }
+        return (try? JSONDecoder().decode(Placement.self, from: data))?.toPrint
+    }
+}
+
 public enum Prep {
     public struct Result {
         public var mesh: Mesh
@@ -190,12 +223,17 @@ public enum Prep {
         public var lines: [String]
         /// The warnings among `lines`, for the job (`PrepReport`).
         public var warnings: [PrepReport.Warning]
+        /// Where the 3D engine's model went: `Placement`.
+        public var toPrint: simd_double4x4
     }
 
     /// Makes the print file and returns what it printed. With `views`, the previews beside it
     /// (`Render.views`) are drawn first: a resize stopped or failing while they're drawn keeps
     /// the old print file, which its settings still give the size of (#172).
     public static func run(_ o: PrepOptions, views: Bool = false, log: (String) -> Void = { _ in }) throws -> Result {
+        // A record only ever sits beside the print file it was written with: one left by an
+        // earlier run goes now, so a run that stops or fails leaves none rather than a stale one.
+        try? FileManager.default.removeItem(at: URL(fileURLWithPath: o.stl).deletingLastPathComponent().appendingPathComponent(Placement.file))
         var clock = Date()
         func lap(_ what: String) { log(String(format: "prep: %@ %.1f s", what, Date().timeIntervalSince(clock))); clock = Date() }
 
@@ -246,6 +284,7 @@ public enum Prep {
             lap("drew the previews")
         }
         try STL.write(out, to: URL(fileURLWithPath: o.stl))
+        try Placement(placed.toPrint).write(beside: URL(fileURLWithPath: o.stl))
         lap("written")
 
         let (lo, hi) = out.bounds
@@ -274,13 +313,18 @@ public enum Prep {
                 : "\(parts.count) parts came out separate from the \(thing) (the largest about \(Int(longest.rounded())) mm long) and were left out."
             warn(.part, partWarning, what + " Try Make Another Version. If you use Pixal3D, TRELLIS.2 (Settings → 3D Model) joins held things more reliably.")
         }
-        return Result(mesh: out, dropped: dropped, footprint: footprint, lines: lines, warnings: warnings)
+        return Result(mesh: out, dropped: dropped, footprint: footprint, lines: lines, warnings: warnings, toPrint: placed.toPrint)
     }
 
     /// Where print prep puts the 3D engine's model, in place: turned to face the front, levelled
-    /// (an object), sized, and centred on the base with its feet sunk into it. Also what Export
-    /// for Virtual Tabletop places the textured model by, to colour the print file from it.
-    static func place(_ mesh: inout Mesh, _ o: PrepOptions, log: (String) -> Void = { _ in }) throws -> (standsAlone: Bool, footprint: Double) {
+    /// (an object), sized, and centred on the base with its feet sunk into it. `toPrint` is where
+    /// each point of the model as read ends up in the print file: these steps, then the
+    /// --flatten that `run` takes off everything once the solid is cut. Kept step by step beside
+    /// the positions, which keep their own float arithmetic, so print files come out as before.
+    /// Also what Export for Virtual Tabletop places a model by when its mini has no `Placement`.
+    static func place(_ mesh: inout Mesh, _ o: PrepOptions, log: (String) -> Void = { _ in }) throws
+        -> (standsAlone: Bool, footprint: Double, toPrint: simd_double4x4) {
+        var toPrint = matrix_identity_double4x4
         if o.turn != 0 {
             // A rotation, not a mirror, so the triangles keep their winding.
             let a = Float(o.turn * .pi / 180), c = cos(a), s = sin(a)
@@ -288,6 +332,7 @@ public enum Prep {
                 let p = mesh.positions[n]
                 mesh.positions[n] = SIMD3(c * p.x - s * p.y, s * p.x + c * p.y, p.z)
             }
+            toPrint = simd_double4x4(simd_quatd(angle: o.turn * .pi / 180, axis: [0, 0, 1]))
         }
         // The 3D engine can leave an object leaning a few degrees (a teapot came out at 5, one
         // drawn from above at 20), and a leaning object prints on the edge of its bottom. A
@@ -296,18 +341,19 @@ public enum Prep {
         // way, and the figure's facing is settled before anything is measured.
         var standsAlone = true
         if o.groundBottom {
-            let asMade = mesh.positions
-            let degrees = mesh.level()
+            let asMade = (mesh.positions, toPrint)
+            func moved(_ q: simd_quatf, _ centre: SIMD3<Float>) { toPrint = Prep.rotation(q, about: centre) * toPrint }
+            let degrees = mesh.level(moved: moved)
             // Levelling squares up a lean; one levelled onto the edge of its foot instead of the
             // foot is then set on a side near it that it can stand on (Mesh.rest).
-            if let turned = mesh.rest() {
+            if let turned = mesh.rest(moved: moved) {
                 if degrees > 0 { log(String(format: "prep: levelled by %.1f°", degrees)) }
                 if turned > 0 { log(String(format: "prep: set on its most stable side (turned %.0f°)", turned)) }
             } else {
                 // Nothing near its bottom holds it up (a figure on small feet, a bird on a perch):
                 // it stays as the engine made it, since levelling read a raven's tail and perch
                 // as a lean and tipped it 27° onto nothing it could stand on either.
-                mesh.positions = asMade
+                (mesh.positions, toPrint) = asMade
                 standsAlone = false
             }
         }
@@ -331,6 +377,7 @@ public enum Prep {
         if o.fitLongest, let e = extent { span = max(e.hi.x - e.lo.x, e.hi.y - e.lo.y, e.hi.z - ground0) } else { span = top - ground0 }
         let scale = height / span
         for n in mesh.positions.indices { mesh.positions[n] *= scale }
+        toPrint = simd_double4x4(diagonal: SIMD4(Double(scale), Double(scale), Double(scale), 1)) * toPrint
         for n in samples.indices { samples[n] *= SIMD4(scale, scale, scale, scale * scale) }
         let ground = ground0 * scale
 
@@ -363,7 +410,18 @@ public enum Prep {
         let feet: Float = o.noBase ? 0 : Float(baseHeight) - 0.6
         let shift = SIMD3(centre.x, centre.y, ground - feet)
         for n in mesh.positions.indices { mesh.positions[n] -= shift }
-        return (standsAlone, footprint)
+        // `run` takes --flatten off the print file afterwards, whether or not it cut anything.
+        var move = matrix_identity_double4x4
+        move.columns.3 = SIMD4(-SIMD3<Double>(shift) - SIMD3(0, 0, o.flatten), 1)
+        return (standsAlone, footprint, move * toPrint)
+    }
+
+    /// Turning by `q` about `centre`, as `level` and `rest` turn a mesh.
+    static func rotation(_ q: simd_quatf, about centre: SIMD3<Float>) -> simd_double4x4 {
+        var m = simd_double4x4(simd_quatd(ix: Double(q.imag.x), iy: Double(q.imag.y), iz: Double(q.imag.z), r: Double(q.real)))
+        let c = SIMD3<Double>(centre), turned = m * SIMD4(c, 1)
+        m.columns.3 = SIMD4(c - SIMD3(turned.x, turned.y, turned.z), 1)
+        return m
     }
 
     /// A dropped piece whose longest side is at least this share of the height is a part, not a
@@ -393,7 +451,8 @@ extension Mesh {
     /// round one. Facing is taken as pointing down whichever way a triangle is wound, since the
     /// generator's winding isn't reliable. Past 30° it's more likely a misreading (an object
     /// lying on its side on purpose) than a lean, so it's left alone.
-    mutating func level(limit: Float = 30) -> Float {
+    /// `moved` hears each turn it makes, and about where.
+    mutating func level(limit: Float = 30, moved: (simd_quatf, SIMD3<Float>) -> Void = { _, _ in }) -> Float {
         var total: Float = 0
         for _ in 0..<3 {  // the lowest tenth moves as it turns; three passes settle it
             let (lo, hi) = bounds
@@ -415,6 +474,7 @@ extension Mesh {
             let turn = simd_quatf(from: down, to: [0, 0, -1])
             let centre = (lo + hi) / 2
             for n in positions.indices { positions[n] = turn.act(positions[n] - centre) + centre }
+            moved(turn, centre)
             total += angle
         }
         return total

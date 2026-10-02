@@ -60,7 +60,8 @@ Everything about one mini is in its folder. For a mini called `tiefling`:
 | `upload.img` | The picture you gave it, turned upright, no larger than 2048 pixels on its longest side, saved as PNG. Only for minis made from a picture. |
 | `upload-back.img`, `source-back.png` (and `-left`, `-right`) | The same, for pictures of the back and sides. |
 | `source__matted.png` | `source.png` cut out from its background, which is what the 3D engine sees. |
-| `model.glb` | The 3D shape the 3D engine made, before print prep. Resize, Duplicate and Export for Virtual Tabletop start from it. |
+| `model.glb` | The 3D shape the 3D engine made, before print prep, with the engine's colours. Resize, Duplicate and Export for Virtual Tabletop start from it. |
+| `placement.json` | Where print prep put `model.glb` to make the print file: see [below](#placementjson). Made again with the print file. |
 | `settings.json` | How the mini was made and what it was asked for: see below. |
 | `generate.job.log` | The steps of the last make or Try Again: `[1/3] Getting the picture ready`, `[2/3] Building the 3D shape`, `[3/3] Making the print-ready file`. |
 | `prep.job.log` | The same for the last job that only ran print prep: a resize, an import, or a Try Again that only needed print prep. |
@@ -95,6 +96,24 @@ look at:
 
 For scripts, `mimic info <name> --json` gives the same in a form that won't change: see
 [JSON for scripts](cli.md#json-for-scripts).
+
+### placement.json
+
+Print prep writes it beside the print file each time it makes one, to say how it moved the 3D
+engine's model onto the base: turned round (Pixal3D's models face the other way), levelled and set
+on a side (an object), scaled, centred, sunk into the base and lowered by the flattened bottom.
+That's all one matrix, row by row, in millimetres:
+
+```json
+{"matrix": [[-1.6, 0, 0, 0.2], [0, -1.6, 0, -0.3], [0, 0, 1.6, 2.4], [0, 0, 0, 1]]}
+```
+
+A point (x, y, z) of `model.glb`, read with z up the way Blender imports it, lands on the print file
+at the matrix times (x, y, z, 1). Export for Virtual Tabletop uses it the other way round: for each
+part of the print file, it finds the nearest point on `model.glb` and takes its colour.
+
+A mini whose print file was made before Mimic kept this file has none. Its export is still in
+colour: Mimic works out the same placement from the mini's settings, as print prep would now.
 
 ## Application Support
 
