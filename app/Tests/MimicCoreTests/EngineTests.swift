@@ -166,6 +166,9 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(EngineDownload.standard.family, .trellis2, "the test needs TRELLIS.2 in use")
         XCTAssertEqual(EngineDownload.forMaking(cartoon: true, chosen: EngineDownload.standard).family, .pixal3dSingleView)
         XCTAssertEqual(EngineDownload.forMaking(cartoon: false, chosen: EngineDownload.standard), EngineDownload.standard)
+        // New Mini shows the back and side places only for a model that uses them (#254).
+        XCTAssertFalse(EngineDownload.forMaking(cartoon: true, chosen: EngineDownload.standard).multiView, "a cartoon uses one picture")
+        XCTAssertTrue(EngineDownload.forMaking(cartoon: false, chosen: EngineDownload.standard).multiView)
     }
 
     /// `--model` picks the command line and the model folder, and the fast-setting guard holds
