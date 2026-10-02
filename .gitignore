@@ -9,6 +9,12 @@ engine/
 # ~/Library/Application Support/Mimic/queues).
 /queue/
 
+# The job timings of `MIMIC_HOME=..` and their lock: the Mac's chip and memory, and its job history.
+/timings.jsonl*
+
+# Coverage data that `swift test --enable-code-coverage` leaves behind.
+*.profraw
+
 # The DMG that tools/package_dmg.sh builds, and the release notes the release workflow writes.
 dist/
 /notes.md
