@@ -8,8 +8,9 @@ difference.
 The quickest way is in Mimic: **Help → Report a Problem…**, or **Report a Problem…** on a mini that
 didn't finish. It makes a file with the logs, the mini's settings (your description of it too),
 your Mimic version and Mac, and how Mimic is set up, with keys and your home folder taken out,
-shows it in Finder and opens the form below already filled in; drag the file in. The mini's picture goes in only if you tick the box, and
-the picture of Mimic's window only while its box stays ticked, since issues are public.
+shows it in Finder and opens the form below already filled in; drag the file in. The mini's
+picture goes in only if you tick the box, and the picture of Mimic's window only while its box
+stays ticked, since issues are public.
 
 Or [open an issue](https://github.com/yonatankarp/mimic/issues/new/choose) and pick **Something
 went wrong**. The form asks for what helps most:
