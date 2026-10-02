@@ -1,0 +1,198 @@
+{"app_name":"mimic","timestamp":"2026-09-30 10:15:00.00 +0200","app_version":"0.11.0","slice_uuid":"11111111-2222-3333-4444-555555555555","build_version":"412","platform":1,"bundleID":"com.mimic.app","share_with_app_devs":0,"is_first_party":0,"bug_type":"309","os_version":"macOS 26.6 (25G72)","roots_installed":0,"name":"mimic","incident_id":"00000000-AAAA-BBBB-CCCC-000000000001"}
+{
+  "uptime": 140000,
+  "procRole": "Foreground",
+  "version": 2,
+  "userID": 501,
+  "deployVersion": 210,
+  "modelCode": "Mac14,9",
+  "coalitionID": 1169,
+  "osVersion": {
+    "train": "macOS 26.6",
+    "build": "25G72",
+    "releaseType": "User"
+  },
+  "captureTime": "2026-09-30 10:15:00.1234 +0200",
+  "codeSigningMonitor": 2,
+  "incident": "00000000-AAAA-BBBB-CCCC-000000000001",
+  "pid": 4242,
+  "translated": false,
+  "cpuType": "ARM-64",
+  "procLaunch": "2026-09-30 10:02:11.5000 +0200",
+  "procStartAbsTime": 1,
+  "procExitAbsTime": 2,
+  "procName": "mimic",
+  "procPath": "/Users/alice/Applications/Mimic.app/Contents/MacOS/mimic",
+  "bundleInfo": {
+    "CFBundleShortVersionString": "0.11.0",
+    "CFBundleVersion": "412",
+    "CFBundleIdentifier": "com.mimic.app"
+  },
+  "storeInfo": {
+    "deviceIdentifierForVendor": "PLANTED-DEVICE-ID",
+    "thirdParty": true
+  },
+  "parentProc": "launchd",
+  "parentPid": 1,
+  "coalitionName": "com.mimic.app",
+  "crashReporterKey": "PLANTED-CRASH-REPORTER-KEY",
+  "responsiblePid": 4242,
+  "codeSigningID": "com.mimic.app",
+  "codeSigningTeamID": "PLANTEDTEAM",
+  "instructionByteStream": {
+    "beforePC": "AAAA",
+    "atPC": "BBBB"
+  },
+  "bootSessionUUID": "PLANTED-BOOT-SESSION",
+  "sleepWakeUUID": "PLANTED-SLEEP-WAKE",
+  "sip": "enabled",
+  "exception": {
+    "codes": "0x0000000000000001, 0x00000001a2b3c4d5",
+    "rawCodes": [
+      1,
+      7029000405
+    ],
+    "type": "EXC_BREAKPOINT",
+    "signal": "SIGTRAP"
+  },
+  "termination": {
+    "flags": 0,
+    "code": 5,
+    "namespace": "SIGNAL",
+    "indicator": "Trace/BPT trap: 5",
+    "byProc": "exc handler",
+    "byPid": 4242
+  },
+  "asi": {
+    "libswiftCore.dylib": [
+      "Mimic/Jobs.swift:812: Fatal error: Unexpectedly found nil reading /Users/alice/Documents/Mimic/raven/settings.json with x-api-key: sk-ant-api03-PLANTEDfakeKEY0123456789abcdefXYZ"
+    ]
+  },
+  "faultingThread": 1,
+  "threads": [
+    {
+      "id": 100,
+      "queue": "com.apple.main-thread",
+      "threadState": {
+        "x": [
+          {
+            "value": 1
+          }
+        ]
+      },
+      "frames": [
+        {
+          "imageOffset": 120000,
+          "symbol": "-[NSApplication run]",
+          "symbolLocation": 480,
+          "imageIndex": 3
+        },
+        {
+          "imageOffset": 5000,
+          "symbol": "main",
+          "symbolLocation": 60,
+          "imageIndex": 0
+        }
+      ]
+    },
+    {
+      "triggered": true,
+      "id": 101,
+      "name": "",
+      "queue": "com.mimic.jobs",
+      "threadState": {
+        "x": [
+          {
+            "value": 2
+          }
+        ],
+        "pc": {
+          "value": 3
+        }
+      },
+      "frames": [
+        {
+          "imageOffset": 40000,
+          "symbol": "_assertionFailure(_:_:file:line:flags:)",
+          "symbolLocation": 172,
+          "imageIndex": 1
+        },
+        {
+          "imageOffset": 812345,
+          "symbol": "closure #1 in JobRunner.run(_:)",
+          "symbolLocation": 1204,
+          "imageIndex": 0
+        },
+        {
+          "imageOffset": 812999,
+          "imageIndex": 0
+        },
+        {
+          "imageOffset": 7000,
+          "symbol": "_dispatch_call_block_and_release",
+          "symbolLocation": 32,
+          "imageIndex": 2
+        }
+      ]
+    }
+  ],
+  "usedImages": [
+    {
+      "source": "P",
+      "arch": "arm64",
+      "base": 4300374016,
+      "CFBundleShortVersionString": "0.11.0",
+      "CFBundleIdentifier": "com.mimic.app",
+      "size": 9437184,
+      "uuid": "11111111-2222-3333-4444-555555555555",
+      "path": "/Users/alice/Applications/Mimic.app/Contents/MacOS/mimic",
+      "name": "mimic",
+      "CFBundleVersion": "412"
+    },
+    {
+      "source": "P",
+      "arch": "arm64e",
+      "base": 6442450944,
+      "size": 5242880,
+      "uuid": "22222222-0000-0000-0000-000000000002",
+      "path": "/usr/lib/swift/libswiftCore.dylib",
+      "name": "libswiftCore.dylib"
+    },
+    {
+      "source": "P",
+      "arch": "arm64e",
+      "base": 6450839552,
+      "size": 294912,
+      "uuid": "33333333-0000-0000-0000-000000000003",
+      "path": "/usr/lib/system/libdispatch.dylib",
+      "name": "libdispatch.dylib"
+    },
+    {
+      "source": "P",
+      "arch": "arm64e",
+      "base": 6459228160,
+      "CFBundleShortVersionString": "6.9",
+      "CFBundleIdentifier": "com.apple.AppKit",
+      "size": 20971520,
+      "uuid": "44444444-0000-0000-0000-000000000004",
+      "path": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+      "name": "AppKit",
+      "CFBundleVersion": "2685"
+    }
+  ],
+  "sharedCache": {
+    "base": 6442450944,
+    "size": 5000000000,
+    "uuid": "55555555-0000-0000-0000-000000000005"
+  },
+  "vmSummary": "ReadOnly portion of Libraries: Total=1.0G",
+  "legacyInfo": {
+    "threadTriggered": {
+      "queue": "com.mimic.jobs"
+    }
+  },
+  "logWritingSignature": "PLANTED-SIGNATURE",
+  "trialInfo": {
+    "rollouts": []
+  }
+}

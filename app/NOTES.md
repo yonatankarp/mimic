@@ -475,6 +475,20 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   as window.png when "Include a picture of Mimic's window" is ticked, on by default under a preview:
   taken as the action starts, before the alert, by drawing the views (`cacheDisplay`), which needs
   no Screen Recording permission. What Metal draws, the 3D view, may come out empty.
+- **A crash is offered as a report at the next launch** (`MimicCore/CrashReport.swift`; #284). The
+  app and `mimic` are one binary, so both crash as `mimic-….ips` in `~/Library/Logs/DiagnosticReports`
+  (an .ips is a header line of JSON, then the report's JSON). At launch the newest one written since
+  `crashSeen` is offered once, whatever the answer; with no `crashSeen` (first launch, or after Reset)
+  only one from the last day is, so old crashes aren't dug up. Hang reports have no crashing thread
+  and are skipped. Report adds `crash.json` to Report a Problem's zip: the exception, termination
+  and `asi` (the fatal error's message), the crashing thread's frames with their library's name
+  inlined, and only those libraries; never the other threads, register state, or the report's
+  user, device, boot and incident ids. The issue's title is the exception and the top frame in
+  Mimic's own binary (the trap and `abort` frames above it say nothing), with the crashed version.
+  The crashed launch's log comes from `log show` filtered by its pid, which works on an
+  administrator account only; on a standard one about.txt says it couldn't be read. Crashes of
+  trellis-cli and draw-things-cli aren't offered: they're failed jobs, with Report a Problem on
+  the mini. Don't Ask Again is `crashDontAsk`.
 - **One job at a time, and a queue shared by every Mimic** (`MimicCore/Queue.swift`, `Jobs.swift`;
   0.5.0). A job asked for while one runs, in this Mimic or another (the installed app, a dev
   build, `mimic` in Terminal), joins the queue's `queue.json` (on this Mac, see #102 below): an array of `{name, job, added, sizes?}`,
@@ -601,6 +615,10 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
 
 - Report a Problem in the app: the alert, its picture boxes and the window's preview, Finder
   showing the zip, and the filled-in GitHub form. The zip, the scrubbing, the link and reading the app's log back are tested.
+
+- The crash question at launch after a real crash of Mimic, and the crashed launch's log in its
+  report: finding, trimming and scrubbing a made-up report, the zip and the link are tested, and
+  `log show` by pid was tried on another process.
 
 - Dragging a mini onto a project in the sidebar, and the right-click menus on a mini and a
   project's header: seen in the test build were the sections (Unsorted last, an empty project's

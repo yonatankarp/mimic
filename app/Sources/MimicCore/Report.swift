@@ -72,10 +72,11 @@ public enum Report {
 
     /// Writes the report into `folder` and returns the zip. `mini` adds its logs and
     /// settings.json, and its picture when `picture` is set. `appLog` nil means it couldn't be
-    /// read, which about.txt says. `setup` goes in as setup.txt, `window` (a PNG) as window.png.
+    /// read, which about.txt says. `extra` adds files by name, scrubbed too: a crash's report.
+    /// `setup` goes in as setup.txt, `window` (a PNG) as window.png.
     public static func write(to folder: URL, mini: Mini?, picture: Bool, build: String, mac: String, appLog: String?,
-                             setup: ReportSetup? = nil, window: Data? = nil, now: Date = Date(),
-                             home: String = FileManager.default.homeDirectoryForCurrentUser.path) throws -> URL {
+                             extra: [String: String] = [:], setup: ReportSetup? = nil, window: Data? = nil,
+                             now: Date = Date(), home: String = FileManager.default.homeDirectoryForCurrentUser.path) throws -> URL {
         let fm = FileManager.default
         let stamp = DateFormatter()
         stamp.locale = Locale(identifier: "en_US_POSIX")
@@ -91,6 +92,7 @@ public enum Report {
 
         var about = [build, mac, ISO8601DateFormatter().string(from: now)]
         if let appLog { try text(appLog, "app.log") } else { about.append("The app's own log couldn't be read.") }
+        for (file, s) in extra { try text(s, file) }
         if let setup { try text(setup.text(home: home), "setup.txt") }
         if let window { try window.write(to: top.appendingPathComponent("window.png")) }
         about.append("Window picture: " + (window == nil ? "left out" : "included"))
