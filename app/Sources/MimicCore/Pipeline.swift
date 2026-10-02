@@ -74,7 +74,7 @@ public enum Pipeline {
             turn = model.turn
         }
         // An object is sized by its longest side and stood on its whole bottom, not its feet;
-        // a TRELLIS.2 model is turned round to face the front first (Prep turns before it levels).
+        // a Pixal3D model is turned round to face the front first (Prep turns before it levels).
         return try (settings.requested ?? Sizes()).flags()
             + (settings.isObject ? ["--fit", "longest", "--ground", "bottom"] : [])
             + (turn == 0 ? [] : ["--turn", String(turn)])

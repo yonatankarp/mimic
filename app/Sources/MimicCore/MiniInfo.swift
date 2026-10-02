@@ -15,7 +15,7 @@ public struct Measured: Equatable, Sendable {
         self.tall = tall; self.wide = wide; self.deep = deep; self.volume = volume; self.exact = exact; self.origin = origin
     }
 
-    /// From a print file's triangles, three corners each: Z up, the mini facing +Y. Tall is its
+    /// From a print file's triangles, three corners each: Z up, the mini facing -Y. Tall is its
     /// Z extent, wide its X and deep its Y, as the 3D view turns it.
     public init(printFile corners: [SIMD3<Float>]) {
         var lo = SIMD3<Float>(repeating: .greatestFiniteMagnitude), hi = -lo
