@@ -71,8 +71,9 @@ public enum Report {
 
     /// Writes the report into `folder` and returns the zip. `mini` adds its logs and
     /// settings.json, and its picture when `picture` is set. `appLog` nil means it couldn't be
-    /// read, which about.txt says.
+    /// read, which about.txt says. `extra` adds files by name, scrubbed too: a crash's report.
     public static func write(to folder: URL, mini: Mini?, picture: Bool, build: String, mac: String, appLog: String?,
+                             extra: [String: String] = [:],
                              now: Date = Date(), home: String = FileManager.default.homeDirectoryForCurrentUser.path) throws -> URL {
         let fm = FileManager.default
         let stamp = DateFormatter()
@@ -89,6 +90,7 @@ public enum Report {
 
         var about = [build, mac, ISO8601DateFormatter().string(from: now)]
         if let appLog { try text(appLog, "app.log") } else { about.append("The app's own log couldn't be read.") }
+        for (file, s) in extra { try text(s, file) }
         if let mini {
             let dir = top.appendingPathComponent("mini")
             try fm.createDirectory(at: dir, withIntermediateDirectories: true)
