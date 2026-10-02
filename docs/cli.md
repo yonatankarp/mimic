@@ -112,35 +112,84 @@ There's one queue for the app and every Terminal. See [The queue](queue.md).
 
 ## Every option
 
+Not every command takes every option. The size options are shared by `make`, `resize` and
+`import`; the rest belong to one or two commands each.
+
+### Size options
+
+For `make`, `resize` (one mini or `--project`) and `import`.
+
+| Option | What it does |
+|---|---|
+| `--height MM` | How tall the character is, feet to top; the base adds about 2 mm |
+| `--size MM` | For an object, its longest side (set from the nozzle unless you give it); for a character, the same as `--height` |
+| `--scale 28` / `32` / `35` / `54` / `75` | Match the scale your other minis use: sets the height and base for an average human (`--height` and `--base` still win). Characters only |
+| `--base MM` | Size of the base: across it, or across the flat sides for a hex |
+| `--base-shape round` / `square` / `hex` | The base's shape (round unless you give it) |
+| `--base-style plain` / `stone` / `wood` / `cobble` | A floor pressed into the top of the base: flagstones, planks or cobblestones (plain unless you give it) |
+| `--magnet 5x2` / `6x2` / `8x3` / `none` | A hole under the base for a round magnet this wide by this tall, in mm, with a little room to spare; the base gets taller to fit it (none unless you give it) |
+| `--nozzle 0.2` / `0.4` / `0.6` | Your printer's nozzle |
+| `--inflate MM` | Extra thickness for thin parts (set from the nozzle unless you give it) |
+| `--no-base` | Keep the character's own base instead of adding one |
+| `--add-base` | Give an object a base too (sized to its shadow unless you give `--base`) |
+
+A resize keeps the mini's base shape, floor, magnet and nozzle unless you give them.
+
+### `mimic make`
+
+`mimic make "<name>" "<description>"` or `mimic make "<name>" --image <picture>`, plus the size
+options and:
+
 | Option | What it does |
 |---|---|
 | `--image FILE` | Start from your own picture instead of a description |
 | `--restyle` | Redraw that picture as a grey sculpt first (its tabletop export is then grey) |
-| `--back FILE` / `--left FILE` / `--right FILE` | Pictures of the same character from the back and sides, besides `--image` (the front), so the 3D model doesn't guess them. Any of them; TRELLIS.2 only |
-| `--improve` | Let the AI helper chosen in Settings write a fuller description first |
-| `--change "TEXT"` | With `make --image` or `make-another`, redraw the picture with this change first, e.g. `"close the cape so both arms show"`. `make-another` starts from the picture it made, so changes add up. In Terminal it carries straight on; the app stops to show you the picture first |
-| `--height MM` | How tall the character is, feet to top; the base adds about 2 mm |
-| `--scale 28` / `32` / `35` / `54` / `75` | Match the scale your other minis use: sets the height and base for an average human (`--height` and `--base` still win) |
-| `--base MM` | Size of the base: across it, or across the flat sides for a hex |
-| `--base-shape round` / `square` / `hex` | The base's shape (round unless you give it; a resize keeps the mini's) |
-| `--base-style plain` / `stone` / `wood` / `cobble` | A floor pressed into the top of the base: flagstones, planks or cobblestones (plain unless you give it; a resize keeps the mini's) |
-| `--magnet 5x2` / `6x2` / `8x3` / `none` | A hole under the base for a round magnet this wide by this tall, in mm, with a little room to spare; the base gets taller to fit it (none unless you give it; a resize keeps the mini's) |
-| `--nozzle 0.2` / `0.4` / `0.6` | Your printer's nozzle |
-| `--inflate MM` | Extra thickness for thin parts (set from the nozzle unless you give it) |
-| `--no-base` | Keep the character's own base instead of adding one |
-| `--seed N` | Try a different version of the same character |
-| `--model ID` | Make it with this 3D model instead of the one chosen in Settings (`mimic models` lists them) |
-| `--new-shape` | With `make-another`, keep the picture it made and make only the 3D shape again |
-| `--wait` | While another mini is being made, `make`, `resize` and `retry` join the queue and return; with this they stay until it's made |
-| `--project NAME` | Put it in that project (a new one is made if needed); with `resize`, resize every mini in it |
-| `--to NAME` | The new name, for `rename` and `project rename` |
-| `--trash-minis` | With `project delete`, move the project's minis to the Trash too, instead of to Unsorted |
+| `--back FILE` / `--left FILE` / `--right FILE` | With `--image` (the front): pictures of the same character from the back and sides, so the 3D model doesn't guess them. Any of them; TRELLIS.2 only |
+| `--change "TEXT"` | With `--image`: redraw the picture with this change first, e.g. `"close the cape so both arms show"`. It gets the grey sculpt too |
+| `--improve` | With a description: let the AI helper chosen in Settings write a fuller one first |
 | `--object` | Make anything that isn't a character: no base, sized by its longest side, set on its flat bottom |
-| `--size MM` | How big it is: for an object, its longest side (set from the nozzle unless you give it); for a character, the same as `--height` |
-| `--add-base` | Give an object a base too (sized to its shadow unless you give `--base`) |
-| `--triangles N` | With `export --vtt`, how many triangles the low-poly model has |
-| `--json` | With `list`, `projects`, `queue`, `models` or `info`: print it as JSON, for scripts (below) |
+| `--seed N` | Try a different version of the same character (42 unless you give it) |
+| `--model ID` | Make it with this 3D model instead of the one chosen in Settings (`mimic models` lists them) |
+| `--project NAME` | Put it in that project; a new one is made if needed |
+| `--wait` | If another mini is being made, stay until this one is made, instead of returning once it's in the queue |
 
+### `mimic make-another`
+
+`mimic make-another <name>` makes the next version, with the mini's own picture or description and
+sizes.
+
+| Option | What it does |
+|---|---|
+| `--new-shape` | Keep the picture it made and make only the 3D shape again |
+| `--change "TEXT"` | Redraw the picture with this change first. It starts from the picture this mini was made from, so changes add up. In Terminal it carries straight on; the app stops to show you the picture first |
+| `--seed N` | Use this seed instead of a new one |
+| `--wait` | As for `make` |
+
+### `mimic resize`
+
+`mimic resize <name>`, or `mimic resize --project "<project>"` for every mini in a project (like
+**Resize All…**). Takes the size options and `--wait`.
+
+### `mimic retry`
+
+`mimic retry <name>` carries on from the step that failed. Takes `--wait`.
+
+### `mimic import`
+
+`mimic import <file.glb|file.stl>` takes the model as it is. Takes the size options, `--object`,
+`--project NAME` and `--wait`.
+
+### Other commands
+
+| Command | Options |
+|---|---|
+| `mimic duplicate <name>` | `--as "<new name>"`, the copy's name (needed) |
+| `mimic export <name>` | `--vtt` (needed), and `--triangles N` for how many triangles the low-poly model has (5,000 unless you give it) |
+| `mimic rename <name>`, `mimic project rename "<project>"` | `--to "<new name>"` (needed) |
+| `mimic move <name>` | `--project "<project>"` or `--unsorted` |
+| `mimic project delete "<project>"` | `--trash-minis` moves its minis to the Trash too, instead of to Unsorted |
+| `mimic queue move <name>` | `--to front`, `--to end`, `--to <place>`, `--up` or `--down` |
+| `mimic list`, `projects`, `queue`, `models`, `info <name>` | `--json` prints it as JSON, for scripts ([below](#json-for-scripts)) |
 
 ## JSON for scripts
 
