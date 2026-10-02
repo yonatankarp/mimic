@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import OSLog
 
 /// One job waiting its turn. A new mini's folder, settings.json and picture are written when it
 /// joins the queue, so all it needs here is its name; a resize keeps its sizes here until it
@@ -105,9 +106,38 @@ public struct JobQueue: Sendable {
     func clearMoving() { try? FileManager.default.removeItem(at: movingFile) }
 
     /// A snapshot, without the lock: the file is only ever replaced whole, so it reads complete.
-    public func entries() -> [QueueEntry] {
-        guard let data = try? Data(contentsOf: file) else { return [] }
-        return (try? Self.decoder.decode([QueueEntry].self, from: data)) ?? []
+    /// One that won't read shows as empty until the next change puts it aside.
+    public func entries() -> [QueueEntry] { (try? read()) ?? [] }
+
+    /// The list, or what kept it from reading. No file is an empty queue, and so is an empty one
+    /// (nothing in it to lose).
+    func read() throws -> [QueueEntry] {
+        let data: Data
+        do { data = try Data(contentsOf: file) } catch CocoaError.fileReadNoSuchFile { return [] }
+        return data.isEmpty ? [] : try Self.decoder.decode([QueueEntry].self, from: data)
+    }
+
+    /// Queue files that wouldn't read and were put aside (#306), oldest first: each is the file as
+    /// it was, `queue.json.unreadable-<date>`, beside the new one.
+    public func setAside() -> [URL] {
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
+        return names.filter { $0.hasPrefix("queue.json.unreadable-") }.sorted().map { folder.appendingPathComponent($0) }
+    }
+
+    /// The list, under the lock. One that won't read is damage, not a write in progress (every
+    /// write replaces the file whole, under this lock), and saving over it would lose every job
+    /// waiting (#306): it's put aside as it is, and the queue starts again empty. If it can't be
+    /// put aside, the change is refused rather than saved over it.
+    private func readForChange() throws -> [QueueEntry] {
+        do { return try read() } catch {
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "en_US_POSIX")
+            f.dateFormat = "yyyyMMdd-HHmmss-SSS"
+            let aside = folder.appendingPathComponent("queue.json.unreadable-\(f.string(from: Date()))")
+            try FileManager.default.moveItem(at: file, to: aside)
+            Log.queue.error("The queue didn't read (\(error.localizedDescription, privacy: .public)), so it was put aside as \(aside.lastPathComponent, privacy: .public)")
+            return []
+        }
     }
 
     /// Runs `body` holding the queue's lock, then saves the list if it changed. A fresh open
@@ -121,7 +151,7 @@ public struct JobQueue: Sendable {
         while flock(fd, LOCK_EX) != 0 {
             guard errno == EINTR else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
         }
-        var list = entries()
+        var list = try readForChange()
         let before = list
         let result = try body(&list)
         if list != before { try Self.encoder.encode(list).write(to: file, options: .atomic) }

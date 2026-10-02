@@ -60,6 +60,60 @@ final class QueueTests: XCTestCase {
         XCTAssertEqual(queues[0].entries().count, 300)
     }
 
+    /// A queue file that won't read (#306) is never written over as if it were empty: it's put
+    /// aside, bytes untouched, and the change goes on in a new one. Garbage, a cut-off write, and
+    /// a job kind from a newer Mimic (Codable skips an unknown field, not an unknown case).
+    func testAQueueThatWontReadIsPutAsideNotWrittenOver() throws {
+        let waiting = #"[{"name":"dwarf","job":"generate","added":"2026-01-01T00:00:00Z"},"#
+        let newer = #"[{"name":"dwarf","job":"paint","added":"2026-01-01T00:00:00Z"}]"#
+        for bad in ["not json", waiting, newer] {
+            let fx = try Fixture()
+            let queue = JobQueue(folder: fx.install.queue)
+            try FileManager.default.createDirectory(at: queue.folder, withIntermediateDirectories: true)
+            try Data(bad.utf8).write(to: queue.file)
+            try queue.locked { $0.append(QueueEntry(name: "elf", job: .prep)) }
+            XCTAssertEqual(queue.entries().map(\.name), ["elf"], bad)
+            let aside = queue.setAside()
+            XCTAssertEqual(aside.count, 1, "the unreadable queue was written over: \(bad)")
+            XCTAssertEqual(try aside.first.map { try String(contentsOf: $0, encoding: .utf8) }, bad)
+        }
+        // One Mimic can't open at all (its permissions changed): put aside too, not replaced.
+        let fx = try Fixture()
+        let queue = JobQueue(folder: fx.install.queue)
+        try queue.locked { $0.append(QueueEntry(name: "dwarf", job: .prep)) }
+        try FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: queue.file.path)
+        try queue.locked { $0.append(QueueEntry(name: "elf", job: .prep)) }
+        let aside = try XCTUnwrap(queue.setAside().first, "the queue it couldn't open was written over")
+        try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: aside.path)
+        XCTAssertEqual(try JobQueue.decoder.decode([QueueEntry].self, from: Data(contentsOf: aside)).map(\.name), ["dwarf"])
+        XCTAssertEqual(queue.entries().map(\.name), ["elf"])
+    }
+
+    /// No queue file yet is just an empty queue, with nothing put aside; a good one round-trips.
+    func testAQueueThatReadsIsKept() throws {
+        let fx = try Fixture()
+        let queue = JobQueue(folder: fx.install.queue)
+        let entry = QueueEntry(name: "elf", job: .prep, added: Date(timeIntervalSince1970: 1_800_000_000), sizes: sizes, again: true)
+        try queue.locked { $0.append(entry) }
+        try queue.locked { $0.append(QueueEntry(name: "orc", job: .generate)) }
+        XCTAssertEqual(queue.entries().first, entry)
+        XCTAssertEqual(queue.entries().map(\.name), ["elf", "orc"])
+        XCTAssertEqual(queue.setAside(), [])
+    }
+
+    /// When it can't even be put aside, the change is refused rather than written over it.
+    func testAQueueThatCantBePutAsideRefusesTheChange() throws {
+        let fx = try Fixture()
+        let queue = JobQueue(folder: fx.install.queue)
+        try FileManager.default.createDirectory(at: queue.folder, withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: queue.lockFile.path, contents: nil)
+        try Data("not json".utf8).write(to: queue.file)
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: queue.folder.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: queue.folder.path) }
+        XCTAssertThrowsError(try queue.locked { $0.append(QueueEntry(name: "elf", job: .prep)) })
+        XCTAssertEqual(try String(contentsOf: queue.file, encoding: .utf8), "not json")
+    }
+
     /// First in, first made; a waiting job can be moved up or taken out.
     func testOrderMoveAndRemove() throws {
         let fx = try Fixture()

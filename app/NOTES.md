@@ -617,6 +617,12 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   now stopped only by a Mimic that got the job lock (before, opening a second Mimic stopped a
   live job it took for a crash's leftover), and the lock files are opened close-on-exec (a job's
   programs inherited them, so after a crash a program still running would have held the lock).
+  A `queue.json` that won't read under the lock (#306) is damage, never a write in progress (every
+  write replaces it whole, under the lock), so a change renames it to
+  `queue.json.unreadable-<date>` and starts from an empty queue; if it can't be renamed the change
+  is refused. Before, it read as empty and the next change saved that over every job waiting. A
+  new `JobKind` is how a newer Mimic breaks it for an older one (Codable skips unknown fields, not
+  unknown cases). The app says so once when a new copy appears, from any Mimic.
 - **Pausing the queue, and battery** (#89). Paused is the queue's `paused` file, a file of its own
   so every Mimic and `mimic queue pause|resume` share it; a field in `queue.json` would have
   broken 0.7.0, which reads that file as a bare list (it would see an empty queue and drop the
