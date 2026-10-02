@@ -698,9 +698,10 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
 - **Colour from the 3D engine, through where print prep put its model (#256).** The tabletop
   export (#158) colours the trimmed print file, not the engine's own model: the print file has
   the base and the thickened parts a tabletop mini should have, and the engine's model can have
-  holes. For each point of it, `EngineColours` undoes print prep's placement, finds the nearest
-  point on the engine's model (a uniform grid, `Nearest`) and samples its base colour texture at
-  that point's place on the picture. Projecting the picture from the front was tried first and
+  holes. For each point of it, `EngineColours` undoes print prep's placement, finds where the
+  line through it along the surface's normal meets the engine's model (a uniform grid, `Nearest`,
+  walked cell by cell) and samples its base colour texture at that point's place on the picture.
+  Projecting the picture from the front was tried first and
   looked bad from a tabletop's angles (streaks down the sides, the front seen through on the
   back), so colour has to come from the engine, which paints all round.
   - **Placement is recorded, not worked out again.** Print prep keeps one matrix next to the
@@ -713,12 +714,25 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
     them now: about a second.
   - **A baked texture, not vertex colours.** 5,000 triangles have about 2,500 corners, so vertex
     colours (`COLOR_0`) would give a face a handful of colours; a 2048-pixel texture gives each
-    triangle a cell about 28 pixels wide (1.5 MB against under 100 KB grey; a tabletop loads it
+    triangle a cell about 28 pixels wide (1.6 MB against under 100 KB grey; a tabletop loads it
     once). Each triangle has a cell of its own, so a texture's smoothing never reaches a
     neighbour's colours. Which tabletops draw it as intended hasn't been checked (Phroller's
     demo, Foundry, Owlbear Rodeo, TaleSpire).
+  - **Along the normal, not the nearest point.** Print prep pushes the surface out by --inflate
+    (0.16 mm on a 0.4 nozzle), so beside a strand of hair or a cord lying on the skin the nearest
+    point on the model is the strand's edge: nearest point widened every one by the push on each
+    side. Lorelei's face came out as dark smears with no eyes, and neither 50,000 triangles nor
+    a 4096-pixel texture helped; weighting the trim toward the head or toward colour changes
+    didn't either. Along the normal, the face reads at 5,000 triangles, the file grows by about
+    0.1 MB and the bake is about three times quicker (fewer grid cells to search). The meeting
+    nearest the surface either way along the line is taken, not the first from outside: the same
+    on her face, cleaner where her hand touches her cheek, and the normal's direction doesn't
+    matter. The line reaches as far as the nearest point would (3% of the height) but no more
+    than 2 mm: 1 mm already found the model everywhere on a 28 mm Lorelei but her base and a few
+    wing edges, and further on a big mini it could find a neighbouring part. Where it meets
+    nothing (wing edges seen edge on, the base), the nearest point's colour is taken.
   - A point further from the model than 3% of its height takes the base's grey: that's the base.
-  - The same lookup is what the colour print file (#41) and "Keep the picture's colours" (#256's
+  - The same lookups are what the colour print file (#41) and "Keep the picture's colours" (#256's
     step 4) can call.
 
 ## Not yet seen working

@@ -6,7 +6,7 @@ import XCTest
 @testable import MimicCore
 
 /// Colour from the 3D engine (#256): print prep records where it put the engine's model, and a
-/// point on the print file takes the colour of the nearest point on that model.
+/// point on the print file takes the colour of that model under it.
 final class EngineColoursTests: XCTestCase {
     func temporary() throws -> URL {
         let d = FileManager.default.temporaryDirectory.appendingPathComponent("colours-\(UUID().uuidString)")
@@ -122,6 +122,93 @@ final class EngineColoursTests: XCTestCase {
             XCTAssertEqual(colours.colour(at: [b.hi.x, mid.y, mid.z]), turned ? Self.red : Self.green, "+x, turned \(turn)")
             XCTAssertEqual(colours.colour(at: [mid.x, mid.y, b.hi.z]), Self.cyan, "the top, turned \(turn)")
             XCTAssertNil(colours.colour(at: [11, 0, 2]), "the base's edge is nowhere near the model")
+        }
+    }
+
+    /// A block of skin with a hair strand 0.4 mm wide lying 0.2 mm proud across its top, painted
+    /// as the engine paints, `scale` times that size.
+    static func strand(scale s: Float = 1) throws -> (mesh: Mesh, paint: GLB.Paint) {
+        var m = Mesh(), uv: [SIMD2<Float>] = []
+        func box(_ lo: SIMD3<Float>, _ hi: SIMD3<Float>, _ u: Float) {
+            let base = UInt32(m.positions.count)
+            for i in 0..<8 {
+                m.positions.append(s * SIMD3(i & 1 == 0 ? lo.x : hi.x, i & 2 == 0 ? lo.y : hi.y, i & 4 == 0 ? lo.z : hi.z))
+                uv.append([u, 0.5])
+            }
+            for f: SIMD3<UInt32> in [[0, 1, 3], [0, 3, 2], [4, 6, 7], [4, 7, 5], [0, 4, 5], [0, 5, 1],
+                                     [2, 3, 7], [2, 7, 6], [0, 2, 6], [0, 6, 4], [1, 5, 7], [1, 7, 3]] { m.triangles.append(f &+ base) }
+        }
+        box([-10, -10, -5], [10, 10, 5], 0.25)  // skin: the picture's left pixel
+        box([-0.2, -8, 5], [0.2, 8, 5.2], 0.75)  // the strand: its right
+        let pixels: [UInt8] = [skin, dark].flatMap { [$0.x, $0.y, $0.z, 255] as [UInt8] }
+        let png = NSMutableData()
+        let image = CGImage(width: 2, height: 1, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: 8,
+                            space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
+                            provider: CGDataProvider(data: Data(pixels) as CFData)!, decode: nil, shouldInterpolate: false, intent: .defaultIntent)!
+        let dest = CGImageDestinationCreateWithData(png, UTType.png.identifier as CFString, 1, nil)!
+        CGImageDestinationAddImage(dest, image, nil)
+        CGImageDestinationFinalize(dest)
+        let read = try GLB.parse(GLB.encode(m, paint: (uv, png as Data)), painted: true)
+        return (read.mesh, try XCTUnwrap(read.paint))
+    }
+    static let skin: SIMD3<UInt8> = [230, 200, 180], dark: SIMD3<UInt8> = [30, 25, 20]
+
+    /// Print prep pushes the surface out (--inflate), so the print file lies a little off the
+    /// engine's model everywhere. Beside a raised strand, the nearest point on the model is the
+    /// strand's edge, not the skin under the surface: nearest point widened every strand, cord
+    /// and eyebrow by the push on each side, and smeared Lorelei's face. Along the surface's
+    /// normal, the strand keeps its width.
+    func testAThinStrandStaysThinUnderThePushedOutSurface() throws {
+        let model = try Self.strand()
+        let colours = try EngineColours(model: model.mesh, paint: model.paint, toPrint: matrix_identity_double4x4)
+        let up: SIMD3<Float> = [0, 0, 1]
+        // The print file's top, 0.25 mm over the skin and 0.05 mm over the strand.
+        let over: SIMD3<Float> = [0, 0, 5.25], beside: SIMD3<Float> = [0.35, 0, 5.25]
+        XCTAssertEqual(colours.colour(at: beside), Self.dark, "the nearest point is the strand's edge")
+        XCTAssertEqual(colours.colour(at: over, along: up), Self.dark, "over the strand")
+        XCTAssertEqual(colours.colour(at: beside, along: up), Self.skin, "beside it, the skin under the surface")
+        XCTAssertEqual(colours.colour(at: beside, along: -up), Self.skin, "whichever way the normal points")
+        XCTAssertEqual(colours.colour(at: [10.1, 0, 0], along: up), Self.skin, "the line misses: the nearest point's colour")
+        XCTAssertNil(colours.colour(at: [30, 0, 0], along: up), "nothing near: the base")
+    }
+
+    /// The walk along a line visits every grid cell the line passes through, so it misses no
+    /// triangle there: checked against points every 1/2000 of the way, on lines every way.
+    func testTheWalkAlongALineMissesNoCell() {
+        var seed: UInt64 = 42, m = Mesh()
+        func r() -> Float {  // the same every run
+            seed = seed &* 6364136223846793005 &+ 1442695040888963407
+            return Float(seed >> 40) / Float(1 << 24)
+        }
+        for _ in 0..<1000 {  // small triangles all over a cube: a grid about 50 cells a side
+            let p = SIMD3(r(), r(), r()), base = UInt32(m.positions.count)
+            m.positions += [p, p + [0.01, 0, 0], p + [0, 0.01, 0]]
+            m.triangles.append([base, base + 1, base + 2])
+        }
+        let grid = EngineColours.Nearest(m)
+        XCTAssertGreaterThan(grid.dims.min(), 20)
+        for _ in 0..<200 {
+            let a = SIMD3(r(), r(), r()) * 1.2 - 0.1, b = SIMD3(r(), r(), r()) * 1.2 - 0.1  // ends may lie off the grid
+            var walked: [Int] = []
+            grid.cells(from: a, to: b) { walked.append($0) }
+            XCTAssertEqual(Set(walked).count, walked.count, "a cell twice")
+            for k in 0...2000 {
+                let p = a + (b - a) * Float(k) / 2000, at = SIMD3<Int32>(((p - grid.lo) / grid.cell).rounded(.down))
+                guard all(at .>= .zero) && all(at .< grid.dims) else { continue }
+                XCTAssertTrue(walked.contains(grid.index(at)), "\(a) to \(b) skipped the cell at \(p)")
+            }
+        }
+    }
+
+    /// The line reaches 3% of the model's height each way, and no more than 2 mm: on a big mini a
+    /// neighbouring part a few millimetres off isn't what's under the surface.
+    func testTheLineReachesNoMoreThanTwoMillimetres() throws {
+        for (scale, reach) in [(1, 0.03 * 10.2), (20, 2)] as [(Float, Float)] {
+            let model = try Self.strand(scale: scale)
+            let colours = try EngineColours(model: model.mesh, paint: model.paint, toPrint: matrix_identity_double4x4)
+            XCTAssertEqual(colours.reach, reach, accuracy: 1e-4, "\(scale) times the size")
+            let colours2 = try EngineColours(model: model.mesh, paint: model.paint, toPrint: simd_double4x4(diagonal: [2, 2, 2, 1]))
+            XCTAssertEqual(colours2.reach * 2, min(2 * reach, 2), accuracy: 1e-4, "in millimetres as placed, \(scale) times the size, doubled")
         }
     }
 

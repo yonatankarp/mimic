@@ -35,7 +35,17 @@ public struct EngineColours: Sendable {
         let grows: Double = cbrt(abs(simd_determinant(toPrint)))
         let height: Double = hi - lo
         self.far = Float(Double(far) * height / grows)
+        reach = min(self.far, Float(Self.reachCap / grows))
     }
+
+    /// How far `colour(at:along:)` looks each way, in the model's units: as far as the nearest
+    /// point does, but no more than `reachCap`.
+    let reach: Float
+    /// Millimetres. The line has to cross print prep's push (--inflate, 0.16 mm on a 0.4 nozzle,
+    /// 0.24 mm on a 0.6) and what the tabletop's trim moves the surface: on a 28 mm Lorelei a
+    /// line reaching 1 mm found the model for all but her base and a few edges. Further on a big
+    /// mini, it could find a neighbouring part instead.
+    static let reachCap = 2.0
 
     /// The colours of `mini`, or nil when the engine painted it grey (`Tabletop.inColour`) or
     /// left it unpainted.
@@ -60,8 +70,38 @@ public struct EngineColours: Sendable {
     public func colour(at p: SIMD3<Float>) -> SIMD3<UInt8>? {
         let q = toModel * SIMD4(SIMD3<Double>(p), 1)
         guard let hit = grid.nearest(SIMD3<Float>(Float(q.x), Float(q.y), Float(q.z)), within: far) else { return nil }
-        let t = model.triangles[hit.triangle]
-        let place = uv[Int(t.x)] * hit.weights.x + uv[Int(t.y)] * hit.weights.y + uv[Int(t.z)] * hit.weights.z
+        return colour(hit.triangle, hit.weights)
+    }
+
+    /// The colour under the print file's surface at `p`, where the line through it along the
+    /// surface's `normal` meets the model nearest `p`, within `reach` either way; else the nearest
+    /// point's (`colour(at:)`). Print prep pushed the surface out (--inflate) and the tabletop's
+    /// trim moved it, so beside a raised strand or cord the nearest point is the strand's edge:
+    /// nearest point alone widened each by the push on both sides, and smeared faces. Either way
+    /// along the line, so it doesn't matter which way the normal points.
+    public func colour(at p: SIMD3<Float>, along normal: SIMD3<Float>) -> SIMD3<UInt8>? {
+        let q4 = toModel * SIMD4(SIMD3<Double>(p), 1), n4 = toModel * SIMD4(SIMD3<Double>(normal), 0)
+        let q = SIMD3<Float>(Float(q4.x), Float(q4.y), Float(q4.z))
+        let dir = simd_normalize(SIMD3<Float>(Float(n4.x), Float(n4.y), Float(n4.z)))
+        guard dir.x.isFinite else { return colour(at: p) }
+        let from = q + dir * reach
+        var best: (off: Float, triangle: Int, weights: SIMD3<Float>)?
+        grid.cells(from: from, to: q - dir * reach) { i in
+            for k in grid.start[i]..<grid.start[i + 1] {
+                let n = Int(grid.items[Int(k)]), t = model.triangles[n]
+                guard let hit = Self.crossing(from, -dir, model.positions[Int(t.x)], model.positions[Int(t.y)], model.positions[Int(t.z)]),
+                      hit.t <= 2 * reach, abs(hit.t - reach) < best?.off ?? .infinity else { continue }
+                best = (abs(hit.t - reach), n, hit.weights)
+            }
+        }
+        guard let best else { return colour(at: p) }
+        return colour(best.triangle, best.weights)
+    }
+
+    /// The picture's colour at a point on the model's triangle, given by its corners' weights.
+    func colour(_ triangle: Int, _ weights: SIMD3<Float>) -> SIMD3<UInt8> {
+        let t = model.triangles[triangle]
+        let place = uv[Int(t.x)] * weights.x + uv[Int(t.y)] * weights.y + uv[Int(t.z)] * weights.z
         // glTF's pictures start at the top left, as the pixels do. Wrapped round, as glTF's default
         // sampler (the engine's, `{}`) repeats a picture.
         let u = place - place.rounded(.down)
@@ -137,6 +177,27 @@ public struct EngineColours: Sendable {
             }
             return found.map { (triangle: $0.0, weights: $0.1) }
         }
+
+        /// Each cell the segment from `a` to `b` passes through, in order (Amanatides and Woo's
+        /// walk): a triangle it crosses is listed in the cell it crosses it in.
+        func cells(from a: SIMD3<Float>, to b: SIMD3<Float>, _ body: (Int) -> Void) {
+            let ga = (a - lo) / cell, gb = (b - lo) / cell, d = gb - ga
+            var at = SIMD3<Int32>(ga.rounded(.down))
+            let end = SIMD3<Int32>(gb.rounded(.down))
+            // Per axis: which way, and how far along the segment (0 to 1) the next cell wall and each one after it are.
+            var step = SIMD3<Int32>.zero, next = SIMD3<Float>(repeating: .infinity), apart = next
+            for i in 0..<3 where d[i] != 0 {
+                step[i] = d[i] > 0 ? 1 : -1
+                apart[i] = abs(1 / d[i])
+                next[i] = (d[i] > 0 ? Float(at[i]) + 1 - ga[i] : ga[i] - Float(at[i])) * apart[i]
+            }
+            while true {
+                if all(at .>= .zero) && all(at .< dims) { body(index(at)) }
+                let i = next.x < next.y ? (next.x < next.z ? 0 : 2) : (next.y < next.z ? 1 : 2)
+                if at == end || next[i] > 1 { return }
+                at[i] += step[i]; next[i] += apart[i]
+            }
+        }
     }
 
     /// The point of triangle abc nearest p, as its corners' weights, and its squared distance
@@ -162,5 +223,18 @@ public struct EngineColours: Sendable {
         }
         let denom = 1 / (va + vb + vc), v = vb * denom, w = vc * denom
         return at([1 - v - w, v, w])
+    }
+
+    /// Where the ray from `o` along `dir` (unit) crosses triangle abc from either side: how far
+    /// along, and the corners' weights there (Möller and Trumbore).
+    static func crossing(_ o: SIMD3<Float>, _ dir: SIMD3<Float>, _ a: SIMD3<Float>, _ b: SIMD3<Float>, _ c: SIMD3<Float>) -> (t: Float, weights: SIMD3<Float>)? {
+        let ab = b - a, ac = c - a, p = simd_cross(dir, ac), det = simd_dot(ab, p)
+        guard abs(det) > 1e-12 else { return nil }  // edge on
+        let ao = o - a, u = simd_dot(ao, p) / det
+        guard u >= 0, u <= 1 else { return nil }
+        let q = simd_cross(ao, ab), v = simd_dot(dir, q) / det
+        guard v >= 0, u + v <= 1 else { return nil }
+        let t = simd_dot(ac, q) / det
+        return t >= 0 ? (t, [1 - u - v, u, v]) : nil
     }
 }
