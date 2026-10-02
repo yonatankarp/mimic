@@ -7,13 +7,14 @@ import Foundation
 public enum Reset {
     /// `domain` is the app's settings (its bundle id); only its own settings are cleared. The 3D
     /// model in use is kept while its files are: forgetting it would ask for TRELLIS.2, the
-    /// standard one, and send a Mac that has only Pixal3D to setup to download it.
+    /// standard one, and send a Mac that has only Pixal3D to setup to download it. Saved keys go
+    /// only from this app's own Keychain service; outside an app (no bundle id) none are deleted.
     public static func run(install: Install, domain: String, removeEngine: Bool,
-                           keychainService: String = Keychain.service) throws {
+                           keychainService: String? = Keychain.ownService) throws {
         let defaults = UserDefaults.standard
         let kept = (defaults.persistentDomain(forName: domain) ?? [:]).filter { [SettingsKey.installDir, MinisFolder.key].contains($0.key) || (!removeEngine && $0.key == SettingsKey.model) }
         defaults.setPersistentDomain(kept, forName: domain)
-        Keychain.deleteAll(service: keychainService)
+        if let keychainService { Keychain.deleteAll(service: keychainService) }
         if removeEngine, FileManager.default.fileExists(atPath: install.engine.path) {
             try FileManager.default.removeItem(at: install.engine)
         }

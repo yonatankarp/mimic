@@ -77,10 +77,18 @@ public struct HelperConfig: Equatable, Sendable {
     }
 }
 
-/// API keys live in the login Keychain as generic passwords: service "com.mimic.app", one account
-/// per provider and address (HelperConfig.keyAccount). Never in UserDefaults, settings.json or a log.
+/// API keys live in the login Keychain as generic passwords: service the app's bundle id, one
+/// account per provider and address (HelperConfig.keyAccount). Never in UserDefaults,
+/// settings.json or a log.
 public enum Keychain {
-    public static let service = "com.mimic.app"
+    /// The service keys are saved to and read from: the running app's id, so Mimic
+    /// ("com.mimic.app", where keys always were) and Mimic Dev ("com.mimic.app.dev") each have
+    /// their own (#313). A binary outside its app (`mimic` through a symlink, `swift run`) has no
+    /// id, and reads Mimic's keys, as it reads Mimic's settings (CLI.swift).
+    public static let service = Bundle.main.bundleIdentifier ?? "com.mimic.app"
+    /// The service only this app owns, the one Reset may empty: nil outside an app, whose
+    /// `service` is Mimic's.
+    public static let ownService = Bundle.main.bundleIdentifier
 
     private static func query(_ account: String, _ service: String) -> [String: Any] {
         [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account]
@@ -118,7 +126,7 @@ public enum Keychain {
 
     /// Every key saved under the service, for any provider and address. One at a time, since
     /// the Mac's Keychain may delete only the first match; capped so it can't spin.
-    public static func deleteAll(service: String = service) {
+    public static func deleteAll(service: String) {
         let q = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service] as CFDictionary
         var left = 100
         while left > 0, SecItemDelete(q) == errSecSuccess { left -= 1 }

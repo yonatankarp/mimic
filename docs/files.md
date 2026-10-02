@@ -194,7 +194,7 @@ never syncs a queue between Macs.
 ## The dev build's folders
 
 *Mimic Dev*, the app `app/bundle.sh` builds (see [CONTRIBUTING.md](https://github.com/yonatankarp/mimic/blob/main/CONTRIBUTING.md)), is a separate app
-with its own settings (`com.mimic.app.dev`), so it never touches the Mimic you use. `bundle.sh` sets
+with its own settings and saved keys (`com.mimic.app.dev`), so it never touches the Mimic you use. `bundle.sh` sets
 its `installDir` to the checkout, so it keeps:
 
 | What | Where |
@@ -203,6 +203,7 @@ its `installDir` to the checkout, so it keeps:
 | 3D engine and models | `engine/` in the checkout |
 | Queue | `~/Library/Application Support/Mimic/queues/<key>/`, keyed by its minis folder and shared with any Mimic using the same one |
 | Time estimates | `~/Library/Application Support/Mimic/timings.jsonl`, the same file as the installed app |
+| AI helper and online picture keys | your login Keychain, service `com.mimic.app.dev`: its own, so its **Reset** never deletes the installed app's keys |
 
 Run from a terminal, two environment variables change that:
 

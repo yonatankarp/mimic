@@ -155,6 +155,14 @@ final class HelperTests: XCTestCase {
 
     // MARK: Keychain and settings
 
+    /// Keys are kept under the running app's own id (#313): Mimic Dev's never mix with Mimic's,
+    /// and the tests (run by xctest, an app of its own) never see the real ones.
+    func testKeysAreKeptUnderTheRunningAppsOwnID() {
+        XCTAssertEqual(Keychain.service, Bundle.main.bundleIdentifier)
+        XCTAssertNotEqual(Keychain.service, "com.mimic.app")
+        XCTAssertEqual(Keychain.ownService, Bundle.main.bundleIdentifier, "Reset empties only its own")
+    }
+
     func testKeychainRoundTrip() throws {
         let service = "com.mimic.app.tests.\(UUID().uuidString)"
         defer { Keychain.delete(account: "anthropic", service: service) }
