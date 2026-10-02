@@ -133,6 +133,14 @@ downloads the real engine and the small model files, never the 8 GB of weights.
 4. Click Publish on the draft. Mimic's updater sees it from then on. The README's install steps
    link to the latest release, so nothing else needs updating.
 
+From 0.10.0, each release also records where its disk image came from: GitHub signs a
+provenance record saying which workflow run and tag built it. Anyone can check a download against
+it, even before Mimic is installed, with the GitHub CLI:
+
+```bash
+gh attestation verify Mimic-0.3.0.dmg --repo yonatankarp/mimic
+```
+
 If something's wrong, delete the draft and the tag, fix it, and tag again:
 
 ```bash
