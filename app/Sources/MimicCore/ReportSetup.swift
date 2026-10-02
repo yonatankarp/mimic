@@ -125,8 +125,8 @@ public struct ReportSetup: Equatable, Sendable {
     private func rows(short: Bool) -> [(String, String)] {
         func step(_ j: Job) -> String { "step \(j.step.rawValue) of \(JobStep.allCases.count) (\(j.step.label))" }
         let engine = model + ", " + (engineVersion ?? "not installed")
-        let drawThings = pictures == .bfl ? "not used, pictures are made online by Black Forest Labs"
-            : (drawThingsModel ?? "model unknown, Draw Things isn't answering") + ", with "
+        let drawThings = pictures.online.map { "not used, pictures are made online by \($0.name)" }
+            ?? (drawThingsModel ?? "model unknown, Draw Things isn't answering") + ", with "
             + (drawThingsCLI ? "draw-things-cli" : "the Draw Things app")
         let gb = freeBytes.map { Checks.gigabytes($0) + " GB free" } ?? "unknown"
         let last = lastJob.map { j -> String in

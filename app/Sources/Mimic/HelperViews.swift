@@ -215,8 +215,9 @@ struct HelperSection: View {
     }
 }
 
-/// Settings → Pictures (#247): Draw Things on this Mac, or Black Forest Labs online with the
-/// person's own key, kept in the Keychain like the helper's.
+/// Settings → Pictures (#247): Draw Things on this Mac, or an online service with the person's
+/// own key, kept in the Keychain like the helper's. Each service's name, key account and key page
+/// come from its entry (OnlineService).
 struct PicturesSection: View {
     @Environment(AppModel.self) private var model
     @AppStorage(ImageService.key) private var service = ImageService.drawThings.rawValue
@@ -225,22 +226,23 @@ struct PicturesSection: View {
     @State private var testing = false
     @State private var testResult: (ok: Bool, text: String)?
 
-    private var online: Bool { service == ImageService.bfl.rawValue }
+    private var online: OnlineService? { ImageService(rawValue: service)?.online }
 
     var body: some View {
         Section {
             Picker("Make pictures with", selection: $service) {
-                Text("Draw Things, on this Mac").tag(ImageService.drawThings.rawValue)
-                Text("Black Forest Labs, online").tag(ImageService.bfl.rawValue)
+                ForEach(ImageService.allCases, id: \.self) { s in
+                    Text(s.online.map { "\($0.name), online" } ?? "Draw Things, on this Mac").tag(s.rawValue)
+                }
             }
             .help("What draws a character from a description and turns a picture into a grey sculpt")
-            if online {
+            if let online {
                 HStack {
                     if hasKey {
                         Label("API key saved in your Keychain", systemImage: "key.fill")
                         Spacer()
                         Button("Remove") {
-                            Keychain.delete(account: OnlineImages.keyAccount)
+                            Keychain.delete(account: online.keyAccount)
                             hasKey = false
                             changed()
                         }
@@ -258,19 +260,19 @@ struct PicturesSection: View {
                             .font(.callout).foregroundStyle(testResult.ok ? Color.primary : .red)
                     }
                     Spacer()
-                    Link("Get a key", destination: URL(string: "https://dashboard.bfl.ai")!)
+                    Link("Get a key", destination: online.keyPage)
                 }
             }
         } header: {
             Text("Pictures")
         } footer: {
-            Text(online
-                 ? "Your description, or the picture to redraw, is sent to Black Forest Labs. Each picture Mimic draws or redraws is one paid request on your account: one for a description or a grey sculpt, plus one for each side picture it redraws. A picture used as it is costs nothing. The key is kept in your Mac's Keychain."
-                 : "Draw Things makes the pictures on this Mac, so nothing is sent anywhere.")
+            Text(online.map { "Your description, or the picture to redraw, is sent to \($0.name). Each picture Mimic draws or redraws is one paid request on your account: one for a description or a grey sculpt, plus one for each side picture it redraws. A picture used as it is costs nothing. The key is kept in your Mac's Keychain." }
+                 ?? "Draw Things makes the pictures on this Mac, so nothing is sent anywhere.")
                 .foregroundStyle(.secondary)
         }
-        .onChange(of: service) { _, _ in changed() }
-        .task { hasKey = Keychain.has(account: OnlineImages.keyAccount) }
+        .onChange(of: service) { _, _ in keyText = ""; changed() }
+        // Again for each service: each has its own key.
+        .task(id: service) { hasKey = online.map { Keychain.has(account: $0.keyAccount) } ?? false }
     }
 
     /// The checks follow the choice and the key: Needs Setup, New Mini and this tab.
@@ -281,9 +283,9 @@ struct PicturesSection: View {
 
     private func saveKey() {
         let key = keyText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !key.isEmpty else { return }
+        guard let online, !key.isEmpty else { return }
         do {
-            try Keychain.save(key, account: OnlineImages.keyAccount)
+            try Keychain.save(key, account: online.keyAccount)
             keyText = ""
             hasKey = true
             changed()
@@ -293,12 +295,13 @@ struct PicturesSection: View {
     }
 
     private func test() {
+        guard let online else { return }
         testing = true
         testResult = nil
         Task {
             // Off the main thread: reading the key may wait on a Keychain prompt after an update.
             let result = await Task.detached {
-                Result { try OnlineImages { Keychain.read(account: OnlineImages.keyAccount) }.check() }
+                Result { try online.client { Keychain.read(account: online.keyAccount) }.check() }
             }.value
             testing = false
             switch result {

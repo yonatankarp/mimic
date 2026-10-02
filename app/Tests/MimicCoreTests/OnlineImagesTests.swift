@@ -47,8 +47,8 @@ final class OnlineImagesTests: XCTestCase {
         return [image.width, image.height]
     }
 
-    private func service(_ server: FakeLLM, key: String? = "k-123") -> OnlineImages {
-        let s = OnlineImages(base: URL(string: "http://127.0.0.1:\(server.port)")!, key: { key })
+    private func service(_ server: FakeLLM, key: String? = "k-123") -> BlackForestLabs {
+        let s = BlackForestLabs(base: URL(string: "http://127.0.0.1:\(server.port)")!, key: { key })
         s.poll = 0.05
         return s
     }
@@ -103,21 +103,21 @@ final class OnlineImagesTests: XCTestCase {
         let server = try Self.fake(submit: 403)
         defer { server.stop() }
         XCTAssertThrowsError(try service(server, key: " ").draw(description: "a dwarf", seed: 1, kind: .character)) {
-            XCTAssertEqual($0 as? OnlineImagesError, .noKey)
+            XCTAssertEqual(($0 as? OnlineImagesError)?.problem, .noKey)
         }
         XCTAssertTrue(server.requests.isEmpty)
         XCTAssertThrowsError(try service(server).draw(description: "a dwarf", seed: 1, kind: .character)) {
-            XCTAssertEqual($0 as? OnlineImagesError, .badKey)
+            XCTAssertEqual(($0 as? OnlineImagesError)?.problem, .badKey)
         }
-        XCTAssertThrowsError(try service(server).check()) { XCTAssertEqual($0 as? OnlineImagesError, .badKey) }
+        XCTAssertThrowsError(try service(server).check()) { XCTAssertEqual(($0 as? OnlineImagesError)?.problem, .badKey) }
         let good = try Self.fake()
         defer { good.stop() }
         // A key not shaped like one: api.bfl.ai answers 422 "Invalid API key format", seen live.
         let malformed = try FakeLLM(status: 422, body: #"{"detail":"Invalid API key format"}"#)
         defer { malformed.stop() }
-        XCTAssertThrowsError(try service(malformed).check()) { XCTAssertEqual($0 as? OnlineImagesError, .badKey) }
+        XCTAssertThrowsError(try service(malformed).check()) { XCTAssertEqual(($0 as? OnlineImagesError)?.problem, .badKey) }
         XCTAssertThrowsError(try service(malformed).draw(description: "a dwarf", seed: 1, kind: .character)) {
-            XCTAssertEqual($0 as? OnlineImagesError, .badKey)
+            XCTAssertEqual(($0 as? OnlineImagesError)?.problem, .badKey)
         }
         XCTAssertNoThrow(try service(good).check())
         XCTAssertTrue(try XCTUnwrap(good.requests.last).head.hasPrefix("GET /v1/credits"))
@@ -129,17 +129,18 @@ final class OnlineImagesTests: XCTestCase {
         let refused = try Self.fake(status: "Request Moderated", details: #"{"Moderation Reasons":["Violence"]}"#)
         defer { refused.stop() }
         XCTAssertThrowsError(try service(refused).draw(description: "a dwarf", seed: 1, kind: .character)) {
-            XCTAssertEqual($0 as? OnlineImagesError, .refused(["Violence"]))
+            XCTAssertEqual(($0 as? OnlineImagesError)?.problem, .refused(["Violence"]))
             XCTAssertTrue("\($0)".contains("wouldn't make this picture (violence)"), "\($0)")
         }
-        for (code, error) in [(402, OnlineImagesError.noCredits), (429, .busy)] {
+        for (code, error) in [(402, OnlineImagesError.Problem.noCredits), (429, .busy)] {
             let server = try Self.fake(submit: code)
             defer { server.stop() }
             XCTAssertThrowsError(try service(server).draw(description: "a dwarf", seed: 1, kind: .character)) {
-                XCTAssertEqual($0 as? OnlineImagesError, error)
+                XCTAssertEqual(($0 as? OnlineImagesError)?.problem, error)
             }
         }
-        for e in [OnlineImagesError.noKey, .badKey, .noCredits, .busy, .refused([]), .timedOut, .failed("x")] {
+        for p in [OnlineImagesError.Problem.noKey, .badKey, .noCredits, .busy, .refused([]), .timedOut, .failed("x")] {
+            let e = OnlineImagesError(p, service: OnlineService.bfl.name)
             XCTAssertFalse(e.description.contains("Draw Things"), e.description)
         }
     }
@@ -157,7 +158,7 @@ final class OnlineImagesTests: XCTestCase {
         }
         let started = Date()
         XCTAssertThrowsError(try s.draw(description: "a dwarf", seed: 1, kind: .character)) {
-            XCTAssertEqual($0 as? OnlineImagesError, .cancelled)
+            XCTAssertEqual(($0 as? OnlineImagesError)?.problem, .cancelled)
         }
         XCTAssertLessThan(Date().timeIntervalSince(started), 5)
 
@@ -166,7 +167,7 @@ final class OnlineImagesTests: XCTestCase {
         let early = service(before)
         early.cancel()
         XCTAssertThrowsError(try early.draw(description: "a dwarf", seed: 1, kind: .character)) {
-            XCTAssertEqual($0 as? OnlineImagesError, .cancelled)
+            XCTAssertEqual(($0 as? OnlineImagesError)?.problem, .cancelled)
         }
         XCTAssertTrue(before.requests.isEmpty, "a picture was asked for after Stop")
         early.reset()
@@ -186,7 +187,7 @@ final class OnlineImagesTests: XCTestCase {
         let lost = try Self.fake(status: "Task not found")
         defer { lost.stop() }
         XCTAssertThrowsError(try service(lost).draw(description: "a dwarf", seed: 1, kind: .character)) {
-            XCTAssertEqual($0 as? OnlineImagesError, .failed(""))
+            XCTAssertEqual(($0 as? OnlineImagesError)?.problem, .failed(""))
         }
         XCTAssertEqual(lost.requests.filter { $0.head.contains("get_result") }.count, 1)
     }
@@ -218,7 +219,7 @@ final class OnlineImagesTests: XCTestCase {
         let s = service(server)
         s.timeout = 0.3
         XCTAssertThrowsError(try s.draw(description: "a dwarf", seed: 1, kind: .character)) {
-            XCTAssertEqual($0 as? OnlineImagesError, .timedOut)
+            XCTAssertEqual(($0 as? OnlineImagesError)?.problem, .timedOut)
         }
     }
 
@@ -246,7 +247,7 @@ final class OnlineImagesTests: XCTestCase {
 
     /// The key only goes to BFL's own hosts, or the address it was set up with.
     func testTheKeyOnlyGoesToBFL() {
-        let s = OnlineImages(key: { "k" })
+        let s = BlackForestLabs(key: { "k" })
         XCTAssertTrue(s.sendsKey(to: URL(string: "https://api.us1.bfl.ai/v1/get_result?id=1")!))
         XCTAssertTrue(s.sendsKey(to: URL(string: "https://api.bfl.ai/v1/get_result?id=1")!))
         XCTAssertFalse(s.sendsKey(to: URL(string: "http://api.bfl.ai/v1/get_result")!))
@@ -256,9 +257,9 @@ final class OnlineImagesTests: XCTestCase {
     /// Draw Things stays the default; the online service is chosen in Settings.
     func testTheSettingDefaultsToDrawThings() throws {
         let d = try XCTUnwrap(UserDefaults(suiteName: "mimic-test-\(UUID().uuidString)"))
-        XCTAssertNil(OnlineImages.configured(defaults: d))
+        XCTAssertNil(OnlineService.configured(defaults: d))
         d.set("bfl", forKey: ImageService.key)
-        XCTAssertNotNil(OnlineImages.configured(defaults: d))
+        XCTAssertNotNil(OnlineService.configured(defaults: d))
     }
 
     /// With the online service, Settings checks its key instead of Draw Things, which isn't needed:
@@ -275,9 +276,9 @@ final class OnlineImagesTests: XCTestCase {
         XCTAssertFalse(wrong.contains { Checks.drawThingsIDs.contains($0.id) }, "Draw Things isn't needed")
         let key = try XCTUnwrap(wrong.first { $0.id == Checks.onlineID })
         XCTAssertFalse(key.ok)
-        XCTAssertEqual(key.fix, OnlineImagesError.badKey.description)
+        XCTAssertEqual(key.fix, OnlineImagesError(.badKey, service: "Black Forest Labs").description)
         XCTAssertFalse(key.required, "pictures you have still work without it")
-        XCTAssertEqual(checks(bad, key: nil).first { $0.id == Checks.onlineID }?.fix, OnlineImagesError.noKey.description)
+        XCTAssertEqual(checks(bad, key: nil).first { $0.id == Checks.onlineID }?.fix, OnlineImagesError(.noKey, service: "Black Forest Labs").description)
         let good = try Self.fake()
         defer { good.stop() }
         XCTAssertEqual(checks(good).first { $0.id == Checks.onlineID }?.ok, true)

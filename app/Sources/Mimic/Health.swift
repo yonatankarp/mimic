@@ -68,7 +68,7 @@ final class Health {
     /// Things when needed).
     var picturesReady: Bool { online ? ok(Checks.onlineID) : Checks.drawThingsIDs.allSatisfy(ok) }
     /// What a picture needs, as "A description needs …" says it.
-    var pictureNeed: String { online ? "a working Black Forest Labs key" : "Draw Things" }
+    var pictureNeed: String { online ? "a working \(ImageService.load(.standard).online?.name ?? "online") key" : "Draw Things" }
     /// Ready, and closed: Mimic opens it when a mini needs it.
     var drawThingsOpensWhenNeeded: Bool { results["drawthings-api"]?.label == Checks.opensWhenNeeded }
     /// Its API has answered in this check, so its connection is known to be on.
