@@ -33,6 +33,8 @@ public struct Checks: Sendable {
     public var drawThings: DrawThings
     /// Settings → Open Draw Things when needed: then Draw Things being closed is fine.
     public var autoOpen: Bool
+    /// The online picture service Settings chose (#247): then its key is checked instead of Draw Things.
+    public var online: OnlineImages?
     public var run: Runner
     public var freeBytes: @Sendable (URL) -> Int64?
 
@@ -41,16 +43,20 @@ public struct Checks: Sendable {
                 appFolders: [URL] = Slicer.appFolders(),
                 drawThings: DrawThings = DrawThings(),
                 autoOpen: Bool = DrawThingsApp.enabled(),
+                online: OnlineImages? = OnlineImages.configured(defaults: .standard),
                 run: @escaping Runner = Checks.execute,
                 freeBytes: @escaping @Sendable (URL) -> Int64? = Checks.freeBytes) {
         self.install = install; self.model = model; self.appFolders = appFolders; self.drawThings = drawThings; self.autoOpen = autoOpen
-        self.run = run; self.freeBytes = freeBytes
+        self.online = online; self.run = run; self.freeBytes = freeBytes
     }
 
     /// The API check's label while Draw Things is closed and Mimic will open it.
     public static let opensWhenNeeded = "Draw Things opens when needed"
 
     public static let drawThingsIDs: Set<String> = ["drawthings-app", "drawthings-api", "drawthings-model"]
+    /// The online service's one check, in their place when it makes the pictures.
+    public static let onlineID = "images-online"
+    public static let onlineLabel = "Black Forest Labs key works"
 
     public var all: [Check] {
         let s = self
@@ -65,6 +71,25 @@ public struct Checks: Sendable {
                 return CheckResult(id: "space", label: "Free disk space (\(Int(gb.rounded())) GB)", required: true, ok: gb >= 5,
                                    fix: "Free up some space: each mini takes about 150 MB while it's being made.")
             },
+        ] + pictures + [
+            check("slicer", "A slicer to print with", false,
+                  "Install a slicer such as Bambu Studio, OrcaSlicer, PrusaSlicer or Cura. "
+                  + "Until then Mimic opens minis with your Mac's default app for 3D files.") {
+                !Slicer.installed(in: s.appFolders).isEmpty
+            },
+        ]
+    }
+
+    /// What makes the pictures: Draw Things' checks, or the online service's key.
+    private var pictures: [Check] {
+        let s = self
+        if let online {
+            return [Check(id: Self.onlineID, label: Self.onlineLabel, required: false, fix: "") {
+                let why: String? = { do { try online.check(); return nil } catch { return "\(error)" } }()
+                return CheckResult(id: Self.onlineID, label: Self.onlineLabel, required: false, ok: why == nil, fix: why ?? "")
+            }]
+        }
+        return [
             check("drawthings-app", "Draw Things app", false, "Install Draw Things from the Mac App Store. It's free.") {
                 s.drawThingsInstalled()
             },
@@ -81,11 +106,6 @@ public struct Checks: Sendable {
             },
             check("drawthings-model", "FLUX.2 Klein model in Draw Things", false,
                   "In Draw Things' model list, search for FLUX.2 Klein and download it.") { s.drawThings.model() != nil },
-            check("slicer", "A slicer to print with", false,
-                  "Install a slicer such as Bambu Studio, OrcaSlicer, PrusaSlicer or Cura. "
-                  + "Until then Mimic opens minis with your Mac's default app for 3D files.") {
-                !Slicer.installed(in: s.appFolders).isEmpty
-            },
         ]
     }
 

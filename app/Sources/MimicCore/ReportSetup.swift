@@ -41,6 +41,8 @@ public struct ReportSetup: Equatable, Sendable {
     public var drawThingsCLI: Bool
     /// Settings → Open Draw Things when needed.
     public var openDrawThings: Bool
+    /// What makes the pictures (#247): Draw Things, or the online service.
+    public var pictures: ImageService = .drawThings
     public var helper: HelperProvider
     /// Free space on the minis folder's disk.
     public var freeBytes: Int64?
@@ -83,11 +85,13 @@ public struct ReportSetup: Equatable, Sendable {
         let version = (try? String(contentsOf: install.engine.appendingPathComponent("VERSION"), encoding: .utf8))?
             .split(separator: "\n").first.map { $0.trimmingCharacters(in: .whitespaces) }
         let power: PowerSource = Power.onBattery() ? .battery : Power.hasBattery() ? .charger : .mains
-        return ReportSetup(model: EngineDownload.selected(defaults: defaults).name, engineVersion: version,
+        var setup = ReportSetup(model: EngineDownload.selected(defaults: defaults).name, engineVersion: version,
                            drawThingsModel: (drawThings ?? DrawThings(cli: cli)).shownModel(), drawThingsCLI: cli != nil,
                            openDrawThings: DrawThingsApp.enabled(defaults), helper: HelperConfig.load(defaults).provider,
                            freeBytes: Checks.freeBytes(install.runs), memoryPressure: memoryPressureNow(), power: power,
                            holdOnBattery: defaults.bool(forKey: Power.key), gpu: MTLCreateSystemDefaultDevice()?.name)
+        setup.pictures = ImageService.load(defaults)
+        return setup
     }
 
     /// The kernel's memory pressure level: 1 normal, 2 warning, 4 critical.
@@ -121,7 +125,8 @@ public struct ReportSetup: Equatable, Sendable {
     private func rows(short: Bool) -> [(String, String)] {
         func step(_ j: Job) -> String { "step \(j.step.rawValue) of \(JobStep.allCases.count) (\(j.step.label))" }
         let engine = model + ", " + (engineVersion ?? "not installed")
-        let drawThings = (drawThingsModel ?? "model unknown, Draw Things isn't answering") + ", with "
+        let drawThings = pictures == .bfl ? "not used, pictures are made online by Black Forest Labs"
+            : (drawThingsModel ?? "model unknown, Draw Things isn't answering") + ", with "
             + (drawThingsCLI ? "draw-things-cli" : "the Draw Things app")
         let gb = freeBytes.map { Checks.gigabytes($0) + " GB free" } ?? "unknown"
         let last = lastJob.map { j -> String in

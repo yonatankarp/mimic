@@ -17,7 +17,7 @@ struct FixBox: View {
                       prompt: Text(kind == .object ? "e.g. remove the stand, make the handle thicker" : "e.g. close the cape so both arms show"),
                       axis: .vertical)
                 .lineLimit(1...3)
-                .help("Draw Things redraws the picture with this change, and Mimic shows it to you before building the 3D shape")
+                .help("Mimic redraws the picture with this change and shows it to you before building the 3D shape")
             if !earlier.isEmpty {
                 Text("Changed before: \(earlier.joined(separator: "; "))")
                     .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -71,7 +71,7 @@ struct VersionSheet: View {
                 .disabled(!canChange)
             if !canChange {
                 Text(mini.source == nil ? "A change needs the picture it was drawn as, and it isn't made yet."
-                                        : "A change needs Draw Things. Open Settings to set it up.")
+                                        : "A change needs \(Health.shared.pictureNeed). Open Settings to set it up.")
                     .font(.callout).foregroundStyle(.secondary)
             }
             HStack {
@@ -91,7 +91,7 @@ struct VersionSheet: View {
         .onDisappear { writing?.cancel() }
     }
 
-    private var canChange: Bool { mini.source != nil && Health.shared.drawThingsReady }
+    private var canChange: Bool { mini.source != nil && Health.shared.picturesReady }
 
     private func make() {
         let typed = canChange ? change.trimmingCharacters(in: .whitespacesAndNewlines) : ""

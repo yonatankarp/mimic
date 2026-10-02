@@ -46,7 +46,7 @@ final class Health {
     func watchDrawThings(_ install: Install?) async {
         guard let install else { return }
         while !Task.isCancelled {
-            try? await Task.sleep(for: .seconds(drawThingsReady ? 15 : 4))
+            try? await Task.sleep(for: .seconds(picturesReady ? 15 : 4))
             guard !running else { continue }
             let run = generation
             for c in Checks(install: install, model: EngineDownload.selected(defaults: .standard)).all where Checks.drawThingsIDs.contains(c.id) {
@@ -59,9 +59,16 @@ final class Health {
 
     func ok(_ id: String) -> Bool { results[id]?.ok == true }
 
-    /// False until every Draw Things check has come back green. Closed counts as green when
-    /// Mimic opens it (Settings → Open Draw Things when needed).
-    var drawThingsReady: Bool { Checks.drawThingsIDs.allSatisfy(ok) }
+    /// Pictures are made online (Settings → Pictures), so Draw Things isn't needed. Its key is
+    /// checked with the others, never by the Draw Things watch: that would ask every few seconds.
+    var online: Bool { checks.contains { $0.id == Checks.onlineID } }
+
+    /// False until whatever makes the pictures has come back green: the online service's key, or
+    /// every Draw Things check. Closed counts as green when Mimic opens it (Settings → Open Draw
+    /// Things when needed).
+    var picturesReady: Bool { online ? ok(Checks.onlineID) : Checks.drawThingsIDs.allSatisfy(ok) }
+    /// What a picture needs, as "A description needs …" says it.
+    var pictureNeed: String { online ? "a working Black Forest Labs key" : "Draw Things" }
     /// Ready, and closed: Mimic opens it when a mini needs it.
     var drawThingsOpensWhenNeeded: Bool { results["drawthings-api"]?.label == Checks.opensWhenNeeded }
     /// Its API has answered in this check, so its connection is known to be on.

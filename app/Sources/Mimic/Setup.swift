@@ -260,7 +260,7 @@ struct SetupView: View {
                 Text("Optional").font(.caption).padding(.horizontal, 8).padding(.vertical, 2)
                     .background(.quaternary, in: Capsule())
             }
-            Text("A free app that lets Mimic draw a character from a description, and turn drawings into grey sculpts. It doesn't even need to be open: Mimic uses its command line tool, which comes with the 3D engine. Your own pictures work without it, and you can set it up any time in Settings → Draw Things & AI.")
+            Text("A free app that lets Mimic draw a character from a description, and turn drawings into grey sculpts. It doesn't even need to be open: Mimic uses its command line tool, which comes with the 3D engine. Your own pictures work without it, and you can set it up any time in Settings → Draw Things & AI. There you can also have Black Forest Labs make the pictures online instead, with your own key.")
                 .foregroundStyle(.secondary)
             DrawThingsSteps()
         }
