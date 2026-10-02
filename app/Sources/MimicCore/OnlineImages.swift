@@ -57,14 +57,14 @@ public final class OnlineImages: PictureMaker, @unchecked Sendable {
     }
 
     public func draw(description: String, seed: Int, kind: MiniKind) throws -> Data {
-        try make(["prompt": DrawThings.drawPrompt(description, kind: kind), "seed": seed, "width": 1024, "height": 1024])
+        try make(["prompt": DrawThings.drawPrompt(description, kind: kind), "seed": seed], width: 1024, height: 1024)
     }
 
     public func sculpt(picture: URL, seed: Int, kind: MiniKind, change: String?) throws -> Data {
         // The size Draw Things gets: multiples of 64, which FLUX.2's multiples of 16 accept.
         let (png, w, h) = try DrawThings.fitForEdit(picture)
-        return try make(["prompt": DrawThings.redrawPrompt(kind: kind, change: change), "seed": seed, "width": w, "height": h,
-                         "input_image": Self.dataURL(png)])
+        return try make(["prompt": DrawThings.redrawPrompt(kind: kind, change: change), "seed": seed,
+                         "input_image": Self.dataURL(png)], width: w, height: h)
     }
 
     /// The picture inline, as a data URL: FLUX.2's OpenAPI only says "Path to the input image", and
@@ -91,12 +91,12 @@ public final class OnlineImages: PictureMaker, @unchecked Sendable {
         return k
     }
 
-    private func make(_ body: [String: Any]) throws -> Data {
+    private func make(_ body: [String: Any], width: Int, height: Int) throws -> Data {
         if lock.withLock({ canceled }) { throw OnlineImagesError.cancelled }
         let key = try validKey()
         var b = body
         // PNG, as Draw Things gives: the default is JPEG. Moderation stays at BFL's default.
-        b["output_format"] = "png"
+        b["output_format"] = "png"; b["width"] = width; b["height"] = height
         var submit = URLRequest(url: base.appendingPathComponent("v1/\(Self.model)"))
         submit.httpMethod = "POST"
         submit.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -119,7 +119,7 @@ public final class OnlineImages: PictureMaker, @unchecked Sendable {
             ask.setValue(key, forHTTPHeaderField: "x-key")
             ask.timeoutInterval = 30
             let reply: [String: Any]
-            do { reply = try json(ask) } catch let e as OnlineImagesError where [.busy, .timedOut, .unreachable].contains(e) {
+            do { reply = try json(ask) } catch let e as OnlineImagesError where [.busy, .timedOut, .unreachable, .noInternet].contains(e) {
                 // The request is paid for already: a hiccup while asking is asked again, until the deadline.
                 wait(); continue
             }
@@ -129,7 +129,7 @@ public final class OnlineImages: PictureMaker, @unchecked Sendable {
                     throw OnlineImagesError.failed("no picture in the reply")
                 }
                 // The delivery address is signed: it needs no key, so none is sent there.
-                return try Self.png(fetch(URLRequest(url: sample)).data)
+                return try Self.png(fetch(URLRequest(url: sample)).data, width: width, height: height)
             case "Request Moderated", "Content Moderated":
                 let reasons = ((reply["details"] as? [String: Any])?["Moderation Reasons"] as? [String]) ?? []
                 throw OnlineImagesError.refused(reasons)
@@ -147,7 +147,7 @@ public final class OnlineImages: PictureMaker, @unchecked Sendable {
     /// this Mac in tests: never to whatever address a reply names.
     func sendsKey(to url: URL) -> Bool {
         guard let host = url.host?.lowercased() else { return false }
-        if host == base.host?.lowercased() && url.scheme == base.scheme { return true }
+        if host == base.host?.lowercased() && url.scheme == base.scheme && url.port == base.port { return true }
         return url.scheme == "https" && (host == "bfl.ai" || host.hasSuffix(".bfl.ai"))
     }
 
@@ -167,10 +167,11 @@ public final class OnlineImages: PictureMaker, @unchecked Sendable {
         case 402: throw OnlineImagesError.noCredits
         case 429, 500...599: throw OnlineImagesError.busy
         default:
-            var why = detail.isEmpty ? String(decoding: data.prefix(200), as: UTF8.self) : detail
-            // A service that echoes the key in its error text must not put it on screen.
+            var why = detail.isEmpty ? String(decoding: data, as: UTF8.self) : detail
+            // A service that echoes the key in its error text must not put it on screen: taken out
+            // before the text is cut short, or a cut key would stay.
             if let k = key(), !k.isEmpty { why = why.replacingOccurrences(of: k, with: "…") }
-            throw OnlineImagesError.failed(why)
+            throw OnlineImagesError.failed(String(why.prefix(200)))
         }
     }
 
@@ -183,6 +184,7 @@ public final class OnlineImages: PictureMaker, @unchecked Sendable {
             guard let data, let http = resp as? HTTPURLResponse else { return }
             result = .success((http.statusCode, data))
         }
+        t.delegate = KeepKey { [self] url in self.sendsKey(to: url) }
         let stopNow = lock.withLock { () -> Bool in
             if !canceled { task = t; t.resume() }
             return canceled
@@ -193,17 +195,40 @@ public final class OnlineImages: PictureMaker, @unchecked Sendable {
         return try result.get()
     }
 
-    /// PNG bytes, as step 1 writes `source.png`: asked for, but anything else is converted.
-    static func png(_ data: Data) throws -> Data {
-        if data.starts(with: [0x89, 0x50, 0x4E, 0x47]) { return data }
+    /// A PNG of the size asked for, as Draw Things gives and step 1 writes `source.png`. PNG and the
+    /// size are asked for, but anything else that comes back is converted and scaled to them.
+    static func png(_ data: Data, width: Int, height: Int) throws -> Data {
+        let unreadable = OnlineImagesError.failed("the picture it sent can't be read")
         guard let src = CGImageSourceCreateWithData(data as CFData, nil), let image = CGImageSourceCreateImageAtIndex(src, 0, nil) else {
-            throw OnlineImagesError.failed("the picture it sent can't be read")
+            throw unreadable
         }
+        if data.starts(with: [0x89, 0x50, 0x4E, 0x47]) && image.width == width && image.height == height { return data }
+        guard let ctx = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { throw unreadable }
+        ctx.interpolationQuality = .high
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
         let out = NSMutableData()
-        guard let dest = CGImageDestinationCreateWithData(out, UTType.png.identifier as CFString, 1, nil) else { throw OnlineImagesError.failed("") }
-        CGImageDestinationAddImage(dest, image, nil)
-        guard CGImageDestinationFinalize(dest) else { throw OnlineImagesError.failed("the picture it sent can't be read") }
+        guard let sized = ctx.makeImage(), let dest = CGImageDestinationCreateWithData(out, UTType.png.identifier as CFString, 1, nil) else {
+            throw unreadable
+        }
+        CGImageDestinationAddImage(dest, sized, nil)
+        guard CGImageDestinationFinalize(dest) else { throw unreadable }
         return out as Data
+    }
+}
+
+/// URLSession follows a redirect with every header, the key too: a redirect to an address the key
+/// mustn't go to is followed without it.
+private final class KeepKey: NSObject, URLSessionTaskDelegate, Sendable {
+    let allowed: @Sendable (URL) -> Bool
+    init(_ allowed: @escaping @Sendable (URL) -> Bool) { self.allowed = allowed }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest) async -> URLRequest? {
+        guard let url = request.url, !allowed(url) else { return request }
+        var stripped = request
+        stripped.setValue(nil, forHTTPHeaderField: "x-key")
+        return stripped
     }
 }
 

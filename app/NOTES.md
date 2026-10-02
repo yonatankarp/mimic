@@ -460,12 +460,14 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   (`data:image/png;base64,…`) at `DrawThings.editSize`: the OpenAPI only says "Path to the input
   image", and BFL's own FLUX.2 example (cookbook/video_start_from_images) sends a local file that
   way; Kontext's page also takes bare base64. PNG is asked for (the default is JPEG). The API is
-  async: submit, then ask the `polling_url` every 0.5 s for up to 300 s (a 5xx, 429 or dropped
-  connection meanwhile is asked again; "Task not found", a 404, is final), then fetch
-  `result.sample`, which needs no key and gets none. Seen live with made-up keys: none or an
-  unknown one is 403 "Not authenticated", one not shaped like a key is 422 "Invalid API key
-  format"; both read as a wrong key. The key goes only to the address it was set up with or https `*.bfl.ai` (polling
-  addresses can be regional). `PictureMaker` is the one seam: `DrawThings` and `OnlineImages` both
+  async: submit, then ask the `polling_url` every 0.5 s for up to 300 s (a 5xx, 429, timeout or
+  dropped connection meanwhile is asked again, since the picture is paid for; "Task not found", a
+  404, is final), then fetch `result.sample`, which needs no key and gets none. What comes back is
+  scaled to the size asked for if it isn't it, so the 3D step gets what Draw Things would give.
+  Seen live with made-up keys: none or an unknown one is 403 "Not authenticated", one not shaped
+  like a key is 422 "Invalid API key format"; both read as a wrong key. The key goes only to the
+  address it was set up with (scheme, host and port) or https `*.bfl.ai` (polling addresses can
+  be regional), and a redirect anywhere else is followed without it (`KeepKey`). `PictureMaker` is the one seam: `DrawThings` and `OnlineImages` both
   are one, and the job runner picks one as each job starts (`JobRunner.pictureService`), so Stop
   cancels the one in use, and a change in Settings counts from the next job. The key is a Keychain
   account `bfl`, as the helper's. `GET /v1/credits` checks it for free: Settings' Test and the

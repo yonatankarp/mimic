@@ -369,6 +369,14 @@ final class FakeLLM: @unchecked Sendable {
                 let request = Request(head: head, body: String(decoding: data[split...], as: UTF8.self))
                 lock.withLock { got.append(request) }
                 let (status, body) = reply(request)
+                // Status 0: the connection drops with no answer, as on a Wi-Fi blip.
+                if status == 0 { close(c); continue }
+                // A redirect: the body is where to.
+                if (300..<400).contains(status) {
+                    let out = "HTTP/1.1 \(status) X\r\nLocation: \(String(decoding: body, as: UTF8.self))\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                    _ = out.withCString { write(c, $0, strlen($0)) }
+                    close(c); continue
+                }
                 // As Data, not a C string: a picture has zero bytes in it.
                 var out = Data("HTTP/1.1 \(status) X\r\nContent-Type: application/json\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n".utf8)
                 out.append(body)

@@ -1,3 +1,4 @@
+import ImageIO
 import XCTest
 @testable import MimicCore
 
@@ -13,9 +14,10 @@ final class OnlineImagesTests: XCTestCase {
 
     /// A fake BFL: submits answer with a polling address on this server, which says `status`
     /// (Ready after `pending` asks), and the picture is at /sample.png.
-    /// `hiccups`: how many of the first asks fail with 503 before it answers.
+    /// `hiccups`: how many of the first asks fail with `hiccup` (a status, or 0 for a dropped
+    /// connection) before it answers.
     static func fake(status: String = "Ready", pending: Int = 0, submit: Int = 200, details: String = "null",
-                     hiccups: Int = 0) throws -> FakeLLM {
+                     hiccups: Int = 0, hiccup: Int = 503) throws -> FakeLLM {
         let asked = Counter()
         nonisolated(unsafe) var port: UInt16 = 0
         let server = try FakeLLM { r in
@@ -25,7 +27,7 @@ final class OnlineImagesTests: XCTestCase {
             }
             if path.hasPrefix("/v1/get_result") {
                 let n = asked.next()
-                if n < hiccups { return (503, Data()) }
+                if n < hiccups { return (hiccup, Data()) }
                 let s = n - hiccups < pending ? "Pending" : status
                 let result = s == "Ready" ? #"{"sample":"http://127.0.0.1:\#(port)/sample.png"}"# : "null"
                 // As api.bfl.ai answers an id it doesn't know: 404, with the status in the body.
@@ -37,6 +39,12 @@ final class OnlineImagesTests: XCTestCase {
         }
         port = server.port
         return server
+    }
+
+    /// A picture's width and height.
+    static func size(_ png: Data) -> [Int] {
+        guard let src = CGImageSourceCreateWithData(png as CFData, nil), let image = CGImageSourceCreateImageAtIndex(src, 0, nil) else { return [] }
+        return [image.width, image.height]
     }
 
     private func service(_ server: FakeLLM, key: String? = "k-123") -> OnlineImages {
@@ -55,7 +63,7 @@ final class OnlineImagesTests: XCTestCase {
         let server = try Self.fake(pending: 2)
         defer { server.stop() }
         let png = try service(server).draw(description: "stout dwarf", seed: 7, kind: .character)
-        XCTAssertEqual(png, Self.picture)
+        XCTAssertEqual(Self.size(png), [1024, 1024], "the 8 × 8 the service sent, at the size Draw Things makes")
         let submit = try XCTUnwrap(server.requests.first)
         XCTAssertTrue(submit.head.hasPrefix("POST /v1/flux-2-klein-9b "), submit.head)
         XCTAssertTrue(submit.head.lowercased().contains("x-key: k-123"))
@@ -78,7 +86,7 @@ final class OnlineImagesTests: XCTestCase {
         defer { server.stop() }
         let fx = try Fixture()
         let png = try service(server).sculpt(picture: try fx.picture(), seed: 3, kind: .object, change: "a taller lid")
-        XCTAssertEqual(png, Self.picture)
+        XCTAssertEqual(Self.size(png), [DrawThings.editSize(width: 8, height: 8).0, DrawThings.editSize(width: 8, height: 8).1])
         let b = body(try XCTUnwrap(server.requests.first))
         XCTAssertEqual(b["prompt"] as? String, DrawThings.redrawPrompt(kind: .object, change: "a taller lid"))
         let (w, h) = DrawThings.editSize(width: 8, height: 8)
@@ -162,7 +170,7 @@ final class OnlineImagesTests: XCTestCase {
         }
         XCTAssertTrue(before.requests.isEmpty, "a picture was asked for after Stop")
         early.reset()
-        XCTAssertEqual(try early.draw(description: "a dwarf", seed: 1, kind: .character), Self.picture)
+        XCTAssertEqual(Self.size(try early.draw(description: "a dwarf", seed: 1, kind: .character)), [1024, 1024])
     }
 
     /// The picture is paid for once submitted: a busy moment while asking whether it's ready is
@@ -170,7 +178,11 @@ final class OnlineImagesTests: XCTestCase {
     func testAHiccupWhileWaitingIsAskedAgain() throws {
         let busy = try Self.fake(hiccups: 2)
         defer { busy.stop() }
-        XCTAssertEqual(try service(busy).draw(description: "a dwarf", seed: 1, kind: .character), Self.picture)
+        XCTAssertEqual(Self.size(try service(busy).draw(description: "a dwarf", seed: 1, kind: .character)), [1024, 1024])
+        // A dropped connection (Wi-Fi going for a moment) is asked again too, not taken as no internet.
+        let dropped = try Self.fake(hiccups: 6, hiccup: 0)  // URLSession tries a dropped GET three times itself
+        defer { dropped.stop() }
+        XCTAssertEqual(Self.size(try service(dropped).draw(description: "a dwarf", seed: 1, kind: .character)), [1024, 1024])
         let lost = try Self.fake(status: "Task not found")
         defer { lost.stop() }
         XCTAssertThrowsError(try service(lost).draw(description: "a dwarf", seed: 1, kind: .character)) {
@@ -207,6 +219,28 @@ final class OnlineImagesTests: XCTestCase {
         s.timeout = 0.3
         XCTAssertThrowsError(try s.draw(description: "a dwarf", seed: 1, kind: .character)) {
             XCTAssertEqual($0 as? OnlineImagesError, .timedOut)
+        }
+    }
+
+    /// A redirect elsewhere is followed without the key: URLSession would carry it along.
+    func testARedirectElsewhereDoesNotTakeTheKey() throws {
+        let elsewhere = try FakeLLM(status: 200, body: #"{"credits":1}"#)
+        defer { elsewhere.stop() }
+        let bfl = try FakeLLM { _ in (302, Data("http://localhost:\(elsewhere.port)/v1/credits".utf8)) }
+        defer { bfl.stop() }
+        try service(bfl).check()
+        let followed = try XCTUnwrap(elsewhere.requests.first, "the redirect wasn't followed")
+        XCTAssertFalse(followed.head.lowercased().contains("x-key"), "the key went to another address")
+        XCTAssertFalse(service(bfl).sendsKey(to: URL(string: "http://127.0.0.1:\(elsewhere.port)/")!), "another port is another address")
+    }
+
+    /// An error that echoes the key never shows it, even where the text is cut short.
+    func testTheKeyIsNeverInAnErrorMessage() throws {
+        let key = "k-1234567890"
+        let server = try FakeLLM(status: 400, body: String(repeating: "x", count: 195) + key)
+        defer { server.stop() }
+        XCTAssertThrowsError(try service(server, key: key).draw(description: "a dwarf", seed: 1, kind: .character)) {
+            XCTAssertFalse("\($0)".contains("k-12"), "\($0)")
         }
     }
 
@@ -260,7 +294,7 @@ final class OnlineImagesTests: XCTestCase {
         jobs.pictureService = { online }
         try jobs.make(name: "dwarf", picture: .description("a dwarf"), restyle: false, seed: 1, sizes: Sizes(), model: EngineDownload.standard)
         jobs.waitUntilDone()
-        XCTAssertEqual(try Data(contentsOf: fx.install.runs.appendingPathComponent("dwarf/source.png")), Self.picture)
+        XCTAssertEqual(Self.size(try Data(contentsOf: fx.install.runs.appendingPathComponent("dwarf/source.png"))), [1024, 1024])
     }
 
     /// A refused redraw leaves the mini as it was, and says why in plain words.
