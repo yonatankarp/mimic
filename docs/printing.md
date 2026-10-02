@@ -90,7 +90,8 @@ It comes out in colour or in grey:
 
 - *In colour* (about 1.5 MB) when the mini was made from a colour picture with
   **Turn it into a grey sculpt first** off. The 3D engine then paints it from your picture, back
-  and sides too.
+  and sides too, and each part of the exported model takes the colour of the same place on the
+  3D engine's model. The base stays grey.
 - *In grey* (under 100 KB) otherwise: a mini made from a description, with the grey sculpt on, a
   cartoon (which gets the grey sculpt), one imported as a 3D model, or a version made [with a change to its picture](versions.md).
 

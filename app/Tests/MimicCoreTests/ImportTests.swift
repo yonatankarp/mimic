@@ -104,7 +104,7 @@ final class ImportTests: XCTestCase {
 
         let low = Decimate.run(sphere, target: 100)
         let size = 256
-        let baked = try Tabletop.bake(low, from: read.mesh, paint, size: size)
+        let baked = try Tabletop.bake(low, EngineColours(model: read.mesh, paint: paint, toPrint: matrix_identity_double4x4), size: size)
         XCTAssertEqual(baked.mesh.triangles.count, low.triangles.count)
         var checked = 0
         for t in baked.mesh.triangles {
