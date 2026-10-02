@@ -44,10 +44,13 @@ public struct EngineColours: Sendable {
         let glb = mini.folder.appendingPathComponent(Mini.modelFile)
         let read = try GLB.read(painted: glb)
         guard let paint = read.paint else { return nil }
-        // Prepped before print prep kept a record: placed again, as prep places it now, in about a second.
+        // Prepped before print prep kept a record: placed again, as prep places it now, in about a
+        // second. At the sizes the print file was made at: a resize that failed or was stopped
+        // left the new ones asked for beside the old print file.
         let toPrint = try Placement.read(mini.folder) ?? {
-            var placed = read.mesh
-            return try Prep.place(&placed, PrepOptions.parse([glb.path, stl.path] + Pipeline.prepFlags(mini.settings))).toPrint
+            var placed = read.mesh, made = mini.settings
+            made.requested = made.made ?? made.requested
+            return try Prep.place(&placed, PrepOptions.parse([glb.path, stl.path] + Pipeline.prepFlags(made))).toPrint
         }()
         return try EngineColours(model: read.mesh, paint: paint, toPrint: toPrint)
     }
@@ -59,8 +62,10 @@ public struct EngineColours: Sendable {
         guard let hit = grid.nearest(SIMD3<Float>(Float(q.x), Float(q.y), Float(q.z)), within: far) else { return nil }
         let t = model.triangles[hit.triangle]
         let place = uv[Int(t.x)] * hit.weights.x + uv[Int(t.y)] * hit.weights.y + uv[Int(t.z)] * hit.weights.z
-        // glTF's pictures start at the top left, as the pixels do. Clamped, as the engine's sampler is.
-        let x = min(max(Int(place.x * Float(width)), 0), width - 1), y = min(max(Int(place.y * Float(height)), 0), height - 1)
+        // glTF's pictures start at the top left, as the pixels do. Wrapped round, as glTF's default
+        // sampler (the engine's, `{}`) repeats a picture.
+        let u = place - place.rounded(.down)
+        let x = min(Int(u.x * Float(width)), width - 1), y = min(Int(u.y * Float(height)), height - 1)
         let o = 4 * (y * width + x)
         return SIMD3(picture[o], picture[o + 1], picture[o + 2])
     }

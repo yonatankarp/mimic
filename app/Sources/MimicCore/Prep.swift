@@ -231,6 +231,9 @@ public enum Prep {
     /// (`Render.views`) are drawn first: a resize stopped or failing while they're drawn keeps
     /// the old print file, which its settings still give the size of (#172).
     public static func run(_ o: PrepOptions, views: Bool = false, log: (String) -> Void = { _ in }) throws -> Result {
+        // A record only ever sits beside the print file it was written with: one left by an
+        // earlier run goes now, so a run that stops or fails leaves none rather than a stale one.
+        try? FileManager.default.removeItem(at: URL(fileURLWithPath: o.stl).deletingLastPathComponent().appendingPathComponent(Placement.file))
         var clock = Date()
         func lap(_ what: String) { log(String(format: "prep: %@ %.1f s", what, Date().timeIntervalSince(clock))); clock = Date() }
 

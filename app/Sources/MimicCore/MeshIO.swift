@@ -287,6 +287,9 @@ public enum Tabletop {
     public static func export(_ mini: Mini, to url: URL, triangles: Int = triangles) throws -> (triangles: Int, bytes: Int, colour: Bool) {
         guard let stl = mini.stl else { throw PrepError("it isn't made yet") }
         // Grey whenever the colours can't be had: the shape is what a tabletop can't do without.
+        // `facesAway` and a `Placement` never meet: a record is only ever beside the print file
+        // it was written with, and a print file written since 0.10.0 faces front (`Mini.facesAway`
+        // goes by its date). A turned print file's colours come from its model placed again.
         let colours = try? EngineColours.of(mini)
         let made = try export(stl, to: url, triangles: triangles, colours: colours, facesAway: mini.facesAway)
         return (made.triangles, made.bytes, colours != nil)

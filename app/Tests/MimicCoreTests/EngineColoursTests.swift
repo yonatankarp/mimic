@@ -90,6 +90,18 @@ final class EngineColoursTests: XCTestCase {
         }
     }
 
+    /// A record only sits beside the print file it was written with: a run that fails (or is
+    /// stopped) takes away the one an earlier run left, which no longer says where its model is.
+    func testAFailedPrintPrepLeavesNoRecordBehind() throws {
+        let d = try temporary()
+        let glb = d.appendingPathComponent("model.glb"), stl = d.appendingPathComponent("m.stl")
+        try Placement(matrix_identity_double4x4).write(beside: stl)
+        XCTAssertNotNil(Placement.read(d))
+        try GLB.encode(PrepTests.box(half: [10, 10, 0.01])).write(to: glb)  // a flat sheet: prep refuses it
+        XCTAssertThrowsError(try Prep.run(PrepOptions.parse([glb.path, stl.path, "--voxel", "0.4"])))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: d.appendingPathComponent(Placement.file).path), "a stale record was left")
+    }
+
     /// A point on the print file has the colour of the face it covers, for a model prep left
     /// facing as made (TRELLIS.2's) and one it turned round (Pixal3D's, `EngineModel.turn`): the
     /// face the engine painted on the model's back is then the print file's front. The base has none.
@@ -162,6 +174,8 @@ final class EngineColoursTests: XCTestCase {
         XCTAssertTrue(near(coloured, Self.yellow), "the model's +y is the print file's front: \(String(describing: coloured))")
         try FileManager.default.removeItem(at: folder.appendingPathComponent(Placement.file))
         XCTAssertTrue(near(try front(), Self.yellow), "placed again without the record")
+        let stopped = try front { $0.made = Sizes(); $0.requested = Sizes(height: "60") }
+        XCTAssertTrue(near(stopped, Self.yellow), "placed at the sizes the print file was made at, not a resize's that didn't finish: \(String(describing: stopped))")
         XCTAssertNil(try front { $0.restyle = true }, "the grey sculpt")
         XCTAssertNil(try front { $0.fixes = ["give her a hat"] }, "a fix is always redrawn as a sculpt")
         XCTAssertNil(try front { $0.source = .desc }, "drawn from a description")
