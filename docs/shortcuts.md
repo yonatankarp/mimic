@@ -145,7 +145,7 @@ What you can do to the selected mini, or minis. The same items are in a mini's r
 |---|---|
 | **Mimic Help** | Opens Mimic's guide on the web |
 | **Show Tour** | The five-stop tour of Mimic again |
-| **Report a Problem…** | Gathers what a bug report needs, with your private details taken out (see [When something goes wrong](troubleshooting.md)) |
+| **Report a Problem…** | Gathers what a bug report needs, with your private details taken out (see [Report a problem or an idea](report.md)) |
 
 ## Right-click menus
 

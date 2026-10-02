@@ -35,7 +35,7 @@ how it was, ready to try once more.
 
 !!! tip
     Next to **Try Again** is **Report a Problem…**. It gathers what a bug report needs, with your
-    private details taken out. See [When something goes wrong](troubleshooting.md).
+    private details taken out. See [Report a problem or an idea](report.md).
 
 ## Make another version
 

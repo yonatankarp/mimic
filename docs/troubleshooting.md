@@ -149,62 +149,8 @@ Mimic is making shows in the toolbar, but you stop it where it was started.
 
 ## Report a problem
 
-If something's wrong, Mimic can gather what's needed to fix it into one file and open a bug report
-on GitHub for you to attach it to.
-
-- For a mini that didn't finish: press **Report a Problem…** on its page, or choose it from the
-  **Mini** menu or by right-clicking the mini.
-- For anything else: choose **Help → Report a Problem…**.
-
-![Report a problem with “Snow Ghost”?: what goes in the file, Include the picture unticked, Include a picture of Mimic's window ticked with its preview, and Cancel and Make Report](images/screens/troubleshooting-report-a-problem.png){ width="384" }
-
-Mimic first says what goes in the file. Press **Make Report**. The file has:
-
-- which version of Mimic this is, and which Mac (model, chip, memory and macOS version)
-- Mimic's own notes on what happened, from the last hour, and only since Mimic was last opened
-- how Mimic is set up: the 3D model and the engine's version, Draw Things' model and whether its
-  command line tool or the app draws, which AI helper (never its key or address), free disk space,
-  memory pressure, whether your Mac is on battery, its graphics chip, what's being made and waiting
-  and how the last job ended (by kind and step, never by name), the nozzle, base and grey sculpt,
-  and a few of its settings
-- for a mini, its notes on how it was made and its settings
-
-Keys, passwords and your Mac's user name are taken out first. Two boxes say which pictures go in,
-since the issue is public:
-
-- **Include the picture (the issue is public)**, when reporting a mini that has one: the picture
-  it was built from. It starts unticked.
-- **Include a picture of Mimic's window (the issue is public)**, when the main window is open: the
-  window as it was when you chose Report a Problem, with any sheet open on it, but not Settings.
-  It starts ticked, with a preview of the picture underneath, so you can see what it shows, minis'
-  names and pictures included. Untick it to leave it out.
-
-The 3D files and previews themselves are never included.
-
-Mimic then shows the file in Finder and opens GitHub's bug report form with the version, your Mac
-and a short list of the setup filled in. Drag the file into the form's logs box, say what you did,
-and send it. You need a GitHub account to send it. Nothing is sent until you do.
-
-### After Mimic quits unexpectedly
-
-If Mimic (or `mimic` in Terminal) crashed, the next time you open Mimic it asks
-"Mimic quit unexpectedly last time. Report it?"
-
-- **Report** makes the same kind of file, with what macOS noted about the crash, Mimic's own notes
-  from before it, and the setup as it is now. There's no picture of the window, since Mimic had
-  already gone. Mimic shows the file in Finder and opens GitHub's form, titled with the crash, for
-  you to say what you were doing.
-- **Not Now** makes no report.
-- **Don't Ask Again** stops Mimic asking about crashes at all.
-
-Each crash is asked about once, whatever you answer. Mimic's notes from before the crash can only be
-read on an administrator account; on another, the file says so. A crash of the 3D engine or of
-Draw Things' command line tool isn't asked about: it shows as a mini that didn't finish, with
-**Report a Problem…** on its page.
-
-!!! tip
-    The reports stay in your minis folder, in a folder called `_reports`, which Mimic doesn't show
-    as a project. You can delete them once they're sent.
+Still stuck, or something looks wrong? Mimic can gather what's needed to fix it and open a bug
+report for you: see [Report a problem or an idea](report.md).
 
 ## Where the logs are
 

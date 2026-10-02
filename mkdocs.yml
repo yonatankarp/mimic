@@ -60,6 +60,7 @@ nav:
       - Settings: settings.md
       - Keyboard shortcuts: shortcuts.md
       - When something goes wrong: troubleshooting.md
+      - Report a problem or an idea: report.md
   - Power users:
       - Mimic from a terminal: cli.md
       - Where your files are: files.md

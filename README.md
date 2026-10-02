@@ -78,6 +78,8 @@ explains it all.
   command, with JSON for scripts and completion as you type.
 - **[How it works](https://yonatankarp.github.io/mimic/how-it-works/):** from a picture to a
   print-ready STL, all on your Mac.
+- **[Report a problem or an idea](https://yonatankarp.github.io/mimic/report/):** found a bug,
+  or want Mimic to do something new? Tell us, no code needed.
 - **[Working on Mimic](https://yonatankarp.github.io/mimic/developing/):** building, testing and
   releasing. To send a change, see [CONTRIBUTING.md](CONTRIBUTING.md).
 

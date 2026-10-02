@@ -52,3 +52,6 @@ accounts, no uploads, no subscriptions.
     [Working on Mimic](developing.md)
 
 </div>
+
+Found a bug, or have an idea? [Report a problem or an idea](report.md): no code or GitHub know-how
+needed beyond a free account.

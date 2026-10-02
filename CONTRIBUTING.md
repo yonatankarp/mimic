@@ -1,7 +1,5 @@
 # Contributing to Mimic
 
-<!-- --8<-- [start:contributing] -->
-
 Thanks for helping. Mimic is a hobby project, so every bug report, idea and fix makes a real
 difference.
 
@@ -27,6 +25,7 @@ went wrong**. The form asks for what helps most:
 Open an issue and pick **An idea**. Say what you'd like to do that Mimic doesn't let you do yet;
 the problem matters more than a specific solution.
 
+<!-- --8<-- [start:contributing] -->
 ## Sending a change
 
 1. For anything bigger than a small fix, open an issue first, so we can agree on the approach
