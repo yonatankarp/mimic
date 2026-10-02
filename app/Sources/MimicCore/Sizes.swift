@@ -40,13 +40,17 @@ public struct Sizes: Equatable, Sendable {
         return s
     }
 
+    /// What New Mini and Resize let you choose, which Terminal and settings.json are held to too:
+    /// a 5,000 mm figure would build a voxel grid the Mac can't hold (#318).
+    static let ranges = ["height": SizeCard.heightRange, "base": SizeCard.baseRange, "inflate": SizeCard.inflateRange]
+
     /// Checks every value, then returns print prep's flags. Throws before anything is saved.
     public func flags() throws -> [String] {
         var out: [String] = []
         for (key, value) in [("height", height), ("base", base), ("inflate", inflate)] {
             guard let value else { continue }
-            // Double("nan") and Double("inf") parse; neither is a size.
-            guard let n = Double(value), n.isFinite, n >= 0 else { throw RequestError.badNumber(key) }
+            // Double("nan") and Double("inf") parse; neither is in a range.
+            guard let n = Double(value), Self.ranges[key]!.contains(n) else { throw RequestError.badNumber(key) }
             out += ["--\(key)", String(n)]
         }
         if let nozzle {
