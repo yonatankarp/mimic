@@ -12,6 +12,8 @@ final class JobTests: XCTestCase {
         jobs.waitUntilDone()
         XCTAssertEqual(jobs.status?.succeeded, true)
         XCTAssertEqual(MiniSettings.load(fx.install.runs.appendingPathComponent("dwarf")).made, sizes)
+        XCTAssertEqual(MiniSettings.load(fx.install.runs.appendingPathComponent("dwarf")).facesFront, true,
+                       "its print file faces the slicer's front, as every one made now does (#275)")
     }
 
     func testAFailedRunRecordsNothing() throws {
@@ -22,6 +24,7 @@ final class JobTests: XCTestCase {
         jobs.waitUntilDone()
         XCTAssertEqual(jobs.status?.exit, 1)
         XCTAssertEqual(MiniSettings.load(d).made, Sizes(height: "32"), "a failure overwrote 'made'")
+        XCTAssertNil(MiniSettings.load(d).facesFront, "a failure left the old print file, which may face away")
     }
 
     func testTryAgainRebuildsTheSameJob() throws {

@@ -54,7 +54,7 @@ struct CompareSheet: View {
                 .fixedSize()
                 .padding(.top, 16)
                 .help("Choose the version to show on this side")
-                MiniViewer(stl: stl, version: v.madeAt, name: v.displayName, measured: $measured[i], shared: $pose)
+                MiniViewer(stl: stl, version: v.madeAt, name: v.displayName, facesAway: v.facesAway, measured: $measured[i], shared: $pose)
                 Button("Keep This One…") {
                     model.selection = [v.id]
                     model.keepWhenClosed = v.name

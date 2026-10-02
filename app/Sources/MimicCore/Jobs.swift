@@ -643,8 +643,11 @@ public final class JobRunner: @unchecked Sendable {
         }
         // A make that stops for its picture to be checked has only made the picture (#156).
         let pictureReady = !canceled && ran.code == 0 && plan.last?.number == .picture
-        if !canceled, !pictureReady, ran.code == 0, let requested = settings.requested {
-            try? MiniSettings.update(folder) { $0.made = requested }  // "Now: …" shows only what a finished run made
+        if !canceled, !pictureReady, ran.code == 0 {
+            try? MiniSettings.update(folder) { s in
+                if let requested = settings.requested { s.made = requested }  // "Now: …" shows only what a finished run made
+                s.facesFront = true  // its new print file faces a slicer's front (#275)
+            }
         }
         let report = PrepReport.read(folder) ?? PrepReport()
         try? FileManager.default.removeItem(at: reportFile)

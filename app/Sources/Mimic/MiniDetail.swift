@@ -77,7 +77,7 @@ struct MiniDetail: View {
     /// The 3D view, edge to edge; or why there isn't one yet.
     @ViewBuilder private var page: some View {
         if let stl = mini.stl {
-            MiniViewer(stl: stl, version: mini.madeAt, name: mini.displayName, measured: $measured)
+            MiniViewer(stl: stl, version: mini.madeAt, name: mini.displayName, facesAway: mini.facesAway, measured: $measured)
                 .overlay(alignment: .topLeading) { notes }
         } else if let n = model.waiting(mini.name) {
             ContentUnavailableView("Waiting to be made (\(AppModel.ordinal(n)) in the queue).", systemImage: "hourglass",

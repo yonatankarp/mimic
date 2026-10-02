@@ -164,6 +164,9 @@ public struct MiniSettings: Codable, Equatable, Sendable {
     public var cartoon: Bool?
     public var requested: Sizes?
     public var made: Sizes?
+    /// Its print file faces -y, a slicer's front, as every one made since 0.10.0 does (#275):
+    /// set when a run makes one. Absent on older minis; see `Mini.facesAway`.
+    public var facesFront: Bool?
     /// nil is a character.
     public var kind: MiniKind?
     /// The first of its versions, when Make Another Version made it: every version of a mini

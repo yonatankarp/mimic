@@ -49,6 +49,13 @@ public struct Mini: Identifiable, Hashable, Sendable {
             + sides.map { MiniPreview(caption: "\($0.side.title) picture", url: $0.url) }
             + renders.map { MiniPreview(caption: $0.view.capitalized, url: $0.url) }
     }
+    /// Its print file faces +y, as print files did before 0.10.0 (#275), so the 3D view and
+    /// Export for Virtual Tabletop turn it round. One made since says it faces front; those made
+    /// with 0.10.0 before saying so was added are told by their date. An imported model was never
+    /// turned, so it faces as its own file has it.
+    public var facesAway: Bool { settings.facesFront != true && !settings.isImported && madeAt < Mini.facingFrontSince }
+    /// When 0.10.0, the first Mimic to make print files face front, was published.
+    public static let facingFrontSince = Date(timeIntervalSince1970: 1_790_928_043)  // 2 Oct 2026, 08:00:43 UTC
     /// The 3D model a resize starts from: without it only a full Make can finish the mini.
     public var hasModel: Bool { existing(Mini.modelFile) != nil }
     /// The name it was given ("Élodie"), from its settings as the gallery read them; a mini
