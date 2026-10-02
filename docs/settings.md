@@ -101,11 +101,13 @@ straight away. You can also choose **Mimic → Check for Updates…** at any tim
 off, Mimic only checks when you ask.
 
 When there's a new version, a few seconds after Mimic opens, a window shows it, with what's new.
-**Install Update** updates Mimic, **Skip This Version** stops it asking about that version, and
-**Remind Me Later** asks again the next time you open Mimic. Until then a note stays in the
-toolbar ("Mimic 0.11.0 is available", say): click it to see the window again. Mimic never
-installs an update while a mini is being made or waiting: the note then says the new version
-installs when the queue is done, and it does.
+If you've switched to another app by then, the window waits until you come back to Mimic.
+**Install Update** updates Mimic, **Skip This Version** stops Mimic showing that version when it
+opens (**Check Now** and **Check for Updates…** still show it), and **Remind Me Later** asks again
+the next time you open Mimic. Until then a note stays in the toolbar ("Mimic 0.11.0 is
+available", say): click it to see the window again. Mimic never installs an update while a mini
+is being made or waiting: the note then says the new version installs when the queue is done,
+and it does.
 
 ## 3D Model
 

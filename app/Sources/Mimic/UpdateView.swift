@@ -19,6 +19,12 @@ final class Updater: NSObject, SPUUpdaterDelegate {
     /// are its daily schedule, off in Info.plist, whose window would land in the middle of a queue.
     var automatic = true { didSet { UserDefaults.standard.set(automatic, forKey: UpdateCheck.key) } }
     var lastChecked: Date?
+    /// Sparkle's, so Check Now and Check for Updates… are dimmed while a check is under way
+    /// (the one when Mimic opens) instead of doing nothing.
+    var canCheck = true
+    @ObservationIgnored private var canCheckWatch: NSKeyValueObservation?
+    /// An update found while another app was in front: its window waits until Mimic is.
+    @ObservationIgnored private var showWhenActive = false
     @ObservationIgnored private var controller: SPUStandardUpdaterController?
     /// Sparkle's go-ahead to install and relaunch, held while the queue is busy.
     @ObservationIgnored private var relaunch: (() -> Void)?
@@ -30,6 +36,9 @@ final class Updater: NSObject, SPUUpdaterDelegate {
         let controller = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: self, userDriverDelegate: self)
         self.controller = controller
         lastChecked = controller.updater.lastUpdateCheckDate
+        canCheckWatch = controller.updater.observe(\.canCheckForUpdates, options: [.initial, .new]) { [weak self] updater, _ in
+            MainActor.assumeIsolated { self?.canCheck = updater.canCheckForUpdates }
+        }
         guard automatic else { return }
         // A few seconds after the window opens, so the window doesn't land on a mini being started.
         // Nothing shows when there's nothing new or Mimic is offline.
@@ -43,6 +52,13 @@ final class Updater: NSObject, SPUUpdaterDelegate {
 
     /// Sparkle's own window: what's new, and Install Update.
     func check() { controller?.updater.checkForUpdates() }
+
+    /// Mimic came to the front (`AppModel.becameActive`).
+    func becameActive() {
+        guard showWhenActive else { return }
+        showWhenActive = false
+        check()
+    }
 
     /// Never while a mini is being made (here or in another Mimic), waiting, or the engine
     /// downloading: replacing the app would end them.
@@ -95,7 +111,10 @@ extension Updater: @preconcurrency SPUStandardUserDriverDelegate {
 
     func standardUserDriverWillHandleShowingUpdate(_ handleShowingUpdate: Bool, forUpdate update: SUAppcastItem, state: SPUUserUpdateState) {
         // The note too, in case the window doesn't come forward; it goes once the window is looked at.
-        if !handleShowingUpdate { available = update.displayVersionString; check() }
+        // Never in front of another app: Sparkle's "show in focus" brings Mimic to the front.
+        guard !handleShowingUpdate else { return }
+        available = update.displayVersionString
+        if NSApp.isActive { check() } else { showWhenActive = true }
     }
 
     func standardUserDriverDidReceiveUserAttention(forUpdate update: SUAppcastItem) { available = nil }
@@ -128,7 +147,7 @@ struct UpdatesSection: View {
             Section {
                 Toggle("Check for updates when Mimic opens", isOn: $updates.automatic)
                 LabeledContent {
-                    Button("Check Now") { updates.check() }
+                    Button("Check Now") { updates.check() }.disabled(!updates.canCheck)
                 } label: {
                     Text("Last checked")
                     Text(updates.lastChecked.map { $0.formatted(.relative(presentation: .named)) } ?? "Never")
@@ -136,7 +155,7 @@ struct UpdatesSection: View {
             } header: {
                 Text("Updates")
             } footer: {
-                Text("Mimic asks GitHub for its latest release each time it opens. Only public release information is read; nothing about your Mac or your minis is sent.")
+                Text("Mimic asks GitHub for its latest release \(updates.automatic ? "each time it opens" : "only when you check"). Only public release information is read; nothing about your Mac or your minis is sent.")
                     .foregroundStyle(.secondary)
             }
         }

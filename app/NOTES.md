@@ -601,7 +601,8 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   the Info.plist and brings the daily timer back, whose window would land mid-queue). A Mimic left
   open for days hears of a release when it's next opened, or from the menu: accepted. An update
   found shows Sparkle's window through `checkForUpdates()`, the same "show in focus" as the
-  toolbar note: told to show it itself, Sparkle holds a scheduled update back until the app is
+  toolbar note, only while Mimic is the active app (that call activates it; otherwise it waits
+  for `becameActive`, so Mimic never jumps in front of another app): told to show it itself, Sparkle holds a scheduled update back until the app is
   next activated once more than 3 s have passed since the updater started. Remind Me Later
   (`userDidMake` `.dismiss`) leaves the note in the toolbar until the next launch, which asks
   again; Skip This Version is Sparkle's (background checks never find a skipped version). With
