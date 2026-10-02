@@ -75,7 +75,7 @@ Each version you make with a change starts from the picture of the one before, s
 up. Under **Changed before**, the sheet lists what's already been changed. The mini's
 **Made from** details list them too, under **Changed** and **Then**.
 
-A change needs Draw Things, or Black Forest Labs online (see [Settings](settings.md)). If you've
+A change needs Draw Things, or an online service (see [Settings](settings.md)). If you've
 chosen an AI helper for descriptions, it turns your words into an instruction for the redraw first ("Writing the
 change…"). To change something when you first make a mini, see
 [Making a mini](making-a-mini.md).

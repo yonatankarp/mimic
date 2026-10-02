@@ -23,8 +23,8 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
   can make a mini from a description, and turn your picture into a grey sculpt first, which
   gives better minis. Mimic shows you how to set it up. Mimic connects to it through
   Draw Things' command line tool, which it downloads with its 3D engine, so Draw Things doesn't
-  need to be open. Or skip Draw Things and have Black Forest Labs make those pictures online, with
-  your own API key.
+  need to be open. Or skip Draw Things and have Black Forest Labs or OpenAI make those pictures
+  online, with your own API key.
 
 ### Install
 

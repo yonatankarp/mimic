@@ -23,7 +23,7 @@ Mimic first says what goes in the file. Press **Make Report**. The file has:
 - which version of Mimic this is, and which Mac (model, chip, memory and macOS version)
 - Mimic's own notes on what happened, from the last hour, and only since Mimic was last opened
 - how Mimic is set up: the 3D model and the engine's version, Draw Things' model and whether its
-  command line tool or the app draws (or that pictures are made online), which AI helper (never its key or address), free disk space,
+  command line tool or the app draws (or which service makes the pictures online), which AI helper (never its key or address), free disk space,
   memory pressure, whether your Mac is on battery, its graphics chip, what's being made and waiting
   and how the last job ended (by kind and step, never by name), the nozzle, base and grey sculpt,
   and a few of its settings

@@ -48,11 +48,11 @@ to see what's missing, and click it to open Settings, which lists every check an
 | **Draw Things app** | Draw Things isn't installed. Optional: your own pictures still work. | Install Draw Things from the Mac App Store. It's free. |
 | **Draw Things is open and connected** | Mimic can't reach Draw Things. Optional. | See [Draw Things isn't found](#draw-things-isnt-found) below. |
 | **FLUX.2 Klein model in Draw Things** | Draw Things doesn't have the picture model Mimic uses. Optional. | In Draw Things' model list, search for FLUX.2 Klein and download it. |
-| **Black Forest Labs key works** | Only when pictures are made online: no key is saved, or Black Forest Labs turned it down. Optional. | See [Online pictures don't work](#online-pictures-dont-work) below. |
+| **Black Forest Labs key works** or **OpenAI key works** | Only when pictures are made online: no key is saved, or the service turned it down. Optional. | See [Online pictures don't work](#online-pictures-dont-work) below. |
 | **A slicer to print with** | Mimic didn't find a slicer. Optional. | Install a slicer such as Bambu Studio, OrcaSlicer, PrusaSlicer or Cura. Until then Mimic opens minis with your Mac's default app for 3D files. |
 
 Only the first three stop you making minis. The others switch off a feature: the Draw Things ones
-(or the Black Forest Labs key) switch off making a mini from a description, the grey sculpt and
+(or the online service's key) switch off making a mini from a description, the grey sculpt and
 **What to change**.
 
 Settings checks again every time you open it, and **Check Again** checks now. While a mini is being
@@ -122,18 +122,22 @@ If a mini stopped because of Draw Things, fix the cause and press **Try Again**.
 
 ### Online pictures don't work
 
-With **Make pictures with** set to **Black Forest Labs, online**, a mini that couldn't get its
-picture stops at its first step and says why. Nothing else about the mini changes. Fix the cause
+With **Make pictures with** set to **Black Forest Labs, online** or **OpenAI, online**, a mini
+that couldn't get its picture stops at its first step and says why, naming the service. Nothing else about the mini changes. Fix the cause
 and press **Try Again**:
 
-- **No key, or the key was turned down:** copy your API key again from your Black Forest Labs
-  account, then in [Settings → Draw Things & AI](settings.md#choose-what-makes-the-pictures)
+- **No key, or the key was turned down:** copy your API key again from your account with that
+  service, then in [Settings → Draw Things & AI](settings.md#choose-what-makes-the-pictures)
   press **Remove**, paste it and press **Save**. **Test** says whether it works.
-- **Out of credits:** add some to your Black Forest Labs account.
+- **Out of credits:** add some to your account with that service.
 - **Busy, or you've reached your account's limit:** wait a minute and try again.
-- **It wouldn't make this picture:** Black Forest Labs' moderation turned the description or the
+- **It wouldn't make this picture:** the service's moderation turned the description or the
   picture down. Try different words or another picture.
 - **It took too long, or couldn't be reached:** check your internet connection and try again.
+- **OpenAI says your organisation must be verified:** OpenAI asks some accounts to verify their
+  organisation before they can use its picture model. Do that in your OpenAI account's settings,
+  wait a few minutes, then press **Try Again**. **Test** can say the key works before this is done,
+  since checking a key doesn't use the picture model.
 
 ### A part was left out
 

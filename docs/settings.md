@@ -35,12 +35,11 @@ Hold the pointer over a name to see what that part is for.
 | **Draw Things app** | A free app that draws characters from a description and turns pictures into grey sculpts. | Install Draw Things from the Mac App Store. |
 | **Draw Things is open and connected** | Lets Mimic ask Draw Things for pictures. It usually reads **Draw Things connected through its command line tool**, which means nothing more is needed. | See [Draw Things & AI](#draw-things-ai). |
 | **FLUX.2 Klein model in Draw Things** | The picture model Mimic asks Draw Things to use. | In Draw Things' model list, search for FLUX.2 Klein and download it. |
-| **Black Forest Labs key works** | Shows instead of the three Draw Things checks when [pictures are made online](#choose-what-makes-the-pictures). Mimic asks Black Forest Labs whether the key works, which costs nothing. | Save your key on the [Draw Things & AI](#draw-things-ai) tab, or copy it again from your account. |
+| **Black Forest Labs key works** or **OpenAI key works** | Shows instead of the three Draw Things checks when [pictures are made online](#choose-what-makes-the-pictures), named after the service you chose. Mimic asks the service whether the key works, which costs nothing. | Save your key on the [Draw Things & AI](#draw-things-ai) tab, or copy it again from your account. |
 | **A slicer to print with** | Turns a mini into instructions for your printer. | Install a slicer such as Bambu Studio, OrcaSlicer, PrusaSlicer or Cura. Mimic links to OrcaSlicer, a free one. |
 
-Without the optional parts you can still make minis from your own pictures. Draw Things (or
-Black Forest Labs, online) adds making a mini from a description, the grey sculpt and
-**What to change**.
+Without the optional parts you can still make minis from your own pictures. Draw Things (or an
+online service) adds making a mini from a description, the grey sculpt and **What to change**.
 
 At the bottom of the list Mimic says how it went ("Everything's ready." or how many things to look
 at) and when it last checked. **Check Again** runs the checks now. While a mini is being made the
@@ -159,25 +158,30 @@ picture model. Under **Pictures**, **Make pictures with** chooses where that mod
 - **Draw Things, on this Mac** (the default). Free, and nothing leaves your Mac. It needs the
   Draw Things app and its model, set up as below.
 - **Black Forest Labs, online.** The same kind of model (FLUX.2 Klein), run by the company that
-  makes it, with your own account. Draw Things isn't needed. Paste your API key and press
-  **Save**: Mimic keeps it in your Mac's Keychain and shows **API key saved in your Keychain**,
-  with **Remove** to delete it. **Get a key** opens Black Forest Labs' website, where you make
-  one. **Test** asks Black Forest Labs whether the key works and says **It works.**, or what went
-  wrong. While it's chosen, this tab doesn't show the Draw Things steps below, and the General tab
-  doesn't show **Open Draw Things when needed**.
+  makes it, with your own account.
+- **OpenAI, online.** OpenAI's picture model, with your own OpenAI account. It's a different
+  model from the other two, so its pictures look a little different. Each picture is drawn afresh,
+  so **Try Again** with the same variation number doesn't give the same picture.
+
+With either online service, Draw Things isn't needed. Paste your API key from that service and
+press **Save**: Mimic keeps it in your Mac's Keychain and shows **API key saved in your Keychain**,
+with **Remove** to delete it. Each service has its own key, so switching between them keeps both.
+**Get a key** opens the service's website, where you make one. **Test** asks the service whether
+the key works and says **It works.**, or what went wrong. While an online service is chosen, this
+tab doesn't show the Draw Things steps below, and the General tab doesn't show **Open Draw Things
+when needed**.
 
 ![Settings, Draw Things & AI tab: Make pictures with set to Black Forest Labs, online, an empty API key field with Save, Test dimmed, Get a key, and what each picture costs](images/screens/settings-pictures-online.png){ width="540" }
 
-!!! note "What Black Forest Labs sees, and what it costs"
-    With **Black Forest Labs, online**, your description, or the picture to be redrawn, is sent to
-    Black Forest Labs to make the picture. The 3D model and print file are still made on your Mac.
-    Each picture Mimic draws or redraws is one request on your account, paid from your credits
-    there: one for a mini made from a description or with the grey sculpt, plus one for each extra
+!!! note "What the online service sees, and what it costs"
+    With **Black Forest Labs, online** or **OpenAI, online**, your description, or the picture to
+    be redrawn, is sent to that service to make the picture, and to no one else. The 3D model and print file are still made on your Mac.
+    Each picture Mimic draws or redraws is one paid request on your account with that service: one for a mini made from a description or with the grey sculpt, plus one for each extra
     side picture it redraws. A picture used as it is costs nothing. A new version with a new
     picture costs the same again; a picture that's already made is never asked for twice.
 
-If Black Forest Labs turns a picture down (its moderation does that now and then), is busy, or
-takes too long, the mini stops with a message saying so, and nothing else about it changes. Press
+If the service turns a picture down (its moderation does that now and then), is busy, or takes
+too long, the mini stops with a message saying so, and nothing else about it changes. Press
 **Try Again**, or change the description.
 
 ### Set up Draw Things
@@ -240,8 +244,8 @@ learned from. The times are kept on your Mac only and never sent anywhere.
 **Reset Mimic…** puts Mimic back the way it was the first time you opened it, and opens it again.
 It asks first:
 
-- **Reset** forgets Mimic's settings, its tips and any saved AI keys (the Black Forest Labs key
-  too), and shows the tour again.
+- **Reset** forgets Mimic's settings, its tips and any saved AI keys (the keys for online
+  pictures too), and shows the tour again.
 - **Reset All** does the same and also removes the 3D engine, so first-launch setup shows again and
   downloads it again (8.3 to 9.3 GB, depending on the 3D model).
 

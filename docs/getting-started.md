@@ -16,7 +16,7 @@ What you need, how to install Mimic, and what happens the first time you open it
 - Optional: [Draw Things](https://apps.apple.com/app/id6444050820), a free app. With it, Mimic
   can make a mini from a description, and turn your picture into a grey sculpt first, which gives
   better minis. See [Set up Draw Things](#set-up-draw-things). Or, instead of Draw Things, an
-  account with Black Forest Labs, which makes those pictures online.
+  account with Black Forest Labs or OpenAI, which make those pictures online.
 
 Mimic needs no account and uploads nothing: everything runs on your Mac, unless you choose to have
 pictures made online.
@@ -87,9 +87,9 @@ You can do this any time: the same steps are in **Settings → Draw Things & AI*
 
 !!! tip "Rather not install Draw Things?"
     In **Settings → Draw Things & AI**, set **Make pictures with** to **Black Forest Labs, online**
-    and save your API key from Black Forest Labs. The pictures are then made online, on your
-    account, and Draw Things isn't needed. Your description, or the picture to redraw, is sent to
-    Black Forest Labs, and each picture is one paid request. See
+    or **OpenAI, online**, and save your API key from that service. The pictures are then made
+    online, on your account, and Draw Things isn't needed. Your description, or the picture to
+    redraw, is sent to that service, and each picture is one paid request. See
     [Choose what makes the pictures](settings.md#choose-what-makes-the-pictures).
 
 ??? note "Without the command line tool"
