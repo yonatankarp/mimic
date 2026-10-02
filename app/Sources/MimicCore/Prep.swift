@@ -84,19 +84,24 @@ public struct PrepOptions: Equatable, Sendable {
     public static func parse(_ args: [String]) throws -> PrepOptions {
         var rest = args[...], files: [String] = []
         var o = PrepOptions(glb: "", stl: "")
-        func number(_ flag: String) throws -> Double {
-            guard let v = rest.popFirst(), let n = Double(v), n.isFinite, n >= 0 else { throw PrepError("\(flag) needs a number of 0 or more") }
+        // Wider than New Mini's ranges, to experiment with, but never a figure or grid the Mac
+        // can't hold: a 10²⁰ mm height from a hand edit ran it out of memory (#377).
+        func number(_ flag: String, _ range: ClosedRange<Double> = 0...Double.greatestFiniteMagnitude) throws -> Double {
+            guard let v = rest.popFirst(), let n = Double(v), range.contains(n) else {
+                throw PrepError(range.upperBound == .greatestFiniteMagnitude ? "\(flag) needs a number of 0 or more"
+                                : "\(flag) needs a number from \(SizeCard.text(range.lowerBound)) to \(SizeCard.text(range.upperBound))")
+            }
             return n
         }
         while let a = rest.popFirst() {
             switch a {
-            case "--height": o.height = try number(a)
-            case "--base": o.base = try number(a)
-            case "--base-height": o.baseHeight = try number(a)
-            case "--nozzle": o.nozzle = try number(a)
-            case "--inflate": o.inflate = try number(a)
-            case "--voxel": o.voxel = try number(a)
-            case "--flatten": o.flatten = try number(a)
+            case "--height": o.height = try number(a, 5...500)
+            case "--base": o.base = try number(a, 5...200)
+            case "--base-height": o.baseHeight = try number(a, 0...50)
+            case "--nozzle": o.nozzle = try number(a, 0.1...1)
+            case "--inflate": o.inflate = try number(a, 0...2)
+            case "--voxel": o.voxel = try number(a, 0.01...5)
+            case "--flatten": o.flatten = try number(a, 0...50)
             case "--faces": o.faces = Int(try number(a))
             case "--turn": o.turn = try number(a)
             case "--no-base": o.noBase = true
@@ -131,7 +136,6 @@ public struct PrepOptions: Equatable, Sendable {
             }
         }
         guard files.count == 2 else { throw PrepError("usage: mimic _prep in.glb out.stl [options]") }
-        guard o.height > 0, o.effectiveVoxel > 0 else { throw PrepError("--height and --voxel must be more than 0") }
         o.glb = files[0]; o.stl = files[1]
         return o
     }
