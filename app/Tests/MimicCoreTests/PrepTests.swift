@@ -726,6 +726,25 @@ final class PrepTests: XCTestCase {
         XCTAssertThrowsError(try PrepOptions.parse(["a.glb"]))
     }
 
+    /// A size print prep can't make on a Mac, typed by hand or from a hand-edited settings.json, is
+    /// refused rather than run out of memory on a 10²⁰ mm figure (#377). The ranges are wider than
+    /// the app's, to experiment with.
+    func testHugeOrTinySizesAreRefused() throws {
+        for flag in ["--height", "--base", "--base-height", "--nozzle", "--inflate", "--voxel", "--flatten"] {
+            XCTAssertThrowsError(try PrepOptions.parse(["a.glb", "b.stl", flag, "1e20"]), flag) {
+                XCTAssertTrue("\($0)".hasPrefix("\(flag) needs a number from "), "\($0)")
+            }
+        }
+        for (flag, tiny) in [("--height", "1"), ("--nozzle", "0.01"), ("--voxel", "0.001")] {
+            XCTAssertThrowsError(try PrepOptions.parse(["a.glb", "b.stl", flag, tiny]), flag)
+        }
+        XCTAssertThrowsError(try PrepOptions.parse(["a.glb", "b.stl", "--height", "501"])) {
+            XCTAssertEqual("\($0)", "--height needs a number from 5 to 500")
+        }
+        let edges = try PrepOptions.parse(["a.glb", "b.stl", "--height", "500", "--base", "200", "--nozzle", "1", "--inflate", "2"])
+        XCTAssertEqual([edges.height, edges.base, edges.nozzle, edges.effectiveInflate], [500, 200, 1, 2])
+    }
+
     /// The reader turns glTF's y-up into z-up and applies the node's placement.
     func testTheGLBReaderPlacesAndTurns() throws {
         let tri = Mesh(positions: [[0, 0, 0], [1, 0, 0], [0, 0, 1]], triangles: [[0, 1, 2]])
