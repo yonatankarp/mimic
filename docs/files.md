@@ -110,7 +110,11 @@ That's all one matrix, row by row, in millimetres:
 
 A point (x, y, z) of `model.glb`, read with z up the way Blender imports it, lands on the print file
 at the matrix times (x, y, z, 1). Export for Virtual Tabletop uses it the other way round: for each
-part of the print file, it finds the nearest point on `model.glb` and takes its colour.
+part of the print file, it looks straight into the surface for `model.glb` and takes its colour
+there. Print prep pushes the surface out a little to keep thin parts whole, so the nearest point on
+`model.glb` would often be the edge of a raised strand of hair or a necklace beside it, and widen
+it into a smear. Where looking straight in finds nothing close by, it takes the nearest point's
+colour.
 
 A mini whose print file was made before Mimic kept this file has none. Its export is still in
 colour: Mimic works out the same placement from the mini's settings, as print prep would now.

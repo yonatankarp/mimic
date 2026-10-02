@@ -324,7 +324,7 @@ public enum Tabletop {
     static let grey = SIMD3<UInt8>(150, 150, 150)
 
     /// Colours `low`, the trimmed print file: each triangle gets a cell of its own on a
-    /// `size`-pixel square, every pixel of it the engine's colour there (`EngineColours`). A cell
+    /// `size`-pixel square, every pixel of it the engine's colour under it (`EngineColours`). A cell
     /// is the whole square around its triangle, so a pixel the texture's smoothing reaches past
     /// the edge has the edge's colour, not a neighbour's. Corners aren't shared any more: a
     /// corner's place differs in each of its triangles' cells.
@@ -343,18 +343,25 @@ public enum Tabletop {
             mesh.triangles.append(SIMD3(i, i + 1, i + 2))
         }
 
+        // Each corner's normal, its triangles' weighted by their area, for a smooth one across a triangle.
+        var normals = [SIMD3<Float>](repeating: .zero, count: low.positions.count)
+        for t in low.triangles {
+            let n = simd_cross(low.positions[Int(t.y)] - low.positions[Int(t.x)], low.positions[Int(t.z)] - low.positions[Int(t.x)])
+            normals[Int(t.x)] += n; normals[Int(t.y)] += n; normals[Int(t.z)] += n
+        }
         var pixels = [UInt8](repeating: 255, count: size * size * 4)
         pixels.withUnsafeMutableBufferPointer { out in
             DispatchQueue.concurrentPerform(iterations: low.triangles.count) { k in
                 let t = low.triangles[k]
                 let a = low.positions[Int(t.x)], b = low.positions[Int(t.y)], c = low.positions[Int(t.z)]
+                let na = normals[Int(t.x)], nb = normals[Int(t.y)], nc = normals[Int(t.z)]
                 let x0 = k % n * cell, y0 = k / n * cell, span = Float(cell) - 2 * inset
                 for y in y0..<(y0 + cell) {
                     for x in x0..<(x0 + cell) {
                         // Where this pixel is on the triangle, the square's far half folded back onto it.
                         var s = max(0, (Float(x - x0) + 0.5 - inset) / span), r = max(0, (Float(y - y0) + 0.5 - inset) / span)
                         if s + r > 1 { let sum = s + r; s /= sum; r /= sum }
-                        let rgb = colours.colour(at: a * (1 - s - r) + b * s + c * r) ?? grey
+                        let rgb = colours.colour(at: a * (1 - s - r) + b * s + c * r, along: na * (1 - s - r) + nb * s + nc * r) ?? grey
                         let o = 4 * (y * size + x)
                         out[o] = rgb.x; out[o + 1] = rgb.y; out[o + 2] = rgb.z
                     }
