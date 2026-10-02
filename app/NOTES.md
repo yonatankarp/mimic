@@ -452,6 +452,23 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   took up to about a minute, so the limit is 300 s. Cloud providers are proven against a local
   fake server only. Key reads happen off the main thread: an ad-hoc-signed update is a new
   identity to the Keychain, so macOS may ask once to let Mimic use the saved key.
+- **Pictures can be made online instead of by Draw Things** (#247, `MimicCore/OnlineImages.swift`).
+  Settings → Pictures (`imageService`: `drawthings`, the default, or `bfl`). Only Black Forest
+  Labs: it runs the same FLUX.2 Klein, so the prompts in `DrawThings.swift` carry over word for
+  word (OpenAI and Gemini would need their own prompts, and the cartoon check again). The model is
+  pinned to `flux-2-klein-9b`, which both draws and edits; `input_image` is sent as base64 at
+  `DrawThings.editSize`, and PNG is asked for (the default is JPEG). The API is async: submit, then
+  ask the `polling_url` every 0.5 s for up to 300 s, then fetch `result.sample`, which needs no key
+  and gets none. The key goes only to the address it was set up with or https `*.bfl.ai` (polling
+  addresses can be regional). `PictureMaker` is the one seam: `DrawThings` and `OnlineImages` both
+  are one, and the job runner picks one as each job starts (`JobRunner.pictureService`), so Stop
+  cancels the one in use, and a change in Settings counts from the next job. The key is a Keychain
+  account `bfl`, as the helper's. `GET /v1/credits` checks it for free: Settings' Test and the
+  `images-online` check, which replaces the three Draw Things checks; it isn't in the Draw Things
+  watch, which would ask every few seconds. Its errors never say "Draw Things", or the popover
+  would send people to its setup steps. No `--image-service` flag: a per-make choice would have to
+  be saved with the mini, since the app may run it from the queue later. Proven against a local
+  fake server only; there's no cancel in the API, so a stopped request is probably still charged.
 - **Report a Problem makes a zip and opens a filled-in issue** (`MimicCore/Report.swift`, `Log.swift`;
   #100). A link can't attach a file, so Help → Report a Problem… (or the action on a mini that
   didn't finish) writes `runs/_reports/mimic-report-….zip`, shows it in Finder, and opens

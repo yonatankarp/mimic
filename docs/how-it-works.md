@@ -1,6 +1,7 @@
 # How it works
 
-From a picture or a description to a print-ready STL, everything happens on your Mac. This page
+From a picture or a description to a print-ready STL, everything happens on your Mac, unless you
+choose to have the pictures made online. This page
 follows a mini through Mimic's three steps, compares the two 3D models, and lists exactly what Mimic
 downloads and when it talks to the internet.
 
@@ -28,7 +29,7 @@ records:
 
 | Step | Shown as | Runs | Makes |
 |---|---|---|---|
-| 1 | Getting the picture ready | Mimic itself, and Draw Things when a picture is drawn | `source.png` |
+| 1 | Getting the picture ready | Mimic itself, and Draw Things (or Black Forest Labs) when a picture is drawn | `source.png` |
 | 2 | Building the 3D shape | `mimic _engine`: Apple Vision, then the 3D engine | `model.glb` |
 | 3 | Making the print-ready file | `mimic _prep`: print prep | `<name>.stl` and its previews |
 
@@ -73,6 +74,13 @@ inside Draw Things. Mimic talks to it in one of two ways:
 Every request names the model and its settings (4 steps, the sampler FLUX.2 Klein was made for), so
 another kind of model selected in Draw Things can't take over. When you have more than one FLUX.2
 Klein downloaded, Mimic uses the one selected in Draw Things, else the largest.
+
+**Online instead.** With **Make pictures with** set to **Black Forest Labs, online** (see
+[Settings](settings.md#choose-what-makes-the-pictures)), the same prompts go to Black Forest Labs'
+API instead, with your own key: FLUX.2 Klein 9B (`flux-2-klein-9b`), a PNG of the same size Draw
+Things would make. A request is submitted, then Mimic asks every half a second whether the picture
+is ready (for up to five minutes) and downloads it. **Stop** stops asking at once. The key is only
+sent to Black Forest Labs' own addresses, over https.
 
 ## Step 2: the 3D shape
 
@@ -141,6 +149,7 @@ downloaded, the other copies them instead of downloading them again, and they ta
 |---|---|---|
 | Mimic, the app and `mimic` | Your Mac | [Mimic's releases](https://github.com/yonatankarp/mimic/releases) |
 | Draw Things and FLUX.2 Klein | Your Mac | The Mac App Store, and Draw Things' own model list |
+| FLUX.2 Klein online, if you choose it | Black Forest Labs' servers | Your Black Forest Labs account |
 | `draw-things-cli` | Your Mac | Draw Things' own GitHub release, `v1.20260430.0` |
 | The cut-out | Your Mac (Apple Vision) | Built into macOS |
 | The 3D engine, `trellis-cli` | Your Mac's graphics chip | Mimic's GitHub release `pixal3d-d1b4926`, built from pixal3d.cpp by Mimic |
@@ -160,8 +169,8 @@ The model files' licences come with them: see [Licences](licences.md).
 ## Privacy
 
 Mimic runs on your Mac: no account, no uploads, no subscription. Your pictures and minis never leave
-it, and neither do your descriptions unless you choose a cloud AI helper (below). Mimic only goes
-online for these:
+it, and neither do your descriptions, unless you choose a cloud AI helper or online pictures
+(below). Mimic only goes online for these:
 
 - **First-launch setup, and downloads you ask for in Settings:** the engine from Mimic's GitHub
   release, `draw-things-cli` from Draw Things' GitHub release, and the model files from Hugging
@@ -172,6 +181,10 @@ online for these:
 - **An AI helper, only if you choose a cloud one** in Settings: it receives the description you
   type, and what you type in **What to change**, nothing else. Its key stays in your Keychain and is
   only sent to the address it was saved for. Ollama runs on your Mac, so with it nothing leaves.
+- **Online pictures, only if you choose them** in Settings: Black Forest Labs receives the
+  description to draw, or the picture to redraw as a grey sculpt (with what you type in
+  **What to change**), and sends the picture back. Your 3D models and print files are still made
+  on your Mac. Its key stays in your Keychain.
 - **Report a Problem** makes a file on your Mac and opens GitHub's form in your browser, and so
   does the report Mimic offers after it quits unexpectedly. Nothing is sent unless you attach the
   file and send the form yourself.
