@@ -114,6 +114,15 @@ public enum Report {
         try text(about.joined(separator: "\n") + "\n", "about.txt")
 
         try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+        // Reports from more than a week ago go (#350): sent or not, they'd pile up, and the minis
+        // folder may sync to iCloud. Only Mimic's own, and never a reason not to make this one.
+        let weekAgo = now.addingTimeInterval(-7 * 86_400)
+        for old in (try? fm.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
+        where old.lastPathComponent.hasPrefix("mimic-report-") && old.pathExtension == "zip" {
+            if let date = try? old.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate, date < weekAgo {
+                try? fm.removeItem(at: old)
+            }
+        }
         let zip = folder.appendingPathComponent(name + ".zip")
         try? fm.removeItem(at: zip)
         let ditto = Process()

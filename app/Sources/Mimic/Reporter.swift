@@ -3,8 +3,8 @@ import MimicCore
 import Observation
 
 /// Help → Report a Problem…, or a failed mini's (#100): asks about the pictures, makes the
-/// report, shows it in Finder and opens GitHub's bug form to drag it into. Reports are kept
-/// in the minis folder's `_reports`, which Mimic can already write to (Downloads or the
+/// report, shows it in Finder and opens GitHub's bug form to drag it into. Reports are kept for
+/// a week in the minis folder's `_reports`, which Mimic can already write to (Downloads or the
 /// Desktop would ask for permission first) and the gallery never lists. Owned by the app's
 /// delegate; views read it from the environment (`@Environment(Reporter.self)`).
 @MainActor @Observable
@@ -26,7 +26,7 @@ final class Reporter {
         let include = NSButton(checkboxWithTitle: ReportQuestion.includePicture, target: nil, action: nil)
         include.state = .off
         let includeWindow = NSButton(checkboxWithTitle: ReportQuestion.includeWindow, target: nil, action: nil)
-        includeWindow.state = .on
+        includeWindow.state = .off  // #350: it can show other minis
         var rows: [NSView] = hasPicture ? [include] : []
         if let window, let image = NSImage(data: window) {
             let preview = NSImageView(image: image)
