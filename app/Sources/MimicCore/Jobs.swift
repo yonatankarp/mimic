@@ -15,6 +15,13 @@ public enum JobStep: Int, Codable, CaseIterable, Comparable, Sendable {
         }
     }
 
+    /// The label inside a sentence: "while building the 3D shape", its other capitals kept.
+    public var during: String { label.prefix(1).lowercased() + label.dropFirst() }
+
+    /// Why a step whose program was killed outright (signal 9) stopped: that's how macOS ends one
+    /// when the Mac runs out of memory (#305).
+    public var outOfMemory: String { "It looks like your Mac ran out of memory while \(during). Quit other apps, then try again." }
+
     public static func < (a: JobStep, b: JobStep) -> Bool { a.rawValue < b.rawValue }
 }
 
@@ -663,8 +670,13 @@ public final class JobRunner: @unchecked Sendable {
         let report = PrepReport.read(folder) ?? PrepReport()
         try? FileManager.default.removeItem(at: reportFile)
         let fragile = report.fragile, notes = report.notes
-        // Print prep runs as its own program, so why it failed is only in its report.
-        if ran.code != 0, ran.problem == nil { ran.problem = report.failure.map { String($0.prefix { $0 != "\n" }) } }
+        // The 3D step and print prep run as programs of their own, so why one failed is only in
+        // its report (#305); killed outright, it wrote none. Never their log: it's for a bug report.
+        if !canceled, ran.code != 0, ran.problem == nil {
+            let step = status?.step ?? .shape
+            ran.problem = report.failure.map { String($0.prefix { $0 != "\n" }) }
+                ?? (ran.code == -9 ? step.outOfMemory : "It stopped while \(step.during).")
+        }
         // Kept with the mini, so its page says it after a relaunch too.
         if !canceled {
             let step = status?.step
@@ -674,7 +686,7 @@ public final class JobRunner: @unchecked Sendable {
                     if !pictureReady { s.notes = notes.isEmpty ? nil : notes; s.fragile = fragile ? true : nil }
                     s.failed = nil; s.failedStep = nil
                 } else {
-                    s.failed = problem ?? "It stopped while \((step ?? .shape).label.lowercased())."; s.failedStep = step?.rawValue
+                    s.failed = problem; s.failedStep = step?.rawValue
                 }
             }
         }

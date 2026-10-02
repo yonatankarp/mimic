@@ -213,7 +213,7 @@ struct JobProgressView: View {
         case .pictureReady:
             Label { Text("The picture of \(who) is ready") } icon: { Image(systemName: s.outcome.symbol).foregroundStyle(s.outcome.color) }
         case .failed:
-            Label { Text("Something went wrong while \(s.step.label.lowercased())").fixedSize(horizontal: false, vertical: true) }
+            Label { Text("Something went wrong while \(s.step.during)").fixedSize(horizontal: false, vertical: true) }
                 icon: { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange) }
         }
     }

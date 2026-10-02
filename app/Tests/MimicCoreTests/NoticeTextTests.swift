@@ -18,7 +18,7 @@ final class NoticeTextTests: XCTestCase {
 
     func testAFailedMiniSaysWhichStepItStoppedIn() {
         let text = MiniNotification.text(ended(step: .shape, exit: 1), who: "Dwarf")
-        XCTAssertEqual(text, .init(title: "Dwarf didn't finish", body: "Something went wrong while building the 3d shape.",
+        XCTAssertEqual(text, .init(title: "Dwarf didn't finish", body: "Something went wrong while building the 3D shape.",
                                    category: MiniNotification.failed))
         XCTAssertEqual(MiniNotification.text(ended(step: .picture, exit: 1), who: "Dwarf").body,
                        "Something went wrong while getting the picture ready.")

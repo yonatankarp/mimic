@@ -236,6 +236,33 @@ final class EngineTests: XCTestCase {
         XCTAssertTrue(text(log).contains("without writing"), text(log))
     }
 
+    /// What the job tells the person goes in the report beside model.glb (#305), as the log
+    /// can't say it plainly: the engine's own words for people, a plain sentence for trellis-cli
+    /// killed (macOS ending it when the Mac runs out of memory), and nothing for an exit code.
+    func testTheEngineReportsWhyItFailed() throws {
+        var (p, glb, log) = try engine("kill -9 $$")
+        XCTAssertEqual(p.wait(), 1)
+        XCTAssertEqual(PrepReport.read(glb.deletingLastPathComponent())?.failure,
+                       "It looks like your Mac ran out of memory while building the 3D shape. Quit other apps, then try again.")
+        XCTAssertTrue(text(log).contains("signal 9"), text(log))
+
+        try? FileManager.default.removeItem(at: PrepReport.file(beside: glb))
+        (p, glb, _) = try engine("echo boom; exit 3")
+        XCTAssertEqual(p.wait(), 1)
+        XCTAssertNil(PrepReport.read(glb.deletingLastPathComponent()), "an exit code isn't for people")
+
+        let missing = f.root.appendingPathComponent("no-engine")
+        let source = try picture("cut.png") { x, _ in x < 50 ? 0 : 255 }
+        let mini = f.install.runs.appendingPathComponent("missing")
+        try FileManager.default.createDirectory(at: mini, withIntermediateDirectories: true)
+        let q = try GroupProcess(executable: mimic,
+                                 arguments: ["_engine", source.path, mini.appendingPathComponent("model.glb").path, "--seed", "5", "--engine", missing.path],
+                                 environment: ["PATH": "/usr/bin:/bin"], log: f.root.appendingPathComponent("missing.log").path)
+        XCTAssertEqual(q.wait(), 1)
+        XCTAssertEqual(PrepReport.read(mini)?.failure,
+                       "The 3D engine is missing (\(missing.appendingPathComponent("trellis-cli").path)). Open Mimic's Settings and press Repair next to the 3D engine.")
+    }
+
     /// Stop ends the job's group; trellis-cli has to be in it, not in a group of its own.
     func testStopEndsTheEngineToo() throws {
         let pidFile = f.root.appendingPathComponent("cli.pid").path

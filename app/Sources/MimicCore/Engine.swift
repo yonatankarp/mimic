@@ -15,7 +15,10 @@ import Vision
 public enum Engine {
     public struct Failure: Error, CustomStringConvertible {
         public let description: String
-        init(_ d: String) { description = d }
+        /// Said to the person as it is (#305), in `mimic _engine`'s report to the job. The rest
+        /// (a path, an exit code) is for the log only, and the job says which step stopped.
+        public let forPeople: Bool
+        init(_ d: String, forPeople: Bool = false) { description = d; self.forPeople = forPeople }
     }
 
     /// The gauge camera the single-view weights are designed around: 20 degrees, as radians.
@@ -84,7 +87,7 @@ public enum Engine {
         let request = VNGenerateForegroundInstanceMaskRequest()
         try handler.perform([request])
         guard let found = request.results?.first, !found.allInstances.isEmpty else {
-            throw Failure("Couldn't find the character in the picture. Try one with a plain background.")
+            throw Failure("Couldn't find the character in the picture. Try one with a plain background.", forPeople: true)
         }
         let mask = try found.generateScaledMaskForImage(forInstances: found.allInstances, from: handler)
         // ponytail: the picture's own alpha is dropped here (drawn over black), like the wrapper's
@@ -164,7 +167,7 @@ public enum Engine {
 
     /// Cuts the picture out if it needs it, then runs trellis-cli from `engine` with `model`,
     /// writing its output (minus the noise) through `say`. Throws with a sentence for the log on
-    /// failure. PIXAL3D_STEPS applies to every flow of either pipeline, so the same guard holds.
+    /// failure, one for the person too when it's `forPeople`. PIXAL3D_STEPS applies to every flow of either pipeline, so the same guard holds.
     ///
     /// `sides`: pictures of the back and sides besides `source`, the front (#66). Each is cut out
     /// the same way, and the front and they go to TRELLIS.2's multi-image mode, front first.
@@ -176,9 +179,9 @@ public enum Engine {
             throw Failure("The picture is missing: \(picture.path)")
         }
         guard FileManager.default.isExecutableFile(atPath: cli.path) else {
-            throw Failure("The 3D engine is missing (\(cli.path)). Open Mimic's Settings and press Repair next to the 3D engine.")
+            throw Failure("The 3D engine is missing (\(cli.path)). Open Mimic's Settings and press Repair next to the 3D engine.", forPeople: true)
         }
-        if !sides.isEmpty && !model.multiView { throw Failure(RequestError.oneSideOnly(model.name).description) }
+        if !sides.isEmpty && !model.multiView { throw Failure(RequestError.oneSideOnly(model.name).description, forPeople: true) }
         func cutOutIfNeeded(_ picture: URL) throws -> URL {
             guard try !isCutOut(picture) else { return picture }
             say("[pixal3d] cutting the character out of \(picture.lastPathComponent) with Apple Vision")
@@ -234,9 +237,11 @@ public enum Engine {
             kill(process.pid, SIGKILL)
             process.wait()
             throw Failure("This 3D engine ignores PIXAL3D_STEPS, so it would run the slow way. "
-                          + "Stopped it before wasting the run. Open Mimic's Settings and press Repair next to the 3D engine.")
+                          + "Stopped it before wasting the run. Open Mimic's Settings and press Repair next to the 3D engine.", forPeople: true)
         }
         let code = process.wait()
+        // Killed outright: how macOS ends the biggest program when the Mac runs out of memory.
+        if code == -9 { say("[pixal3d] trellis-cli was killed (signal 9)"); throw Failure(JobStep.shape.outOfMemory, forPeople: true) }
         guard code == 0 else { throw Failure("The 3D engine stopped with exit code \(code).") }
         guard FileManager.default.fileExists(atPath: output.path) else {
             throw Failure("The 3D engine finished without writing \(output.path).")

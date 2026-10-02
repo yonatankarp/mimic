@@ -22,7 +22,7 @@ public enum MiniNotification {
             ? Text(title: "Check the picture of \(who)", body: "Build its 3D shape when it looks right.", category: picture)
             : s.succeeded
             ? Text(title: "\(who) is ready", body: "Ready to print.", category: ready)
-            : Text(title: "\(who) didn't finish", body: "Something went wrong while \(s.step.label.lowercased()).",
+            : Text(title: "\(who) didn't finish", body: "Something went wrong while \(s.step.during).",
                    category: failed)
     }
 
