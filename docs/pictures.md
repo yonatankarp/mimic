@@ -75,9 +75,10 @@ Under the picture, **More pictures of the same character (optional)** has three 
 will do, and each goes through the grey sculpt like the front picture.
 
 - *They work with TRELLIS.2 only.* The places show only when the mini will be made with TRELLIS.2.
-  With Pixal3D, New Mini says "TRELLIS.2 can also use pictures of the back and sides." instead, with
-  **Open Settings**; a cartoon (always Pixal3D) shows neither. Pictures you've already added come
-  back if you switch to TRELLIS.2 again.
+  With Pixal3D, New Mini says "TRELLIS.2 can also use pictures of the back and sides." instead; on a
+  new mini, **Open Settings** beside it lets you switch. (**Edit & Make Again…** keeps the model the
+  mini was made with: see [Versions](versions.md#edit-make-again).) A cartoon (always Pixal3D) shows
+  neither. Pictures you've already added come back if you switch to TRELLIS.2 again.
 - *They take longer.* The 3D step takes nearly three times as long. The time beside
   **Make Mini** counts it.
 
