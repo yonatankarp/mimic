@@ -35,4 +35,27 @@ final class ResetTests: XCTestCase {
         XCTAssertNil(UserDefaults.standard.persistentDomain(forName: domain)?[SettingsKey.model], "and setup offers every model again")
         XCTAssertTrue(FileManager.default.fileExists(atPath: mini.appendingPathComponent("dwarf.stl").path), "the minis are never touched")
     }
+
+    /// Reset in Mimic Dev forgets Mimic Dev's keys, never Mimic's (#313); outside an app (no
+    /// bundle id, whose keys are Mimic's) it forgets none. Two made-up services stand in for them.
+    func testResetForgetsOnlyItsOwnKeys() throws {
+        let install = Install(root: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+        let domain = "mimic-reset-test-\(UUID().uuidString)"
+        let release = "com.mimic.test.\(UUID().uuidString)", dev = "com.mimic.test.\(UUID().uuidString)"
+        addTeardownBlock {
+            UserDefaults.standard.removePersistentDomain(forName: domain)
+            Keychain.deleteAll(service: release)
+            Keychain.deleteAll(service: dev)
+        }
+        try Keychain.save("sk-release", account: HelperProvider.anthropic.rawValue, service: release)
+        try Keychain.save("sk-dev", account: HelperProvider.anthropic.rawValue, service: dev)
+
+        try Reset.run(install: install, domain: domain, removeEngine: false, keychainService: nil)
+        XCTAssertTrue(Keychain.has(account: HelperProvider.anthropic.rawValue, service: release), "outside an app, no key is deleted")
+        XCTAssertTrue(Keychain.has(account: HelperProvider.anthropic.rawValue, service: dev))
+
+        try Reset.run(install: install, domain: domain, removeEngine: false, keychainService: dev)
+        XCTAssertFalse(Keychain.has(account: HelperProvider.anthropic.rawValue, service: dev), "its own key is forgotten")
+        XCTAssertEqual(Keychain.read(account: HelperProvider.anthropic.rawValue, service: release), "sk-release", "the other app's is kept")
+    }
 }

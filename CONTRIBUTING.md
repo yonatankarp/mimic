@@ -74,7 +74,7 @@ swift test                         # the engine: jobs, Stop, sizes, checks, rena
 MIMIC_HOME=.. swift run mimic list # the command line, without the app
 ```
 
-`bundle.sh` makes *Mimic Dev*, a separate app with its own settings, so it never replaces the
+`bundle.sh` makes *Mimic Dev*, a separate app with its own settings and saved keys, so it never replaces the
 Mimic you use. Several tests plant the bug they guard against first; keep that habit when
 adding one.
 

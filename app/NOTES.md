@@ -463,8 +463,12 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   Claude, any OpenAI-compatible service (key + address + model, only `model` and `messages`
   sent, since some models refuse `max_tokens` or `temperature`), or Ollama on this Mac. Claude
   defaults to Haiku 4.5: the rewrite is short and the person waits for it in the sheet, and it
-  costs half of Sonnet 5.5. Keys are generic passwords in the login Keychain (service
-  `com.mimic.app`, one account per provider), never in UserDefaults, settings.json or a log;
+  costs half of Sonnet 5.5. Keys are generic passwords in the login Keychain (service the
+  bundle id, one account per provider), never in UserDefaults, settings.json or a log. The
+  service was the fixed `com.mimic.app` until #313, so Mimic Dev's Reset deleted the installed
+  app's keys; now Mimic Dev has `com.mimic.app.dev` (keys saved by older dev builds aren't read:
+  save them again), Mimic is unchanged, and a binary outside an app (`mimic` through a symlink,
+  `swift run`) reads Mimic's keys, as it reads Mimic's settings, but its Reset deletes none;
   error text a service sends back has the key cut out. Only the description is sent. The
   improved text is saved as `desc` (what was drawn) and what the person typed as
   `descOriginal`, so Try Again redraws exactly and never asks the helper again. Its answer goes
