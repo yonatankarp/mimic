@@ -94,9 +94,14 @@ final class ReportTests: XCTestCase {
         XCTAssertEqual(Report.scrub("/Users/alice/x and /Users/alice", home: home), "~/x and ~")
         XCTAssertEqual(Report.scrub(#"{"failed": "\/Users\/alice\/x"}"#, home: home), #"{"failed": "~\/x"}"#)
         XCTAssertEqual(Report.scrub("x-api-key: sk-ant-abcdefghijkl", home: home), "x-api-key: [key removed]")
+        // Black Forest Labs' header (#352). Its keys have no documented shape to match on their own.
+        XCTAssertEqual(Report.scrub("x-key: hunter2hunter2", home: home), "x-key: [removed]")
+        XCTAssertEqual(Report.scrub(#"{"x-key":"hunter2hunter2"}"#, home: home), #"{"x-key":"[removed]"}"#)
         XCTAssertEqual(Report.scrub("/Users/alicebob/x", home: home), "/Users/alicebob/x", "another person's folder isn't this one")
         // What a job log says that isn't secret stays.
-        for kept in ["max_tokens: 400", "task-1234567890abcdefghij", "seed 12345", "941a66c"] {
+        for kept in ["max_tokens: 400", "task-1234567890abcdefghij", "seed 12345", "941a66c",
+                     // A crash report's binary images are UUIDs, which reading the crash needs.
+                     #""uuid":"1f2e3d4c-5b6a-4789-9abc-def012345678""#] {
             XCTAssertEqual(Report.scrub(kept, home: home), kept)
         }
     }
