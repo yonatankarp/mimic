@@ -124,8 +124,9 @@ mimic open tiefling           # open its print file in your slicer
 mimic export tiefling --vtt   # a low-poly .glb for a virtual tabletop
 ```
 
-`open` uses the slicer chosen in Settings and takes no options. `export` saves the `.glb` in the
-folder you're in; see [Printing and exporting](printing.md) for when it comes out in colour.
+`open` uses the slicer chosen in Settings and takes no options. `export` saves `<name>.glb` (the
+name `mimic list` shows) in the folder you're in, replacing a file of that name already there; see
+[Printing and exporting](printing.md) for when it comes out in colour.
 
 | `export` option | What it does |
 |---|---|
@@ -209,7 +210,8 @@ value is left out.
 - `info`: `mini` (as in `list`), `made` (`height`, `base`, `nozzle`, `inflate`, `noBase`, `shape`,
   `style`, `magnet`), `measured` (`height` with its base, `width`, `depth`, `filamentGrams`,
   `filamentMetres`), `madeFrom` (`source` of `picture` or `description`, `description`, `typed`,
-  `seed`, `shapeSeed`, `model`, `greySculpt`, `cartoon`), `versions` (names, itself included) and
+  `seed`, `shapeSeed`, `model`, `greySculpt`, `cartoon`, `fixes`: the changes asked for in its picture
+  with `--change` or in the app, as typed, oldest first), `versions` (names, itself included) and
   `failed` (why its last run didn't finish).
 
 ## Completing as you type
