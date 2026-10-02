@@ -69,9 +69,8 @@ struct MimicApp: App {
         .windowResizability(.contentSize)
     }
 
-    // The README's own heading, "## 🧙 Making a mini": GitHub drops the emoji and keeps its space.
-    // Print tips aren't linked: each mini's page shows them for its nozzle.
-    static let help = URL(string: "https://github.com/yonatankarp/mimic#-making-a-mini")!
+    // The guide, built from docs/. Print tips aren't linked: each mini's page shows them for its nozzle.
+    static let help = URL(string: "https://yonatankarp.com/mimic/")!
 }
 
 /// The Mini menu: what the buttons and the right-click menu do to the selected mini, with
