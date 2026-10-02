@@ -150,8 +150,8 @@ colour: Mimic works out the same placement from the mini's settings, as print pr
   a newer Mimic) is never written over: it's renamed to `queue.json.unreadable-<date and time>`, as
   it was, and a new queue starts. You can delete those copies. The queue isn't in the minis folder
   so that two Macs sharing it through iCloud never share a queue.
-- **timings.jsonl** has one line per mini made on this Mac (the Mac, the model, the sizes and each
-  step's time), at most 2,000 lines. It's what time estimates are learned from, and it's never
+- **timings.jsonl** has one line per mini made on this Mac (the Mac, the model, where its picture
+  was drawn, the sizes and each step's time), at most 2,000 lines. It's what time estimates are learned from, and it's never
   sent anywhere. Settings → Advanced → **Clear…** empties it.
 
 ## What's safe to change in Finder

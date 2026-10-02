@@ -11,6 +11,12 @@ public enum ImageService: String, CaseIterable, Sendable {
     public static let key = "imageService"
     public static func load(_ d: UserDefaults) -> ImageService { ImageService(rawValue: d.string(forKey: key) ?? "") ?? .drawThings }
 
+    /// The one `maker` is: an online service's, else Draw Things.
+    public init(_ maker: (any PictureMaker)?) {
+        guard let online = (maker as? any OnlineImages)?.service else { self = .drawThings; return }
+        self = Self.allCases.first { $0.online?.keyAccount == online.keyAccount } ?? .drawThings
+    }
+
     /// The online service this is, nil for Draw Things. Each one's entry is in its own file.
     public var online: OnlineService? {
         switch self {

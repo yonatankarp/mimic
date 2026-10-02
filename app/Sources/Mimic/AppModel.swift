@@ -396,7 +396,8 @@ final class AppModel {
     /// A new mini with the model it would be made with.
     /// `pictures`: the front and any of the back and sides, each made in step 1.
     func estimateNew(drawn: Bool, sizes: Sizes, cartoon: Bool = false, pictures: Int = 1) -> Estimate {
-        Estimator.estimate(JobShape(job: .generate, model: EngineDownload.forMaking(cartoon: cartoon, chosen: setup.chosen).id, drawn: drawn, nozzle: sizes.nozzle ?? "0.4",
+        Estimator.estimate(JobShape(job: .generate, model: EngineDownload.forMaking(cartoon: cartoon, chosen: setup.chosen).id, drawn: drawn,
+                                    service: ImageService.load(.standard), nozzle: sizes.nozzle ?? "0.4",
                                     height: sizes.height.flatMap(Double.init), pictures: pictures), history: history)
     }
 
@@ -418,7 +419,7 @@ final class AppModel {
 
     /// Minutes a mini takes with `m` on this Mac, when it has made enough to know (Settings).
     func learnedMinutes(_ m: EngineModel) -> Int? {
-        let e = Estimator.estimate(JobShape(job: .generate, model: m.id, drawn: true), history: history)
+        let e = Estimator.estimate(JobShape(job: .generate, model: m.id, drawn: true, service: ImageService.load(.standard)), history: history)
         return e.learned ? Int((e.total / 60).rounded()) : nil
     }
 
