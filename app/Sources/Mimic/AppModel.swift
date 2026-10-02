@@ -329,7 +329,9 @@ final class AppModel {
 
     /// Mimic came to the front: the mini on screen has been seen.
     func becameActive() {
-        reload()  // whatever changed in Finder meanwhile
+        // Whatever changed in Finder meanwhile, and minis made from the terminal. The only reload
+        // on coming to the front (AppDelegate calls this).
+        reload()
         updates.becameActive()
         if present({ $0.seen(selection) }) { updateBadge() }
     }

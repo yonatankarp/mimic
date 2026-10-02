@@ -91,10 +91,6 @@ struct MainWindowChrome: ViewModifier {
             .alert(model.problem ?? "", isPresented: showsProblem) {
                 Button("OK") {}
             }
-            // Minis made from the terminal appear when you come back to the app.
-            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-                model.reload()
-            }
     }
 }
 
