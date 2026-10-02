@@ -85,6 +85,22 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(s.made, Sizes(height: "32", base: "25", nozzle: "0.2"))
     }
 
+    /// A number too big to be a whole Int, from a hand edit or a script, reads as text and the
+    /// gallery shows the default size for it, rather than Mimic crashing on every reload (#307).
+    func testAHugeNumberReadsWithoutCrashing() throws {
+        try #"{"made": {"height": 1e20, "base": 25}, "requested": {"height": -1e20}}"#
+            .write(to: folder.appendingPathComponent("settings.json"), atomically: true, encoding: .utf8)
+        let s = MiniSettings.load(folder)
+        XCTAssertEqual(s.made?.height, "1e+20")
+        XCTAssertEqual(s.made?.base, "25")
+        XCTAssertThrowsError(try s.requested?.flags()) { XCTAssertEqual($0 as? RequestError, .badNumber("height")) }
+        XCTAssertEqual(PrintTips.shortLine(s.made!), "32 mm · 0.4 mm nozzle")
+        XCTAssertEqual(PrintTips.made(s.made!).first?.value, "32 mm")
+        for text in ["1e20", "-1e20", "inf", "nan"] {
+            XCTAssertEqual(PrintTips.shortLine(Sizes(height: text)), "32 mm · 0.4 mm nozzle", text)
+        }
+    }
+
     /// Only an object says what it is; a character's file stays exactly as before.
     func testKindRoundTripsAndAbsentIsACharacter() throws {
         try MiniSettings.update(folder) { $0.source = .desc; $0.desc = "a teapot"; $0.kind = .object }
