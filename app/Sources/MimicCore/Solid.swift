@@ -52,10 +52,12 @@ struct Solid {
     let base: Base?
     /// Everything below this z is cut away.
     let cut: Float?
+    /// The figure below this z is cut away, and not the base: the engine's own base, left out.
+    let figureFloor: Float?
 
     /// Grid for `mesh` plus the base, padded so every boundary sample is outside. With a cut, a
     /// grid plane sits half a voxel either side of it, so the flat bottom comes out exactly flat.
-    init(mesh: Mesh, voxel: Float, inflate: Float, base: Base?, cut: Float?) {
+    init(mesh: Mesh, voxel: Float, inflate: Float, base: Base?, cut: Float?, figureFloor: Float? = nil) {
         var (lo, hi) = mesh.bounds
         if let base {
             // Out to the corners: a square's are √2 times as far as its sides, a hex's 2/√3.
@@ -67,7 +69,7 @@ struct Solid {
         let pad = inflate + 2 * voxel
         lo -= pad; hi += pad
         if let cut { lo.z = cut - voxel / 2 }
-        self.origin = lo; self.h = voxel; self.inflate = inflate; self.base = base; self.cut = cut
+        self.origin = lo; self.h = voxel; self.inflate = inflate; self.base = base; self.cut = cut; self.figureFloor = figureFloor
         nx = Int(((hi.x - lo.x) / voxel).rounded(.up)) + 1
         ny = Int(((hi.y - lo.y) / voxel).rounded(.up)) + 1
         nz = max(2, Int(((hi.z - lo.z) / voxel).rounded(.up)) + 1)
@@ -388,6 +390,7 @@ struct Solid {
                     let inside = at < end && columns.z[at] <= z
                     let d = field[k * layer + col].squareRoot()
                     var v = inside ? -max(d + inflate, tiny) : d - inflate
+                    if let figureFloor { v = max(v, figureFloor - z) }
                     if let base {
                         let p = SIMD3(origin.x + Float(i) * h, origin.y + Float(j) * h, z)
                         v = min(v, baseDistance(p, base))

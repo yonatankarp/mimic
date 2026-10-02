@@ -322,6 +322,46 @@ final class PrepTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: side), "the old side view stayed beside left and right")
     }
 
+    /// The fixture on a base of the engine's own, copied from one in the picture: a disc 0.15
+    /// thick (5% of the height) and wider than Mimic's 25 mm base once it's sized.
+    static func onItsOwnBase() -> Mesh {
+        var m = Mesh()
+        m.add(cylinder(radius: 1.6, depth: 0.15), at: [0, 0, 0.075])
+        m.add(fixture(), at: [0, 0, 0.15])
+        return m
+    }
+
+    /// A robe flaring out to the ground isn't a base, nor are feet; a disc under them is.
+    func testABaseTheEngineMadeIsFoundByItsFlatTop() {
+        func top(_ m: Mesh) -> Float? { m.baseTop(ground: Mesh.percentileZ(m.surfaceSamples(), 0.005), top: m.bounds.hi.z) }
+        XCTAssertNil(top(Self.fixture()))
+        var robe = Self.cylinder(radius: 1, depth: 1)
+        robe.positions = robe.positions.map { $0.z > 0 ? SIMD3($0.x * 0.35, $0.y * 0.35, $0.z) : $0 }
+        var robed = Mesh()
+        robed.add(robe, at: [0, 0, 0.5])
+        robed.add(Self.fixture(), at: .zero)
+        XCTAssertNil(top(robed))
+        XCTAssertEqual(try XCTUnwrap(top(Self.onItsOwnBase())), 0.15, accuracy: 0.01)
+    }
+
+    /// The engine's base isn't printed: the figure stands on Mimic's base from its top, at the
+    /// height asked for, and nothing hangs over the edge, which printed on supports with a
+    /// ragged rim.
+    func testABaseTheEngineMadeIsLeftOut() throws {
+        let (alone, aloneOut, _) = try prep(["--faces", "20000"])
+        let (result, out, _) = try prep(["--faces", "20000"], mesh: Self.onItsOwnBase())
+        XCTAssertTrue(logged.contains { $0.contains("left out the 3D model's own base") }, "\(logged)")
+        XCTAssertEqual(result.warnings.map(\.kind), alone.warnings.map(\.kind), "no footprint warning for the engine's base")
+        // Sunk further into Mimic's base by the inflate and two voxels, so the engine's base top
+        // and its skin are cut off with it.
+        let o = PrepOptions(glb: "", stl: "")
+        XCTAssertEqual(aloneOut.bounds.hi.z - out.bounds.hi.z, Float(o.effectiveInflate + 2 * o.effectiveVoxel), accuracy: 0.1)
+        for p in out.positions where p.z < Float(o.baseHeight - o.flatten) - 0.1 {
+            XCTAssertLessThan(simd_length(SIMD2(p.x, p.y)), Float(o.base) / 2 + 0.3, "something past the base's edge at \(p)")
+        }
+        XCTAssertTrue(out.watertight)
+    }
+
     /// The previews are drawn before the print file is put in place (#172): when drawing them
     /// fails, or a resize is stopped meanwhile, the old print file stays, the size its settings say.
     func testAResizeWhosePreviewsFailKeepsTheOldPrintFile() throws {

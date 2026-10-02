@@ -60,6 +60,29 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
     floats where the hands held it, so it prints as a loose piece needing supports and glue,
     not as held. Make Another Version or TRELLIS.2 (which joined the bow on every seed, #2)
     is the fix, so that's what the warning says.
+  - **A base in the picture is left out** (`Mesh.baseTop`). A picture of a character on a base
+    (even after the grey sculpt, whose prompt says "no base") comes back with the engine's copy
+    of it: a hollow drum, open underneath, usually wider than Mimic's base. Stood on Mimic's
+    base it hung over the edge on supports, its rim ragged where `--flatten` cut it, and the
+    figure was sized from the drum's bottom, so it came out 5–8% short. Its top is the tell: a
+    wide flat face low down. Measured on 13 real models (both engines), counting faces within
+    0.95 of level either way up (the engine's surfaces are two-sided and its winding isn't
+    reliable), in hundredths of the height squared, within half a hundredth of each height up
+    to 12%: the three with a base in the picture peaked at 5,317 (TRELLIS.2 brute, base top at
+    7.7%), 3,219 (Pixal3D dwarf, a base in two steps, top at 5.4%) and 1,899 (TRELLIS.2 fairy,
+    her robe over most of it, 4.7%); the ten without at most 751 (Pixal3D Lorelei's robe, 375
+    counting up only), then 315 and under. `Prep.baseFlat` is 1,200, about 1.6 times from
+    each. Shifting the bins by half a width found the same three and none of the ten. A peak
+    also needs a fifth as much flat or less in the hundredth above it, so a robe of many small
+    flats doesn't count, and the highest that qualifies is the top of a base in steps. The
+    figure is sized from that top and set on Mimic's base from it, sunk a further inflate and
+    two voxels so the drum's top skin goes with it, and the field cuts the figure (not the base)
+    0.6 mm into Mimic's base (`Solid.figureFloor`). The footprint is measured from 1% above the
+    top, or the drum's top counted. Not in Export for Virtual Tabletop's placement of a print
+    file made before placement records, which must place it as it was made. `--no-base` keeps
+    the drum as the character's own; objects are never looked at. A miss leaves the drum as
+    before; a false hit would cut the bottom of the feet off, and needs a flat area the size of
+    a disc about 40% of the height across.
   - Trimming to `--faces` is quadric edge collapse that refuses any collapse that would make
     an edge not shared by exactly two triangles.
   - Renders are drawn in software, so a child process needs no window server or GPU, and it
