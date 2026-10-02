@@ -185,7 +185,7 @@ public class OnlineClient: @unchecked Sendable {
 
 /// URLSession follows a redirect with every header, the key too: a redirect to an address the key
 /// mustn't go to is followed without it.
-private final class KeepKey: NSObject, URLSessionTaskDelegate, Sendable {
+final class KeepKey: NSObject, URLSessionTaskDelegate, Sendable {
     let header: String
     let allowed: @Sendable (URL) -> Bool
     init(header: String, _ allowed: @escaping @Sendable (URL) -> Bool) { self.header = header; self.allowed = allowed }

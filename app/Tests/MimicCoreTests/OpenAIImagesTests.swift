@@ -179,6 +179,22 @@ final class OpenAIImagesTests: XCTestCase {
         XCTAssertFalse(followed.head.lowercased().contains("authorization"), "the key went to another address")
     }
 
+    /// URLSession drops Authorization on a redirect to another host by itself (above, it passes
+    /// either way), so the guard is asked directly: it takes out the header the service's key is in.
+    func testARedirectElsewhereLosesTheKeyHeader() async throws {
+        let s = OpenAIImages(key: { "k" })
+        var r = URLRequest(url: URL(string: "https://example.com/v1/models")!)
+        r.setValue("Bearer k", forHTTPHeaderField: "Authorization")
+        let guardKey = KeepKey(header: s.service.keyHeader) { s.sendsKey(to: $0) }
+        let redirect = try XCTUnwrap(HTTPURLResponse(url: s.base, statusCode: 302, httpVersion: nil, headerFields: nil))
+        let task = URLSession.shared.dataTask(with: r)
+        let elsewhere = await guardKey.urlSession(.shared, task: task, willPerformHTTPRedirection: redirect, newRequest: r)
+        XCTAssertNil(elsewhere?.value(forHTTPHeaderField: "Authorization"))
+        r.url = URL(string: "https://api.openai.com/v1/models")
+        let own = await guardKey.urlSession(.shared, task: task, willPerformHTTPRedirection: redirect, newRequest: r)
+        XCTAssertEqual(own?.value(forHTTPHeaderField: "Authorization"), "Bearer k")
+    }
+
     /// Choosing OpenAI in Settings gives its client, with its own Keychain account: not the
     /// description helper's "openai", nor Black Forest Labs'.
     func testTheSettingPicksOpenAI() throws {
