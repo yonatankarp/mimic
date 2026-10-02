@@ -136,6 +136,42 @@ final class HelperTests: XCTestCase {
         XCTAssertThrowsError(try helper(.openai, base: "http://127.0.0.1:9", model: "m").improve("x")) { XCTAssertEqual($0 as? HelperError, .unreachable) }
     }
 
+    /// A redirect to another port is another address: it's followed without the key (#376), for
+    /// each provider's header. One to the same address keeps it.
+    func testARedirectElsewhereDoesNotTakeTheKey() throws {
+        let replies: [(HelperProvider, String)] = [
+            (.anthropic, #"{"content":[{"type":"text","text":"stout dwarf"}],"stop_reason":"end_turn"}"#),
+            (.openai, #"{"choices":[{"message":{"content":"stout dwarf"}}]}"#),
+        ]
+        for (p, body) in replies {
+            let elsewhere = try FakeLLM(body: body)
+            defer { elsewhere.stop() }
+            let saved = try FakeLLM { _ in (307, Data("http://127.0.0.1:\(elsewhere.port)/elsewhere".utf8)) }
+            defer { saved.stop() }
+            XCTAssertEqual(try helper(p, base: "http://127.0.0.1:\(saved.port)", model: "m").improve("a dwarf"), "stout dwarf", "\(p)")
+            let followed = try XCTUnwrap(elsewhere.requests.first, "\(p): the redirect wasn't followed")
+            XCTAssertFalse(followed.head.contains(Self.key), "\(p): the key went to another address")
+
+            let same = try FakeLLM { r in r.head.hasPrefix("POST /moved ") ? (200, Data(body.utf8)) : (307, Data("/moved".utf8)) }
+            defer { same.stop() }
+            XCTAssertEqual(try helper(p, base: "http://127.0.0.1:\(same.port)", model: "m").improve("a dwarf"), "stout dwarf", "\(p)")
+            XCTAssertEqual(same.requests.count, 2, "\(p)")
+            // In testing URLSession dropped Authorization on a same-address redirect by itself, so
+            // only Anthropic's x-api-key is checked as kept.
+            if p == .anthropic { XCTAssertTrue(same.requests.last?.head.contains(Self.key) ?? false, "\(p): the same address keeps the key") }
+        }
+    }
+
+    /// The key goes only to the scheme, host and port it was saved for: never down to plain http.
+    func testTheKeyOnlyGoesToItsOwnAddress() {
+        let h = helper(.anthropic)
+        XCTAssertTrue(h.sendsKey(to: URL(string: "https://api.anthropic.com/v1/other")!))
+        XCTAssertFalse(h.sendsKey(to: URL(string: "http://api.anthropic.com/v1/messages")!))
+        XCTAssertFalse(h.sendsKey(to: URL(string: "https://api.anthropic.com:8443/v1/messages")!))
+        XCTAssertFalse(h.sendsKey(to: URL(string: "https://api.anthropic.com.example.com/v1/messages")!))
+        XCTAssertFalse(helper(.openai, base: "http://127.0.0.1:8080").sendsKey(to: URL(string: "http://127.0.0.1:8081/")!))
+    }
+
     /// Real Ollama, only when asked: MIMIC_LIVE_OLLAMA=gemma3:4b swift test --filter testLiveOllama
     func testLiveOllama() throws {
         guard let model = ProcessInfo.processInfo.environment["MIMIC_LIVE_OLLAMA"] else { throw XCTSkip("MIMIC_LIVE_OLLAMA not set") }

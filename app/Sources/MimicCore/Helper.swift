@@ -9,6 +9,9 @@ public enum HelperProvider: String, CaseIterable, Sendable {
 
     public var isCloud: Bool { self == .anthropic || self == .openai }
 
+    /// The header a cloud provider's key goes in.
+    var keyHeader: String { self == .anthropic ? "x-api-key" : "Authorization" }
+
     /// Haiku: the rewrite is short and easy, and the person waits for it in the sheet, so the
     /// fastest and cheapest Claude wins ($1/$5 per million tokens against Sonnet 5.5's $2/$10).
     /// OpenAI-compatible services name their models differently, and Ollama has what's installed.
@@ -242,14 +245,14 @@ public struct DescriptionHelper: Sendable {
         let body: [String: Any]
         switch config.provider {
         case .anthropic:
-            req.setValue(key, forHTTPHeaderField: "x-api-key")
+            req.setValue(key, forHTTPHeaderField: config.provider.keyHeader)
             req.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
             body = ["model": model, "max_tokens": maxTokens, "system": system,
                     "messages": [["role": "user", "content": user]]]
         case .openai:
             // Only model and messages: some models refuse max_tokens or temperature, and the
             // fewer parameters, the more OpenAI-compatible services accept the request.
-            req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+            req.setValue("Bearer \(key)", forHTTPHeaderField: config.provider.keyHeader)
             body = ["model": model, "messages": [["role": "system", "content": system], ["role": "user", "content": user]]]
         default:
             // think: false, or a thinking model (gemma4, glm-4.7-flash) spends minutes and the
@@ -352,18 +355,27 @@ public struct DescriptionHelper: Sendable {
         return nil
     }
 
+    /// The key goes only to the scheme, host and port it was saved for (`HelperConfig.keyAccount`):
+    /// a redirect anywhere else, plain http on the same host too, is followed without it.
+    func sendsKey(to url: URL) -> Bool {
+        guard let base = config.url, let host = url.host?.lowercased() else { return false }
+        return url.scheme?.lowercased() == base.scheme?.lowercased() && host == base.host?.lowercased() && url.port == base.port
+    }
+
     private func send(system: String, user: String, maxTokens: Int, timeout: TimeInterval) throws -> String {
         var req = try request(system: system, user: user, maxTokens: maxTokens)
         req.timeoutInterval = timeout  // Ollama loads the model on the first call: up to a minute or more
         let (provider, model, key) = (config.provider, config.model, key)
         let done = DispatchSemaphore(value: 0)
         nonisolated(unsafe) var result: Result<String, Error> = .failure(HelperError.empty)
-        URLSession.shared.dataTask(with: req) { data, resp, err in
+        let t = URLSession.shared.dataTask(with: req) { data, resp, err in
             defer { done.signal() }
             if let err = err as? URLError { result = .failure(HelperError.from(err, provider)); return }
             guard let data, let http = resp as? HTTPURLResponse else { result = .failure(HelperError.unreachable); return }
             result = Result { try Self.parse(provider, model: model, status: http.statusCode, data: data) }
-        }.resume()
+        }
+        t.delegate = KeepKey(header: provider.keyHeader) { [self] url in self.sendsKey(to: url) }
+        t.resume()
         done.wait()
         // A service that echoes the key in its error text must not put it on screen.
         if case .failure(let e) = result, case .refused(let why)? = e as? HelperError, let key, !key.isEmpty {
