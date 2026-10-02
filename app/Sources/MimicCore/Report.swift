@@ -18,12 +18,15 @@ public enum Report {
         #"\bsk-ant-[A-Za-z0-9_\-]{8,}"#, #"\bsk-[A-Za-z0-9_\-]{16,}"#, #"\b(?:hf|gsk)_[A-Za-z0-9]{16,}"#,
         #"\bgh[pousr]_[A-Za-z0-9]{20,}"#, #"\bgithub_pat_[A-Za-z0-9_]{20,}"#, #"\bxox[abprs]-[A-Za-z0-9\-]{10,}"#,
         #"\bAKIA[0-9A-Z]{16}\b"#,
+        // Black Forest Labs' keys are UUIDs (#352). So are its task ids, which a report can do without.
+        #"\b[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\b"#,
     ].map { try! NSRegularExpression(pattern: $0) }
     private static let bearer = try! NSRegularExpression(pattern: #"(?i)\b(bearer\s+)[A-Za-z0-9._~+/=\-]{8,}"#)
-    /// `api_key=…`, `"token": "…"`, `x-api-key: …`, `AWS_SECRET_ACCESS_KEY=…`: the value goes,
-    /// the name stays. `max_tokens: 400` stays whole: the s before the colon isn't a name's end.
+    /// `api_key=…`, `"token": "…"`, `x-api-key: …`, `x-key: …` (Black Forest Labs'),
+    /// `AWS_SECRET_ACCESS_KEY=…`: the value goes, the name stays. `max_tokens: 400` stays whole:
+    /// the s before the colon isn't a name's end.
     private static let named = try! NSRegularExpression(pattern:
-        #"(?i)\b([A-Za-z0-9_\-]*(?:api[_-]?key|access[_-]?key|token|secret|password|passwd|authorization))(["']?\s*[:=]\s*["']?)(?!\[)([^\s"',;}]+)"#)
+        #"(?i)\b([A-Za-z0-9_\-]*(?:api[_-]?key|access[_-]?key|x-key|token|secret|password|passwd|authorization))(["']?\s*[:=]\s*["']?)(?!\[)([^\s"',;}]+)"#)
 
     /// `text` without anything secret: API keys and tokens, and the home folder (which says who
     /// the person is) as ~.
