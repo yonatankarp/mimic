@@ -171,7 +171,7 @@ the key works and says **It works.**, or what went wrong. While an online servic
 tab doesn't show the Draw Things steps below, and the General tab doesn't show **Open Draw Things
 when needed**.
 
-![Settings, Draw Things & AI tab: Make pictures with set to Black Forest Labs, online, an empty API key field with Save, Test dimmed, Get a key, and what each picture costs](images/screens/settings-pictures-online.png){ width="540" }
+![Settings, Draw Things & AI tab: Make pictures with set to OpenAI, online, an empty API key field with Save, Test dimmed, Get a key, and what each picture costs](images/screens/settings-pictures-online.png){ width="540" }
 
 !!! note "What the online service sees, and what it costs"
     With **Black Forest Labs, online** or **OpenAI, online**, your description, or the picture to
