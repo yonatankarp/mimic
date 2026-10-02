@@ -231,12 +231,16 @@ public enum Gallery {
 
     /// Whether a new mini can't be called `name` in `project`: any other mini (or a project) with
     /// the name, anywhere, keeps it. A failed attempt's folder in that same place doesn't: making
-    /// it there makes it again.
+    /// it there makes it again. A failed attempt has no 3D model, no print file and no settings
+    /// saying it was made; a finished mini whose model.glb is gone still keeps its name (#308).
     public static func nameTaken(_ runs: URL, _ name: String, project: String?) -> Bool {
-        if let existing = folder(runs, name),
-           existing.standardizedFileURL != newFolder(runs, name, project: project).standardizedFileURL
-            || FileManager.default.fileExists(atPath: existing.appendingPathComponent(Mini.modelFile).path) {
-            return true
+        if let existing = folder(runs, name) {
+            let fm = FileManager.default
+            if existing.standardizedFileURL != newFolder(runs, name, project: project).standardizedFileURL
+                || [Mini.modelFile, "\(existing.lastPathComponent).stl"].contains(where: { fm.fileExists(atPath: existing.appendingPathComponent($0).path) })
+                || MiniSettings.load(existing).made != nil {
+                return true
+            }
         }
         return projects(runs).contains { $0.lowercased() == name.lowercased() }
     }
