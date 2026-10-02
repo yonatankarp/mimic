@@ -427,8 +427,15 @@ private struct ResetSection: View {
             Button("Reset All", role: .destructive) { reset(removeEngine: true) }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Mimic forgets its settings, tips and any saved AI keys, and shows the tour again. Your minis are kept.\n\nReset All also removes the 3D engine: first-launch setup shows again and downloads it again (about 8 GB).")
+            Text("Mimic forgets its settings, tips and any saved AI keys, and shows the tour again. Your minis are kept.\n\nReset All also removes the 3D engine: first-launch setup shows again and downloads it again (\(downloadSize) GB, depending on the 3D model).")
         }
+    }
+
+    /// What setup downloads again after Reset All, "8.3 to 9.3": it depends on the model picked there.
+    private var downloadSize: String {
+        let sizes = EngineDownload.catalogue.map { EngineDownload.totalBytes($0) }
+        let (low, high) = (Checks.gigabytes(sizes.min() ?? 0), Checks.gigabytes(sizes.max() ?? 0))
+        return low == high ? low : "\(low) to \(high)"
     }
 
     private func reset(removeEngine: Bool) {

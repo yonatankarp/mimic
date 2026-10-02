@@ -120,8 +120,8 @@ struct HelperSection: View {
             Text("AI helper for descriptions")
         } footer: {
             Text(current == .ollama
-                 ? "Optional. Ollama runs on this Mac, so your descriptions stay here."
-                 : "Optional. Cloud services receive only the description you type, nothing else. Keys are kept in your Mac's Keychain.")
+                 ? "Optional. Ollama runs on this Mac, so what you type stays here."
+                 : "Optional. Cloud services receive only what you type: a description, or what to change in a picture, never the picture itself. Keys are kept in your Mac's Keychain.")
                 .foregroundStyle(.secondary)
         }
         .onChange(of: provider) { _, _ in model = ""; address = ""; testResult = nil; load() }
