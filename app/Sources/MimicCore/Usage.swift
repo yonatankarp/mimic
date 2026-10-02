@@ -5,14 +5,14 @@ import Foundation
 public enum Usage {
     public static let text = """
     usage:
-      mimic make "<name>" "<description>" [--improve] [options]
-      mimic make "<name>" --image <picture> [--back <picture>] [--left <picture>] [--right <picture>] [--restyle] [--change "<change>"] [options]
-      mimic make-another <name> [--new-shape] [--change "<change>"] [--seed N]
+      mimic make "<name>" "<description>" [--improve] [--wait] [options]
+      mimic make "<name>" --image <picture> [--back <picture>] [--left <picture>] [--right <picture>] [--restyle] [--change "<change>"] [--wait] [options]
+      mimic make-another <name> [--new-shape] [--change "<change>"] [--seed N] [--wait]
       mimic duplicate <name> --as "<new name>"
-      mimic resize <name> [options]
-      mimic import <file.glb|file.stl> [--object] [--project "<project>"] [options]
-      mimic resize --project "<project>" [options]   Resize All: every mini in the project
-      mimic retry <name>
+      mimic resize <name> [--wait] [options]
+      mimic import <file.glb|file.stl> [--object] [--project "<project>"] [--wait] [options]
+      mimic resize --project "<project>" [--wait] [options]   Resize All: every mini in the project
+      mimic retry <name> [--wait]
       mimic open <name>              opens its print file in your slicer
       mimic export <name> --vtt [--triangles N]   a low-poly .glb for a virtual tabletop, here in this folder
       mimic info <name> [--json]     its size, filament, how it was made and its versions
@@ -48,7 +48,7 @@ public enum Usage {
     --change: redraws the picture with this change ("close the cape so both arms show"), with the grey sculpt;
               make-another starts from its picture, so changes add up. The AI helper, when set up, words it first.
               The app stops to show you the picture before the 3D shape; here it carries straight on
-    --wait: while another mini is being made, make, resize and retry join the queue and return;
+    --wait: while another mini is being made, make, make-another, import, resize and retry join the queue and return;
             --wait stays until this one is made
     """
 }

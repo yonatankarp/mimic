@@ -138,7 +138,7 @@ Now [make your first mini](making-a-mini.md).
 Each time you open Mimic, it checks for a new version. When there is one, a window shows it a few
 seconds later, with what's new: click **Install Update**. Mimic checks that the update really
 comes from its makers, installs it and opens again. **Remind Me Later** leaves a small note in the
-toolbar, like "Mimic 0.11.0 is available", and asks again next time you open Mimic; **Skip This
+toolbar, like "Mimic 0.12.0 is available", and asks again next time you open Mimic; **Skip This
 Version** stops Mimic showing that version when it opens, though checking yourself still shows it.
 
 To check yourself, choose **Mimic → Check for Updates…**.

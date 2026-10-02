@@ -45,7 +45,7 @@ final class CompletionsTests: XCTestCase {
         XCTAssertEqual(option("make", "--project"), .project, "from the note under the commands")
         XCTAssertEqual(option("make", "--no-base"), .flag)
         XCTAssertEqual(option("make", "--height"), .text)
-        XCTAssertEqual(option("make", "--wait"), .flag)
+        for c in ["make", "make-another", "resize", "import", "retry"] { XCTAssertEqual(option(c, "--wait"), .flag, c) }
         XCTAssertEqual(option("make", "--change"), .text)
         XCTAssertEqual(option("make-another", "--change"), .text)
         XCTAssertEqual(option("queue move", "--to"), .choice(["front", "end"]))
