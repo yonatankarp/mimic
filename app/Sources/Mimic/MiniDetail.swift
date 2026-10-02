@@ -435,6 +435,7 @@ struct Thumbnail: View {
             }
         }
         .animation(.easeOut(duration: 0.4), value: image.map(ObjectIdentifier.init))
-        .task(id: "\(url?.path ?? "")\(version)") { image = url.flatMap(NSImage.init(contentsOf:)) }
+        // Read off the main thread: a picture can be a few megabytes.
+        .task(id: "\(url?.path ?? "")\(version)") { [url] in image = await Task.detached { url.flatMap(NSImage.init(contentsOf:)) }.value }
     }
 }
