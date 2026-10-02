@@ -256,7 +256,7 @@ struct ContentView: View {
                     ContentUnavailableView {
                         Label("No minis yet", systemImage: "cube")
                     } description: {
-                        Text("Make your first mini from a picture or a description. It takes about 10 minutes.")
+                        Text("Make your first mini from a picture or a description. It takes about \(model.setup.chosen.minutes) minutes.")
                     } actions: {
                         Button("New Mini", systemImage: "plus") { model.sheet = .make }
                             .buttonStyle(.borderedProminent)

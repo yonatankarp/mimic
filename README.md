@@ -67,7 +67,8 @@ last one is done.
 Want a fuller description from a few words? Choose an **AI helper for descriptions** in
 **Settings → Draw Things & AI** (Claude or another service with your own API key, or Ollama on
 your Mac), then press **Improve Description**. You can edit what it writes, or press **Use Original**.
-It's off unless you turn it on, and a cloud service only ever sees the description you typed.
+It's off unless you turn it on, and a cloud service only ever sees what you type: a description, or
+what to change in a picture, never the picture itself.
 
 > [!TIP]
 > Mimic explains each choice as you make it. If something isn't set up, **Needs Setup** appears

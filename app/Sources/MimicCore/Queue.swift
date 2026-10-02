@@ -17,6 +17,14 @@ public struct QueueEntry: Codable, Equatable, Sendable, Identifiable {
     public init(name: String, job: JobKind, added: Date = Date(), sizes: Sizes? = nil, again: Bool? = nil) {
         self.name = name; self.job = job; self.added = added; self.sizes = sizes; self.again = again
     }
+
+    /// What taking it out of the queue does to the mini, as `JobRunner.remove` does it.
+    public func takeOutSays(importing: Bool) -> String {
+        job == .prep && !importing ? "It keeps its current size."
+            : again == true ? "It stays, so you can try again later."
+            : job == .generate ? "It hasn't been made yet, so its picture and settings go to the Trash, where you can get them back."
+            : "It hasn't been made yet, so it goes to the Trash, where you can get it back."
+    }
 }
 
 /// Where Move puts a waiting job: first (the next to start), last, or a place counted from 1.
@@ -144,6 +152,8 @@ public struct SharedJob: Codable, Equatable, Sendable {
     var pidStart: UInt64
     /// `JobStatus.shown`, so `mimic stop` names it as shown once it's in the Trash.
     public var shown: String?
+    /// `JobStatus.again`, so a Stop from elsewhere says a Try Again is kept.
+    public var again: Bool?
 
     static func file(queue: URL) -> URL { queue.appendingPathComponent("job.json") }
 
@@ -151,7 +161,7 @@ public struct SharedJob: Codable, Equatable, Sendable {
         let me = getpid()
         guard let t = Leftover.startTime(me) else { return }
         let record = SharedJob(name: s.name, kind: s.kind, step: s.step, started: s.started,
-                               stepStarted: s.stepStarted ?? s.started, pid: me, pidStart: t, shown: s.shown)
+                               stepStarted: s.stepStarted ?? s.started, pid: me, pidStart: t, shown: s.shown, again: s.again)
         try? JobQueue.encoder.encode(record).write(to: file(queue: queue), options: .atomic)
     }
 
@@ -169,6 +179,7 @@ public struct SharedJob: Codable, Equatable, Sendable {
         var s = JobStatus(name: name, kind: kind, step: step, started: started)
         s.stepStarted = stepStarted
         s.shown = shown
+        s.again = again == true
         return s
     }
 }

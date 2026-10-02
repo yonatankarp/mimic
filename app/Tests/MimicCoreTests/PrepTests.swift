@@ -592,6 +592,7 @@ final class PrepTests: XCTestCase {
         let (out, turned) = try prepObject(Self.turned(m, 50, about: [1, 0, 0]))
         XCTAssertFalse(turned, "\(logged)")
         XCTAssertEqual(said.count, 1, "\(said)")
+        XCTAssertTrue(said.first?.contains("Turn on \(SizeCard.addBase) ") == true, "names the switch New Mini shows: \(said)")
         XCTAssertLessThan(out.flatBottom, 0.3 * 2 * 1.2 * 30 * 30, "still on its edge")
         XCTAssertTrue(out.watertight)
     }

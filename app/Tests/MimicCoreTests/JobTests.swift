@@ -327,6 +327,7 @@ final class JobTests: XCTestCase {
         usleep(200_000)
         XCTAssertNotEqual(kill(child, 0), 0, "Stop left the 3D engine's child running")
         XCTAssertEqual(spy.trashed.map(\.lastPathComponent), ["mini"])
+        XCTAssertEqual(jobs.status?.stopSays, "Nothing was kept. It's in the Trash if you want the pieces.")
     }
 
     /// Stopping Try Again of a mini that failed in the 3D step (#178): it goes back to how it
@@ -356,10 +357,12 @@ final class JobTests: XCTestCase {
         try jobs.retry(name: "mini")
         for _ in 0..<100 where !FileManager.default.fileExists(atPath: started) { usleep(50_000) }
         XCTAssertEqual(jobs.status?.step, .shape)
+        XCTAssertEqual(jobs.status?.stopAsks, "It's kept, so you can try again later.", "Stop's question says it's kept")
         XCTAssertTrue(jobs.cancel())
         jobs.waitUntilDone()
         XCTAssertEqual(jobs.status?.canceled, true)
         XCTAssertEqual(spy.trashed, [], "stopping Try Again threw the mini away")
+        XCTAssertEqual(jobs.status?.stopSays, "It was kept, so you can try again later.", "said as kept, not as in the Trash")
         let after = MiniSettings.load(d)
         XCTAssertEqual(after.failed, failed.failed, "it isn't failed any more")
         XCTAssertEqual(after.failedStep, failed.failedStep)
@@ -371,6 +374,8 @@ final class JobTests: XCTestCase {
 
         try jobs.setPaused(true)
         try jobs.retry(name: "mini")
+        let waiting = try XCTUnwrap(jobs.queue.entries().first)
+        XCTAssertEqual(waiting.takeOutSays(importing: false), "It stays, so you can try again later.")
         XCTAssertTrue(try jobs.remove("mini"))
         XCTAssertEqual(spy.trashed, [], "taking Try Again out of the queue threw the mini away")
         XCTAssertNotNil(Gallery.folder(fx.install.runs, "mini"))

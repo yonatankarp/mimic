@@ -380,8 +380,7 @@ enum CLI {
             print("Nothing is being made.")
         case .stopped(let s):
             let who = s.displayName(runs: install.runs)
-            print(s.kind == .prep ? "Stopped resizing \(who). It keeps its previous size."
-                                  : "Stopped making \(who). Nothing was kept. It's in the Trash if you want the pieces.")
+            print("Stopped \(s.kind == .prep ? "resizing" : "making") \(who). \(s.stopSays)")
         case .ended(let s):
             let who = s.displayName(runs: install.runs)
             print(s.kind == .prep ? "Resizing \(who) had already ended, so it wasn't stopped."
@@ -554,7 +553,7 @@ enum CLI {
         if s.succeeded {
             print("Done: \(folder.appendingPathComponent("\(s.name).stl").path)")
             for note in s.notes { print("Heads up: \(note)") }
-            if s.fragile { print("Heads up: some thin parts may be fragile. Check it in your slicer before printing.") }
+            if s.fragile { print("Heads up: \(PrepReport.footprintNote)") }
             return 0
         }
         return fail("It didn't finish: \(s.problem ?? "a step failed (exit \(s.exit ?? -1))"). See the logs in \(folder.path)")

@@ -24,13 +24,15 @@ final class ResetTests: XCTestCase {
         try Keychain.save("sk-test", account: "openai@llm.example.com", service: service)
 
         try Reset.run(install: install, domain: domain, removeEngine: false, keychainService: service)
-        XCTAssertEqual(UserDefaults.standard.persistentDomain(forName: domain)?.keys.sorted(), ["installDir", MinisFolder.key].sorted(), "only where the minis are is kept")
+        XCTAssertEqual(UserDefaults.standard.persistentDomain(forName: domain)?.keys.sorted(), ["installDir", MinisFolder.key, SettingsKey.model].sorted(),
+                       "only where the minis are, and the 3D model still on disk, is kept: a Mac with only Pixal3D isn't sent to setup")
         XCTAssertFalse(Keychain.has(account: HelperProvider.anthropic.rawValue, service: service), "saved keys are forgotten")
         XCTAssertFalse(Keychain.has(account: "openai@llm.example.com", service: service), "so are keys saved for another address")
         XCTAssertTrue(FileManager.default.fileExists(atPath: install.engine.path), "the engine stays unless asked")
 
         try Reset.run(install: install, domain: domain, removeEngine: true, keychainService: service)
         XCTAssertFalse(FileManager.default.fileExists(atPath: install.engine.path), "asked: the engine is removed")
+        XCTAssertNil(UserDefaults.standard.persistentDomain(forName: domain)?[SettingsKey.model], "and setup offers every model again")
         XCTAssertTrue(FileManager.default.fileExists(atPath: mini.appendingPathComponent("dwarf.stl").path), "the minis are never touched")
     }
 }

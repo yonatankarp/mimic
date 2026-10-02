@@ -173,8 +173,8 @@ public struct MiniSettings: Codable, Equatable, Sendable {
     /// creation date stands in (see `Gallery.created`).
     public var created: Date?
     /// What the last finished run wants you to know (a part left out, how it stands) and
-    /// whether thin parts may be fragile: shown on the mini's page until a run replaces them,
-    /// after a relaunch too (#80).
+    /// whether its bottom reaches past the base (`PrepReport.fragile`): shown on the mini's page
+    /// until a run replaces them, after a relaunch too (#80).
     public var notes: [String]?
     public var fragile: Bool?
     /// Why the last run failed, and at which step, until one finishes: what the page says of a
