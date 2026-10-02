@@ -236,6 +236,26 @@ final class HelperTests: XCTestCase {
                          "Ollama sends no key, so any address will do")
     }
 
+    /// Plain http is for this Mac only: a name that merely looks like it (127.attacker.example
+    /// resolves wherever its owner likes) must not get the key unencrypted.
+    func testOnlyThisMacGetsPlainHttp() throws {
+        for host in ["127.attacker.example", "127.0.0.1.nip.io", "localhost.attacker.example", "mylocalhost",
+                     "0x7f.1", "127.1", "0177.0.0.1", "2130706433", "128.0.0.1", "10.0.0.1", "::2", "::ffff:127.0.0.1",
+                     "[::ffff:7f00:1]", ""] {
+            XCTAssertFalse(URL.isThisMac(host: host), host)
+        }
+        for host in ["127.0.0.1", "127.1.2.3", "127.255.255.255", "localhost", "LocalHost", "localhost.", "::1", "[::1]", "0:0:0:0:0:0:0:1"] {
+            XCTAssertTrue(URL.isThisMac(host: host), host)
+        }
+        for base in ["http://127.attacker.example:1234", "http://127.0.0.1.nip.io", "http://localhost.attacker.example"] {
+            XCTAssertFalse(HelperConfig(provider: .openai, baseURL: base).isSecure, base)
+            XCTAssertThrowsError(try helper(.openai, base: base, model: "m").request(system: "", user: "", maxTokens: 1), base)
+        }
+        for base in ["http://127.1.2.3:1234", "http://LOCALHOST:1234", "http://[::1]"] {
+            XCTAssertTrue(HelperConfig(provider: .openai, baseURL: base).isSecure, base)
+        }
+    }
+
     func testOffUnlessChosen() throws {
         let suite = "mimic-test-\(UUID().uuidString)", d = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { d.removePersistentDomain(forName: suite) }
