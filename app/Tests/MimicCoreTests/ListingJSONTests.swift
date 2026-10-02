@@ -2,7 +2,7 @@ import XCTest
 @testable import MimicCore
 
 /// `--json` (#130): scripts rely on these field names, so renaming one has to fail here. Adding
-/// one means adding it here and to the README's description.
+/// one means adding it here and to docs/cli.md's description.
 final class ListingJSONTests: XCTestCase {
     private func object(_ value: some Encodable) throws -> [String: Any] {
         try XCTUnwrap(JSONSerialization.jsonObject(with: ListingJSON.encoder.encode(value)) as? [String: Any])

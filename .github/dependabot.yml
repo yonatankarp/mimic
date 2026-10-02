@@ -20,3 +20,17 @@ updates:
       interval: weekly
     commit-message:
       prefix: chore
+  - package-ecosystem: pip
+    directory: /
+    ignore:
+      # MkDocs 2.0 drops the plugins and themes Material for MkDocs is built on; the Material team's
+      # way forward is Zensical, which reads the same mkdocs.yml.
+      - dependency-name: mkdocs
+        update-types: [version-update:semver-major]
+    schedule:
+      interval: weekly
+    groups:
+      docs:
+        patterns: ["*"]
+    commit-message:
+      prefix: docs

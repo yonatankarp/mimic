@@ -60,198 +60,34 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
 5. Press **Open in …** to open it in your slicer, or drag one of its previews to Finder or any
    slicer, and print. Each mini's page shows the slicer settings to use.
 
-**Several at once?** Press Make Mini while one is being made and the new one waits its turn.
-Drop several pictures on New Mini to line up a mini for each. Your Mac stays awake until the
-last one is done.
-
-Want a fuller description from a few words? Choose an **AI helper for descriptions** in
-**Settings → Draw Things & AI** (Claude or another service with your own API key, or Ollama on
-your Mac), then press **Improve Description**. You can edit what it writes, or press **Use Original**.
-It's off unless you turn it on, and a cloud service only ever sees what you type: a description, or
-what to change in a picture, never the picture itself.
-
 > [!TIP]
 > Mimic explains each choice as you make it. If something isn't set up, **Needs Setup** appears
 > in the toolbar: it opens **Settings** (Mimic → Settings, ⌘,), which tells you what's missing and how to fix it.
 
 Your minis are saved in **Documents → Mimic**.
 
-**Projects** group minis into folders, the same folders you see in Finder. Press **New Project**
-at the bottom of the list (⇧⌘N), then drag minis onto it or right-click a mini → **Move to
-Project**. New Mini puts a mini in the project you're looking at, or any one you pick.
-Right-click a project → **Resize All…** to give every mini in it a new size at once.
-
-A small detail came out as a blob? Right-click the mini → **Make Another Version…**: the same
-picture and settings with a different variation number, next to it. Line up two or three:
-the mini's page shows them side by side, and **Keep This One** moves the others to the Trash.
-
-Something in the picture to fix, like a cape hiding the arms or a sword cut off? Say it in
-**What to change**, in New Mini or Make Another Version: the picture is redrawn with your
-change, and Mimic shows it to you before building the 3D shape (**Build Shape**, or **Try
-Again** to draw it again). Each version made this way starts from the one before, so changes
-add up, and the mini's details list them under Made From.
-
-Want the same mini at two sizes, say one for the table and one for the shelf? Right-click it →
-**Duplicate…**, name the copy, and choose its size. Only the size is made again: about a minute.
-
-Playing online? Right-click a mini → **Export for Virtual Tabletop…** saves a low-poly `.glb`
-of it (about 5,000 triangles) to drag into a virtual tabletop. It comes out grey (under 100 KB)
-unless the mini was made from a colour picture with **Turn it into a grey sculpt first** off
-(in Terminal, without `--restyle`): then the 3D engine paints it from your picture, back and
-sides too, and the export keeps those colours (about 1.5 MB). The grey sculpt gives the
-cleaner shape, so turn it off for the minis you want in colour.
-
-Have a 3D model already, from another generator or HeroForge? **File → Import Model…**, pick the
-GLB or STL file, and choose its sizes and base as for a new mini. Mimic makes it print-ready in
-about a minute. It has no picture, so it can be resized and duplicated but not made again.
+Projects, versions, sizes and bases, magnets, exporting for virtual tabletops, importing
+models, every setting and shortcut: the **[Mimic guide](https://yonatankarp.com/mimic/)**
+explains it all.
 
 ---
 
-## 🛠️ For developers
+## 🛠️ More
 
-### How it works
-
-```mermaid
-flowchart TD
-  pic["🖼️ Picture"] --> choice{"Grey sculpt first?"}
-  text["✍️ Description"] --> draw["Draw the character<br/><i>FLUX.2 Klein in Draw Things</i>"]
-  choice -- yes --> redraw["Redraw as a grey sculpt<br/><i>FLUX.2 Klein in Draw Things</i>"]
-  choice -- no --> image
-  redraw --> image["Character image"]
-  draw --> image
-  image --> cut["✂️ Cut out the character<br/><i>Apple Vision</i>"]
-  cut --> mesh["🧊 3D model<br/><i>TRELLIS.2 or Pixal3D</i>"]
-  mesh --> prep["🖨️ Print prep<br/><i>Swift, in Mimic</i>"]
-  prep --> out["STL + front, left, right and back previews"]
-  out --> slicer["Your slicer"]
-```
-
-1. **The picture.** FLUX.2 Klein, running in Draw Things, draws your character from a
-   description, or redraws your picture as a grey sculpt so it's easier to turn into 3D.
-2. **The 3D model.** Apple's Vision framework cuts the character out of the picture, then
-   [TRELLIS.2](https://github.com/microsoft/TRELLIS.2) (or Pixal3D, if you choose it in Settings),
-   run by [pixal3d.cpp](https://github.com/raven38/pixal3d.cpp), builds a 3D model from it on
-   your Mac's graphics chip.
-3. **Print prep.** Mimic's own Swift code sizes the model, centres it on a base (round, square or hex), makes it
-   one solid piece, thickens thin parts to suit your nozzle, and flattens the bottom so it
-   sits on the print bed.
-
-### From a terminal
-
-The app is also a `mimic` command, with the same engine. To add it to your Terminal, choose
-**Mimic → Install Command-Line Tool…**, copy the command it shows and paste it into Terminal (it asks
-for your Mac password once). Finish the app's first-launch download first: `make` and `retry` need it.
-
-```bash
-mimic make "Dwarf Cleric" "dwarf cleric, warhammer held against chest"  # any name, as in the app
-mimic make tiefling --image art.png --restyle --height 38 --nozzle 0.2
-mimic resize tiefling --height 32 --base 25
-mimic make teapot "a round teapot with a curved spout" --object --size 80
-mimic retry tiefling
-mimic make-another tiefling                        # the same, with a new seed: "tiefling-2"
-mimic make-another tiefling --new-shape            # keeps its picture, makes only the 3D shape again
-mimic duplicate tiefling --as "Tiefling Display"   # the same shape, to resize without losing the first
-mimic import "Ogre Chief.stl" --height 32          # print prep for a model made elsewhere (GLB or STL)
-mimic make raven --image raven.png --project "Tiefling Party"
-mimic move tiefling --project "Tiefling Party"     # or --unsorted
-mimic resize --project "Tiefling Party" --height 32 # Resize All: every mini in the project
-mimic open tiefling                                # in your slicer
-mimic export tiefling --vtt                        # a low-poly .glb for a virtual tabletop, in this folder
-mimic info tiefling                                # its size, filament, how it was made and its versions
-mimic rename tiefling --to "Tiefling Warlock"
-mimic keep tiefling-2                              # keeps this version, moves the others to the Trash
-mimic trash tiefling-3                             # to the Trash, where you can put it back
-mimic stop                                         # stops the mini being made, in Mimic or another Terminal
-mimic project create "Orc Warband"
-mimic project rename "Orc Warband" --to "Orc Horde"
-mimic project delete "Orc Horde"                   # its minis go to Unsorted; --trash-minis trashes them too
-mimic projects
-mimic list
-mimic models                                       # the 3D models, and which one Mimic uses
-mimic queue                                        # the mini being made and the ones waiting
-mimic queue move raven --to front                  # or --to end, --to 3, --up, --down
-mimic queue remove raven
-mimic queue pause                                  # no new mini starts until: mimic queue resume
-mimic --version
-```
-
-`mimic --help` lists every command and option.
-
-A mini goes by its name in `mimic list`, or by the name you gave it in Mimic: `mimic info "Élodie"`.
-
-| Option | What it does |
-|---|---|
-| `--image FILE` | Start from your own picture instead of a description |
-| `--restyle` | Redraw that picture as a grey sculpt first (its tabletop export is then grey) |
-| `--back FILE` / `--left FILE` / `--right FILE` | Pictures of the same character from the back and sides, besides `--image` (the front), so the 3D model doesn't guess them. Any of them; TRELLIS.2 only |
-| `--improve` | Let the AI helper chosen in Settings write a fuller description first |
-| `--change "TEXT"` | With `make --image` or `make-another`, redraw the picture with this change first, e.g. `"close the cape so both arms show"`. `make-another` starts from the picture it made, so changes add up. In Terminal it carries straight on; the app stops to show you the picture first |
-| `--height MM` | How tall the character is, feet to top; the base adds about 2 mm |
-| `--scale 28` / `32` / `35` / `54` / `75` | Match the scale your other minis use: sets the height and base for an average human (`--height` and `--base` still win) |
-| `--base MM` | Size of the base: across it, or across the flat sides for a hex |
-| `--base-shape round` / `square` / `hex` | The base's shape (round unless you give it; a resize keeps the mini's) |
-| `--base-style plain` / `stone` / `wood` / `cobble` | A floor pressed into the top of the base: flagstones, planks or cobblestones (plain unless you give it; a resize keeps the mini's) |
-| `--magnet 5x2` / `6x2` / `8x3` / `none` | A hole under the base for a round magnet this wide by this tall, in mm, with a little room to spare; the base gets taller to fit it (none unless you give it; a resize keeps the mini's) |
-| `--nozzle 0.2` / `0.4` / `0.6` | Your printer's nozzle |
-| `--inflate MM` | Extra thickness for thin parts (set from the nozzle unless you give it) |
-| `--no-base` | Keep the character's own base instead of adding one |
-| `--seed N` | Try a different version of the same character |
-| `--model ID` | Make it with this 3D model instead of the one chosen in Settings (`mimic models` lists them) |
-| `--new-shape` | With `make-another`, keep the picture it made and make only the 3D shape again |
-| `--wait` | While another mini is being made, `make`, `resize` and `retry` join the queue and return; with this they stay until it's made |
-| `--project NAME` | Put it in that project (a new one is made if needed); with `resize`, resize every mini in it |
-| `--to NAME` | The new name, for `rename` and `project rename` |
-| `--trash-minis` | With `project delete`, move the project's minis to the Trash too, instead of to Unsorted |
-| `--object` | Make anything that isn't a character: no base, sized by its longest side, set on its flat bottom |
-| `--size MM` | How big it is: for an object, its longest side (set from the nozzle unless you give it); for a character, the same as `--height` |
-| `--add-base` | Give an object a base too (sized to its shadow unless you give `--base`) |
-| `--json` | With `list`, `projects`, `queue`, `models` or `info`: print it as JSON, for scripts (below) |
-
-Ctrl-C stops a mini and everything it started.
-
-#### JSON for scripts
-
-`mimic list --json`, `projects --json`, `queue --json`, `models --json` and `info <name> --json` print JSON. These
-field names stay as they are: new ones may be added, but none is renamed or removed. Dates are
-ISO 8601 (`2026-09-21T14:13:20Z`), sizes are millimetres and times are seconds. A field with no
-value is left out.
-
-- `list`: an array of minis, every project's, newest first. Each has `name` (what `mimic`
-  commands take), `shown` (the name it's shown as), `project` (left out when unsorted), `state`
-  (`ready`, `unfinished` or `waiting`), `kind` (`character` or `object`), `created`, `file` (its
-  print file, once made) and `folder`.
-- `projects`: an array of `name` and `minis` (how many are in it), by name.
-- `queue`: `running` (`name`, `job` of `make` or `resize`, `step` 1 to 3, `started`,
-  `secondsLeft`), `held` (`paused` or `battery`, when the next one waits for that) and `waiting`,
-  an array of `place` (from 1), `name`, `job`, `added`, `seconds` (how long it takes) and
-  `readyIn`.
-- `models`: an array of `id`, `name`, `bytes`, `downloaded`, `selected` (the one Mimic uses) and
-  `about`.
-- `info`: `mini` (as in `list`), `made` (`height`, `base`, `nozzle`, `inflate`, `noBase`, `shape`,
-  `style`, `magnet`), `measured` (`height` with its base, `width`, `depth`, `filamentGrams`,
-  `filamentMetres`), `madeFrom` (`source` of `picture` or `description`, `description`, `typed`,
-  `seed`, `shapeSeed`, `model`, `greySculpt`, `cartoon`), `versions` (names, itself included) and
-  `failed` (why its last run didn't finish).
-
-#### Completing as you type
-
-`mimic completions zsh`, `bash` or `fish` prints a script that completes commands, options, their
-choices, and your minis' and projects' names as you press Tab. Add it once:
-
-| Shell | Add this |
-|---|---|
-| zsh (the Mac's) | `source <(mimic completions zsh)` at the end of `~/.zshrc` |
-| bash | `eval "$(mimic completions bash)"` at the end of `~/.bash_profile` |
-| fish | Run `mimic completions fish > ~/.config/fish/completions/mimic.fish` once |
-
-Then open a new Terminal window. In zsh it needs completion turned on, which most setups already
-have; if Tab does nothing, put `autoload -Uz compinit && compinit` above that line.
-
-Want to change Mimic itself? See [CONTRIBUTING.md](CONTRIBUTING.md).
+- **[Mimic from a terminal](https://yonatankarp.com/mimic/cli/):** Mimic is also a `mimic`
+  command, with JSON for scripts and completion as you type.
+- **[How it works](https://yonatankarp.com/mimic/how-it-works/):** from a picture to a
+  print-ready STL, all on your Mac.
+- **[Report a problem or an idea](https://yonatankarp.com/mimic/report/):** found a bug,
+  or want Mimic to do something new? Tell us, no code needed.
+- **[Working on Mimic](CONTRIBUTING.md#working-on-mimic):** building, testing and
+  releasing. To send a change, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Licences
 
-- **Mimic:** MIT (see [LICENSE](LICENSE)). The app carries this licence and Sparkle's in
+<!-- --8<-- [start:licences] -->
+
+- **Mimic:** MIT (see [LICENSE](https://github.com/yonatankarp/mimic/blob/main/LICENSE)). The app carries this licence and Sparkle's in
   `Mimic.app/Contents/Resources/Acknowledgements.txt`.
 - **Sparkle:** MIT, with the notices of the code it includes. It's built into the app, for updates.
 - **pixal3d.cpp and ggml:** MIT. The 3D engine, built from them; Mimic hosts the build that
@@ -262,3 +98,4 @@ Want to change Mimic itself? See [CONTRIBUTING.md](CONTRIBUTING.md).
   Meta's DINOv3 licence.
 - **FLUX.2 Klein:** Black Forest Labs' licence. Check it before selling prints of generated
   characters.
+<!-- --8<-- [end:licences] -->

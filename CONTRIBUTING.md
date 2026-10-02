@@ -47,9 +47,10 @@ the problem matters more than a specific solution.
    it out. Links and HTML are taken out (a link keeps its text), so don't rely on them.
 
 By contributing, you agree that your contribution is licensed under Mimic's
-[MIT licence](LICENSE).
+[MIT licence](https://github.com/yonatankarp/mimic/blob/main/LICENSE).
 
 # Working on Mimic
+
 
 ## Layout
 
