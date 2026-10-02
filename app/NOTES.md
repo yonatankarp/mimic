@@ -493,8 +493,9 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
     `output_format: png` and `background: opaque` (a see-through background would leave the 3D
     step nothing to cut out), and the picture comes back in the reply as `b64_json`. The size asked
     for is the one wanted when the model takes it (sides in multiples of 16, at most 3:1, 655,360
-    to 8,294,400 pixels), else the nearest of 1024x1024, 1536x1024 and 1024x1536 in shape, since
-    the scaling stretches. One synchronous request, so Stop cancels it (whether OpenAI still
+    to 8,294,400 pixels), else the same shape with a 1536 long side and the short side in
+    sixteens, at least 512: past 3:1 that's 1536x512, the nearest it takes, since the scaling
+    stretches. One synchronous request, so Stop cancels it (whether OpenAI still
     charges a cancelled one isn't known); its timeout is 300 s, as OpenAI says a picture can take
     two minutes. No seed: the Image API has none, so Try Again and a variation number don't
     reproduce a picture. Quality is left at `auto`, OpenAI's default. The prompts are FLUX's,
@@ -503,8 +504,16 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
     in plain words; without a real-key run there's nothing to tune them against, so any OpenAI
     wording would go in `OpenAIImages.swift` once one shows a need. Seen live with made-up keys:
     none, a malformed one and an unknown one are all 401 `invalid_api_key`, whose message repeats
-    part of the key, so it's never shown. 429 `insufficient_quota` is out of credits, any other
-    429 or a 5xx is busy, 400 `moderation_blocked` a refusal with its `moderation_details`
+    part of the key, so it's never shown; only that code is a wrong key. Any other 401 (a
+    restricted key without a scope, an address not on the project's list) is shown in OpenAI's
+    words, and the free check passes a 401 whose message says "Missing scopes": a restricted key
+    allowed to make pictures but not to list models is still a key OpenAI knows, and failing it
+    would turn off descriptions and the sculpt for a key that can make them (the message shape is
+    from OpenAI's restricted-key answers, not seen live). A 429 is out of credits when its type is
+    `insufficient_quota` or its code is a billing one from OpenAI's error codes guide
+    (`credit_balance_exhausted`, the organisation and project spend limits, the organisation usage
+    limit): asking again won't help, so the message says to add credits or raise the limit. Any
+    other 429 or a 5xx is busy, 400 `moderation_blocked` a refusal with its `moderation_details`
     categories; anything else, such as 403 for an organisation not yet verified for GPT Image, in
     OpenAI's own words. The key is `Authorization: Bearer`, to https `api.openai.com` only,
     Keychain account `openai-images` (the helper's OpenAI key is `openai`; one key for both would

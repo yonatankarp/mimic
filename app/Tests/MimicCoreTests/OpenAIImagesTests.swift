@@ -5,8 +5,9 @@ import XCTest
 /// request a picture, which comes back in the reply.
 final class OpenAIImagesTests: XCTestCase {
     /// A fake OpenAI: generations and edits answer `status` with `body` (the picture by default),
-    /// after waiting on `hold` (up to 5 s) when given; /v1/models answers `check`.
-    static func fake(status: Int = 200, body: String? = nil, check: Int = 200, hold: DispatchSemaphore? = nil) throws -> FakeLLM {
+    /// after waiting on `hold` (up to 5 s) when given; /v1/models answers `check` with `checkBody`.
+    static func fake(status: Int = 200, body: String? = nil, check: Int = 200, checkBody: String = #"{"object":"list","data":[]}"#,
+                     hold: DispatchSemaphore? = nil) throws -> FakeLLM {
         let picture = #"{"created":1,"data":[{"b64_json":"\#(OnlineImagesTests.picture.base64EncodedString())"}]}"#
         return try FakeLLM { r in
             let path = r.head.split(separator: " ").dropFirst().first.map(String.init) ?? ""
@@ -14,7 +15,7 @@ final class OpenAIImagesTests: XCTestCase {
                 _ = hold?.wait(timeout: .now() + 5)
                 return (status, Data((body ?? picture).utf8))
             }
-            if path == "/v1/models" { return (check, Data(#"{"object":"list","data":[]}"#.utf8)) }
+            if path == "/v1/models" { return (check, Data(checkBody.utf8)) }
             return (404, Data())
         }
     }
@@ -72,16 +73,18 @@ final class OpenAIImagesTests: XCTestCase {
     func testTheSizeAskedFor() {
         XCTAssertEqual(OpenAIImages.size(width: 1024, height: 1024), "1024x1024")
         XCTAssertEqual(OpenAIImages.size(width: 1536, height: 1152), "1536x1152")
-        XCTAssertEqual(OpenAIImages.size(width: 1536, height: 448), "1536x1024", "wider than 3:1")
-        XCTAssertEqual(OpenAIImages.size(width: 448, height: 1536), "1024x1536")
-        XCTAssertEqual(OpenAIImages.size(width: 512, height: 512), "1024x1024", "too few pixels")
+        // Wider or taller than 3:1: the nearest the model takes, 3:1, not a squashed 3:2.
+        XCTAssertEqual(OpenAIImages.size(width: 1536, height: 448), "1536x512")
+        XCTAssertEqual(OpenAIImages.size(width: 448, height: 1536), "512x1536")
+        XCTAssertEqual(OpenAIImages.size(width: 512, height: 512), "1536x1536", "too few pixels: the same shape, larger")
+        XCTAssertEqual(OpenAIImages.size(width: 1600, height: 1000), "1536x960", "not in sixteens: the same shape")
     }
 
     /// No key: nothing is sent. A key turned down (a 401, seen live for a made-up key) says so, in
     /// Settings' Test too, and never shows the part of the key OpenAI's message repeats.
     func testAMissingOrWrongKey() throws {
-        let wrong = try Self.fake(status: 401, body: #"{"error":{"message":"Incorrect API key provided: k-12***23.","type":"invalid_request_error","code":"invalid_api_key"}}"#,
-                                  check: 401)
+        let incorrect = #"{"error":{"message":"Incorrect API key provided: k-12***23.","type":"invalid_request_error","code":"invalid_api_key"}}"#
+        let wrong = try Self.fake(status: 401, body: incorrect, check: 401, checkBody: incorrect)
         defer { wrong.stop() }
         XCTAssertThrowsError(try service(wrong, key: " ").draw(description: "a dwarf", seed: 1, kind: .character)) {
             XCTAssertEqual(problem($0), .noKey)
@@ -113,17 +116,44 @@ final class OpenAIImagesTests: XCTestCase {
             XCTAssertEqual(problem($0), .refused(["violence"]))
             XCTAssertEqual("\($0)", "OpenAI wouldn't make this picture (violence). Try different words or another picture.")
         }
-        let cases: [(Int, String, OnlineImagesError.Problem)] = [
-            (429, "rate_limit_exceeded", .busy), (429, "insufficient_quota", .noCredits), (503, "", .busy),
-            (403, "", .failed("Your organization must be verified to use the model.")),
+        let verify = "Your organization must be verified to use the model."
+        let scopes = "You have insufficient permissions for this operation. Missing scopes: api.model.images.request."
+        // Status, error type, error code, message, and what it means. Billing errors, from OpenAI's
+        // error codes guide: the code says which, and the type may still be insufficient_quota.
+        let cases: [(Int, String, String, String, OnlineImagesError.Problem)] = [
+            (429, "requests", "rate_limit_exceeded", "", .busy),
+            (429, "insufficient_quota", "insufficient_quota", "", .noCredits),
+            (429, "insufficient_quota", "credit_balance_exhausted", "", .noCredits),
+            (429, "", "credit_balance_exhausted", "", .noCredits),
+            (429, "", "organization_spend_limit_exceeded", "", .noCredits),
+            (429, "", "project_spend_limit_exceeded", "", .noCredits),
+            (429, "", "organization_usage_limit_exceeded", "", .noCredits),
+            (503, "", "", "", .busy),
+            (403, "", "", verify, .failed(verify)),
+            // A 401 that isn't a wrong key, in OpenAI's words: a restricted key without the scope.
+            (401, "invalid_request_error", "", scopes, .failed(scopes)),
         ]
-        for (status, code, expected) in cases {
-            let server = try Self.fake(status: status, body: #"{"error":{"message":"Your organization must be verified to use the model.","code":"\#(code)"}}"#)
+        for (status, type, code, message, expected) in cases {
+            let server = try Self.fake(status: status, body: #"{"error":{"message":"\#(message)","type":"\#(type)","code":"\#(code)"}}"#)
             defer { server.stop() }
             XCTAssertThrowsError(try service(server).draw(description: "a dwarf", seed: 1, kind: .character), "\(status) \(code)") {
-                XCTAssertEqual(problem($0), expected, "\(status) \(code)")
+                XCTAssertEqual(problem($0), expected, "\(status) \(type) \(code)")
             }
         }
+        XCTAssertTrue(OnlineImagesError(.noCredits, service: "OpenAI").description.contains("raise your limit"))
+    }
+
+    /// A restricted key allowed to make pictures but not to list models is turned down by the free
+    /// check with a 401 naming the missing scope: it's a key OpenAI knows, so the check passes, and
+    /// descriptions and the sculpt stay on. Any other 401 there says why, in OpenAI's words.
+    func testTheCheckPassesARestrictedKey() throws {
+        let restricted = try Self.fake(check: 401, checkBody: #"{"error":{"message":"You have insufficient permissions for this operation. Missing scopes: api.model.read. Check that you have the correct role in your organization (Reader, Writer, Owner) and project (Member, Owner), and if you're using a restricted API key, that it has the necessary scopes.","type":"invalid_request_error","param":null,"code":null}}"#)
+        defer { restricted.stop() }
+        XCTAssertNoThrow(try service(restricted).check())
+        let ip = "IP not authorized for this project."
+        let elsewhere = try Self.fake(check: 401, checkBody: #"{"error":{"message":"\#(ip)","type":"invalid_request_error","code":null}}"#)
+        defer { elsewhere.stop() }
+        XCTAssertThrowsError(try service(elsewhere).check()) { XCTAssertEqual(problem($0), .failed(ip)) }
     }
 
     /// Stop while the picture is being made ends the request at once; a Stop before it is kept

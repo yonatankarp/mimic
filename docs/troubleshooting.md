@@ -129,7 +129,8 @@ and press **Try Again**:
 - **No key, or the key was turned down:** copy your API key again from your account with that
   service, then in [Settings → Draw Things & AI](settings.md#choose-what-makes-the-pictures)
   press **Remove**, paste it and press **Save**. **Test** says whether it works.
-- **Out of credits:** add some to your account with that service.
+- **Out of credits, or a spending limit reached:** add credits, or raise your limit, in your account
+  with that service.
 - **Busy, or you've reached your account's limit:** wait a minute and try again.
 - **It wouldn't make this picture:** the service's moderation turned the description or the
   picture down. Try different words or another picture.
@@ -138,6 +139,10 @@ and press **Try Again**:
   organisation before they can use its picture model. Do that in your OpenAI account's settings,
   wait a few minutes, then press **Try Again**. **Test** can say the key works before this is done,
   since checking a key doesn't use the picture model.
+- **OpenAI says the key is missing a permission:** a restricted key needs permission to make
+  pictures. In your OpenAI account, give the key access to models (or make a new key with all
+  permissions), then press **Try Again**. A key that may make pictures but not list models still
+  passes **Test**.
 
 ### A part was left out
 

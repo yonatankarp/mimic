@@ -296,6 +296,7 @@ struct PicturesSection: View {
 
     private func test() {
         guard let online else { return }
+        let asked = service
         testing = true
         testResult = nil
         Task {
@@ -304,6 +305,8 @@ struct PicturesSection: View {
                 Result { try online.client { Keychain.read(account: online.keyAccount) }.check() }
             }.value
             testing = false
+            // Another service chosen meanwhile: the answer is about the one before.
+            guard service == asked else { return }
             switch result {
             case .success: testResult = (true, "It works.")
             case .failure(let error): testResult = (false, "\(error)")

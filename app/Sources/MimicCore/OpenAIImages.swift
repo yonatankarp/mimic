@@ -49,19 +49,28 @@ public final class OpenAIImages: OnlineClient, OnlineImages, @unchecked Sendable
     }
 
     /// The size asked for: the one wanted when the model takes it (sides in multiples of 16, at
-    /// most 3:1, 655,360 to 8,294,400 pixels), else the nearest of its usual three. Whatever
-    /// comes back is scaled to the size wanted, stretched: so the shape of the usual size has
-    /// to be the nearest, or the figure comes out squashed.
+    /// most 3:1, 655,360 to 8,294,400 pixels), else the nearest shape it takes, long side 1536.
+    /// Whatever comes back is scaled to the size wanted, stretched, so the shape has to be as near
+    /// as it can be, or the figure comes out squashed: past 3:1 that's 3:1.
     static func size(width: Int, height: Int) -> String {
         let ratio = Double(max(width, height)) / Double(min(width, height))
-        let pixels = width * height
-        if width % 16 == 0, height % 16 == 0, ratio <= 3, (655_360...8_294_400).contains(pixels) { return "\(width)x\(height)" }
-        if ratio < 1.25 { return "1024x1024" }
-        return width > height ? "1536x1024" : "1024x1536"
+        if width % 16 == 0, height % 16 == 0, ratio <= 3, (655_360...8_294_400).contains(width * height) { return "\(width)x\(height)" }
+        // At least 512, which is 3:1 and keeps 1536 by it over the fewest pixels allowed.
+        let short = max(512, Int((1536 / ratio / 16).rounded()) * 16)
+        return width >= height ? "1536x\(short)" : "\(short)x1536"
     }
 
-    /// Lists the models the key can use, which costs nothing and proves it.
-    public func check() throws { _ = try json(try checkRequest(timeout: 15)) }
+    /// Lists the models the key can use, which costs nothing and proves it. A restricted key that
+    /// may make pictures but not list models is turned down with a 401 naming the missing scope:
+    /// it's a key OpenAI knows, so that passes too, or the check would turn off descriptions and
+    /// the sculpt for a key that can make them.
+    public func check() throws {
+        do { _ = try json(try checkRequest(timeout: 15)) } catch let e as OnlineImagesError where Self.missingScope(e) {}
+    }
+
+    static func missingScope(_ e: OnlineImagesError) -> Bool {
+        if case .failed(let why) = e.problem { why.contains("Missing scopes") } else { false }
+    }
 
     // MARK: Requests
 
@@ -80,6 +89,9 @@ public final class OpenAIImages: OnlineClient, OnlineImages, @unchecked Sendable
         return try png(picture, width: width, height: height)
     }
 
+    static let billing: Set = ["insufficient_quota", "credit_balance_exhausted", "organization_spend_limit_exceeded",
+                               "project_spend_limit_exceeded", "organization_usage_limit_exceeded"]
+
     /// A reply's JSON, or the error it carries: `{"error": {"message", "type", "code"}}`.
     private func json(_ req: URLRequest) throws -> [String: Any] {
         let (status, data) = try fetch(req)
@@ -88,10 +100,13 @@ public final class OpenAIImages: OnlineClient, OnlineImages, @unchecked Sendable
         let code = error["code"] as? String
         switch status {
         case 200: return json
-        // Seen from api.openai.com: a made-up key, or none, is 401 "invalid_api_key". Its message
-        // shows part of the key, so it's never passed on.
-        case 401: throw fail(.badKey)
-        case 429 where code == "insufficient_quota": throw fail(.noCredits)
+        // Seen from api.openai.com: a made-up key is 401 "invalid_api_key". Its message shows part
+        // of the key, so it's never passed on. Any other 401 (a restricted key without the scope,
+        // an address not on the project's list) goes on in OpenAI's words, below.
+        case 401 where code == "invalid_api_key": throw fail(.badKey)
+        // Billing, from OpenAI's error codes guide: the code says which, the type may still be
+        // insufficient_quota. Asking again won't help, so not "busy".
+        case 429 where error["type"] as? String == "insufficient_quota" || Self.billing.contains(code ?? ""): throw fail(.noCredits)
         case 429, 500...599: throw fail(.busy)
         case 400 where code == "moderation_blocked":
             throw fail(.refused((error["moderation_details"] as? [String: Any])?["categories"] as? [String] ?? []))

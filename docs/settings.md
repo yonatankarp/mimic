@@ -182,7 +182,9 @@ when needed**.
 
 If the service turns a picture down (its moderation does that now and then), is busy, or takes
 too long, the mini stops with a message saying so, and nothing else about it changes. Press
-**Try Again**, or change the description.
+**Try Again**, or change the description. If your account is out of credits or has reached its
+spending limit, the message says so: add credits or raise your limit on the service's website
+first.
 
 ### Set up Draw Things
 

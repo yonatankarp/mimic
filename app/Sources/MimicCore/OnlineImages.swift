@@ -226,7 +226,7 @@ public struct OnlineImagesError: Error, CustomStringConvertible, Equatable {
         switch problem {
         case .noKey: "No \(service) key is saved. Paste yours in Settings, under Pictures."
         case .badKey: "\(service) turned the key down. Copy it again from your account and save it in Settings, under Pictures."
-        case .noCredits: "Your \(service) account is out of credits. Add some on their website, then try again."
+        case .noCredits: "Your \(service) account is out of credits, or has reached its spending limit. Add credits or raise your limit on their website, then try again."
         case .busy: "\(service) is busy, or you've reached your account's limit. Try again in a minute."
         case .refused(let why) where why.isEmpty: "\(service) wouldn't make this picture. Try different words or another picture."
         case .refused(let why): "\(service) wouldn't make this picture (\(why.joined(separator: ", ").lowercased())). Try different words or another picture."
