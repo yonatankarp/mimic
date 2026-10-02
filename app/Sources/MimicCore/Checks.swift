@@ -150,8 +150,9 @@ public struct Checks: Sendable {
 
     /// Runs a program with the environment jobs get, and returns its exit status and output.
     /// nil if it can't start or is still running after `timeout` (then it's killed: a hung
-    /// program must not hang Settings). Output stops being read at `timeout` too, so something
-    /// the program left running with the pipe open can't hang Settings either.
+    /// program must not hang Settings). Output stops being read once the program exits, so
+    /// something it left running with the pipe open neither hangs Settings nor uses up the time
+    /// its exit needs to be seen (a busy Mac then showed a red check).
     public static let execute: Runner = { executable, arguments, timeout in
         let p = Process()
         p.executableURL = URL(fileURLWithPath: executable)
@@ -168,9 +169,13 @@ public struct Checks: Sendable {
         var data = Data()
         var buffer = [UInt8](repeating: 0, count: 65536)
         while deadline.timeIntervalSinceNow > 0 {
+            // Short waits, to notice the exit. Once it has exited, everything it wrote is
+            // already in the pipe: take that and stop.
+            let exited = !p.isRunning
             var ready = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
-            let n = poll(&ready, 1, Int32(deadline.timeIntervalSinceNow * 1000) + 1)
+            let n = poll(&ready, 1, exited ? 0 : min(Int32(deadline.timeIntervalSinceNow * 1000) + 1, 50))
             if n < 0 && errno != EINTR { break }
+            if n == 0 && exited { break }
             if n <= 0 { continue }
             let read = Darwin.read(fd, &buffer, buffer.count)
             if read < 0 && errno == EINTR { continue }
