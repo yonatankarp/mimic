@@ -113,6 +113,35 @@ final class JobTests: XCTestCase {
         XCTAssertEqual(try files(), before, "the finished mini was changed")
     }
 
+    /// A mini waiting for its picture to be checked (#156) isn't a failed attempt either (#380):
+    /// a Make with its name in the same place is refused, and its picture and settings are kept.
+    func testAMakeNeverReplacesAPictureWaitingToBeChecked() throws {
+        let fx = try Fixture(), fm = FileManager.default
+        try fx.modelFiles()
+        let picture = try fx.picture()
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/false"), trash: { _ in })
+        try jobs.make(name: "knight", picture: .image(picture), restyle: false, seed: 7, sizes: sizes, model: EngineDownload.standard,
+                      checkPicture: true)
+        jobs.waitUntilDone()
+        XCTAssertEqual(jobs.status?.outcome, .pictureReady)
+        let d = try XCTUnwrap(Gallery.folder(fx.install.runs, "knight"))
+        func files() throws -> [String: Data] {
+            var out: [String: Data] = [:]
+            for f in try fm.contentsOfDirectory(atPath: d.path) { out[f] = try Data(contentsOf: d.appendingPathComponent(f)) }
+            return out
+        }
+        let before = try files(), status = jobs.status
+        XCTAssertNotNil(before["source.png"], "its picture is made")
+        XCTAssertThrowsError(try jobs.make(name: "knight", picture: .image(picture), restyle: false, seed: 1, sizes: sizes,
+                                           model: EngineDownload.standard)) {
+            XCTAssertEqual($0 as? RequestError, .nameTaken("knight"))
+        }
+        jobs.waitUntilDone()
+        XCTAssertEqual(jobs.status, status, "nothing ran")
+        XCTAssertEqual(jobs.queue.entries(), [])
+        XCTAssertEqual(try files(), before, "the picture waiting to be checked was changed")
+    }
+
     /// A job with the fixture's tools never reaches the real Draw Things (#140): on a Mac that
     /// has it, the test above drew a real picture for minutes and then saw the wrong plan.
     func testTheFixtureNeverReachesTheRealDrawThings() throws {
