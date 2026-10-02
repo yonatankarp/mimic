@@ -18,8 +18,9 @@ What you need, how to install Mimic, and what happens the first time you open it
   better minis. See [Set up Draw Things](#set-up-draw-things). Or, instead of Draw Things, an
   account with Black Forest Labs or OpenAI, which make those pictures online.
 
-Mimic needs no account and uploads nothing: everything runs on your Mac, unless you choose to have
-pictures made online.
+Mimic needs no account and uploads nothing: everything runs on your Mac, unless you choose online
+pictures or a cloud AI helper in Settings. [Privacy](how-it-works.md#privacy) says what each one
+gets.
 
 ## Install Mimic
 
