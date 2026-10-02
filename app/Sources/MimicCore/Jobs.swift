@@ -446,7 +446,7 @@ public final class JobRunner: @unchecked Sendable {
         }
         guard status?.canceled == true else { return false }
         Log.queue.notice("Stop asked for\(keepingWork ? ", to carry on next launch" : "", privacy: .public)")
-        (lock.withLock { pictures } ?? drawThings).cancel()
+        picturesInUse.cancel()
         if let p { DispatchQueue.global().async { p.terminateGroup() } }
         return true
     }
@@ -769,10 +769,18 @@ public final class JobRunner: @unchecked Sendable {
         for _ in 0..<40 where kill(-pid, 0) == 0 { usleep(50_000) }
     }
 
+    /// The running job's picture maker, else Draw Things. The closure's type is spelled out: Swift
+    /// 6.3 (CI's Xcode 26.6) took `withLock`'s result type from the `??` and refused it.
+    private var picturesInUse: any PictureMaker {
+        let chosen = lock.withLock { () -> (any PictureMaker)? in pictures }
+        guard let chosen else { return drawThings }
+        return chosen
+    }
+
     /// A picture from the job's picture maker. From Draw Things, opening it first when needed and
     /// quitting it after if Mimic opened it, unless the next job needs it too.
     private func picture(_ draw: (PictureMaker) throws -> Data) throws -> Data {
-        let maker = lock.withLock { pictures } ?? drawThings
+        let maker = picturesInUse
         guard maker === drawThings else { return try draw(maker) }
         let opened = try drawThings.openIfNeeded(canceled: { status?.canceled == true }, opening: {
             lock.withLock { current?.openingDrawThings = true }
