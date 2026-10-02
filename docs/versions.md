@@ -66,7 +66,7 @@ In **Make Another Version…** or **New 3D Shape…**, type it in **What to chan
 3. If the change came out right, press **Build Shape** to make the 3D shape from it. If not,
    press **Try Again** to draw it again with a new variation number.
 
-<!-- screenshot: versions-check-picture.png | a mini's page showing "Check the picture": the redrawn picture of a character with its cape closed, with Try Again and Build Shape buttons under it -->
+![A mini waiting at Check the picture: the dwarf redrawn as a grey sculpt with a horned helmet, and Try Again and Build Shape under it](images/screens/pictures-check-the-picture.png){ width="700" }
 
 The picture waits for you. The list shows the mini as **Picture ready to check**, and its
 notification has a **Build Shape** button.

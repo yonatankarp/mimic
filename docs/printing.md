@@ -102,7 +102,7 @@ The save window says which you'll get before you save.
 
 In Terminal: `mimic export <name> --vtt`. See [Mimic from a terminal](cli.md).
 
-<!-- screenshot: printing-vtt-export.png | the Export for Virtual Tabletop save window over Mimic, with its message saying the mini comes out in grey and how to get it in colour, the file name ending in .glb -->
+![Export for Virtual Tabletop: saving a low-poly model of Elf Ranger in grey, with a note on how to get one in colour](images/screens/printing-vtt-export.png){ width="408" }
 
 ## Print tips and warnings
 

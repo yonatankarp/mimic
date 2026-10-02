@@ -48,7 +48,7 @@ The first time you open it, Mimic shows **Welcome to Mimic**: before your first 
 3D engine, the part that turns a picture into a model. It runs on your Mac, so nothing you make is
 uploaded.
 
-<!-- screenshot: getting-started-welcome.png | The Welcome to Mimic window on first launch, before Download is pressed: The 3D engine card with Which 3D model? and TRELLIS.2 (recommended) chosen, and the Draw Things card below it with its three steps -->
+![Welcome to Mimic on first launch: the 3D engine with Download, the choice of TRELLIS.2 (recommended) or Pixal3D, and the three Draw Things steps](images/screens/getting-started-welcome.png){ width="580" }
 
 1. Under **Which 3D model?**, choose one:
     - **TRELLIS.2 (recommended)**: the most reliable with what a figure holds or carries, like a

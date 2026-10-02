@@ -114,7 +114,7 @@ Trash, never deleted for good, so you can put anything back from there.
     made. A project can't be renamed while one of its minis is being made, or deleted while one is
     being made or waiting.
 
-<!-- screenshot: organizing-project-menu.png | the Minis list with two projects and Unsorted, right-clicking a project's name to show its menu: New Mini in This Project…, Open Together in Bambu Studio, Show in Finder, Resize All…, Rename Project…, Delete Project… -->
+![A project's right-click menu: New Mini in This Project…, Open Together in Bambu Studio, Show in Finder, Resize All…, Rename Project… and Delete Project…](images/screens/organizing-project-menu.png){ width="365" }
 
 ## Select several minis
 

@@ -38,7 +38,7 @@ If something Mimic needs is missing, **Needs Setup** appears in the toolbar, and
 "Mimic isn't fully set up yet" with an **Open Settings** button. Hold the pointer over Needs Setup
 to see what's missing, and click it to open Settings, which lists every check and how to fix it.
 
-<!-- screenshot: troubleshooting-needs-setup.png | Main window toolbar, cropped, with the orange Needs Setup item showing (a required check failing, e.g. the 3D model files incomplete) -->
+![Needs Setup in the toolbar, with an orange warning sign](images/screens/troubleshooting-needs-setup.png){ width="300" }
 
 | Check | What it means | How to fix it |
 |---|---|---|

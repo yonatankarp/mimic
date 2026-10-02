@@ -94,7 +94,7 @@ Click a preview in the details panel first.
 | **New Mini…** ++cmd+n++ | Make a mini from a picture or a description (see [Making a mini](making-a-mini.md)) |
 | **Import Model…** ++shift+cmd+i++ | Make a 3D model you already have print-ready (see [Importing a model](importing.md)) |
 | **New Project…** ++shift+cmd+n++ | A folder to group minis in (see [Your minis and projects](organizing.md)) |
-| Import from iPhone | Take a photo with your iPhone for New Mini's picture. macOS adds this item, named after your devices |
+| Import from iPhone or iPad | Take a photo with your iPhone for New Mini's picture. macOS adds this item, named after your devices |
 
 ### Edit
 

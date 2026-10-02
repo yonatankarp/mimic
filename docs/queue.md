@@ -40,7 +40,7 @@ The list of minis shows a waiting mini as **Waiting (2nd)** and the one being ma
     Want to keep an eye on it? Drag the popover away from the toolbar and it stays open in a small
     window of its own.
 
-<!-- screenshot: queue-popover.png | the toolbar's progress clicked open: a mini on step 2 of 3 with its picture and progress bar, Stop… under it, and below that "Waiting (2)" listing two minis with their times, the up arrow and the remove button on each, and Pause After This One -->
+![The progress popover: the mini being made on step 2 of 3, Stop…, and Waiting (2) with Pause After This One, an up arrow and a remove button for each](images/screens/queue-popover.png){ width="440" }
 
 The times come from the minis your Mac has made before. Until it's made a few, Mimic uses its
 own figures.

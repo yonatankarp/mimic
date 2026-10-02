@@ -6,7 +6,7 @@ are in **New Mini**, **Resize** and **Import a 3D Model**, under **Size & printe
 Mimic remembers your nozzle, what you size for, and the base's shape, floor and magnet from one
 mini to the next, since most people keep one printer and one table.
 
-<!-- screenshot: sizes-and-bases-size-card.png | New Mini sheet, right-hand column only: Size & printer for A character (a mini), Game scale, 0.4 mm · standard nozzle, Scale 32 mm · most common, Base Hex with Stone floor, Advanced opened to show Extra thickness for thin parts, Magnet hole 5 × 2 mm and the variation number -->
+![Size & printer in New Mini: Game scale, 0.4 mm nozzle, 32 mm scale, a hex base with a stone floor, and Advanced open with extra thickness, a 6 × 2 mm magnet hole and the variation number](images/screens/sizes-and-bases-size-card.png){ width="300" }
 
 ## Choose your nozzle
 
@@ -146,7 +146,7 @@ from the sizes the mini has now. Choose new ones and press **Resize**: Mimic mak
 again, in about a minute. The mini itself doesn't change: the same shape, at the new size. If a
 mini is being made, the resize waits its turn in [the queue](queue.md).
 
-<!-- screenshot: sizes-and-bases-resize-all.png | Resize All in <project> sheet, opened by right-clicking a project of four minis, Game scale at 32 mm · most common, round base, 0.4 mm · standard nozzle, with the explanation under the title visible -->
+![Resize All in Adventuring Party, with the same size choices as New Mini](images/screens/sizes-and-bases-resize-all.png){ width="290" }
 
 To resize several at once:
 

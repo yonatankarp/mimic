@@ -47,7 +47,7 @@ Leave it on, unless:
 
 Without the grey sculpt, the shape may come out less clean.
 
-<!-- screenshot: pictures-picture-options.png | New Mini sheet, left column only: A character (a mini), From a picture with a colour picture of a character dropped in, the Back / Left / Right slots below it with a back picture added, It's a cartoon off, Turn it into a grey sculpt first (recommended) on, What to change (optional) with "close the cape so both arms show" typed -->
+![New Mini's picture side: the picture, the Back, Left and Right boxes, It's a cartoon, Turn it into a grey sculpt first, and What to change with a change typed in](images/screens/pictures-picture-options.png){ width="280" }
 
 ## Cartoons
 
@@ -97,7 +97,7 @@ notification.
 - **Build Shape** carries on and makes the 3D shape from it.
 - **Try Again** draws the picture again, with a new variation number.
 
-<!-- screenshot: pictures-check-the-picture.png | A mini's page waiting at Check the picture: the redrawn grey sculpt with its cape closed, and the Try Again and Build Shape buttons under it -->
+![A mini waiting at Check the picture: the dwarf redrawn as a grey sculpt with a horned helmet, and Try Again and Build Shape under it](images/screens/pictures-check-the-picture.png){ width="700" }
 
 You can also say what to change when you make another version of a mini, or a new 3D shape (see
 [Versions](versions.md)). Each change starts from the picture the version before was drawn as, so

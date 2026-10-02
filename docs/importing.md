@@ -13,7 +13,7 @@ parts thickened for your nozzle.
 5. Choose its sizes and base, as for a new mini.
 6. Press **Import**.
 
-<!-- screenshot: importing-import-sheet.png | The Import a 3D Model sheet for a file named "Ogre Chief.stl": What is it? set to A character (a mini), Name "Ogre Chief", Project Unsorted, and the Size & printer choices below at Game scale, 32 mm · most common -->
+![Import a 3D Model for Hill Dwarf.stl: A character (a mini), Unsorted, and the size choices](images/screens/importing-import-sheet.png){ width="290" }
 
 Only the print-ready step runs, so it's quick: about a minute, and the sheet says how long. It
 needs no picture and no Draw Things. Its progress shows in the toolbar

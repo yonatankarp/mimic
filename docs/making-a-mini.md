@@ -15,7 +15,7 @@ Mimic up yet, start with [Getting started](getting-started.md).
 5. Choose your **Nozzle** and how big to make it, on the right.
 6. Press **Make Mini**.
 
-<!-- screenshot: making-a-mini-new-mini.png | New Mini sheet, A character (a mini) chosen, From a picture with the sample dwarf picture dropped in, grey sculpt on, Name "Sample Dwarf", Project Unsorted, Game scale at 32 mm · most common, 0.4 mm · standard nozzle, the time beside Make Mini -->
+![New Mini: A character (a mini), from a picture of a dwarf cleric, the grey sculpt on, Game scale with a 0.4 mm nozzle and a 32 mm hex base, and about 14 minutes beside Make Mini](images/screens/making-a-mini-new-mini.png){ width="540" }
 
 The sections below go through each step.
 
@@ -35,7 +35,7 @@ may come out soft.
 
 Drop a picture on the dashed box, paste it (++cmd+v++), or click the box to choose a file. You can
 also drag a picture straight from Photos or a web page, or take one with your iPhone from the
-**File** menu (Import from iPhone).
+**File** menu (Import from iPhone or iPad).
 
 For a character, the best picture shows the full body, head to feet, on a plain background. For
 anything else, the whole object on a plain background. Mimic warns you if a picture is small or, for
@@ -123,7 +123,7 @@ The mini's page in the list says which step it's on, with **Show Progress**.
 When it's done, the toolbar says so. Click it for **Open in** your slicer, or **Try Again** if
 something went wrong.
 
-<!-- screenshot: making-a-mini-progress.png | The progress popover open under the toolbar while a mini is on step 2 of 3 (Building the 3D shape), with one more mini under Waiting (1) and the Stop… button -->
+![The progress popover: step 2 of 3, building the 3D shape, with Stop… and two more minis waiting](images/screens/queue-popover.png){ width="440" }
 
 ## Get told when it's ready
 
