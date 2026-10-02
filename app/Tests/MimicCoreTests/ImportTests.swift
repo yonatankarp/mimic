@@ -65,6 +65,24 @@ final class ImportTests: XCTestCase {
         XCTAssertEqual(back.bounds.hi.z, 0.020, accuracy: 1e-3)
     }
 
+    /// A print file made before 0.10.0 faces +y (#275): the export turns it round, so it still
+    /// faces glTF's front.
+    func testAnOldPrintFileIsExportedFacingFrontToo() throws {
+        let d = try temporary().appendingPathComponent("dwarf")
+        try FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
+        var mesh = Mesh()
+        mesh.add(PrepTests.sphere(radius: 10), at: [0, 0, 10])
+        mesh.add(PrepTests.box(half: [2, 5, 2]), at: [0, 15, 10])  // a nose, out the front at +y
+        try STL.write(mesh, to: d.appendingPathComponent("dwarf.stl"))
+        let old = Mini(name: "dwarf", folder: d, madeAt: Mini.facingFrontSince.addingTimeInterval(-60))
+        XCTAssertTrue(old.facesAway)
+        let glb = d.appendingPathComponent("dwarf.glb")
+        try Tabletop.export(old, to: glb, triangles: 100)
+        let back = try GLB.read(glb)
+        XCTAssertEqual(back.bounds.lo.y, -0.020, accuracy: 1e-4, "the nose faces glTF's front")
+        XCTAssertEqual(back.bounds.hi.y, 0.010, accuracy: 1e-3)
+    }
+
     /// The colours come from the nearest point of the engine's model (#256): a sphere painted red
     /// above its middle and blue below comes out so on the triangles that cover it, through the
     /// .glb's own places on its picture, which a .glb written with them reads back.

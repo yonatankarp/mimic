@@ -295,15 +295,19 @@ public enum Tabletop {
             _ = try Prep.place(&model, PrepOptions.parse([glb.path, stl.path] + Pipeline.prepFlags(mini.settings)))
             return (model, paint)
         }()
-        let made = try export(stl, to: url, triangles: triangles, painted: painted)
+        let made = try export(stl, to: url, triangles: triangles, painted: painted, facesAway: mini.facesAway)
         return (made.triangles, made.bytes, painted != nil)
     }
 
     /// Writes the .glb of `stl` to `url`, painted from `painted`'s model when given: the trim can
-    /// stop short of `triangles` where a collapse would tear the surface.
+    /// stop short of `triangles` where a collapse would tear the surface. A print file that
+    /// `facesAway` is turned round first, to face the front as the model is placed now.
     @discardableResult
-    static func export(_ stl: URL, to url: URL, triangles: Int = triangles, painted: (Mesh, GLB.Paint)? = nil) throws -> (triangles: Int, bytes: Int) {
-        let solid = ModelImport.weld(try STL.read(stl))
+    static func export(_ stl: URL, to url: URL, triangles: Int = triangles, painted: (Mesh, GLB.Paint)? = nil,
+                       facesAway: Bool = false) throws -> (triangles: Int, bytes: Int) {
+        var solid = ModelImport.weld(try STL.read(stl))
+        // Half a turn about the vertical: both axes, as one alone would mirror it.
+        if facesAway { solid.positions = solid.positions.map { SIMD3(-$0.x, -$0.y, $0.z) } }
         guard !solid.triangles.isEmpty else { throw PrepError("the print file has no triangles") }
         // Trimmed in millimetres: Decimate's thresholds are.
         var mesh = solid.triangles.count > triangles ? Decimate.run(solid, target: triangles) : solid

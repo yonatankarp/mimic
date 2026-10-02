@@ -19,6 +19,19 @@ final class ViewerZoomTests: XCTestCase {
         XCTAssertEqual(ViewerZoom.factor(magnification: 0.1) * ViewerZoom.factor(magnification: -0.1), 1, accuracy: 1e-6)
     }
 
+    /// The 3D view shows a mini from the front, its left hand on your right as when facing
+    /// someone: a print file made now faces -y, its left hand at +x; one made before 0.10.0 faces
+    /// +y, its left hand at -x (#275). The camera looks along -z, so toward it is +z.
+    func testThe3DViewShowsTheFrontOfOldAndNewPrintFiles() {
+        for (facesAway, nose, hand) in [(false, SIMD3<Float>(0, -10, 20), SIMD3<Float>(8, 0, 12)),
+                                         (true, SIMD3<Float>(0, 10, 20), SIMD3<Float>(-8, 0, 12))] {
+            let label = facesAway ? "made before 0.10.0" : "made now"
+            XCTAssertGreaterThan(ViewerCamera.scene(nose, facesAway: facesAway).z, 0, "\(label): its nose points at you")
+            XCTAssertGreaterThan(ViewerCamera.scene(hand, facesAway: facesAway).x, 0, "\(label): its left hand is on your right")
+            XCTAssertEqual(ViewerCamera.scene(nose, facesAway: facesAway).y, 20, "\(label): z up is y up")
+        }
+    }
+
     func testThePointUnderThePointerStaysUnderIt() {
         // Model point m is drawn at offset + scale × m (turning doesn't change the argument).
         let anchor = SIMD2<Float>(0.3, 0.2)

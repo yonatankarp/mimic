@@ -19,6 +19,8 @@ struct MiniViewer: View {
     let version: Date
     /// "Dwarf Cleric", for VoiceOver.
     let name: String
+    /// The print file faces +y, as before 0.10.0 (`Mini.facesAway`), so it's turned round.
+    let facesAway: Bool
     /// What the print file measures, once loaded: the page's details show it too.
     @Binding var measured: Measured?
     @State private var mini: Entity?
@@ -98,7 +100,7 @@ struct MiniViewer: View {
                 .foregroundStyle(.secondary)
             }
         }
-        .task(id: [stl.path, version.description]) {
+        .task(id: [stl.path, version.description, "\(facesAway)"]) {
             failed = false
             measured = nil  // at once: the page's details shouldn't show the last mini's size while it fades
             // The mini on show fades out first, before it leaves the stage.
@@ -114,7 +116,7 @@ struct MiniViewer: View {
             mini = nil
             // The file is read off the main actor, so the view can say so meanwhile; a big print
             // file takes seconds.
-            let read = await Task.detached(priority: .userInitiated) { [stl] in Result { try Self.read(stl) } }.value
+            let read = await Task.detached(priority: .userInitiated) { [stl, facesAway] in Result { try Self.read(stl, facesAway: facesAway) } }.value
             // Another mini was picked meanwhile: its own load shows it, not this one.
             guard !Task.isCancelled else { return }
             guard let (entity, mm) = try? Self.entity(read.get()) else { failed = true; return }
@@ -340,7 +342,7 @@ struct MiniViewer: View {
     /// Print files are Z-up millimetres; the scene is Y-up metres. The mini is centred and
     /// scaled to 1 m tall, which the camera fits to the view. Also returns its size in millimetres.
     /// Off the main actor; `entity` then makes the mini on it.
-    nonisolated static func read(_ url: URL) throws -> Read {
+    nonisolated static func read(_ url: URL, facesAway: Bool) throws -> Read {
         let asset = MDLAsset(url: url)
         guard let mesh = asset.childObjects(of: MDLMesh.self).first as? MDLMesh else { throw CocoaError(.fileReadCorruptFile) }
         let desc = mesh.vertexDescriptor
@@ -351,9 +353,7 @@ struct MiniViewer: View {
         var lo = SIMD3<Float>(repeating: .greatestFiniteMagnitude), hi = -lo
         for i in 0..<mesh.vertexCount {
             let p = buf.bytes.advanced(by: i * layout.stride + pos.offset).assumingMemoryBound(to: Float.self)
-            // Z-up → Y-up, turned to face the camera: minis face -Y in the print file, and the
-            // camera looks along -Z.
-            let v = SIMD3<Float>(p[0], p[2], -p[1])
+            let v = ViewerCamera.scene(SIMD3(p[0], p[1], p[2]), facesAway: facesAway)
             points.append(v); lo = simd_min(lo, v); hi = simd_max(hi, v)
         }
         let dims = hi - lo

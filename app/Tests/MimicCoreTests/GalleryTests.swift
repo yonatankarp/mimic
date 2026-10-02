@@ -24,6 +24,21 @@ final class GalleryTests: XCTestCase {
     }
 
     /// A new mini goes in its project's folder, or at the top for Unsorted.
+    /// Print files made before 0.10.0 face +y; since, -y (#275). One made since says so in its
+    /// settings, but those made with 0.10.0 before that don't: their date tells. An imported
+    /// model was never turned, so it faces as its file has it, which is a slicer's front.
+    func testWhichPrintFilesFaceAway() {
+        func mini(_ madeAt: Date, _ change: (inout MiniSettings) -> Void = { _ in }) -> Mini {
+            var s = MiniSettings(); change(&s)
+            return Mini(name: "dwarf", folder: URL(fileURLWithPath: "/runs/dwarf"), madeAt: madeAt, settings: s)
+        }
+        let before = Mini.facingFrontSince.addingTimeInterval(-60), after = Mini.facingFrontSince.addingTimeInterval(60)
+        XCTAssertTrue(mini(before).facesAway, "made before 0.10.0")
+        XCTAssertFalse(mini(after).facesAway, "made with 0.10.0, which faced it front but didn't say so")
+        XCTAssertFalse(mini(before) { $0.facesFront = true }.facesAway, "it says it faces front")
+        XCTAssertFalse(mini(before) { $0.imported = "dragon.stl" }.facesAway, "imported, so never turned")
+    }
+
     func testWhereANewMiniGoes() {
         let runs = URL(fileURLWithPath: "/tmp/minis")
         XCTAssertEqual(Gallery.newFolder(runs, "raven", project: nil).path, "/tmp/minis/raven")

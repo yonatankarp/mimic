@@ -284,6 +284,9 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   `--image` is read as a second picture; `--gss 10` was tuned on Pixal3D only), and writes its
   figure facing the other way from Pixal3D's. Print files face -y, a slicer's front (#275), as
   TRELLIS.2 writes it, so print prep turns Pixal3D's round instead (`--turn 180`, `EngineModel.turn`).
+  Before 0.10.0 they faced +y, and those files stay as they are: the 3D view and Export for
+  Virtual Tabletop turn them round (`Mini.facesAway`). A finished run records `facesFront`; a print
+  file without it is old if it's older than 0.10.0's release, unless it was imported (never turned).
   `PIXAL3D_STEPS=8` applies to every flow of both pipelines, so one guard covers both.
   Rejected: Pixal3D's multiview set (`raven38/pixal3d-q8_0-v1`) wants four pictures of the
   figure; `--trellis2-mv` wants 2–8; TRELLIS.2 at full precision is 15.5 GB. The TRELLIS.2 sets

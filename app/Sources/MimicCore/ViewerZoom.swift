@@ -63,6 +63,12 @@ public struct ViewerCamera: Equatable, Sendable {
 
     public init(distance: Float = 1.7, lift: Float = 0) { self.distance = distance; self.lift = lift }
 
+    /// A print file's point (Z up) in the scene (Y up), turned so the mini faces the camera,
+    /// which looks along -Z: print files face -Y, or +Y when `facesAway` (`Mini.facesAway`).
+    public static func scene(_ p: SIMD3<Float>, facesAway: Bool) -> SIMD3<Float> {
+        facesAway ? SIMD3(-p.x, p.z, p.y) : SIMD3(p.x, p.z, -p.y)
+    }
+
     /// `size` is the mini's in the scene, 1 m tall; `top` and `bottom` are the points of the view
     /// covered at each edge; `margin` is the share of the seen part kept free around it.
     public static func fitting(_ size: SIMD3<Float>, in view: CGSize, top: CGFloat, bottom: CGFloat, margin: Float = 0.15) -> ViewerCamera {
