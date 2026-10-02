@@ -56,7 +56,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>LSMinimumSystemVersion</key><string>26.0</string>
   <key>SUFeedURL</key><string>https://github.com/yonatankarp/mimic/releases/latest/download/appcast.xml</string>
   <key>SUPublicEDKey</key><string>Dw9fswgPGLG2UoKzVMTIdvoQZd/m317sFxOecEoDXMk=</string>
-  <key>SUEnableAutomaticChecks</key><true/>
+  <key>SUEnableAutomaticChecks</key><false/>
   <key>NSHumanReadableCopyright</key><string>Copyright © 2026 Yonatan Karp-Rudin</string>
   <key>NSHighResolutionCapable</key><true/>
 </dict></plist>

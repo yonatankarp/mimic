@@ -126,17 +126,19 @@ Now [make your first mini](making-a-mini.md).
 
 ## Keep Mimic up to date
 
-Mimic checks for a new version once a day. When there is one, a small note appears in the toolbar,
-like "Mimic 0.11.0 is available": click it to see what's new and install it. Mimic checks that the
-update really comes from its makers, installs it and opens again.
+Each time you open Mimic, it checks for a new version. When there is one, a window shows it a few
+seconds later, with what's new: click **Install Update**. Mimic checks that the update really
+comes from its makers, installs it and opens again. **Remind Me Later** leaves a small note in the
+toolbar, like "Mimic 0.11.0 is available", and asks again next time you open Mimic; **Skip This
+Version** stops it asking about that version.
 
 To check yourself, choose **Mimic → Check for Updates…**.
 
 Mimic never installs an update while a mini is being made or waiting in the queue. The note then
 says it installs when the queue is done, and it does.
 
-To turn the daily check off, open **Settings → General** and, under **Updates**, turn off
-**Check for updates automatically**. **Check Now** checks straight away. Only public release
+To stop Mimic checking when it opens, open **Settings → General** and, under **Updates**, turn off
+**Check for updates when Mimic opens**. **Check Now** checks straight away. Only public release
 information is read; nothing about your Mac or your minis is sent.
 
 ## Use Mimic from Terminal

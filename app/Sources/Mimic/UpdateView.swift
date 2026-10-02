@@ -1,19 +1,23 @@
 import AppKit
+import MimicCore
 import Sparkle
 import SwiftUI
 
-/// Updates, through Sparkle: it reads the appcast each release publishes, at most once a day
-/// and from Mimic → Check for Updates…, and shows, checks and installs the update. Mimic adds a
-/// quiet toolbar note instead of a window at launch, and never installs while a mini is being
-/// made or waiting. Release builds only: the dev build never updates itself.
+/// Updates, through Sparkle: it reads the appcast each release publishes, when Mimic opens and
+/// from Mimic → Check for Updates…, and shows, checks and installs the update. A newer version
+/// found when Mimic opens shows Sparkle's window; after Remind Me Later, a quiet toolbar note.
+/// Never installs while a mini is being made or waiting. Release builds only: the dev build
+/// never updates itself.
 @MainActor @Observable
 final class Updater: NSObject, SPUUpdaterDelegate {
     weak var model: AppModel?
-    /// A new version a scheduled check found and nobody has looked at yet: the toolbar note.
+    /// A new version found and not looked at yet, or put off with Remind Me Later: the toolbar note.
     var available: String?
     /// The version that installs once the queue is done.
     var waiting: String?
-    var automatic = true { didSet { controller?.updater.automaticallyChecksForUpdates = automatic } }
+    /// Settings' Check for updates when Mimic opens. Never Sparkle's own automatic checks: those
+    /// are its daily schedule, off in Info.plist, whose window would land in the middle of a queue.
+    var automatic = true { didSet { UserDefaults.standard.set(automatic, forKey: UpdateCheck.key) } }
     var lastChecked: Date?
     @ObservationIgnored private var controller: SPUStandardUpdaterController?
     /// Sparkle's go-ahead to install and relaunch, held while the queue is busy.
@@ -22,10 +26,17 @@ final class Updater: NSObject, SPUUpdaterDelegate {
     override init() {
         super.init()
         guard Bundle.main.bundleIdentifier == "com.mimic.app" else { return }
+        automatic = UpdateCheck.atLaunch()  // before Sparkle starts: it takes Sparkle's old switch away
         let controller = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: self, userDriverDelegate: self)
         self.controller = controller
-        automatic = controller.updater.automaticallyChecksForUpdates
         lastChecked = controller.updater.lastUpdateCheckDate
+        guard automatic else { return }
+        // A few seconds after the window opens, so the window doesn't land on a mini being started.
+        // Nothing shows when there's nothing new or Mimic is offline.
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(5))
+            if !controller.updater.sessionInProgress { controller.updater.checkForUpdatesInBackground() }
+        }
     }
 
     var enabled: Bool { controller != nil }
@@ -66,20 +77,28 @@ final class Updater: NSObject, SPUUpdaterDelegate {
     func updater(_ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: (any Error)?) {
         lastChecked = updater.lastUpdateCheckDate
     }
+
+    /// Remind Me Later leaves the toolbar note until Mimic next opens; Install Update and Skip This
+    /// Version take it away.
+    func updater(_ updater: SPUUpdater, userDidMake choice: SPUUserUpdateChoice, forUpdate updateItem: SUAppcastItem, state: SPUUserUpdateState) {
+        available = choice == .dismiss ? updateItem.displayVersionString : nil
+    }
 }
 
-/// A scheduled check that finds an update shows the toolbar note, never Sparkle's window.
+/// The check when Mimic opens finds an update: Sparkle's window, in front. Sparkle on its own would
+/// hold it back until Mimic is next switched to, this long after launch, so Mimic shows it the way
+/// the toolbar note does.
 extension Updater: @preconcurrency SPUStandardUserDriverDelegate {
     var supportsGentleScheduledUpdateReminders: Bool { true }
 
     func standardUserDriverShouldHandleShowingScheduledUpdate(_ update: SUAppcastItem, andInImmediateFocus immediateFocus: Bool) -> Bool { false }
 
     func standardUserDriverWillHandleShowingUpdate(_ handleShowingUpdate: Bool, forUpdate update: SUAppcastItem, state: SPUUserUpdateState) {
-        if !handleShowingUpdate { available = update.displayVersionString }
+        // The note too, in case the window doesn't come forward; it goes once the window is looked at.
+        if !handleShowingUpdate { available = update.displayVersionString; check() }
     }
 
     func standardUserDriverDidReceiveUserAttention(forUpdate update: SUAppcastItem) { available = nil }
-    func standardUserDriverWillFinishUpdateSession() { available = nil }
 }
 
 /// "Mimic 0.6.1 is available" in the toolbar: the quiet note that opens Sparkle's update window.
@@ -107,7 +126,7 @@ struct UpdatesSection: View {
         @Bindable var updates = model.updates
         if updates.enabled {
             Section {
-                Toggle("Check for updates automatically", isOn: $updates.automatic)
+                Toggle("Check for updates when Mimic opens", isOn: $updates.automatic)
                 LabeledContent {
                     Button("Check Now") { updates.check() }
                 } label: {
@@ -117,7 +136,7 @@ struct UpdatesSection: View {
             } header: {
                 Text("Updates")
             } footer: {
-                Text("Mimic asks GitHub for its latest release once a day. Only public release information is read; nothing about your Mac or your minis is sent.")
+                Text("Mimic asks GitHub for its latest release each time it opens. Only public release information is read; nothing about your Mac or your minis is sent.")
                     .foregroundStyle(.secondary)
             }
         }

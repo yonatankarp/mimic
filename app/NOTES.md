@@ -590,13 +590,26 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   only sandboxed apps need; then it signs inside out, `Autoupdate`, `Updater.app`, the framework,
   the app, with the same identity and no `--deep`. Info.plist: `SUFeedURL`
   (`releases/latest/download/appcast.xml`, so always the newest release's), `SUPublicEDKey`, and
-  `SUEnableAutomaticChecks` on, which also stops Sparkle asking on the second launch whether to
-  check. Sparkle compares `CFBundleVersion`, the commit count. The updater only starts in the
+  `SUEnableAutomaticChecks` off: Sparkle's own schedule never runs, and the key being there at all
+  stops Sparkle asking on the second launch whether to check. Sparkle compares `CFBundleVersion`, the commit count. The updater only starts in the
   release build (`com.mimic.app`): the dev build has no Check for Updates… and no Settings →
   Updates, and never updates itself.
-  Kept from the first version: a scheduled check that finds an update shows only a note in the
-  toolbar (Sparkle's gentle reminders: the user driver's delegate shows scheduled updates
-  itself), and the note opens Sparkle's window; Check for Updates… is Sparkle's standard UI.
+  Checked when Mimic opens, not once a day (#269): 5 s after launch, so the window doesn't land on
+  a mini being started, `checkForUpdatesInBackground` if Settings → Check for updates when Mimic
+  opens is on (`UpdateCheck.key`, Mimic's own setting; until 0.10 the switch was Sparkle's
+  `automaticallyChecksForUpdates`, carried over once and removed, since saved as on it overrides
+  the Info.plist and brings the daily timer back, whose window would land mid-queue). A Mimic left
+  open for days hears of a release when it's next opened, or from the menu: accepted. An update
+  found shows Sparkle's window through `checkForUpdates()`, the same "show in focus" as the
+  toolbar note: told to show it itself, Sparkle holds a scheduled update back until the app is
+  next activated once more than 3 s have passed since the updater started. Remind Me Later
+  (`userDidMake` `.dismiss`) leaves the note in the toolbar until the next launch, which asks
+  again; Skip This Version is Sparkle's (background checks never find a skipped version). With
+  automatic checks off, Sparkle's window no longer offers "Automatically download and install
+  updates" (it follows that setting), so every update goes through the window. Check for
+  Updates… is Sparkle's standard UI. Seen with a test build on a local appcast: the window 6 s after launch;
+  none for a skipped version, nothing new, offline or the switch off; the old switch's off carried
+  over. Its buttons weren't clicked.
   Never installing while a mini is being made (here or in another Mimic), waiting in the queue,
   or setup downloading: `shouldPostponeRelaunchForUpdate` holds Sparkle's go-ahead, the note
   says "installs when the queue is done", and the queue's 3-second watch gives it back once the
