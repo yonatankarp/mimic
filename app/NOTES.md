@@ -171,7 +171,6 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   same). The cutout and its edge cleaning ran on every pixel of a 48 MP photo for an engine that
   sees 1536 at most. New Mini takes drops as a picture file, else as the picture's data or a
   promised file (Photos, browsers), never a web address; Import from iPhone goes the same way.
-- **Same data on disk.** `runs/<name>/` (or `runs/<project>/<name>/`) with `<name>.stl`, `<name>_{front,side,back}.png`,
 - **An object that can't stand is set on a side it can** (`Mesh.rest`, `MimicCore/Rest.swift`),
   after levelling. Its sides are the faces of its convex hull (quickhull over one point per
   1/256 grid cell of the main pieces, so floating specks don't hold it up), a side being the hull
@@ -197,16 +196,17 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   stands on its foot. teapot2, the vase and every character give the same bytes as before;
   turned 90° either way or 180° they used to come back upright on their bases, which is what
   was given up above. 0.3–0.5 s for a million triangles in a release build. Characters never go through this.
-- **Same data on disk.** `runs/<name>/` with `<name>.stl`, `<name>_{front,side,back}.png`,
-  `source.png` and `settings.json` (`requested` / `made` / how it was made), so minis made by
-  the web version appear in the app unchanged. The list is in the order minis were asked for,
-  `created` in settings.json (#75; older minis go by their folder's creation date), not by the
-  print file's time, which every resize changes; the 3D view, the thumbnails and `mimic --wait`
-  still watch that time to notice a new print file. The gallery reads each settings.json once
-  per reload into `Mini.settings`, which the list, a mini's page and the estimates use, so a
-  redraw or a progress tick reads no file (#95). A `Mini` compares its settings too, so a reload
-  after a run or a rename shows what changed; jobs, Try Again and the command line still read
-  the file, since they must see what's on disk now.
+- **Same data on disk.** `runs/<name>/` (or `runs/<project>/<name>/`) with `<name>.stl`,
+  `<name>_{front,left,right,back}.png`, `source.png` and `settings.json` (`requested` / `made`
+  / how it was made), so minis made by the web version appear in the app unchanged. An older
+  mini's `_side.png` goes when its previews are next drawn (`Render`). The list is in the order
+  minis were asked for, `created` in settings.json (#75; older minis go by their folder's
+  creation date), not by the print file's time, which every resize changes; the 3D view, the
+  thumbnails and `mimic --wait` still watch that time to notice a new print file. The gallery
+  reads each settings.json once per reload into `Mini.settings`, which the list, a mini's page
+  and the estimates use, so a redraw or a progress tick reads no file (#95). A `Mini` compares
+  its settings too, so a reload after a run or a rename shows what changed; jobs, Try Again and
+  the command line still read the file, since they must see what's on disk now.
 - **3D viewer: RealityKit.** Measured on the dwarf's 40 MB, 2.4M-vertex print file:
   Model I/O reads the STL in 0.08 s; SceneKit builds a scene in 0.03 s (265 MB); a RealityKit
   mesh takes 0.37 s (573 MB). Both are fine; SceneKit is no longer developed, so RealityKit.
@@ -500,8 +500,8 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   broken 0.7.0, which reads that file as a bare list (it would see an empty queue and drop the
   pause on its next write). 0.7.0 ignores the pause. It is checked, under the queue's lock,
   wherever a job could start (taking the job lock, and the next job after one ends), so
-  pausing lets the running one finish: Pause After This One. Settings → Don't start minis on
-  battery (`Power`, IOKit's providing power source; shown only on a Mac with a battery) holds
+  pausing lets the running one finish: Pause After This One. Settings → Start minis only when
+  plugged in (`Power`, IOKit's providing power source; shown only on a Mac with a battery) holds
   the queue the same way, in the app and in Terminal, since both read the app's settings; the
   app's 3-second watch starts it again once the Mac is plugged in. `mimic queue resume` only
   lifts the pause and leaves starting to the app: the command ends at once, and a job needs
