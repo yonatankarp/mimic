@@ -745,6 +745,16 @@ final class PrepTests: XCTestCase {
         XCTAssertEqual([edges.height, edges.base, edges.nozzle, edges.effectiveInflate], [500, 200, 1, 2])
     }
 
+    /// A face count too big for a whole number is refused, not a crash (#378).
+    func testAHugeFaceCountIsRefused() throws {
+        for bad in ["1e20", "999", "5000001", "20000.5", "many"] {
+            XCTAssertThrowsError(try PrepOptions.parse(["a.glb", "b.stl", "--faces", bad]), bad) {
+                XCTAssertEqual("\($0)", "--faces needs a whole number from 1000 to 5000000")
+            }
+        }
+        XCTAssertEqual(try PrepOptions.parse(["a.glb", "b.stl", "--faces", "5000000"]).faces, 5_000_000)
+    }
+
     /// The reader turns glTF's y-up into z-up and applies the node's placement.
     func testTheGLBReaderPlacesAndTurns() throws {
         let tri = Mesh(positions: [[0, 0, 0], [1, 0, 0], [0, 0, 1]], triangles: [[0, 1, 2]])

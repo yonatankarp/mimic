@@ -102,7 +102,12 @@ public struct PrepOptions: Equatable, Sendable {
             case "--inflate": o.inflate = try number(a, 0...2)
             case "--voxel": o.voxel = try number(a, 0.01...5)
             case "--flatten": o.flatten = try number(a, 0...50)
-            case "--faces": o.faces = Int(try number(a))
+            case "--faces":
+                // Int(1e20) would crash (#378).
+                guard let n = rest.popFirst().flatMap(Int.init), (1_000...5_000_000).contains(n) else {
+                    throw PrepError("--faces needs a whole number from 1000 to 5000000")
+                }
+                o.faces = n
             case "--turn": o.turn = try number(a)
             case "--no-base": o.noBase = true
             case "--magnet":
