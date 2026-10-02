@@ -1,7 +1,7 @@
 import Foundation
 
 /// `--json` on `mimic list`, `projects`, `queue`, `models` and `info` (#130): what each prints, for scripts.
-/// The field names are a promise (README, Terminal): fields may be added, never renamed or
+/// The field names are a promise (docs/cli.md, Terminal): fields may be added, never renamed or
 /// removed. Dates are ISO 8601, sizes millimetres, times seconds. A field with no value is left out.
 public enum ListingJSON {
     public static let encoder: JSONEncoder = {
