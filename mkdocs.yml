@@ -1,0 +1,72 @@
+site_name: Mimic
+site_description: Turn any character into a miniature you can print, on your own Mac.
+site_url: https://yonatankarp.github.io/mimic/
+repo_url: https://github.com/yonatankarp/mimic
+repo_name: yonatankarp/mimic
+edit_uri: edit/main/docs/
+exclude_docs: |
+  cartoon-check/
+
+theme:
+  name: material
+  logo: images/logo.png
+  favicon: images/logo.png
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.instant
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle: { icon: material/brightness-auto, name: Light mode }
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      toggle: { icon: material/brightness-7, name: Dark mode }
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      toggle: { icon: material/brightness-4, name: Follow the Mac }
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc: { permalink: true }
+  - pymdownx.details
+  - pymdownx.keys
+  - pymdownx.snippets: { base_path: ["."], check_paths: true }
+  - pymdownx.superfences:
+      custom_fences:
+        - { name: mermaid, class: mermaid, format: !!python/name:pymdownx.superfences.fence_code_format }
+
+nav:
+  - Home: index.md
+  - Using Mimic:
+      - Getting started: getting-started.md
+      - Making a mini: making-a-mini.md
+      - Better minis from pictures: pictures.md
+      - Sizes and bases: sizes-and-bases.md
+      - Versions: versions.md
+      - Your minis and projects: organizing.md
+      - Printing and exporting: printing.md
+      - Importing a model: importing.md
+      - The queue: queue.md
+      - Settings: settings.md
+      - Keyboard shortcuts: shortcuts.md
+      - When something goes wrong: troubleshooting.md
+  - Power users:
+      - Mimic from a terminal: cli.md
+      - Where your files are: files.md
+      - Tuning print prep: print-prep.md
+      - How it works: how-it-works.md
+  - Developers:
+      - Contributing: contributing.md
+      - Working on Mimic: developing.md
+      - Design notes: design-notes.md
+  - Licences: licences.md

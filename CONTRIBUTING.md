@@ -1,5 +1,7 @@
 # Contributing to Mimic
 
+<!-- --8<-- [start:contributing] -->
+
 Thanks for helping. Mimic is a hobby project, so every bug report, idea and fix makes a real
 difference.
 
@@ -47,9 +49,12 @@ the problem matters more than a specific solution.
    it out. Links and HTML are taken out (a link keeps its text), so don't rely on them.
 
 By contributing, you agree that your contribution is licensed under Mimic's
-[MIT licence](LICENSE).
+[MIT licence](https://github.com/yonatankarp/mimic/blob/main/LICENSE).
+<!-- --8<-- [end:contributing] -->
 
 # Working on Mimic
+
+<!-- --8<-- [start:dev] -->
 
 ## Layout
 
@@ -186,3 +191,4 @@ The app downloads a pre-built Pixal3D so that nobody needs Xcode.
 3. Update `EngineDownload.version` and `EngineDownload.engine` (URL, size, sha256) in
    `app/Sources/MimicCore/EngineDownload.swift`. Installed copies replace an engine whose
    `VERSION` doesn't match the next time setup runs (Settings → General → Repair).
+<!-- --8<-- [end:dev] -->
