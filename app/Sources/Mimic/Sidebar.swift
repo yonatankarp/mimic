@@ -431,10 +431,9 @@ struct GalleryRow: View {
     var body: some View {
         let line = line
         HStack(spacing: 10) {
-            // A mini waiting in the queue has only the picture it was given.
-            AsyncImage(url: mini.renders.first?.url ?? mini.source ?? mini.upload) { img in
-                img.resizable().scaledToFill()
-            } placeholder: { Color.secondary.opacity(0.15) }
+            // A mini waiting in the queue has only the picture it was given. By its time, not
+            // only its file: Try Again on a picture to check draws a new one under the same name.
+            Thumbnail(url: mini.renders.first?.url ?? mini.source ?? mini.upload, version: mini.madeAt, fill: true)
             .frame(width: 44, height: 44)
             .clipShape(RoundedRectangle(cornerRadius: 6))
             VStack(alignment: .leading, spacing: 2) {
