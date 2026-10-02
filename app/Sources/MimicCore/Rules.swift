@@ -136,7 +136,8 @@ public enum RequestError: Error, Equatable, CustomStringConvertible {
     public var description: String {
         switch self {
         case .badName: "Names can only use lowercase letters, numbers and dashes."
-        case .badNumber(let k): "The \(k) must be a number of 0 or more."
+        case .badNumber(let k):
+            "The \(k == "inflate" ? "extra thickness" : k) must be a number from \(SizeCard.text(Sizes.ranges[k]!.lowerBound)) to \(SizeCard.text(Sizes.ranges[k]!.upperBound)) mm."
         case .badNozzle: "The nozzle must be 0.2, 0.4 or 0.6 mm."
         case .nameTaken(let n): "You already have a mini called \(Mini.displayName(n))."
         // The lock held elsewhere comes with no mini's name: a second Mimic or `mimic` in Terminal.
