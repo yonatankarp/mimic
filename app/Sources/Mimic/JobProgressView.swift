@@ -62,7 +62,9 @@ struct JobProgressView: View {
                     }
                 }
                 Spacer(minLength: 0)
-                JobPicture(status: s, folder: Gallery.folder(model.install.runs, s.name) ?? model.install.runs.appendingPathComponent(s.name))
+                // The gallery's own record of where it is, not a search of the minis folder every second.
+                JobPicture(status: s, folder: model.minis.first { $0.name == s.name }?.folder ?? Gallery.folder(model.install.runs, s.name)
+                           ?? model.install.runs.appendingPathComponent(s.name))
             }
             ProgressView(value: JobProgress.fraction(s, estimate: estimate, now: now))
                 .progressViewStyle(GlidingBar(working: s.running))

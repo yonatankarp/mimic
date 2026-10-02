@@ -34,8 +34,12 @@ struct DetachablePopover<Content: View>: NSViewRepresentable {
         let popover = NSPopover()
         popover.behavior = .transient
         popover.delegate = c
-        let host = NSHostingController(rootView: content())
-        host.sizingOptions = .preferredContentSize
+        // Sized from the content's own size, after the layout that measured it: letting the
+        // hosting controller resize the popover did it from inside the popover window's layout,
+        // which laid out and resized again until the stack ran out (a crash in 0.10.0).
+        let host = NSHostingController(rootView: content().fixedSize(horizontal: false, vertical: true)
+            .onGeometryChange(for: CGSize.self, of: \.size) { [weak c] in c?.fit($0) })
+        host.sizingOptions = []
         popover.contentViewController = host
         c.popover = popover
         // After this update; or, when the window is still opening (Show Progress from the Dock
@@ -61,6 +65,15 @@ struct DetachablePopover<Content: View>: NSViewRepresentable {
         func show(from anchor: NSView) {
             guard let popover, !popover.isShown, anchor.window != nil else { return }
             popover.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .minY)
+        }
+
+        /// Whole points, so a 1x screen can show it exactly, and only when it changed.
+        func fit(_ size: CGSize) {
+            let size = CGSize(width: size.width.rounded(.up), height: size.height.rounded(.up))
+            DispatchQueue.main.async { [weak self] in
+                guard let popover = self?.popover, popover.contentSize != size else { return }
+                popover.contentSize = size
+            }
         }
 
         func popoverShouldDetach(_ popover: NSPopover) -> Bool { true }
