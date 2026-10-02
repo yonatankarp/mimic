@@ -336,7 +336,13 @@ final class FakeLLM: @unchecked Sendable {
     private var got: [Request] = []
     var requests: [Request] { lock.withLock { got } }
 
-    init(status: Int = 200, body: String) throws {
+    convenience init(status: Int = 200, body: String) throws {
+        try self.init { _ in (status, Data(body.utf8)) }
+    }
+
+    /// Answers each request with what `reply` gives for it (its head names the method and path),
+    /// so one server can stand in for a whole API, pictures included.
+    init(reply: @escaping @Sendable (Request) -> (status: Int, body: Data)) throws {
         let fd = socket(AF_INET, SOCK_STREAM, 0)
         self.fd = fd
         var addr = sockaddr_in()
@@ -360,9 +366,21 @@ final class FakeLLM: @unchecked Sendable {
                 let length = head.components(separatedBy: "\r\n").first { $0.lowercased().hasPrefix("content-length:") }
                     .flatMap { Int($0.dropFirst(15).trimmingCharacters(in: .whitespaces)) } ?? 0
                 while data.count - split < length, more() {}
-                lock.withLock { got.append(Request(head: head, body: String(decoding: data[split...], as: UTF8.self))) }
-                let reply = "HTTP/1.1 \(status) X\r\nContent-Type: application/json\r\nContent-Length: \(body.utf8.count)\r\nConnection: close\r\n\r\n\(body)"
-                _ = reply.withCString { write(c, $0, strlen($0)) }
+                let request = Request(head: head, body: String(decoding: data[split...], as: UTF8.self))
+                lock.withLock { got.append(request) }
+                let (status, body) = reply(request)
+                // Status 0: the connection drops with no answer, as on a Wi-Fi blip.
+                if status == 0 { close(c); continue }
+                // A redirect: the body is where to.
+                if (300..<400).contains(status) {
+                    let out = "HTTP/1.1 \(status) X\r\nLocation: \(String(decoding: body, as: UTF8.self))\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                    _ = out.withCString { write(c, $0, strlen($0)) }
+                    close(c); continue
+                }
+                // As Data, not a C string: a picture has zero bytes in it.
+                var out = Data("HTTP/1.1 \(status) X\r\nContent-Type: application/json\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n".utf8)
+                out.append(body)
+                _ = out.withUnsafeBytes { write(c, $0.baseAddress!, $0.count) }
                 close(c)
             }
         }

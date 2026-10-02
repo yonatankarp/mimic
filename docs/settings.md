@@ -1,7 +1,7 @@
 # Settings
 
 Settings is where you check that Mimic has everything it needs, pick the 3D model it makes minis
-with, set up Draw Things and the AI helper, and choose where your minis are kept. Open it from
+with, choose what makes pictures and set up the AI helper, and choose where your minis are kept. Open it from
 **Mimic → Settings…** (++cmd+comma++). It has four tabs: **General**, **3D Model**,
 **Draw Things & AI** and **Advanced**.
 
@@ -35,10 +35,12 @@ Hold the pointer over a name to see what that part is for.
 | **Draw Things app** | A free app that draws characters from a description and turns pictures into grey sculpts. | Install Draw Things from the Mac App Store. |
 | **Draw Things is open and connected** | Lets Mimic ask Draw Things for pictures. It usually reads **Draw Things connected through its command line tool**, which means nothing more is needed. | See [Draw Things & AI](#draw-things-ai). |
 | **FLUX.2 Klein model in Draw Things** | The picture model Mimic asks Draw Things to use. | In Draw Things' model list, search for FLUX.2 Klein and download it. |
+| **Black Forest Labs key works** | Shows instead of the three Draw Things checks when [pictures are made online](#choose-what-makes-the-pictures). Mimic asks Black Forest Labs whether the key works, which costs nothing. | Save your key on the [Draw Things & AI](#draw-things-ai) tab, or copy it again from your account. |
 | **A slicer to print with** | Turns a mini into instructions for your printer. | Install a slicer such as Bambu Studio, OrcaSlicer, PrusaSlicer or Cura. Mimic links to OrcaSlicer, a free one. |
 
-Without the optional parts you can still make minis from your own pictures. Draw Things adds
-making a mini from a description, the grey sculpt and **What to change**.
+Without the optional parts you can still make minis from your own pictures. Draw Things (or
+Black Forest Labs, online) adds making a mini from a description, the grey sculpt and
+**What to change**.
 
 At the bottom of the list Mimic says how it went ("Everything's ready." or how many things to look
 at) and when it last checked. **Check Again** runs the checks now. While a mini is being made the
@@ -51,11 +53,12 @@ opens it in the background, and quits it afterwards if Mimic was the one that op
 
 Most of the time this doesn't come into play: Mimic draws pictures through Draw Things' command
 line tool, which it downloads with its 3D engine, so Draw Things doesn't need to be open at all.
-The setting matters only when that tool is missing.
+The setting matters only when that tool is missing. It isn't shown while pictures are made online.
 
 If a Draw Things check fails, **Draw Things isn't set up yet** appears here with a
 **Set Up Draw Things…** button, which takes you to the steps on the
-[Draw Things & AI](#draw-things-ai) tab.
+[Draw Things & AI](#draw-things-ai) tab. With pictures made online, a key that doesn't work shows
+**Online pictures aren't set up yet** and **Set Up Pictures…** instead.
 
 ### Choose the slicer minis open in
 
@@ -147,6 +150,32 @@ For how the models compare in more detail, see [How it works](how-it-works.md#th
 
 ![Settings, Draw Things & AI tab: Draw Things is set up, and the AI helper set to Claude (Anthropic) with fields for an API key and model](images/screens/settings-draw-things-ai.png){ width="540" }
 
+### Choose what makes the pictures
+
+Mimic draws a character from a description, and redraws your picture as a grey sculpt, with a
+picture model. Under **Pictures**, **Make pictures with** chooses where that model runs:
+
+- **Draw Things, on this Mac** (the default). Free, and nothing leaves your Mac. It needs the
+  Draw Things app and its model, set up as below.
+- **Black Forest Labs, online.** The same kind of model (FLUX.2 Klein), run by the company that
+  makes it, with your own account. Draw Things isn't needed. Paste your API key and press
+  **Save**: Mimic keeps it in your Mac's Keychain and shows **API key saved in your Keychain**,
+  with **Remove** to delete it. **Get a key** opens Black Forest Labs' website, where you make
+  one. **Test** asks Black Forest Labs whether the key works and says **It works.**, or what went
+  wrong.
+
+!!! note "What Black Forest Labs sees, and what it costs"
+    With **Black Forest Labs, online**, your description, or the picture to be redrawn, is sent to
+    Black Forest Labs to make the picture. The 3D model and print file are still made on your Mac.
+    Each picture Mimic draws or redraws is one request on your account, paid from your credits
+    there: one for a mini made from a description or with the grey sculpt, plus one for each extra
+    side picture it redraws. A picture used as it is costs nothing. A new version with a new
+    picture costs the same again; a picture that's already made is never asked for twice.
+
+If Black Forest Labs turns a picture down (its moderation does that now and then), is busy, or
+takes too long, the mini stops with a message saying so, and nothing else about it changes. Press
+**Try Again**, or change the description.
+
 ### Set up Draw Things
 
 Draw Things is a free app that lets Mimic draw a character from a description, and turn your
@@ -235,6 +264,7 @@ problem (Help → **Report a Problem…** adds it for you).
 | Setting | Tab | Starts as |
 |---|---|---|
 | Open Draw Things when needed | General | On |
+| Make pictures with | Draw Things & AI | Draw Things, on this Mac |
 | Open minis in | General | The first slicer Mimic finds, else the Mac's default app for 3D files |
 | Start minis only when plugged in | General | Off (MacBooks only) |
 | Your minis are saved in | General | Documents → Mimic |

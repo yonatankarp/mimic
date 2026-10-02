@@ -660,6 +660,7 @@ final class AppModel {
         case let e as RequestError: e.description
         case let e as Refusal: e.description
         case let e as DrawThingsError: e.description
+        case let e as OnlineImagesError: e.description
         default: fallback
         }
     }

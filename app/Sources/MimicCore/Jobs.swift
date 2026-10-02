@@ -124,6 +124,9 @@ public final class JobRunner: @unchecked Sendable {
     /// what it made, instead of to the Trash.
     private var keepWork = false
     private var power: @Sendable () -> Bool = { false }
+    private var service: @Sendable () -> OnlineImages? = { OnlineImages.configured(defaults: .standard) }
+    /// The picture maker of the running job, chosen as it starts: what Stop stops.
+    private var pictures: PictureMaker?
     public var onChange: (@Sendable (JobStatus) -> Void)?
 
     /// `timings`: where to record each finished job (nil records nothing, as in tests);
@@ -154,6 +157,13 @@ public final class JobRunner: @unchecked Sendable {
     public var heldForPower: @Sendable () -> Bool {
         get { lock.withLock { power } }
         set { lock.withLock { power = newValue } }
+    }
+
+    /// The online picture service Settings chose (#247), or nil for Draw Things: asked as each job
+    /// starts, so a change in Settings counts from the next one. `mimic make` gives the app's.
+    public var pictureService: @Sendable () -> OnlineImages? {
+        get { lock.withLock { service } }
+        set { lock.withLock { service = newValue } }
     }
 
     /// Why the queue's next job wouldn't start now, or nil.
@@ -436,7 +446,7 @@ public final class JobRunner: @unchecked Sendable {
         }
         guard status?.canceled == true else { return false }
         Log.queue.notice("Stop asked for\(keepingWork ? ", to carry on next launch" : "", privacy: .public)")
-        drawThings.cancel()
+        picturesInUse.cancel()
         if let p { DispatchQueue.global().async { p.terminateGroup() } }
         return true
     }
@@ -556,8 +566,9 @@ public final class JobRunner: @unchecked Sendable {
         s.again = entry.again == true
         s.shown = settings.shownName(folder: entry.name)
         // Before the job can be stopped, so a Stop while step 1 starts isn't forgotten (#170).
-        drawThings.reset()
-        lock.withLock { current = s; keepWork = false }
+        let maker: PictureMaker = pictureService() ?? drawThings
+        maker.reset()
+        lock.withLock { current = s; keepWork = false; pictures = maker }
         SharedJob.write(s, queue: install.queue)
         notify()
         Log.queue.notice("Started \(entry.job.rawValue, privacy: .public) of \(entry.name, privacy: .public) at step \(plan[0].number.rawValue)")
@@ -719,16 +730,16 @@ public final class JobRunner: @unchecked Sendable {
             try FileManager.default.copyItem(at: from, to: to)
             return 0
         case let .drawCharacter(description, seed, to):
-            try picture { try drawThings.draw(description: description, seed: seed) }.write(to: to, options: .atomic)
+            try picture { try $0.draw(description: description, seed: seed, kind: .character) }.write(to: to, options: .atomic)
             return 0
         case let .sculptPicture(from, seed, to, change):
-            try picture { try drawThings.sculpt(picture: from, seed: seed, change: change) }.write(to: to, options: .atomic)
+            try picture { try $0.sculpt(picture: from, seed: seed, kind: .character, change: change) }.write(to: to, options: .atomic)
             return 0
         case let .drawObject(description, seed, to):
-            try picture { try drawThings.draw(description: description, seed: seed, kind: .object) }.write(to: to, options: .atomic)
+            try picture { try $0.draw(description: description, seed: seed, kind: .object) }.write(to: to, options: .atomic)
             return 0
         case let .sculptObject(from, seed, to, change):
-            try picture { try drawThings.sculpt(picture: from, seed: seed, kind: .object, change: change) }.write(to: to, options: .atomic)
+            try picture { try $0.sculpt(picture: from, seed: seed, kind: .object, change: change) }.write(to: to, options: .atomic)
             return 0
         case let .run(executable, arguments, directory, log):
             // At a lower priority (#89), so the Mac stays quick to use meanwhile. nice runs the
@@ -758,9 +769,19 @@ public final class JobRunner: @unchecked Sendable {
         for _ in 0..<40 where kill(-pid, 0) == 0 { usleep(50_000) }
     }
 
-    /// A picture from Draw Things, opening it first when needed and quitting it after if Mimic
-    /// opened it, unless the next job needs it too.
-    private func picture(_ draw: () throws -> Data) throws -> Data {
+    /// The running job's picture maker, else Draw Things. The closure's type is spelled out: Swift
+    /// 6.3 (CI's Xcode 26.6) took `withLock`'s result type from the `??` and refused it.
+    private var picturesInUse: any PictureMaker {
+        let chosen = lock.withLock { () -> (any PictureMaker)? in pictures }
+        guard let chosen else { return drawThings }
+        return chosen
+    }
+
+    /// A picture from the job's picture maker. From Draw Things, opening it first when needed and
+    /// quitting it after if Mimic opened it, unless the next job needs it too.
+    private func picture(_ draw: (PictureMaker) throws -> Data) throws -> Data {
+        let maker = picturesInUse
+        guard maker === drawThings else { return try draw(maker) }
         let opened = try drawThings.openIfNeeded(canceled: { status?.canceled == true }, opening: {
             lock.withLock { current?.openingDrawThings = true }
             notify()
@@ -771,7 +792,7 @@ public final class JobRunner: @unchecked Sendable {
         }
         if let opened { lock.withLock { openedDrawThings = opened } }
         defer { if !nextNeedsDrawThings() { quitDrawThings() } }
-        return try draw()
+        return try draw(drawThings)
     }
 
     /// Whether the queue's next job, which this runner will run, asks Draw Things for a picture.

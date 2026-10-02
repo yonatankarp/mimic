@@ -56,7 +56,7 @@ Everything about one mini is in its folder. For a mini called `tiefling`:
 |---|---|
 | `tiefling.stl` | The print file: what **Open in …** and your slicer open. Its name always matches the folder's. |
 | `tiefling_front.png`, `_left.png`, `_right.png`, `_back.png` | The four previews: grey, 900 × 900, on a transparent background. Older minis may have a `_side.png` instead of left and right until they're resized. |
-| `source.png` | The picture the 3D model was built from: your picture copied, or the one Draw Things drew or redrew as a grey sculpt. |
+| `source.png` | The picture the 3D model was built from: your picture copied, or the one Draw Things (or Black Forest Labs, online) drew or redrew as a grey sculpt. |
 | `upload.img` | The picture you gave it, turned upright, no larger than 2048 pixels on its longest side, saved as PNG. Only for minis made from a picture. |
 | `upload-back.img`, `source-back.png` (and `-left`, `-right`) | The same, for pictures of the back and sides. |
 | `source__matted.png` | `source.png` cut out from its background, which is what the 3D engine sees. |

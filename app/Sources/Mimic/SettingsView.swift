@@ -76,16 +76,22 @@ struct SettingsView: View {
         }
         Section {
             ForEach(health.checks.filter { !$0.required }) { row($0) }
-            Toggle(isOn: $openDrawThings) {
-                Text("Open Draw Things when needed")
-                Text("In the background, and quit afterwards if Mimic opened it.")
+            if !health.online {
+                Toggle(isOn: $openDrawThings) {
+                    Text("Open Draw Things when needed")
+                    Text("In the background, and quit afterwards if Mimic opened it.")
+                }
+                    .help("Opens Draw Things in the background when a mini needs a picture")
+                    .onChange(of: openDrawThings) { if !model.running { health.check(model.install) } }
             }
-                .help("Opens Draw Things in the background when a mini needs a picture")
-                .onChange(of: openDrawThings) { if !model.running { health.check(model.install) } }
             if drawThingsProblem {
                 // The steps are on their own tab now; this is the way there.
                 LabeledContent("Draw Things isn't set up yet") {
                     Button("Set Up Draw Things…") { tab = .drawThings }
+                }
+            } else if health.online && health.results[Checks.onlineID]?.ok == false {
+                LabeledContent("Online pictures aren't set up yet") {
+                    Button("Set Up Pictures…") { tab = .drawThings }
                 }
             }
         } header: {
@@ -121,6 +127,13 @@ struct SettingsView: View {
     }
 
     @ViewBuilder private var drawThings: some View {
+        PicturesSection()
+        // With pictures made online, Draw Things isn't needed: its steps would only be noise.
+        if !health.online { drawThingsSetup }
+        HelperSection()
+    }
+
+    @ViewBuilder private var drawThingsSetup: some View {
         if drawThingsProblem {
             Section {
                 DrawThingsSteps()
@@ -130,7 +143,7 @@ struct SettingsView: View {
                 Text("Pictures work right away. To describe a character or turn a picture into a grey sculpt, Mimic needs the free Draw Things app. This list updates on its own.")
                     .foregroundStyle(.secondary)
             }
-        } else if health.drawThingsReady {
+        } else if health.picturesReady {
             Section {
                 SetupStep(done: true, title: "Draw Things is set up.",
                           detail: health.drawThingsOpensWhenNeeded ? "Mimic opens it when it needs it." : nil)
@@ -138,7 +151,6 @@ struct SettingsView: View {
                 Text("Draw Things")
             }
         }
-        HelperSection()
     }
 
     @ViewBuilder private var advanced: some View {
@@ -191,6 +203,7 @@ private struct CheckRow: View {
         "drawthings-app": "A free app that draws characters from a description and turns pictures into grey sculpts.",
         "drawthings-api": "Lets Mimic ask Draw Things for pictures. Mimic opens Draw Things when it needs it, unless you turn that off below.",
         "drawthings-model": "The picture model Mimic asks Draw Things to use.",
+        Checks.onlineID: "Black Forest Labs draws characters from a description and turns pictures into grey sculpts, online.",
         "slicer": "Turns a mini into instructions for your printer.",
     ]
     let check: Check

@@ -453,6 +453,30 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   took up to about a minute, so the limit is 300 s. Cloud providers are proven against a local
   fake server only. Key reads happen off the main thread: an ad-hoc-signed update is a new
   identity to the Keychain, so macOS may ask once to let Mimic use the saved key.
+- **Pictures can be made online instead of by Draw Things** (#247, `MimicCore/OnlineImages.swift`).
+  Settings → Pictures (`imageService`: `drawthings`, the default, or `bfl`). Only Black Forest
+  Labs: it runs the same FLUX.2 Klein, so the prompts in `DrawThings.swift` carry over word for
+  word (OpenAI and Gemini would need their own prompts, and the cartoon check again). The model is
+  pinned to `flux-2-klein-9b`, which both draws and edits. `input_image` is a PNG data URL
+  (`data:image/png;base64,…`) at `DrawThings.editSize`: the OpenAPI only says "Path to the input
+  image", and BFL's own FLUX.2 example (cookbook/video_start_from_images) sends a local file that
+  way; Kontext's page also takes bare base64. PNG is asked for (the default is JPEG). The API is
+  async: submit, then ask the `polling_url` every 0.5 s for up to 300 s (a 5xx, 429, timeout or
+  dropped connection meanwhile is asked again, since the picture is paid for; "Task not found", a
+  404, is final), then fetch `result.sample`, which needs no key and gets none. What comes back is
+  scaled to the size asked for if it isn't it, so the 3D step gets what Draw Things would give.
+  Seen live with made-up keys: none or an unknown one is 403 "Not authenticated", one not shaped
+  like a key is 422 "Invalid API key format"; both read as a wrong key. The key goes only to the
+  address it was set up with (scheme, host and port) or https `*.bfl.ai` (polling addresses can
+  be regional), and a redirect anywhere else is followed without it (`KeepKey`). `PictureMaker` is the one seam: `DrawThings` and `OnlineImages` both
+  are one, and the job runner picks one as each job starts (`JobRunner.pictureService`), so Stop
+  cancels the one in use, and a change in Settings counts from the next job. The key is a Keychain
+  account `bfl`, as the helper's. `GET /v1/credits` checks it for free: Settings' Test and the
+  `images-online` check, which replaces the three Draw Things checks; it isn't in the Draw Things
+  watch, which would ask every few seconds. Its errors never say "Draw Things", or the popover
+  would send people to its setup steps. No `--image-service` flag: a per-make choice would have to
+  be saved with the mini, since the app may run it from the queue later. Proven against a local
+  fake server only; there's no cancel in the API, so a stopped request is probably still charged.
 - **Report a Problem makes a zip and opens a filled-in issue** (`MimicCore/Report.swift`, `Log.swift`;
   #100). A link can't attach a file, so Help → Report a Problem… (or the action on a mini that
   didn't finish) writes `runs/_reports/mimic-report-….zip`, shows it in Finder, and opens

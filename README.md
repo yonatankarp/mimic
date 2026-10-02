@@ -23,7 +23,8 @@ Everything runs on your own Mac: no accounts, no uploads, no subscriptions.</p>
   can make a mini from a description, and turn your picture into a grey sculpt first, which
   gives better minis. Mimic shows you how to set it up. Mimic connects to it through
   Draw Things' command line tool, which it downloads with its 3D engine, so Draw Things doesn't
-  need to be open.
+  need to be open. Or skip Draw Things and have Black Forest Labs make those pictures online, with
+  your own API key.
 
 ### Install
 
@@ -77,7 +78,7 @@ explains it all.
 - **[Mimic from a terminal](https://yonatankarp.com/mimic/cli/):** Mimic is also a `mimic`
   command, with JSON for scripts and completion as you type.
 - **[How it works](https://yonatankarp.com/mimic/how-it-works/):** from a picture to a
-  print-ready STL, all on your Mac.
+  print-ready STL, all on your Mac unless you choose online pictures.
 - **[Report a problem or an idea](https://yonatankarp.com/mimic/report/):** found a bug,
   or want Mimic to do something new? Tell us, no code needed.
 - **[Working on Mimic](CONTRIBUTING.md#working-on-mimic):** building, testing and

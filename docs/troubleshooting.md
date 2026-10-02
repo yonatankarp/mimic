@@ -48,10 +48,12 @@ to see what's missing, and click it to open Settings, which lists every check an
 | **Draw Things app** | Draw Things isn't installed. Optional: your own pictures still work. | Install Draw Things from the Mac App Store. It's free. |
 | **Draw Things is open and connected** | Mimic can't reach Draw Things. Optional. | See [Draw Things isn't found](#draw-things-isnt-found) below. |
 | **FLUX.2 Klein model in Draw Things** | Draw Things doesn't have the picture model Mimic uses. Optional. | In Draw Things' model list, search for FLUX.2 Klein and download it. |
+| **Black Forest Labs key works** | Only when pictures are made online: no key is saved, or Black Forest Labs turned it down. Optional. | See [Online pictures don't work](#online-pictures-dont-work) below. |
 | **A slicer to print with** | Mimic didn't find a slicer. Optional. | Install a slicer such as Bambu Studio, OrcaSlicer, PrusaSlicer or Cura. Until then Mimic opens minis with your Mac's default app for 3D files. |
 
 Only the first three stop you making minis. The others switch off a feature: the Draw Things ones
-switch off making a mini from a description, the grey sculpt and **What to change**.
+(or the Black Forest Labs key) switch off making a mini from a description, the grey sculpt and
+**What to change**.
 
 Settings checks again every time you open it, and **Check Again** checks now. While a mini is being
 made the checks wait until it's done.
@@ -115,6 +117,21 @@ a picture. Your own pictures work without it. If it's set up and Mimic still can
   needs a picture. Turn it back on in [Settings → General](settings.md#open-draw-things-when-needed).
 
 If a mini stopped because of Draw Things, fix the cause and press **Try Again**.
+
+### Online pictures don't work
+
+With **Make pictures with** set to **Black Forest Labs, online**, a mini that couldn't get its
+picture stops at its first step and says why. Nothing else about the mini changes. Fix the cause
+and press **Try Again**:
+
+- **No key, or the key was turned down:** copy your API key again from your Black Forest Labs
+  account, then in [Settings → Draw Things & AI](settings.md#choose-what-makes-the-pictures)
+  press **Remove**, paste it and press **Save**. **Test** says whether it works.
+- **Out of credits:** add some to your Black Forest Labs account.
+- **Busy, or you've reached your account's limit:** wait a minute and try again.
+- **It wouldn't make this picture:** Black Forest Labs' moderation turned the description or the
+  picture down. Try different words or another picture.
+- **It took too long, or couldn't be reached:** check your internet connection and try again.
 
 ### A part was left out
 

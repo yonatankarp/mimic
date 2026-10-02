@@ -274,9 +274,9 @@ struct MakeView: View {
     private var object: Bool { card.kind == .object }
     private var pixal3dHere: Bool { EngineDownload.cartoon.complete(in: model.install) }
     /// A cartoon character from a picture, and everything it needs is here.
-    private var cartoonOn: Bool { cartoon && !object && start == .picture && health.drawThingsReady && pixal3dHere }
+    private var cartoonOn: Bool { cartoon && !object && start == .picture && health.picturesReady && pixal3dHere }
     /// The grey sculpt, which a cartoon always gets.
-    private var sculpt: Bool { (restyle || cartoonOn) && health.drawThingsReady }
+    private var sculpt: Bool { (restyle || cartoonOn) && health.picturesReady }
     private var thing: String { object ? "object" : "character" }
 
     // MARK: Picture
@@ -313,9 +313,9 @@ struct MakeView: View {
                     Text("It's a cartoon")
                     Text("For flat drawings with outlines and flat colours. Made from the grey sculpt with Pixal3D, which keeps cartoon shapes smooth.")
                 }
-                .disabled(!health.drawThingsReady || !pixal3dHere)
+                .disabled(!health.picturesReady || !pixal3dHere)
                 .help("Flat 2D cartoon art comes out smoother this way")
-                if health.drawThingsReady && !pixal3dHere {
+                if health.picturesReady && !pixal3dHere {
                     HStack(alignment: .firstTextBaseline) {
                         Text("Cartoons need the Pixal3D model.").foregroundStyle(.secondary)
                         Spacer()
@@ -327,16 +327,16 @@ struct MakeView: View {
             Toggle(isOn: Binding(get: { restyle || cartoonOn }, set: { restyle = $0 })) {
                 Text("Turn it into a grey sculpt first (recommended)")
                 Text(cartoonOn ? "A cartoon always gets the grey sculpt: without it, it comes out flat."
-                               : "Draw Things redraws it as a grey statue, which the 3D engine understands far better. Turn it off if your picture is already a grey 3D model, or to keep its colours for Export for Virtual Tabletop: the shape may come out less clean.")
+                               : "Mimic redraws it as a grey statue, which the 3D engine understands far better. Turn it off if your picture is already a grey 3D model, or to keep its colours for Export for Virtual Tabletop: the shape may come out less clean.")
             }
-            .disabled(!health.drawThingsReady || cartoonOn)
+            .disabled(!health.picturesReady || cartoonOn)
             .help("Redraws your picture as a grey statue with the same pose")
             FixBox(text: $fix, earlier: earlierFixes, kind: card.kind, turnsSculptOn: !(restyle || cartoonOn))
-                .disabled(!health.drawThingsReady)
+                .disabled(!health.picturesReady)
             if let again, drawn != nil, !trimmedFix.isEmpty {
                 Text("Starts from the picture \(again.displayName) was drawn as.").font(.callout).foregroundStyle(.secondary)
             }
-            if !health.drawThingsReady { needsDrawThings("The grey sculpt needs Draw Things.") } else { opensWhenNeeded }
+            if !health.picturesReady { needsPictures("The grey sculpt needs \(health.pictureNeed).") } else { opensWhenNeeded }
         }
     }
 
@@ -437,7 +437,7 @@ struct MakeView: View {
                     autoName = true
                 }
             ImproveBox(description: description, kind: card.kind.rawValue, improved: $improved)
-            if !health.drawThingsReady { needsDrawThings("A description needs Draw Things.") } else { opensWhenNeeded }
+            if !health.picturesReady { needsPictures("A description needs \(health.pictureNeed).") } else { opensWhenNeeded }
         }
     }
 
@@ -445,7 +445,7 @@ struct MakeView: View {
         if health.drawThingsOpensWhenNeeded { Text("Mimic opens Draw Things when it needs it.").font(.callout).foregroundStyle(.secondary) }
     }
 
-    private func needsDrawThings(_ text: String) -> some View {
+    private func needsPictures(_ text: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(text).foregroundStyle(.secondary)
             Spacer()
@@ -542,8 +542,8 @@ struct MakeView: View {
         }
         if slug.isEmpty { return "Give your mini a name" }
         if project == .new && Rules.projectName(newProjectName) == nil { return "Name the new project" }
-        if start == .description && !health.drawThingsReady { return "A description needs Draw Things first" }
-        if changing && !health.drawThingsReady { return "A change needs Draw Things first" }
+        if start == .description && !health.picturesReady { return "A description needs \(health.pictureNeed) first" }
+        if changing && !health.picturesReady { return "A change needs \(health.pictureNeed) first" }
         return nil
     }
 
@@ -599,7 +599,7 @@ struct MakeView: View {
         guard model.requiredProblem == nil else { return }
         if project == .new && Rules.projectName(newProjectName) == nil { return say("Name the new project, then drop the pictures again.", error: true) }
         let typed = trimmedFix
-        if !typed.isEmpty && !health.drawThingsReady { return say("A change needs Draw Things first.", error: true) }
+        if !typed.isEmpty && !health.picturesReady { return say("A change needs \(health.pictureNeed) first.", error: true) }
         writing = !typed.isEmpty && FixWriter.helperOn
         writingTask = Task {
             let used = writing ? await FixWriter.rewrite(typed, kind: card.kind) : nil

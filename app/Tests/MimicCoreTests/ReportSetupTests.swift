@@ -43,6 +43,10 @@ final class ReportSetupTests: XCTestCase {
                        "flux_2_klein_4b_q8p.ckpt, with draw-things-cli")
         XCTAssertEqual(rows(ReportSetup(model: "m"))["Draw Things"], "model unknown, Draw Things isn't answering, with the Draw Things app")
         XCTAssertEqual(rows(ReportSetup(model: "m", openDrawThings: false))["Open Draw Things when needed"], "off")
+        var online = ReportSetup(model: "m")
+        online.pictures = .bfl
+        XCTAssertEqual(rows(online)["Draw Things"], "not used, pictures are made online by Black Forest Labs",
+                       "a report from someone using the online service doesn't blame Draw Things")
     }
 
     func testTheHelperIsItsProviderOnly() {

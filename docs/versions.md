@@ -61,7 +61,7 @@ Something in the picture to fix, like a cape that hides the arms or a sword cut 
 In **Make Another Version…** or **New 3D Shape…**, type it in **What to change**, for example
 *close the cape so both arms show*, then press **Make**.
 
-1. Draw Things redraws the mini's picture with your change.
+1. Mimic redraws the mini's picture with your change.
 2. Mimic stops and shows it to you: **Check the picture**.
 3. If the change came out right, press **Build Shape** to make the 3D shape from it. If not,
    press **Try Again** to draw it again with a new variation number.
@@ -75,8 +75,8 @@ Each version you make with a change starts from the picture of the one before, s
 up. Under **Changed before**, the sheet lists what's already been changed. The mini's
 **Made from** details list them too, under **Changed** and **Then**.
 
-A change needs Draw Things (see [Settings](settings.md)). If you've chosen an AI helper for
-descriptions, it turns your words into an instruction for Draw Things first ("Writing the
+A change needs Draw Things, or Black Forest Labs online (see [Settings](settings.md)). If you've
+chosen an AI helper for descriptions, it turns your words into an instruction for the redraw first ("Writing the
 change…"). To change something when you first make a mini, see
 [Making a mini](making-a-mini.md).
 
