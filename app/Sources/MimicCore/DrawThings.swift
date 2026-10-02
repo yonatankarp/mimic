@@ -113,6 +113,10 @@ public final class DrawThings: @unchecked Sendable {
         return done.wait(timeout: .now() + timeout) == .success ? found : nil
     }
 
+    /// The model a report names: DRAWTHINGS_MODEL, else the one Draw Things has selected. Never
+    /// the models folder, whose read asks the person for access.
+    public func shownModel() -> String? { pinnedModel ?? selectedModel(timeout: 1) }
+
     /// The model selected in Draw Things right now, or nil when it isn't reachable.
     func selectedModel(timeout: TimeInterval = 1.5) -> String? {
         var req = URLRequest(url: base.appendingPathComponent("sdapi/v1/options"))

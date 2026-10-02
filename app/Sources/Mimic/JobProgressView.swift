@@ -158,13 +158,11 @@ struct JobProgressView: View {
                     .contentTransition(.numericText())
                     .animation(reduceMotion ? nil : .default, value: Int(now.timeIntervalSince(s.started)))
             case .stopped:
-                Text(s.kind == .prep && !s.importing ? "It keeps its previous size." : "Nothing was kept. It's in the Trash if you want the pieces.")
-                    .foregroundStyle(.secondary)
+                Text(s.stopSays).foregroundStyle(.secondary)
             case .finished:
                 ForEach(s.notes, id: \.self) { Label($0, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange) }
                 if s.fragile {
-                    Label("Your mini is ready, but some thin parts may be fragile. Check it in your slicer before printing.",
-                          systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    Label(PrepReport.footprintNote, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                 }
             case .pictureReady:
                 VStack(alignment: .leading, spacing: 4) {
@@ -348,17 +346,14 @@ struct JobQuestions: ViewModifier {
                 Button("Cancel", role: .cancel) {}
                 Button("Stop", role: .destructive) { model.stop() }
             } message: {
-                Text((model.job.map { $0.kind == .prep && !$0.importing } == true ? "It keeps its previous size." : "What's been made so far will be thrown away.")
-                     + (model.queue.isEmpty ? "" : " The queue carries on with the next one."))
+                Text((model.job?.stopAsks ?? "") + (model.queue.isEmpty ? "" : " The queue carries on with the next one."))
             }
             .confirmationDialog(model.unqueueing.map { "Take “\(model.displayName($0.name))” out of the queue?" } ?? "",
                                 isPresented: unqueueing, presenting: model.unqueueing) { e in
                 Button(e.job == .prep && !model.importing(e.name) ? "Don't Resize" : "Take Out", role: .destructive) { model.removeFromQueue(e.name) }
                 Button("Cancel", role: .cancel) {}
             } message: { e in
-                Text(e.job == .generate ? "It hasn't been made yet, so its picture and settings go to the Trash, where you can get them back."
-                     : model.importing(e.name) ? "It hasn't been made yet, so it goes to the Trash, where you can get it back."
-                     : "It keeps its current size.")
+                Text(e.takeOutSays(importing: model.importing(e.name)))
             }
     }
 

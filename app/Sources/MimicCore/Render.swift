@@ -11,13 +11,13 @@ public enum Render {
     static let size = 900
     static let supersample = 2
 
-    /// Figures face +y after import (z up), so the figure's own left is -x. Each camera sits on
-    /// the `toward` side looking back at the figure, with `right` to its right: right × up =
-    /// toward. "left" and "right" are the figure's sides: "left" looks at its left side, so its
-    /// face is on the left of the picture.
+    /// Print files face -y (z up), as slicers' front views look at them (#275), so the figure's
+    /// own left is +x. Each camera sits on the `toward` side looking back at the figure, with
+    /// `right` to its right: right × up = toward. "left" and "right" are the figure's sides:
+    /// "left" looks at its left side, so its face is on the left of the picture.
     static let cameras: [(String, right: SIMD3<Float>, toward: SIMD3<Float>)] = [
-        ("front", [-1, 0, 0], [0, 1, 0]), ("left", [0, -1, 0], [-1, 0, 0]),
-        ("right", [0, 1, 0], [1, 0, 0]), ("back", [1, 0, 0], [0, -1, 0]),
+        ("front", [1, 0, 0], [0, -1, 0]), ("left", [0, 1, 0], [1, 0, 0]),
+        ("right", [0, -1, 0], [-1, 0, 0]), ("back", [-1, 0, 0], [0, 1, 0]),
     ]
     static let up: SIMD3<Float> = [0, 0, 1]
 

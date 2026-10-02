@@ -45,13 +45,13 @@ final class JobTests: XCTestCase {
                               directory: nil, log: d.appendingPathComponent("prep.log"))
         func settings(_ f: (inout MiniSettings) -> Void) -> MiniSettings { var s = MiniSettings(); s.seed = 7; s.requested = sizes; s.model = "trellis2-q8"; f(&s); return s }
         let cases: [(String, JobKind, MiniSettings, [Step])] = [
-            ("picture", .generate, settings { $0.source = .image; $0.restyle = false }, [.copyPicture(from: up, to: src), mesh(), turned]),
-            ("picture, redrawn", .generate, settings { $0.source = .image; $0.restyle = true }, [.sculptPicture(from: up, seed: 7, to: src), mesh(), turned]),
-            ("description", .generate, settings { $0.source = .desc; $0.desc = "a dwarf" }, [.drawCharacter(description: "a dwarf", seed: 7, to: src), mesh(), turned]),
-            ("Pixal3D, not turned", .generate, settings { $0.source = .image; $0.model = "pixal3d-sv" },
-             [.copyPicture(from: up, to: src), mesh("pixal3d-sv"), prep]),
-            ("Pixal3D resize, not turned either", .prep, settings { $0.model = "pixal3d-sv" }, [prep]),
-            ("resize", .prep, settings { _ in }, [turned]),
+            ("picture", .generate, settings { $0.source = .image; $0.restyle = false }, [.copyPicture(from: up, to: src), mesh(), prep]),
+            ("picture, redrawn", .generate, settings { $0.source = .image; $0.restyle = true }, [.sculptPicture(from: up, seed: 7, to: src), mesh(), prep]),
+            ("description", .generate, settings { $0.source = .desc; $0.desc = "a dwarf" }, [.drawCharacter(description: "a dwarf", seed: 7, to: src), mesh(), prep]),
+            ("Pixal3D, turned", .generate, settings { $0.source = .image; $0.model = "pixal3d-sv" },
+             [.copyPicture(from: up, to: src), mesh("pixal3d-sv"), turned]),
+            ("Pixal3D resize, turned too", .prep, settings { $0.model = "pixal3d-sv" }, [turned]),
+            ("resize", .prep, settings { _ in }, [prep]),
         ]
         for (label, kind, s, want) in cases {
             XCTAssertEqual(try Pipeline.plan(kind, folder: d, settings: s, tools: tools).map(\.step), want, label)
@@ -172,13 +172,13 @@ final class JobTests: XCTestCase {
         }
         func plan(_ kind: JobKind, _ s: MiniSettings) throws -> [Step] { try Pipeline.plan(kind, folder: d, settings: s, tools: fx.tools(mimic: "/app/mimic")).map(\.step) }
         let prepArgs = ["_prep", d.appendingPathComponent("model.glb").path, d.appendingPathComponent("pot.stl").path,
-                        "--height", "80.0", "--nozzle", "0.4", "--no-base", "--fit", "longest", "--ground", "bottom", "--turn", "180"]
+                        "--height", "80.0", "--nozzle", "0.4", "--no-base", "--fit", "longest", "--ground", "bottom"]
         guard case let .run(_, args, _, _) = try plan(.prep, settings { _ in })[0] else { return XCTFail("resize runs print prep") }
         XCTAssertEqual(args, prepArgs)
         // A floor on its base is laid out by the mini's number, so Try Again lays it the same way.
         guard case let .run(_, floor, _, _) = try plan(.prep, settings { $0.requested = Sizes(height: "80", base: "40", nozzle: "0.4", style: .wood) })[0]
         else { return XCTFail("resize runs print prep") }
-        XCTAssertEqual(Array(floor.drop { $0 != "--base-style" }), ["--base-style", "wood", "--fit", "longest", "--ground", "bottom", "--turn", "180", "--base-seed", "7"])
+        XCTAssertEqual(Array(floor.drop { $0 != "--base-style" }), ["--base-style", "wood", "--fit", "longest", "--ground", "bottom", "--base-seed", "7"])
         XCTAssertEqual(try plan(.generate, settings { $0.source = .desc; $0.desc = "a teapot" })[0], .drawObject(description: "a teapot", seed: 7, to: src))
         XCTAssertEqual(try plan(.generate, settings { $0.source = .image; $0.restyle = true })[0], .sculptObject(from: up, seed: 7, to: src))
         XCTAssertEqual(try plan(.generate, settings { $0.source = .image; $0.restyle = false })[0], .copyPicture(from: up, to: src))
@@ -202,8 +202,8 @@ final class JobTests: XCTestCase {
     }
 
     /// Object mode and the model choice together: the plan passes both the object's flags and
-    /// TRELLIS.2's turn; a character with TRELLIS.2 gets the turn alone (as before object mode)
-    /// and an object with Pixal3D gets the object flags alone (as before the choice).
+    /// Pixal3D's turn; a character with Pixal3D gets the turn alone and an object with TRELLIS.2
+    /// the object flags alone.
     func testObjectFlagsAndTheModelsTurnCompose() throws {
         let fx = try Fixture()
         let d = fx.install.runs.appendingPathComponent("mini")
@@ -215,11 +215,11 @@ final class JobTests: XCTestCase {
         }
         let base = try sizes.flags()
         let object = ["--fit", "longest", "--ground", "bottom"], turn = ["--turn", "180"]
-        XCTAssertEqual(try prepArgs { $0.kind = .object; $0.model = "trellis2-q8" }, base + object + turn)
-        XCTAssertEqual(try prepArgs { $0.model = "trellis2-q8" }, base + turn, "a TRELLIS.2 character changed")
-        XCTAssertEqual(try prepArgs { $0.kind = .object; $0.model = "pixal3d-sv" }, base + object, "a Pixal3D object changed")
-        XCTAssertEqual(try prepArgs { $0.model = "pixal3d-sv" }, base, "a Pixal3D character changed")
-        XCTAssertEqual(try prepArgs { _ in }, base, "a mini with no model recorded is Pixal3D's, so not turned")
+        XCTAssertEqual(try prepArgs { $0.kind = .object; $0.model = "pixal3d-sv" }, base + object + turn)
+        XCTAssertEqual(try prepArgs { $0.model = "pixal3d-sv" }, base + turn, "a Pixal3D character changed")
+        XCTAssertEqual(try prepArgs { $0.kind = .object; $0.model = "trellis2-q8" }, base + object, "a TRELLIS.2 object changed")
+        XCTAssertEqual(try prepArgs { $0.model = "trellis2-q8" }, base, "a TRELLIS.2 character changed")
+        XCTAssertEqual(try prepArgs { _ in }, base + turn, "a mini with no model recorded is Pixal3D's, so turned")
     }
 
     /// Kind, model and the helper's original description all survive a round trip through
@@ -327,6 +327,7 @@ final class JobTests: XCTestCase {
         usleep(200_000)
         XCTAssertNotEqual(kill(child, 0), 0, "Stop left the 3D engine's child running")
         XCTAssertEqual(spy.trashed.map(\.lastPathComponent), ["mini"])
+        XCTAssertEqual(jobs.status?.stopSays, "Nothing was kept. It's in the Trash if you want the pieces.")
     }
 
     /// Stopping Try Again of a mini that failed in the 3D step (#178): it goes back to how it
@@ -356,10 +357,12 @@ final class JobTests: XCTestCase {
         try jobs.retry(name: "mini")
         for _ in 0..<100 where !FileManager.default.fileExists(atPath: started) { usleep(50_000) }
         XCTAssertEqual(jobs.status?.step, .shape)
+        XCTAssertEqual(jobs.status?.stopAsks, "It's kept, so you can try again later.", "Stop's question says it's kept")
         XCTAssertTrue(jobs.cancel())
         jobs.waitUntilDone()
         XCTAssertEqual(jobs.status?.canceled, true)
         XCTAssertEqual(spy.trashed, [], "stopping Try Again threw the mini away")
+        XCTAssertEqual(jobs.status?.stopSays, "It was kept, so you can try again later.", "said as kept, not as in the Trash")
         let after = MiniSettings.load(d)
         XCTAssertEqual(after.failed, failed.failed, "it isn't failed any more")
         XCTAssertEqual(after.failedStep, failed.failedStep)
@@ -371,6 +374,8 @@ final class JobTests: XCTestCase {
 
         try jobs.setPaused(true)
         try jobs.retry(name: "mini")
+        let waiting = try XCTUnwrap(jobs.queue.entries().first)
+        XCTAssertEqual(waiting.takeOutSays(importing: false), "It stays, so you can try again later.")
         XCTAssertTrue(try jobs.remove("mini"))
         XCTAssertEqual(spy.trashed, [], "taking Try Again out of the queue threw the mini away")
         XCTAssertNotNil(Gallery.folder(fx.install.runs, "mini"))

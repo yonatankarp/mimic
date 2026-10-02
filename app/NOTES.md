@@ -171,7 +171,6 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   same). The cutout and its edge cleaning ran on every pixel of a 48 MP photo for an engine that
   sees 1536 at most. New Mini takes drops as a picture file, else as the picture's data or a
   promised file (Photos, browsers), never a web address; Import from iPhone goes the same way.
-- **Same data on disk.** `runs/<name>/` (or `runs/<project>/<name>/`) with `<name>.stl`, `<name>_{front,side,back}.png`,
 - **An object that can't stand is set on a side it can** (`Mesh.rest`, `MimicCore/Rest.swift`),
   after levelling. Its sides are the faces of its convex hull (quickhull over one point per
   1/256 grid cell of the main pieces, so floating specks don't hold it up), a side being the hull
@@ -197,16 +196,17 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   stands on its foot. teapot2, the vase and every character give the same bytes as before;
   turned 90° either way or 180° they used to come back upright on their bases, which is what
   was given up above. 0.3–0.5 s for a million triangles in a release build. Characters never go through this.
-- **Same data on disk.** `runs/<name>/` with `<name>.stl`, `<name>_{front,side,back}.png`,
-  `source.png` and `settings.json` (`requested` / `made` / how it was made), so minis made by
-  the web version appear in the app unchanged. The list is in the order minis were asked for,
-  `created` in settings.json (#75; older minis go by their folder's creation date), not by the
-  print file's time, which every resize changes; the 3D view, the thumbnails and `mimic --wait`
-  still watch that time to notice a new print file. The gallery reads each settings.json once
-  per reload into `Mini.settings`, which the list, a mini's page and the estimates use, so a
-  redraw or a progress tick reads no file (#95). A `Mini` compares its settings too, so a reload
-  after a run or a rename shows what changed; jobs, Try Again and the command line still read
-  the file, since they must see what's on disk now.
+- **Same data on disk.** `runs/<name>/` (or `runs/<project>/<name>/`) with `<name>.stl`,
+  `<name>_{front,left,right,back}.png`, `source.png` and `settings.json` (`requested` / `made`
+  / how it was made), so minis made by the web version appear in the app unchanged. An older
+  mini's `_side.png` goes when its previews are next drawn (`Render`). The list is in the order
+  minis were asked for, `created` in settings.json (#75; older minis go by their folder's
+  creation date), not by the print file's time, which every resize changes; the 3D view, the
+  thumbnails and `mimic --wait` still watch that time to notice a new print file. The gallery
+  reads each settings.json once per reload into `Mini.settings`, which the list, a mini's page
+  and the estimates use, so a redraw or a progress tick reads no file (#95). A `Mini` compares
+  its settings too, so a reload after a run or a rename shows what changed; jobs, Try Again and
+  the command line still read the file, since they must see what's on disk now.
 - **3D viewer: RealityKit.** Measured on the dwarf's 40 MB, 2.4M-vertex print file:
   Model I/O reads the STL in 0.08 s; SceneKit builds a scene in 0.03 s (265 MB); a RealityKit
   mesh takes 0.37 s (573 MB). Both are fine; SceneKit is no longer developed, so RealityKit.
@@ -280,7 +280,8 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   the viewer (see the side renders), and q4 is hard to tell from q8. TRELLIS.2 runs the plain
   one-picture pipeline at its own defaults (`--image … --output …`: a lone positional after
   `--image` is read as a second picture; `--gss 10` was tuned on Pixal3D only), and writes its
-  figure facing away, so print prep turns it round (`--turn 180`, `EngineModel.turn`).
+  figure facing the other way from Pixal3D's. Print files face -y, a slicer's front (#275), as
+  TRELLIS.2 writes it, so print prep turns Pixal3D's round instead (`--turn 180`, `EngineModel.turn`).
   `PIXAL3D_STEPS=8` applies to every flow of both pipelines, so one guard covers both.
   Rejected: Pixal3D's multiview set (`raven38/pixal3d-q8_0-v1`) wants four pictures of the
   figure; `--trellis2-mv` wants 2–8; TRELLIS.2 at full precision is 15.5 GB. The TRELLIS.2 sets
@@ -330,8 +331,8 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   and back renders gave a whole figure in 615 s against about 222 for one picture, every flow
   printing `[flow-mv] 12 steps`: the multi-image flows ignore `PIXAL3D_STEPS` and show no
   progress bar, so the steps guard never fires and the estimate counts the 3D step 2.8 times
-  as long (`Estimator.multiViewShape`). The figure faces away as from one picture, so the same
-  `--turn 180` faces it front. The sculpt prompt names no view, and a sculpt of the back
+  as long (`Estimator.multiViewShape`). The figure faces the same way as from one picture, so it
+  needs no turn either. The sculpt prompt names no view, and a sculpt of the back
   render stayed a back view (its shoes came out pointing at the camera, the one slip), so side
   pictures share the front's prompt. Step 1 is one run per picture but timed as one step, so
   its time left doesn't start over for each. Pixal3D's single-view set takes one picture, so New Mini shows
@@ -464,6 +465,31 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   reads back as `<private>`. `OSLogStore(scope: .currentProcessIdentifier)` reads it with no
   permission (checked on this Mac, and by a test); the whole Mac's store needs an administrator.
   So a report has this launch's last hour only, never an earlier launch or `mimic` in Terminal.
+  The setup (`ReportSetup.swift`, #283) goes in as setup.txt and, its first nine lines cut to
+  100 characters each, into the form's `more`: the 3D model and engine VERSION, Draw Things' model
+  (asked of its API only; reading its models folder would show a privacy prompt) and cli or app,
+  the helper's provider (never its key or address), free space, `kern.memorystatus_vm_pressure_level`,
+  power, the Metal GPU, the queue and last job by kind and step (never a name), and the nozzle,
+  base and grey sculpt of the mini, else the last job's, else New Mini's. Priority is fixed (nice
+  10), so it's stated, not read. A picture of the main window and its sheets (not Settings) goes in
+  as window.png when "Include a picture of Mimic's window" is ticked, on by default under a preview:
+  taken as the action starts, before the alert, by drawing the views (`cacheDisplay`), which needs
+  no Screen Recording permission. What Metal draws, the 3D view, may come out empty.
+- **A crash is offered as a report at the next launch** (`MimicCore/CrashReport.swift`; #284). The
+  app and `mimic` are one binary, so both crash as `mimic-….ips` in `~/Library/Logs/DiagnosticReports`
+  (an .ips is a header line of JSON, then the report's JSON). At launch the newest one written since
+  `crashSeen` is offered once, whatever the answer; with no `crashSeen` (first launch, or after Reset)
+  only one from the last day is, so old crashes aren't dug up. Hang reports have no crashing thread
+  and are skipped. Report adds `crash.json` to Report a Problem's zip: the exception, termination
+  and `asi` (the fatal error's message), the crashing thread's frames with their library's name
+  inlined, and only those libraries; never the other threads, register state, or the report's
+  user, device, boot and incident ids. The issue's title is the exception and the top frame in
+  Mimic's own binary (the trap and `abort` frames above it say nothing), with the crashed version.
+  The crashed launch's log comes from `log show` filtered by its pid, which works on an
+  administrator account only; on a standard one about.txt says it couldn't be read. Crashes of
+  trellis-cli and draw-things-cli aren't offered: they're failed jobs, with Report a Problem on
+  the mini. Don't Ask Again is `crashDontAsk`. The setup (#283) goes in too, as it is at the
+  next launch: the crashed launch's queue and last job went with it.
 - **One job at a time, and a queue shared by every Mimic** (`MimicCore/Queue.swift`, `Jobs.swift`;
   0.5.0). A job asked for while one runs, in this Mimic or another (the installed app, a dev
   build, `mimic` in Terminal), joins the queue's `queue.json` (on this Mac, see #102 below): an array of `{name, job, added, sizes?}`,
@@ -499,8 +525,8 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   broken 0.7.0, which reads that file as a bare list (it would see an empty queue and drop the
   pause on its next write). 0.7.0 ignores the pause. It is checked, under the queue's lock,
   wherever a job could start (taking the job lock, and the next job after one ends), so
-  pausing lets the running one finish: Pause After This One. Settings → Don't start minis on
-  battery (`Power`, IOKit's providing power source; shown only on a Mac with a battery) holds
+  pausing lets the running one finish: Pause After This One. Settings → Start minis only when
+  plugged in (`Power`, IOKit's providing power source; shown only on a Mac with a battery) holds
   the queue the same way, in the app and in Terminal, since both read the app's settings; the
   app's 3-second watch starts it again once the Mac is plugged in. `mimic queue resume` only
   lifts the pause and leaves starting to the app: the command ends at once, and a job needs
@@ -588,8 +614,12 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   menus): the import itself, an STL through real print prep, and its refusals are tested; the
   windows weren't looked at, and no real HeroForge STL or other generator's GLB was tried.
 
-- Report a Problem in the app: the alert and its picture box, Finder showing the zip, and the
-  filled-in GitHub form. The zip, the scrubbing, the link and reading the app's log back are tested.
+- Report a Problem in the app: the alert, its picture boxes and the window's preview, Finder
+  showing the zip, and the filled-in GitHub form. The zip, the scrubbing, the link and reading the app's log back are tested.
+
+- The crash question at launch after a real crash of Mimic, and the crashed launch's log in its
+  report: finding, trimming and scrubbing a made-up report, the zip and the link are tested, and
+  `log show` by pid was tried on another process.
 
 - Dragging a mini onto a project in the sidebar, and the right-click menus on a mini and a
   project's header: seen in the test build were the sections (Unsorted last, an empty project's

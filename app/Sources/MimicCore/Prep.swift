@@ -53,7 +53,7 @@ public struct PrepOptions: Equatable, Sendable {
     /// Trim to about this many triangles.
     public var faces = 800_000
     /// Turn the model this many degrees about its vertical axis first, so it faces the front:
-    /// TRELLIS.2 writes its figures facing away from where Pixal3D's face (EngineModel.turn).
+    /// Pixal3D writes its figures facing away from where TRELLIS.2's face (EngineModel.turn).
     public var turn = 0.0
     /// A hole under the base for this magnet; none without a base.
     public var magnet: Magnet?
@@ -143,7 +143,7 @@ public struct PrepReport: Codable, Equatable, Sendable {
     public enum Kind: String, Codable, Sendable {
         /// A part left out, and an object that can't stand without a base: said as they are.
         case part, stand
-        /// Wider than its base: thin parts may be fragile.
+        /// The bottom of a figure wider than its base: `footprintNote`.
         case footprint
     }
     public struct Warning: Codable, Equatable, Sendable {
@@ -174,8 +174,12 @@ public struct PrepReport: Codable, Equatable, Sendable {
         warnings.filter { $0.kind != .footprint }.map(\.text).reduce(into: []) { if !$0.contains($1) { $0.append($1) } }
     }
 
-    /// Whether thin parts may be fragile: any warning that isn't said as it is.
+    /// Whether `footprintNote` is said: any warning that isn't said as it is. (Named when it was
+    /// said as "some thin parts may be fragile"; kept, since minis saved it as that.)
     public var fragile: Bool { warnings.contains { $0.kind != .part && $0.kind != .stand } }
+
+    /// What's said for `fragile`, the footprint warning.
+    public static let footprintNote = "The bottom of the figure reaches past the edge of its base. Resize This Mini with a bigger base size to fit it on."
 }
 
 public enum Prep {
@@ -263,7 +267,7 @@ public enum Prep {
                     + magnet.words + String(format: " magnet; base %.2f mm tall", baseHeight))
         }
         if o.noBase && !standsAlone {
-            warn(.stand, standWarning, "It can't stand on its own, so it was left upright as the 3D engine made it. Turn on Add a round base to stand it up.")
+            warn(.stand, standWarning, "It can't stand on its own, so it was left upright as the 3D engine made it. Turn on \(SizeCard.addBase) to stand it up.")
         }
         if let longest = parts.map(Prep.longest).max() {
             let what = parts.count == 1 ? "A part came out separate from the \(thing) (about \(Int(longest.rounded())) mm long) and was left out."

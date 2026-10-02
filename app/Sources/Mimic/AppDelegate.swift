@@ -60,6 +60,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         notifier.start()
     }
 
+    /// A crash last time is asked about once the window is up.
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        Task { reporter.offerCrash() }
+    }
+
     /// Closing the window quits Mimic, except while a mini is being made or waiting, or setup is
     /// downloading: that carries on, with its progress on the Dock icon, and the Dock icon (or
     /// the Window menu) brings the window back. ⌘Q still asks first.

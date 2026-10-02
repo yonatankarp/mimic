@@ -3,8 +3,9 @@ import Foundation
 
 /// Help → Report a Problem… (#100): one zip with what someone fixing it needs, and a GitHub issue
 /// filled in to drag it into (a link can't attach a file). The zip always has the build line,
-/// the Mac, and the app's log; for a mini, its logs and settings.json. Its picture only when the
-/// person ticks the box, since the issue is public. Everything written is scrubbed first.
+/// the Mac, and the app's log; the setup (#283) when given; for a mini, its logs and settings.json.
+/// Its picture, and the window's, only when the person ticks the box, since the issue is public.
+/// Everything written is scrubbed first.
 public enum Report {
     public static let newIssue = URL(string: "https://github.com/yonatankarp/mimic/issues/new")!
     /// The most of one log kept, from its end: where a failure is. pixal3d.log can grow large.
@@ -71,8 +72,10 @@ public enum Report {
 
     /// Writes the report into `folder` and returns the zip. `mini` adds its logs and
     /// settings.json, and its picture when `picture` is set. `appLog` nil means it couldn't be
-    /// read, which about.txt says.
+    /// read, which about.txt says. `extra` adds files by name, scrubbed too: a crash's report.
+    /// `setup` goes in as setup.txt, `window` (a PNG) as window.png.
     public static func write(to folder: URL, mini: Mini?, picture: Bool, build: String, mac: String, appLog: String?,
+                             extra: [String: String] = [:], setup: ReportSetup? = nil, window: Data? = nil,
                              now: Date = Date(), home: String = FileManager.default.homeDirectoryForCurrentUser.path) throws -> URL {
         let fm = FileManager.default
         let stamp = DateFormatter()
@@ -89,6 +92,10 @@ public enum Report {
 
         var about = [build, mac, ISO8601DateFormatter().string(from: now)]
         if let appLog { try text(appLog, "app.log") } else { about.append("The app's own log couldn't be read.") }
+        for (file, s) in extra { try text(s, file) }
+        if let setup { try text(setup.text(home: home), "setup.txt") }
+        if let window { try window.write(to: top.appendingPathComponent("window.png")) }
+        about.append("Window picture: " + (window == nil ? "left out" : "included"))
         if let mini {
             let dir = top.appendingPathComponent("mini")
             try fm.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -120,11 +127,12 @@ public enum Report {
     // MARK: The issue
 
     /// bug.yml's form filled in through its field ids. The picture and logs can't go in a link,
-    /// so the logs box says to drag the zip in.
-    public static func issueURL(build: String, mac: String, failure: String?,
+    /// so the logs box says to drag the zip in; the setup's summary goes in Anything else.
+    public static func issueURL(build: String, mac: String, failure: String?, setup: ReportSetup? = nil,
                                 home: String = FileManager.default.homeDirectoryForCurrentUser.path) -> URL {
         var fields = [("template", "bug.yml"), ("version", build), ("mac", mac),
                       ("logs", "Mimic made a report and showed it in Finder. Drag it into this box to attach it.")]
+        if let setup { fields.append(("more", "Setup, from Mimic:\n" + setup.summary(home: home))) }
         if let failure {
             fields += [("title", "A mini didn't finish"),
                        ("what", "A mini didn't finish. Mimic said: \(scrub(failure, home: home))\n\nWhat I did: ")]

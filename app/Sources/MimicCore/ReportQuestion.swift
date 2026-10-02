@@ -9,12 +9,14 @@ public struct ReportQuestion: Equatable, Sendable {
     public static let make = "Make Report", cancel = "Cancel"
     /// Its own checkbox, shown only when the mini has a picture.
     public static let includePicture = "Include the picture (the issue is public)"
+    /// Its own checkbox too, ticked to start, under a preview: the window can show minis' names and pictures.
+    public static let includeWindow = "Include a picture of Mimic's window (the issue is public)"
 
     /// `mini` is the failed mini's name as shown, or nil from the Help menu.
     public init(mini: String?) {
         title = mini.map { "Report a problem with “\($0)”?" } ?? "Report a problem?"
         let what = mini == nil ? "its notes on what happened" : "its notes on making this mini, the mini's settings"
-        text = "Mimic puts \(what), and which Mac and version this is, into one file, "
+        text = "Mimic puts \(what), and which Mac, version and setup this is, into one file, "
             + "with keys and passwords taken out. Then it shows you the file and opens a form on GitHub to attach it to."
     }
 }

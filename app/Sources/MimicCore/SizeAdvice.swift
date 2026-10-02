@@ -7,6 +7,8 @@ import simd
 /// Choosing a purpose, scale, nozzle or real height means "size it for me again"; moving a
 /// slider or typing a value means "I'll size it", and the suggestion leaves that value alone.
 public struct SizeCard: Equatable, Sendable {
+    /// The switch that gives an object a base, as New Mini and Resize name it.
+    public static let addBase = "Add a base"
     public enum Purpose: String, CaseIterable, Sendable { case game, display }
 
     public static let heightRange = 15.0...200.0

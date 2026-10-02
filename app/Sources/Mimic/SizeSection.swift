@@ -117,7 +117,7 @@ struct SizeSection: View {
         if object {
             slider("Longest side", \.height, { $0.setHeight($1) }, SizeCard.heightRange, unit: "mm",
                    hint: "Its biggest size, whichever way that is: height, width or depth. Set for your nozzle; type a value or drag to change it.")
-            Toggle("Add a base", isOn: Binding(get: { !card.noBase }, set: { card.noBase = !$0 }))
+            Toggle(SizeCard.addBase, isOn: Binding(get: { !card.noBase }, set: { card.noBase = !$0 }))
                 .help("Off: it stands on its own flat bottom")
         } else {
             slider("Character height", \.height, { $0.setHeight($1) }, SizeCard.heightRange, unit: "mm",

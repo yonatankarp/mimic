@@ -49,6 +49,8 @@ public struct JobStatus: Equatable, Sendable {
     public var shown: String?
     /// It made the picture and stopped there, for the person to check it before the 3D shape (#156).
     public var pictureReady = false
+    /// A Try Again (`QueueEntry.again`): stopped, it goes back to how it was (#178).
+    public var again = false
     public var outcome: JobOutcome {
         running ? .running : canceled ? .stopped : exit != 0 ? .failed : pictureReady ? .pictureReady : .finished
     }
@@ -63,6 +65,20 @@ public struct JobStatus: Equatable, Sendable {
 extension JobStatus {
     public init(name: String, kind: JobKind, step: JobStep, started: Date) {
         self.name = name; self.kind = kind; self.step = step; self.started = started
+    }
+
+    /// What happens to the mini if it's stopped, as `JobRunner.settle` does it: Stop's question.
+    public var stopAsks: String {
+        kind == .prep && !importing ? "It keeps its previous size."
+            : again ? "It's kept, so you can try again later."
+            : "What's been made so far will be thrown away."
+    }
+
+    /// What happened to the mini once it was stopped.
+    public var stopSays: String {
+        kind == .prep && !importing ? "It keeps its previous size."
+            : again ? "It was kept, so you can try again later."
+            : "Nothing was kept. It's in the Trash if you want the pieces."
     }
 }
 
@@ -331,7 +347,7 @@ public final class JobRunner: @unchecked Sendable {
 
     /// Takes a waiting job out of the queue. A new mini's folder goes to the Trash, as a stopped
     /// one's does, and so does an import's whose print file isn't made yet (#96); a failed one
-    /// waiting for Try Again stays as it was (#178). False when it
+    /// waiting for Try Again stays as it was (#178). `QueueEntry.takeOutSays` says so. False when it
     /// isn't waiting (it may have just started). Trashed under the queue's lock, so a make with
     /// the same name (from another Mimic, say) can't take the folder over first.
     @discardableResult
@@ -537,6 +553,7 @@ public final class JobRunner: @unchecked Sendable {
         var s = JobStatus(name: entry.name, kind: entry.job, step: plan[0].number, started: now)
         s.stepStarted = now
         s.importing = entry.job == .prep && Self.importing(folder)
+        s.again = entry.again == true
         s.shown = settings.shownName(folder: entry.name)
         // Before the job can be stopped, so a Stop while step 1 starts isn't forgotten (#170).
         drawThings.reset()

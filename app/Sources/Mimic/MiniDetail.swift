@@ -162,7 +162,7 @@ struct MiniDetail: View {
     /// with the mini (#80), so it's still said after a relaunch, until a resize replaces it.
     @ViewBuilder private var notes: some View {
         let saved = mini.settings
-        let lines = (saved.notes ?? []) + (saved.fragile == true ? ["Some thin parts may be fragile. Check it in your slicer before printing."] : [])
+        let lines = (saved.notes ?? []) + (saved.fragile == true ? [PrepReport.footprintNote] : [])
         if !lines.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(lines, id: \.self) { line in

@@ -47,12 +47,12 @@ final class ImportTests: XCTestCase {
     }
 
     /// Export for Virtual Tabletop (#158): in metres, within its budget, and facing glTF's front
-    /// (+z), which `parse` reads back as -y: the print file's front (+y) half a turn round.
+    /// (+z), which `parse` reads back as -y: the print file's own front.
     func testATabletopExportIsInMetresFacingFront() throws {
         let d = try temporary()
         var mesh = Mesh()
         mesh.add(PrepTests.sphere(radius: 10), at: [0, 0, 10])
-        mesh.add(PrepTests.box(half: [2, 5, 2]), at: [0, 15, 10])  // a nose, out the front
+        mesh.add(PrepTests.box(half: [2, 5, 2]), at: [0, -15, 10])  // a nose, out the front
         try STL.write(mesh, to: d.appendingPathComponent("m.stl"))
         let glb = d.appendingPathComponent("m.glb")
         let made = try Tabletop.export(d.appendingPathComponent("m.stl"), to: glb, triangles: 100)
@@ -187,7 +187,7 @@ final class ImportTests: XCTestCase {
         XCTAssertEqual(MiniSettings.load(runs.appendingPathComponent("ogre-chief-2")).imported, "Ogre Chief.stl")
     }
 
-    /// Never turned, even if a model were recorded: TRELLIS.2's turn is for what TRELLIS.2 made.
+    /// Never turned, even if a model were recorded: Pixal3D's turn is for what Pixal3D made.
     func testAnImportedModelIsNeverTurned() throws {
         let fx = try Fixture()
         var s = MiniSettings(); s.imported = "dragon.glb"; s.requested = sizes; s.model = "trellis2-q8"

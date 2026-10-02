@@ -8,10 +8,10 @@ difference.
 ## Reporting a problem
 
 The quickest way is in Mimic: **Help → Report a Problem…**, or **Report a Problem…** on a mini that
-didn't finish. It makes a file with the logs, the mini's settings, and your Mimic version and Mac,
-with keys and your home folder taken out, shows it in Finder and opens the form below already
-filled in; drag the file in. The mini's picture goes in only if you tick the box, since issues are
-public.
+didn't finish. It makes a file with the logs, the mini's settings, your Mimic version and Mac, and
+how Mimic is set up, with keys and your home folder taken out, shows it in Finder and opens the form
+below already filled in; drag the file in. The mini's picture goes in only if you tick the box, and
+the picture of Mimic's window only while its box stays ticked, since issues are public.
 
 Or [open an issue](https://github.com/yonatankarp/mimic/issues/new/choose) and pick **Something
 went wrong**. The form asks for what helps most:
@@ -66,7 +66,8 @@ By contributing, you agree that your contribution is licensed under Mimic's
 | `tools/package_pixal3d.sh`, `tools/pixal3d-steps.patch`, `tools/LICENSE-image-to-3dlab` | Build and package the Pixal3D engine the app downloads on first launch. |
 | `.github/workflows/release.yml` | Tests every change, builds the disk image, and drafts a release from a version tag. |
 | `.github/workflows/engine.yml` | Builds that engine twice, run by hand, and checks both builds are the same. |
-| `runs/`, `engine/`, `queue/` | The dev build's minis, 3D engine (`trellis-cli`, each model set in `engine/models/<id>/`) and queue, when this checkout is its Mimic folder. All are git-ignored. An installed Mimic keeps them in `~/Documents/Mimic` (or the folder chosen in Settings) and `~/Library/Application Support/Mimic` instead; `app/NOTES.md` says how it chooses. |
+| `runs/`, `engine/` | Mimic Dev's minis (unless a minis folder is chosen in its Settings) and 3D engine (`trellis-cli`, each model set in `engine/models/<id>/`): `bundle.sh` makes this checkout its Mimic folder (`installDir`). Both are git-ignored. An installed Mimic keeps them in `~/Documents/Mimic` (or the folder chosen in Settings) and `~/Library/Application Support/Mimic/engine` instead; `app/NOTES.md` says how it chooses. |
+| `queue/` | The queue of `MIMIC_HOME=..`, which puts everything in this checkout, `timings.jsonl` too. Mimic Dev's queue is in `~/Library/Application Support/Mimic/queues/<key>` (one per minis folder, shared with any Mimic using the same one, but not with `MIMIC_HOME=..`), and its `timings.jsonl` is the installed app's. Git-ignored. |
 
 ## Building and testing
 
@@ -137,6 +138,14 @@ downloads the real engine and the small model files, never the 8 GB of weights.
      Afterwards put it back with `defaults delete com.mimic.app SUFeedURL`.
 4. Click Publish on the draft. Mimic's updater sees it from then on. The README's install steps
    link to the latest release, so nothing else needs updating.
+
+From 0.10.0, each release also records where its disk image came from: GitHub signs a
+provenance record saying which workflow run and tag built it. Anyone can check a download against
+it, even before Mimic is installed, with the GitHub CLI:
+
+```bash
+gh attestation verify Mimic-0.3.0.dmg --repo yonatankarp/mimic
+```
 
 If something's wrong, delete the draft and the tag, fix it, and tag again:
 

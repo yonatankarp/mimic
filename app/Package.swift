@@ -22,7 +22,8 @@ let package = Package(
         .executableTarget(name: "Mimic", dependencies: ["MimicCore", .product(name: "Sparkle", package: "Sparkle")],
                           resources: [.copy("Resources/sample-dwarf.png")], swiftSettings: [slowCode],
                           linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]),
-        .testTarget(name: "MimicCoreTests", dependencies: ["MimicCore"]),
+        // Fixtures are read from disk (#filePath), not bundled.
+        .testTarget(name: "MimicCoreTests", dependencies: ["MimicCore"], exclude: ["Fixtures"]),
     ]
 )
 
