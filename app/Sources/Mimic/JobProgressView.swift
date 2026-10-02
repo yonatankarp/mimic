@@ -413,16 +413,15 @@ private struct JobPicture: View {
     /// runs/<name>, where the job writes source.png and the renders.
     let folder: URL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The picture shown and its file's time, once there is one.
+    @State private var shown: Shown?
+    struct Shown: Equatable { let url: URL, version: Date }
 
     var body: some View {
-        // Read every second with the popover's clock: cheap (a stat), and the picture appears the
-        // moment step 1 writes it.
-        let file = shownFile
-        let version = (try? FileManager.default.attributesOfItem(atPath: file.path))?[.modificationDate] as? Date
         let building = status.running && status.kind == .generate && status.step == .shape
         let failed = status.outcome == .failed
         let shape = RoundedRectangle(cornerRadius: 12)
-        Thumbnail(url: version == nil ? nil : file, version: version ?? .distantPast)
+        Thumbnail(url: shown?.url, version: shown?.version ?? .distantPast)
             .frame(width: 84, height: 84)
             .clipShape(shape)
             .background(Color.primary.opacity(0.05), in: shape)  // as the mini's own previews: renders have no background
@@ -448,12 +447,23 @@ private struct JobPicture: View {
                 }
             }
             .accessibilityHidden(true)
+            // Looked for every second, as the popover's clock goes, so the picture appears the
+            // moment step 1 writes it; off the main thread, not while the popover is drawn (#340).
+            .task(id: "\(folder.path) \(status.name) \(status.kind == .prep || status.succeeded)") {
+                let (folder, name, resized) = (folder, status.name, status.kind == .prep || status.succeeded)
+                while !Task.isCancelled {
+                    let found = await Task.detached { Self.find(folder, name, resized: resized) }.value
+                    if found != shown { shown = found }
+                    try? await Task.sleep(for: .seconds(1))
+                }
+            }
     }
 
-    private var shownFile: URL {
-        let front = folder.appendingPathComponent("\(status.name)_front.png")
-        let resized = status.kind == .prep || status.succeeded
-        return resized && FileManager.default.fileExists(atPath: front.path) ? front : folder.appendingPathComponent("source.png")
+    /// The finished front view once resized, else the picture; nil while neither is there.
+    private nonisolated static func find(_ folder: URL, _ name: String, resized: Bool) -> Shown? {
+        let front = folder.appendingPathComponent("\(name)_front.png")
+        let file = resized && FileManager.default.fileExists(atPath: front.path) ? front : folder.appendingPathComponent("source.png")
+        return ((try? FileManager.default.attributesOfItem(atPath: file.path))?[.modificationDate] as? Date).map { Shown(url: file, version: $0) }
     }
 
     private func badge(_ symbol: String, _ color: Color) -> some View {

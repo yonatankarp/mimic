@@ -65,6 +65,11 @@ final class AppModel {
     func displayName(_ s: JobStatus) -> String { s.shown ?? displayName(s.name) }
     /// The projects (folders of minis), alphabetical, empty ones included.
     var projects: [String] = []
+    /// A mini or a project already has `name`, as `Gallery.nameInUse` finds it, from the list:
+    /// no folder is read, so a sheet can ask on every redraw (#340).
+    func nameInUse(_ name: String) -> Bool {
+        minis.contains { $0.name == name } || projects.contains { $0.lowercased() == name.lowercased() }
+    }
     /// The project New Mini starts in when asked from a project's own menu; else the selected
     /// mini's. Taken (and cleared) by New Mini.
     var makeInProject: String?

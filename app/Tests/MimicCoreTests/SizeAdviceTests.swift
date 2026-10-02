@@ -326,6 +326,25 @@ final class SizeAdviceTests: XCTestCase {
         XCTAssertEqual(Filament.short(200), "up to 1 g", "never 0 g")
     }
 
+    /// A project's filament is added up again whenever one of its minis changes; only print
+    /// files whose time changed are read again (#340), each being tens of megabytes.
+    func testFilamentReadsAgainOnlyAPrintFileThatChanged() throws {
+        let fm = FileManager.default
+        let url = fm.temporaryDirectory.appendingPathComponent("cube-\(UUID().uuidString).stl")
+        defer { try? fm.removeItem(at: url) }
+        try STL.write(PrepTests.box(half: [10, 10, 10]), to: url)
+        // A whole second, which setting it again gives back exactly.
+        let made = Date(timeIntervalSince1970: Date().timeIntervalSince1970.rounded(.down) - 60)
+        try fm.setAttributes([.modificationDate: made], ofItemAtPath: url.path)
+        XCTAssertEqual(try XCTUnwrap(Filament.volume(stl: url)), 8000, accuracy: 1)
+        // Twice the size, but with the old time: as if it hadn't changed.
+        try STL.write(PrepTests.box(half: [20, 10, 10]), to: url)
+        try fm.setAttributes([.modificationDate: made], ofItemAtPath: url.path)
+        XCTAssertEqual(try XCTUnwrap(Filament.volume(stl: url)), 8000, accuracy: 1, "an unchanged print file was read again")
+        try fm.setAttributes([.modificationDate: made.addingTimeInterval(60)], ofItemAtPath: url.path)
+        XCTAssertEqual(try XCTUnwrap(Filament.volume(stl: url)), 16000, accuracy: 1, "a resized print file kept its old figure")
+    }
+
     /// The extra thickness a nozzle gets when it isn't chosen by hand: 40% of the nozzle, to the
     /// hundredth of a mm. A nozzle that can't be read counts as 0.4.
     func testTheExtraThicknessFollowsTheNozzle() {
