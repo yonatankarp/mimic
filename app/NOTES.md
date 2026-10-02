@@ -478,8 +478,12 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   app's keys; now Mimic Dev has `com.mimic.app.dev` (keys saved by older dev builds aren't read:
   save them again), Mimic is unchanged, and a binary outside an app (`mimic` through a symlink,
   `swift run`) reads Mimic's keys, as it reads Mimic's settings, but its Reset deletes none;
-  error text a service sends back has the key cut out. Only the description is sent. The
-  improved text is saved as `desc` (what was drawn) and what the person typed as
+  error text a service sends back has the key cut out. A redirect is followed without the key's
+  header unless it's to the scheme, host and port the key was saved for (`sendsKey(to:)`, through
+  the online pictures' `KeepKey`; #376): in testing URLSession dropped `Authorization` on a
+  redirect by itself, even to the same address, but carried Anthropic's `x-api-key` anywhere. Only the
+  description is sent. The improved text is saved as `desc` (what was drawn) and what the person
+  typed as
   `descOriginal`, so Try Again redraws exactly and never asks the helper again. Its answer goes
   into `characterPrompt` after "miniature of a", so the prompt asks for a noun phrase and a
   leading article or a repeated "miniature of a" (gemma3 did) is cut off. Ollama gets
