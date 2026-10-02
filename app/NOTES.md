@@ -609,7 +609,12 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   administrator account only; on a standard one about.txt says it couldn't be read. It's run by
   `Checks.execute` with a 60 s timeout (about 1 s is usual), so a stuck `log` can't hang the report. Crashes of
   trellis-cli and draw-things-cli aren't offered: they're failed jobs, with Report a Problem on
-  the mini. Don't Ask Again is `crashDontAsk`. The setup (#283) goes in too, as it is at the
+  the mini. Nor are those of print prep and the 3D step (#319), which are `mimic _prep` and
+  `mimic _engine`, the same binary: a report keeps no arguments, so they're told apart by
+  `parentProc`, which is `mimic` for a step (the app's is `launchd`, Terminal's the shell), or
+  `Exited process` when the step's parent died first (seen on trellis-cli's reports). The ceiling:
+  a `mimic` command whose shell had already exited isn't offered either; `mimic _prep` run by hand
+  in Terminal is, which is right, as there's no job to show it. Don't Ask Again is `crashDontAsk`. The setup (#283) goes in too, as it is at the
   next launch: the crashed launch's queue and last job went with it.
 - **One job at a time, and a queue shared by every Mimic** (`MimicCore/Queue.swift`, `Jobs.swift`;
   0.5.0). A job asked for while one runs, in this Mimic or another (the installed app, a dev
