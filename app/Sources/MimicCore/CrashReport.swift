@@ -160,22 +160,24 @@ public enum CrashReport {
 
     // MARK: The report
 
-    /// Report a Problem's zip, with the trimmed crash as crash.json.
-    public static func write(_ crash: Crash, to folder: URL, build: String, mac: String, appLog: String?, now: Date = Date(),
+    /// Report a Problem's zip, with the trimmed crash as crash.json, and the setup as now (#283).
+    public static func write(_ crash: Crash, to folder: URL, build: String, mac: String, appLog: String?,
+                             setup: ReportSetup? = nil, now: Date = Date(),
                              home: String = FileManager.default.homeDirectoryForCurrentUser.path) throws -> URL {
         try Report.write(to: folder, mini: nil, picture: false, build: build, mac: mac, appLog: appLog,
-                         extra: ["crash.json": crash.trimmed], now: now, home: home)
+                         extra: ["crash.json": crash.trimmed], setup: setup, now: now, home: home)
     }
 
     /// Report a Problem's issue, titled with the crash and asking what the person was doing:
     /// there's no screenshot, since Mimic had already gone.
-    public static func issueURL(_ crash: Crash, build: String, mac: String) -> URL {
+    public static func issueURL(_ crash: Crash, build: String, mac: String, setup: ReportSetup? = nil,
+                                home: String = FileManager.default.homeDirectoryForCurrentUser.path) -> URL {
         let what = "Mimic quit unexpectedly" + (crash.version.isEmpty ? "" : " (version \(crash.version))") + ": \(crash.what)\n\n"
             + "There's no screenshot: Mimic had already quit.\n\nWhat I was doing when it quit: "
         let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~")
         let more = [("title", crash.title), ("what", what)]
             .map { k, v in "\(k)=\(v.addingPercentEncoding(withAllowedCharacters: allowed) ?? "")" }.joined(separator: "&")
-        return URL(string: Report.issueURL(build: build, mac: mac, failure: nil).absoluteString + "&" + more)!
+        return URL(string: Report.issueURL(build: build, mac: mac, failure: nil, setup: setup, home: home).absoluteString + "&" + more)!
     }
 }
 

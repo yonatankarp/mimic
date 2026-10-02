@@ -151,6 +151,27 @@ final class CrashReportTests: XCTestCase {
         XCTAssertTrue(q["logs"]?.contains("Drag it into this box") == true)
     }
 
+    /// The setup as it is now (#283): in the zip as setup.txt and in the issue's Anything else.
+    func testTheReportHasTheSetup() throws {
+        let c = try XCTUnwrap(CrashReport.read(fixture, home: home))
+        let setup = ReportSetup(model: "TRELLIS.2", engineVersion: "pixal3d.cpp d1b4926 in /Users/alice/engine", gpu: "Apple M2 Pro")
+        let zip = try CrashReport.write(c, to: try folder(), build: "b", mac: "m", appLog: nil, setup: setup, home: home)
+        let p = Process(), out = Pipe()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
+        p.arguments = ["-p", zip.path, "*/setup.txt"]
+        p.standardOutput = out
+        try p.run()
+        let text = String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        p.waitUntilExit()
+        XCTAssertTrue(text.contains("Engine: TRELLIS.2, pixal3d.cpp d1b4926 in ~/engine\n"), text)
+        let url = CrashReport.issueURL(c, build: "b", mac: "m", setup: setup, home: home)
+        let q = Dictionary(uniqueKeysWithValues: (URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []).map { ($0.name, $0.value ?? "") })
+        let more = try XCTUnwrap(q["more"])
+        XCTAssertTrue(more.contains("- GPU: Apple M2 Pro"), more)
+        XCTAssertFalse(more.contains("alice"), more)
+        XCTAssertEqual(q["title"], c.title, "the crash's own fields stay")
+    }
+
     func testTheMacsLogReadsLikeTheAppLog() {
         let ndjson = """
         {"timestamp":"2026-09-30 10:14:58.123456+0200","category":"queue","eventMessage":"Started raven","processID":4242}
