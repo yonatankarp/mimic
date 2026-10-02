@@ -135,6 +135,10 @@ and press **Try Again**:
 - **It wouldn't make this picture:** the service's moderation turned the description or the
   picture down. Try different words or another picture.
 - **It took too long, or couldn't be reached:** check your internet connection and try again.
+- **Black Forest Labs made the picture, but its download link had stopped working:** Mimic tries
+  to download a finished picture again if your connection drops or the service is busy, until it
+  gives up waiting. This message means the link to it no longer worked. Press **Try Again**, which
+  makes a new picture.
 - **OpenAI says your organisation must be verified:** OpenAI asks some accounts to verify their
   organisation before they can use its picture model. Do that in your OpenAI account's settings,
   wait a few minutes, then press **Try Again**. **Test** can say the key works before this is done,
