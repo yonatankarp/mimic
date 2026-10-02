@@ -79,7 +79,7 @@ extension Sizes: Codable {
         let c = try d.container(keyedBy: K.self)
         func text(_ k: K) -> String? {
             if let s = try? c.decode(String.self, forKey: k) { return s }
-            if let n = try? c.decode(Double.self, forKey: k) { return n == n.rounded() ? String(Int(n)) : String(n) }
+            if let n = try? c.decode(Double.self, forKey: k) { return Int(exactly: n).map(String.init) ?? String(n) }
             return nil
         }
         height = text(.height); base = text(.base); nozzle = text(.nozzle); inflate = text(.inflate)

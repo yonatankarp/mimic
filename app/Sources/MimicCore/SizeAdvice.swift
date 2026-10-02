@@ -298,9 +298,10 @@ public struct PrintTips: Sendable {
     /// "32 mm · 0.4 mm nozzle": under a finished mini's name in the gallery.
     public static func shortLine(_ made: Sizes) -> String { "\(mm(made.height, 32)) mm · \(made.nozzle ?? "0.4") mm nozzle" }
 
-    /// A size in whole millimetres; missing or 0 is the default.
+    /// A size in whole millimetres; missing, 0 or not a number of millimetres ("inf", 1e20 from a
+    /// hand edit, #307) is the default.
     private static func mm(_ s: String?, _ fallback: Double) -> Int {
-        Int((s.flatMap(Double.init).flatMap { $0 == 0 ? nil : $0 } ?? fallback).rounded())
+        s.flatMap(Double.init).flatMap { $0 == 0 ? nil : Int(exactly: $0.rounded()) } ?? Int(fallback.rounded())
     }
 }
 
