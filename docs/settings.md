@@ -11,7 +11,7 @@ with, set up Draw Things and the AI helper, and choose where your minis are kept
 
 ## General
 
-<!-- screenshot: settings-general.png | Settings, General tab, every check green ("Everything's ready."), Open Draw Things when needed on, Open minis in set to a slicer, the minis folder row and the Updates section at the bottom -->
+![Settings, General tab: every check green, Open Draw Things when needed on, Open minis in set to Bambu Studio, and Start minis only when plugged in](images/screens/settings-general.png){ width="540" }
 
 ### Check that everything is set up
 
@@ -105,7 +105,7 @@ or waiting: the note then says the new version installs when the queue is done, 
 
 ## 3D Model
 
-<!-- screenshot: settings-3d-model.png | Settings, 3D Model tab, TRELLIS.2 downloaded and In use, Pixal3D not downloaded with its Download button showing -->
+![Settings, 3D Model tab: TRELLIS.2 in use, and Pixal3D downloaded with Use and Remove… buttons](images/screens/settings-3d-model.png){ width="540" }
 
 Mimic can make minis with two 3D models. Each row shows its name, its size, what it's good at and
 how long a mini takes. Once you've made a few minis, the time is the one measured on your Mac.
@@ -139,7 +139,7 @@ For how the models compare in more detail, see [How it works](how-it-works.md#th
 
 ## Draw Things & AI
 
-<!-- screenshot: settings-draw-things-ai.png | Settings, Draw Things & AI tab, Draw Things set up (green tick), AI helper for descriptions set to Claude (Anthropic) with an API key saved and "It works." after Test -->
+![Settings, Draw Things & AI tab: Draw Things is set up, and the AI helper set to Claude (Anthropic) with fields for an API key and model](images/screens/settings-draw-things-ai.png){ width="540" }
 
 ### Set up Draw Things
 
@@ -185,7 +185,7 @@ for the new one.
 
 ## Advanced
 
-<!-- screenshot: settings-advanced.png | Settings, Advanced tab, Time estimates "Based on 12 minis made on this Mac" with Clear…, Start over with Reset Mimic…, and the build line at the bottom -->
+![Settings, Advanced tab: Time estimates with Clear…, and Start over with Reset Mimic…](images/screens/settings-advanced.png){ width="540" }
 
 ### Time estimates
 
