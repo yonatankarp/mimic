@@ -569,9 +569,6 @@ private struct Stage: NSViewRepresentable {
                 if t >= 1 { gliding = nil; view.isPaused = true }
             }
             drawn = mini?.transform
-            // In a sheet (Compare Side by Side) the Metal layer's scale is left at 0, and every
-            // frame was drawn at no size: only the shadow, which SwiftUI draws, showed.
-            if let scale = view.window?.backingScaleFactor, view.layer?.contentsScale != scale { view.layer?.contentsScale = scale }
             guard let renderer, let drawable = view.currentDrawable else { return }
             let frame = Frame(drawable: drawable)
             do {

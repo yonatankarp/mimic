@@ -221,9 +221,7 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   display frame and has no public way to pause, which cost about 20% of a core with a mini just
   standing there. `RealityRenderer` (public, macOS 15) drawing into a paused Metal view redraws
   on a turn, zoom, resize or new mini, and every frame only while a glide plays: about 1% of a
-  core idle in front, 0% behind. In a sheet (Compare Side by Side) the Metal
-  layer's `contentsScale` comes out 0, which draws every frame at no size, so each draw sets it to the
-  window's. It has no default ambient light, so it carries its own grey
+  core idle in front, 0% behind. It has no default ambient light, so it carries its own grey
   studio light, matched to the old look by brightness.
 - **A size reference in the 3D view** (#98, `MimicCore/SizeReference.swift`, tested). Every
   mini is shown 1 tall, so a millimetre is 1 / its height: a 25 mm base ring, a 32 mm person
