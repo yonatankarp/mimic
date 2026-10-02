@@ -103,7 +103,9 @@ making a mini may be very slow or fail. If minis fail on such a Mac:
 ### Draw Things isn't found
 
 Mimic only needs Draw Things to draw a character from a description, make a grey sculpt or change
-a picture. Your own pictures work without it. If it's set up and Mimic still can't use it:
+a picture, and not at all when pictures are made online (see
+[Online pictures don't work](#online-pictures-dont-work)). Your own pictures work without it. If
+it's set up and Mimic still can't use it:
 
 - **Is it in your Applications folder?** Mimic looks for Draw Things in Applications (yours or the
   Mac's). Installed from the App Store, it's there.

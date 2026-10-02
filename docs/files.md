@@ -14,7 +14,7 @@ lives where, what each file is, and what you can safely change by hand.
 | The queue | `~/Library/Application Support/Mimic/queues/<key>/` |
 | Time estimates | `~/Library/Application Support/Mimic/timings.jsonl` |
 | Mimic's settings | the `com.mimic.app` preferences (`defaults read com.mimic.app`) |
-| AI helper keys | your login Keychain, service `com.mimic.app` |
+| AI helper keys, and the Black Forest Labs key (account `bfl`) | your login Keychain, service `com.mimic.app` |
 | Mimic's own log | the macOS log, subsystem `com.mimic.app` |
 
 ## The minis folder

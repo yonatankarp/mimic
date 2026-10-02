@@ -100,8 +100,9 @@ your minis stay where they were. For more on the folder itself, see
 **Check for updates when Mimic opens** is on unless you turn it off. Mimic then asks GitHub for
 its latest release each time you open it. Only public release information is read: nothing about
 your Mac or your minis is sent. **Last checked** says when it last asked, and **Check Now** asks
-straight away. You can also choose **Mimic → Check for Updates…** at any time. With the switch
-off, Mimic only checks when you ask.
+straight away. While a check is under way, such as the one when Mimic opens, **Check Now** and
+**Check for Updates…** are dimmed. You can also choose **Mimic → Check for Updates…** at any
+time. With the switch off, Mimic only checks when you ask.
 
 When there's a new version, a few seconds after Mimic opens, a window shows it, with what's new.
 If you've switched to another app by then, the window waits until you come back to Mimic.
@@ -148,7 +149,7 @@ For how the models compare in more detail, see [How it works](how-it-works.md#th
 
 ## Draw Things & AI
 
-![Settings, Draw Things & AI tab: Draw Things is set up, and the AI helper set to Claude (Anthropic) with fields for an API key and model](images/screens/settings-draw-things-ai.png){ width="540" }
+![Settings, Draw Things & AI tab: Pictures made with Draw Things, on this Mac, Draw Things is set up, and the AI helper set to Claude (Anthropic) with fields for an API key and model](images/screens/settings-draw-things-ai.png){ width="540" }
 
 ### Choose what makes the pictures
 
@@ -162,7 +163,10 @@ picture model. Under **Pictures**, **Make pictures with** chooses where that mod
   **Save**: Mimic keeps it in your Mac's Keychain and shows **API key saved in your Keychain**,
   with **Remove** to delete it. **Get a key** opens Black Forest Labs' website, where you make
   one. **Test** asks Black Forest Labs whether the key works and says **It works.**, or what went
-  wrong.
+  wrong. While it's chosen, this tab doesn't show the Draw Things steps below, and the General tab
+  doesn't show **Open Draw Things when needed**.
+
+![Settings, Draw Things & AI tab: Make pictures with set to Black Forest Labs, online, an empty API key field with Save, Test dimmed, Get a key, and what each picture costs](images/screens/settings-pictures-online.png){ width="540" }
 
 !!! note "What Black Forest Labs sees, and what it costs"
     With **Black Forest Labs, online**, your description, or the picture to be redrawn, is sent to
@@ -236,7 +240,8 @@ learned from. The times are kept on your Mac only and never sent anywhere.
 **Reset Mimic…** puts Mimic back the way it was the first time you opened it, and opens it again.
 It asks first:
 
-- **Reset** forgets Mimic's settings, its tips and any saved AI keys, and shows the tour again.
+- **Reset** forgets Mimic's settings, its tips and any saved AI keys (the Black Forest Labs key
+  too), and shows the tour again.
 - **Reset All** does the same and also removes the 3D engine, so first-launch setup shows again and
   downloads it again (8.3 to 9.3 GB, depending on the 3D model).
 

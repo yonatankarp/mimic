@@ -12,8 +12,8 @@ downloads and when it talks to the internet.
 ```mermaid
 flowchart TD
   pic["🖼️ Picture"] --> choice{"Grey sculpt first?"}
-  text["✍️ Description"] --> draw["Draw the character<br/><i>FLUX.2 Klein in Draw Things</i>"]
-  choice -- yes --> redraw["Redraw as a grey sculpt<br/><i>FLUX.2 Klein in Draw Things</i>"]
+  text["✍️ Description"] --> draw["Draw the character<br/><i>FLUX.2 Klein, in Draw Things or online</i>"]
+  choice -- yes --> redraw["Redraw as a grey sculpt<br/><i>FLUX.2 Klein, in Draw Things or online</i>"]
   choice -- no --> image
   redraw --> image["Character image"]
   draw --> image

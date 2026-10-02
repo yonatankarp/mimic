@@ -55,7 +55,8 @@ A description needs Draw Things, a free app: Mimic uses it to draw your characte
 set up, New Mini says so, with **Open Settings**. See
 [Getting started](getting-started.md#set-up-draw-things). Or have Black Forest Labs draw it online
 with your own API key, instead of Draw Things: then your description is sent to them, and each
-picture is one paid request. See
+picture is one paid request. Until a key that works is saved, New Mini says "A description needs a
+working Black Forest Labs key." See
 [Choose what makes the pictures](settings.md#choose-what-makes-the-pictures).
 
 ### Let the AI helper write a fuller description
