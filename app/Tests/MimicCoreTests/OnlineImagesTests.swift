@@ -333,11 +333,14 @@ final class OnlineImagesTests: XCTestCase {
         defer { server.stop() }
         let fx = try Fixture(); try fx.modelFiles()
         let online = service(server)
-        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/false"), trash: { _ in })
+        let timings = Timings(url: fx.root.appendingPathComponent("timings.jsonl"))
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/false"), trash: { _ in }, timings: timings)
         jobs.pictureService = { online }
         try jobs.make(name: "dwarf", picture: .description("a dwarf"), restyle: false, seed: 1, sizes: Sizes(), model: EngineDownload.standard)
         jobs.waitUntilDone()
         XCTAssertEqual(Self.size(try Data(contentsOf: fx.install.runs.appendingPathComponent("dwarf/source.png"))), [1024, 1024])
+        // Its time is kept as the online service's, not Draw Things' (#325).
+        XCTAssertEqual(timings.load().map(\.pictureService), ["bfl"])
     }
 
     /// A refused redraw leaves the mini as it was, and says why in plain words.
