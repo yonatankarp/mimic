@@ -57,7 +57,7 @@ final class NoticeTextTests: XCTestCase {
     func testReportingAMiniNamesItAndItsSettings() {
         let q = ReportQuestion(mini: "Élodie the Druid")
         XCTAssertEqual(q.title, "Report a problem with “Élodie the Druid”?")
-        XCTAssertEqual(q.text, "Mimic puts its notes on making this mini, the mini's settings, and which Mac, version and setup this is, "
+        XCTAssertEqual(q.text, "Mimic puts its notes on making this mini, its settings and your description of it, and which Mac, version and setup this is, "
             + "into one file, with keys and passwords taken out. Then it shows you the file and opens a form on GitHub to attach it to.")
     }
 

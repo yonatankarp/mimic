@@ -27,7 +27,8 @@ Mimic first says what goes in the file. Press **Make Report**. The file has:
   memory pressure, whether your Mac is on battery, its graphics chip, what's being made and waiting
   and how the last job ended (by kind and step, never by name), the nozzle, base and grey sculpt,
   and a few of its settings
-- for a mini, its notes on how it was made and its settings
+- for a mini, its notes on how it was made and its settings, which include the description you
+  typed and its name
 
 Keys, passwords and your Mac's user name are taken out first. Two boxes say which pictures go in,
 since the issue is public:
