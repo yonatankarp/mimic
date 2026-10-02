@@ -94,14 +94,20 @@ your minis stay where they were. For more on the folder itself, see
 
 ### Updates
 
-**Check for updates automatically** is on unless you turn it off. Mimic then asks GitHub for its
-latest release once a day. Only public release information is read: nothing about your Mac or
-your minis is sent. **Last checked** says when it last asked, and **Check Now** asks straight away.
-You can also choose **Mimic → Check for Updates…** at any time.
+**Check for updates when Mimic opens** is on unless you turn it off. Mimic then asks GitHub for
+its latest release each time you open it. Only public release information is read: nothing about
+your Mac or your minis is sent. **Last checked** says when it last asked, and **Check Now** asks
+straight away. You can also choose **Mimic → Check for Updates…** at any time. With the switch
+off, Mimic only checks when you ask.
 
-When there's a new version, a note appears in the toolbar ("Mimic 0.10.0 is available", say).
-Click it to see what's new and update. Mimic never installs an update while a mini is being made
-or waiting: the note then says the new version installs when the queue is done, and it does.
+When there's a new version, a few seconds after Mimic opens, a window shows it, with what's new.
+If you've switched to another app by then, the window waits until you come back to Mimic.
+**Install Update** updates Mimic, **Skip This Version** stops Mimic showing that version when it
+opens (**Check Now** and **Check for Updates…** still show it), and **Remind Me Later** asks again
+the next time you open Mimic. Until then a note stays in the toolbar ("Mimic 0.11.0 is
+available", say): click it to see the window again. Mimic never installs an update while a mini
+is being made or waiting: the note then says the new version installs when the queue is done,
+and it does.
 
 ## 3D Model
 
@@ -232,6 +238,6 @@ problem (Help → **Report a Problem…** adds it for you).
 | Open minis in | General | The first slicer Mimic finds, else the Mac's default app for 3D files |
 | Start minis only when plugged in | General | Off (MacBooks only) |
 | Your minis are saved in | General | Documents → Mimic |
-| Check for updates automatically | General | On |
+| Check for updates when Mimic opens | General | On |
 | 3D model in use | 3D Model | TRELLIS.2 |
 | AI helper for descriptions | Draw Things & AI | Off |

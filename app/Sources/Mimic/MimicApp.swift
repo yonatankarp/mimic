@@ -23,7 +23,7 @@ struct MimicApp: App {
         .commands {
             CommandGroup(after: .appInfo) {
                 if model.updates.enabled {
-                    Button("Check for Updates…") { model.updates.check() }
+                    Button("Check for Updates…") { model.updates.check() }.disabled(!model.updates.canCheck)
                 }
             }
             // An action, not a setting: after Settings in the Mimic menu. The Settings scene adds its

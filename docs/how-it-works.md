@@ -166,9 +166,9 @@ online for these:
 - **First-launch setup, and downloads you ask for in Settings:** the engine from Mimic's GitHub
   release, `draw-things-cli` from Draw Things' GitHub release, and the model files from Hugging
   Face. Mimic only downloads from them.
-- **Checking for updates:** once a day (unless you turn it off), and when you choose **Check for
-  Updates…**, Mimic reads the latest release's public information from GitHub. Nothing about your
-  Mac or your minis is sent.
+- **Checking for updates:** each time Mimic opens (unless you turn it off), and when you choose
+  **Check for Updates…**, Mimic reads the latest release's public information from GitHub. Nothing
+  about your Mac or your minis is sent.
 - **An AI helper, only if you choose a cloud one** in Settings: it receives the description you
   type, and what you type in **What to change**, nothing else. Its key stays in your Keychain and is
   only sent to the address it was saved for. Ollama runs on your Mac, so with it nothing leaves.
