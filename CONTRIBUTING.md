@@ -61,7 +61,8 @@ By contributing, you agree that your contribution is licensed under Mimic's
 | `tools/package_pixal3d.sh`, `tools/pixal3d-steps.patch`, `tools/LICENSE-image-to-3dlab` | Build and package the Pixal3D engine the app downloads on first launch. |
 | `.github/workflows/release.yml` | Tests every change, builds the disk image, and drafts a release from a version tag. |
 | `.github/workflows/engine.yml` | Builds that engine twice, run by hand, and checks both builds are the same. |
-| `runs/`, `engine/`, `queue/` | The dev build's minis, 3D engine (`trellis-cli`, each model set in `engine/models/<id>/`) and queue, when this checkout is its Mimic folder. All are git-ignored. An installed Mimic keeps them in `~/Documents/Mimic` (or the folder chosen in Settings) and `~/Library/Application Support/Mimic` instead; `app/NOTES.md` says how it chooses. |
+| `runs/`, `engine/` | Mimic Dev's minis (unless a minis folder is chosen in its Settings) and 3D engine (`trellis-cli`, each model set in `engine/models/<id>/`): `bundle.sh` makes this checkout its Mimic folder (`installDir`). Both are git-ignored. An installed Mimic keeps them in `~/Documents/Mimic` (or the folder chosen in Settings) and `~/Library/Application Support/Mimic/engine` instead; `app/NOTES.md` says how it chooses. |
+| `queue/` | The queue of `MIMIC_HOME=..`, which puts everything in this checkout, `timings.jsonl` too. Mimic Dev's queue is in `~/Library/Application Support/Mimic/queues/<key>` (one per minis folder, shared with any Mimic using the same one, but not with `MIMIC_HOME=..`), and its `timings.jsonl` is the installed app's. Git-ignored. |
 
 ## Building and testing
 

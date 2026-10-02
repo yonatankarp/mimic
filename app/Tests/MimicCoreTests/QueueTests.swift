@@ -103,7 +103,7 @@ final class QueueTests: XCTestCase {
         XCTAssertEqual(b.queue.entries(), [])
     }
 
-    /// Don't start minis on battery: nothing new starts while the Mac is on battery, and the
+    /// Start minis only when plugged in: nothing new starts while the Mac is on battery, and the
     /// queue carries on when it's plugged in and someone looks again.
     func testNothingStartsOnBattery() throws {
         let fx = try Fixture(); _ = try fx.mini("a")

@@ -5,8 +5,8 @@ runs/
 # (the app downloads both, at pinned versions, into ~/Library/Application Support/Mimic otherwise).
 engine/
 
-# The dev build's queue, when this checkout is its Mimic folder (an installed Mimic keeps it in
-# ~/Library/Application Support/Mimic).
+# The queue of `MIMIC_HOME=..` (Mimic Dev and an installed Mimic keep theirs in
+# ~/Library/Application Support/Mimic/queues).
 /queue/
 
 # The DMG that tools/package_dmg.sh builds, and the release notes the release workflow writes.
