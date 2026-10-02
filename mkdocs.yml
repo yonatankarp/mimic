@@ -66,8 +66,4 @@ nav:
       - Where your files are: files.md
       - Tuning print prep: print-prep.md
       - How it works: how-it-works.md
-  - Developers:
-      - Contributing: contributing.md
-      - Working on Mimic: developing.md
-      - Design notes: design-notes.md
   - Licences: licences.md

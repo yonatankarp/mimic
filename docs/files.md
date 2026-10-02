@@ -170,7 +170,7 @@ never syncs a queue between Macs.
 
 ## The dev build's folders
 
-*Mimic Dev*, the app `app/bundle.sh` builds (see [Working on Mimic](developing.md)), is a separate app
+*Mimic Dev*, the app `app/bundle.sh` builds (see [CONTRIBUTING.md](https://github.com/yonatankarp/mimic/blob/main/CONTRIBUTING.md)), is a separate app
 with its own settings (`com.mimic.app.dev`), so it never touches the Mimic you use. `bundle.sh` sets
 its `installDir` to the checkout, so it keeps:
 

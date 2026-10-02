@@ -43,15 +43,12 @@ accounts, no uploads, no subscriptions.
 
     [How it works](how-it-works.md)
 
--   **Developers**
+-   **Report a problem or an idea**
 
     ---
 
-    Build Mimic, run its tests, release it, and read why it's made the way it is.
+    Found a bug, or want Mimic to do something new? Tell us on GitHub: no code needed.
 
-    [Working on Mimic](developing.md)
+    [Report a problem or an idea](report.md)
 
 </div>
-
-Found a bug, or have an idea? [Report a problem or an idea](report.md): no code or GitHub know-how
-needed beyond a free account.
