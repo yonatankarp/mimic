@@ -65,6 +65,34 @@ final class ImportTests: XCTestCase {
         XCTAssertEqual(back.bounds.hi.z, 0.020, accuracy: 1e-3)
     }
 
+    /// A 100 mm mini's print file, on prep's 0.1 mm grid, keeps tunnels too small to see (here a
+    /// grate of 100 holes, 0.25 mm wide), and the trim never closes one: each kept a ring of
+    /// triangles, so the export went over its budget and spent it on the base's rim and the
+    /// wings instead (5,854 triangles, no base, at 100 mm). The tunnels close first now.
+    func testABigMinisTinyTunnelsDontCostTheTabletopExportItsBase() throws {
+        let d = try temporary()
+        var parts = Mesh()
+        parts.add(PrepTests.box(half: [1, 1, 49]), at: [0, 0, 51])  // a staff, up to 100 mm
+        for k in 0...10 {  // a grate held out to the side: bars 0.3 mm wide, 0.25 mm apart, 10 × 10 holes
+            let at = -2.75 + 0.55 * Float(k)
+            parts.add(PrepTests.box(half: [2.9, 0.15, 0.15]), at: [3.8, 0, 80 + at])
+            parts.add(PrepTests.box(half: [0.15, 0.15, 2.9]), at: [3.8 + at, 0, 80])
+        }
+        let base = Solid.Base(radius: 10, height: 2, bevel: 0.6)
+        let print = Solid(mesh: parts, voxel: 0.1, inflate: 0, base: base, cut: 0).surface(parts).largestPiece().0
+        try STL.write(print, to: d.appendingPathComponent("m.stl"))
+
+        let glb = d.appendingPathComponent("m.glb")
+        let made = try Tabletop.export(d.appendingPathComponent("m.stl"), to: glb, triangles: 1000)
+        XCTAssertLessThanOrEqual(made.triangles, 1000)
+        let back = try GLB.read(glb)
+        // The base's underside, 20 mm across, still there (z up again in `read`, in metres).
+        let bottom = back.positions.filter { $0.z < 0.0005 }
+        let across = (bottom.map(\.x).max() ?? 0) - (bottom.map(\.x).min() ?? 0)
+        XCTAssertEqual(across, 0.020, accuracy: 0.001, "the base's disc is gone")
+        XCTAssertEqual(back.bounds.hi.z, 0.100, accuracy: 0.001)
+    }
+
     /// A print file made before 0.10.0 faces +y (#275): the export turns it round, so it still
     /// faces glTF's front.
     func testAnOldPrintFileIsExportedFacingFrontToo() throws {

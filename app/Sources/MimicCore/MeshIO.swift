@@ -305,8 +305,25 @@ public enum Tabletop {
         // Half a turn about the vertical: both axes, as one alone would mirror it.
         if facesAway { solid.positions = solid.positions.map { SIMD3(-$0.x, -$0.y, $0.z) } }
         guard !solid.triangles.isEmpty else { throw PrepError("the print file has no triangles") }
-        // Trimmed in millimetres: Decimate's thresholds are.
-        var mesh = solid.triangles.count > triangles ? Decimate.run(solid, target: triangles) : solid
+        var mesh = solid
+        if solid.triangles.count > triangles {
+            // A deep trim is drawn again through a grid first, about 60 of its triangles to each
+            // one kept, and half a cell further out. A 100 mm mini's print file, on prep's 0.1 mm
+            // grid, keeps hundreds of tunnels too small to see (through hair, between wings);
+            // the trim never closes one, and trimmed 160 to 1 it stalled over its budget, taking
+            // the base's rim and the wings instead. The grid closes those it can't show anyway.
+            // ponytail: 60 to 1 trimmed both Lorelei print files (28 and 100 mm) cleanly; a mini
+            // with hundreds of real holes wider than a cell (chain mail) could still stall.
+            if solid.triangles.count > 60 * triangles {
+                let area = solid.triangles.reduce(Float(0)) { sum, t in
+                    let a = solid.positions[Int(t.x)], b = solid.positions[Int(t.y)], c = solid.positions[Int(t.z)]
+                    return sum + simd_length(simd_cross(b - a, c - a)) / 2
+                }
+                let cell = (2 * area / Float(60 * triangles)).squareRoot()  // a grid cell's surface is two triangles
+                mesh = Solid(mesh: solid, voxel: cell, inflate: cell / 2, base: nil, cut: solid.bounds.lo.z).surface(solid).largestPiece().0
+            }
+            mesh = Decimate.run(mesh, target: triangles)
+        }
         var paint: (uv: [SIMD2<Float>], jpeg: Data)?
         if let colours {
             let baked = bake(mesh, colours)
