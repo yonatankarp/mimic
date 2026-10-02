@@ -85,6 +85,34 @@ final class JobTests: XCTestCase {
         XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: settings, tools: tools).map(\.number), [.shape, .print], "not drawn again")
     }
 
+    /// A finished mini whose model.glb is gone isn't a failed attempt (#308): a Make with its name
+    /// is refused, and its settings, pictures and print file are left exactly as they were.
+    func testAMakeNeverOverwritesAFinishedMiniWithoutItsModel() throws {
+        let fx = try Fixture(), fm = FileManager.default
+        try fx.modelFiles()
+        let picture = try fx.picture()
+        let d = try fx.mini("raven")
+        try fm.removeItem(at: d.appendingPathComponent(Mini.modelFile))
+        fm.createFile(atPath: d.appendingPathComponent("upload.img").path, contents: Data("upload".utf8))
+        try MiniSettings.update(d) { s in
+            s.source = .desc; s.desc = "a raven"; s.seed = 7; s.created = Date(timeIntervalSince1970: 1); s.made = sizes
+        }
+        func files() throws -> [String: Data] {
+            var out: [String: Data] = [:]
+            for f in try fm.contentsOfDirectory(atPath: d.path) { out[f] = try Data(contentsOf: d.appendingPathComponent(f)) }
+            return out
+        }
+        let before = try files()
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/false"), trash: { _ in })
+        XCTAssertThrowsError(try jobs.make(name: "raven", picture: .image(picture), restyle: false, seed: 1, sizes: sizes,
+                                           model: EngineDownload.standard)) {
+            XCTAssertEqual($0 as? RequestError, .nameTaken("raven"))
+        }
+        jobs.waitUntilDone()
+        XCTAssertNil(jobs.status, "nothing ran")
+        XCTAssertEqual(try files(), before, "the finished mini was changed")
+    }
+
     /// A job with the fixture's tools never reaches the real Draw Things (#140): on a Mac that
     /// has it, the test above drew a real picture for minutes and then saw the wrong plan.
     func testTheFixtureNeverReachesTheRealDrawThings() throws {

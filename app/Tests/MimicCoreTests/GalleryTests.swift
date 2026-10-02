@@ -46,7 +46,8 @@ final class GalleryTests: XCTestCase {
     }
 
     /// The name New Mini says is taken is the one Make Mini refuses (#219): any mini or project
-    /// with it, except a failed attempt's folder where the new one would go.
+    /// with it, except a failed attempt's folder where the new one would go. A finished mini
+    /// keeps its name without its 3D model (#308).
     func testANewMinisNameIsTakenAsMakeRefusesIt() throws {
         let fx = try Fixture(), fm = FileManager.default, runs = fx.install.runs
         _ = try fx.mini("dwarf")
@@ -55,6 +56,16 @@ final class GalleryTests: XCTestCase {
         try fm.createDirectory(at: failed, withIntermediateDirectories: true)
         try MiniSettings.update(failed) { $0.source = .image }  // settings, but no 3D model
         try fm.createDirectory(at: runs.appendingPathComponent("Tieflings"), withIntermediateDirectories: true)
+        // Finished minis whose model.glb is gone (#308): one has its print file, the other's
+        // settings say it was made.
+        let printed = runs.appendingPathComponent("owlbear"), made = runs.appendingPathComponent("imp")
+        try fm.createDirectory(at: printed, withIntermediateDirectories: true)
+        try MiniSettings.update(printed) { $0.source = .image }
+        fm.createFile(atPath: printed.appendingPathComponent("owlbear.stl").path, contents: Data("stl".utf8))
+        try fm.createDirectory(at: made, withIntermediateDirectories: true)
+        try MiniSettings.update(made) { $0.source = .image; $0.made = Sizes(height: "32") }
+        XCTAssertTrue(Gallery.nameTaken(runs, "owlbear", project: nil), "a mini with its print file, without its 3D model")
+        XCTAssertTrue(Gallery.nameTaken(runs, "imp", project: nil), "a mini its settings say was made, without its 3D model")
         XCTAssertTrue(Gallery.nameTaken(runs, "dwarf", project: nil), "a made mini")
         XCTAssertTrue(Gallery.nameTaken(runs, "dwarf", project: "Party"), "a made mini, in another project")
         XCTAssertFalse(Gallery.nameTaken(runs, "raven", project: "Party"), "a failed attempt where it would go is made again")
