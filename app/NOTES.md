@@ -720,6 +720,17 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   - A point further from the model than 3% of its height takes the base's grey: that's the base.
   - The same lookup is what the colour print file (#41) and "Keep the picture's colours" (#256's
     step 4) can call.
+- **A deep trim for the tabletop goes through a coarse grid first.** Print prep's grid is 0.1 mm
+  whatever the size, so a 100 mm mini's print file keeps hundreds of tunnels too small to see
+  (Lorelei at 100 mm: 358, against 83 at 28 mm). The trim never closes one, since it refuses
+  collapses that change the shape's topology, and each keeps a ring of triangles. Trimmed 160 to 1,
+  it stalled over 5,000 and its rising threshold took the base's rim and the wings instead (5,854
+  triangles). The cause wasn't Decimate's thresholds being in millimetres: the same print file
+  scaled down to 28 mm broke the same way. So when the print file has more than 60 triangles for
+  each one kept, the export draws it again through `Solid` on a grid sized for 60 to 1, half a
+  cell further out (a quarter of a millimetre at 100 mm), which closes the tunnels a few thousand
+  triangles couldn't show anyway. Without the half-cell offset, the coarse grid punches new holes
+  through thin wings. A milder trim is left as it was: it doesn't stall.
 
 ## Not yet seen working
 
