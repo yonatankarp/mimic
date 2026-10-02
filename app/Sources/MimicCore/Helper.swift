@@ -64,7 +64,7 @@ public struct HelperConfig: Equatable, Sendable {
     /// A cloud key travels only over https, or to this Mac (a local OpenAI-compatible server).
     public var isSecure: Bool {
         guard let url, let host = url.host?.lowercased() else { return false }
-        return url.scheme?.lowercased() == "https" || host == "localhost" || host == "::1" || host.hasPrefix("127.")
+        return url.scheme?.lowercased() == "https" || URL.isThisMac(host: host)
     }
 
     /// The Keychain account of the key for this address: a key is only ever sent to the host it
@@ -420,5 +420,20 @@ public enum HelperError: Error, CustomStringConvertible, Equatable {
         case .refused(let why): "The helper said no: \(why)"
         case .keychain(let status): "Couldn't save the key in your Keychain (error \(status))."
         }
+    }
+}
+
+extension URL {
+    /// Whether a host is this Mac, the only place plain http may carry a key: exactly "localhost",
+    /// or an address (not a name) in 127.0.0.0/8 or ::1. A name that only looks like one, such as
+    /// 127.attacker.example, resolves wherever its owner likes.
+    public static func isThisMac(host: String) -> Bool {
+        var host = host.lowercased()
+        if host == "localhost" || host == "localhost." { return true }
+        if host.hasPrefix("[") && host.hasSuffix("]") { host = String(host.dropFirst().dropLast()) }
+        var v4 = in_addr(), v6 = in6_addr()
+        if inet_pton(AF_INET, host, &v4) == 1 { return UInt32(bigEndian: v4.s_addr) >> 24 == 127 }
+        guard inet_pton(AF_INET6, host, &v6) == 1 else { return false }
+        return withUnsafeBytes(of: &v6) { Array($0) } == [UInt8](repeating: 0, count: 15) + [1]
     }
 }
