@@ -210,7 +210,8 @@ its `installDir` to the checkout, so it keeps:
 Run from a terminal, two environment variables change that:
 
 - **`MIMIC_HOME=<folder>`** uses `<folder>/runs`, `<folder>/engine`, `<folder>/queue` and
-  `<folder>/timings.jsonl`, all inside it, and Settings can't change the minis folder.
+  `<folder>/timings.jsonl`, all inside it, and Settings can't change the minis folder. A folder
+  that doesn't exist is ignored, and all four are in their usual places.
 - **`MIMIC_FAKE_HOME=<folder>`** treats `<folder>` as the home folder of a Mac that has never run
   Mimic, for trying first launch.
 
