@@ -175,3 +175,13 @@ public enum PictureSide: String, Codable, CaseIterable, Sendable {
     public var upload: String { "upload-\(rawValue).img" }
     public var source: String { "source-\(rawValue).png" }
 }
+
+/// New Mini's one file chooser and the place it's open for: the front (`side` nil) or a side.
+/// Closing it keeps the place, since SwiftUI closes the chooser before it hands over the file.
+public struct PictureChooser: Equatable, Sendable {
+    public private(set) var isOpen = false
+    public private(set) var side: PictureSide?
+    public init() {}
+    public mutating func open(_ side: PictureSide?) { isOpen = true; self.side = side }
+    public mutating func close() { isOpen = false }
+}

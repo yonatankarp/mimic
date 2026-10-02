@@ -169,4 +169,18 @@ final class SidePictureTests: XCTestCase {
         XCTAssertEqual(Estimator.estimate(three, history: history).steps[.shape], 300)
         XCTAssertEqual(JobShape(.generate, settings: { var s = MiniSettings(); s.source = .image; s.sides = [.back, .left]; return s }()).pictures, 3)
     }
+
+    /// A picture chosen for the back goes to the back, not the front: SwiftUI closes the chooser
+    /// before handing over the file. Planted by forgetting the place on close: every choice
+    /// replaced the front picture.
+    func testTheChooserKeepsItsPlaceWhenItCloses() {
+        var c = PictureChooser()
+        c.open(.back)
+        c.close()
+        XCTAssertFalse(c.isOpen)
+        XCTAssertEqual(c.side, .back)
+        c.open(nil)  // the front, after a side
+        c.close()
+        XCTAssertNil(c.side)
+    }
 }
