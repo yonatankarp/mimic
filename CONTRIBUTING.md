@@ -59,7 +59,7 @@ By contributing, you agree that your contribution is licensed under Mimic's
 | `tools/package_dmg.sh` | Builds `Mimic.app` into the disk image a release publishes. |
 | `tools/release_notes.py` | Writes a release's notes from the pull requests merged since the last one. |
 | `tools/package_pixal3d.sh`, `tools/pixal3d-steps.patch`, `tools/LICENSE-image-to-3dlab` | Build and package the Pixal3D engine the app downloads on first launch. |
-| `.github/workflows/release.yml` | Tests every change, builds the disk image, and publishes a release from a version tag. |
+| `.github/workflows/release.yml` | Tests every change, builds the disk image, and drafts a release from a version tag. |
 | `.github/workflows/engine.yml` | Builds that engine twice, run by hand, and checks both builds are the same. |
 | `runs/`, `engine/`, `queue/` | The dev build's minis, 3D engine (`trellis-cli`, each model set in `engine/models/<id>/`) and queue, when this checkout is its Mimic folder. All are git-ignored. An installed Mimic keeps them in `~/Documents/Mimic` (or the folder chosen in Settings) and `~/Library/Application Support/Mimic` instead; `app/NOTES.md` says how it chooses. |
 
@@ -106,9 +106,44 @@ downloads the real engine and the small model files, never the 8 GB of weights.
    git tag v0.3.0 && git push origin v0.3.0
    ```
 
-The workflow tests, builds `Mimic-0.3.0.dmg` and publishes it as a GitHub release with those
-notes, which Mimic's updater shows too. The README's install steps link to the latest release, so nothing else
-needs updating.
+   The workflow tests, builds `Mimic-0.3.0.dmg` and makes a draft GitHub release with those
+   notes, which Mimic's updater shows too. A draft is never the latest release, so no one sees it
+   and no Mimic updates to it yet.
+3. Check the draft on the Releases page:
+   - The disk image opens, and its Mimic starts the first time (with Open Anyway).
+   - It makes a full mini.
+   - A saved AI key still works, with no Keychain prompt.
+   - The previous version updates to it. On a Mac with the previous version, serve the draft's
+     appcast and disk image locally:
+
+     ```bash
+     gh release download v0.3.0 --pattern appcast.xml --pattern 'Mimic-*.dmg'
+     python3 -m http.server
+     ```
+
+     In the downloaded `appcast.xml`, change the enclosure `url` to
+     `http://127.0.0.1:8000/Mimic-0.3.0.dmg` (Sparkle's signature covers the disk image, not its
+     address). Then point Mimic at it, choose Check for Updates… and update:
+
+     ```bash
+     defaults write com.mimic.app SUFeedURL http://127.0.0.1:8000/appcast.xml
+     ```
+
+     Afterwards put it back with `defaults delete com.mimic.app SUFeedURL`.
+4. Click Publish on the draft. Mimic's updater sees it from then on. The README's install steps
+   link to the latest release, so nothing else needs updating.
+
+If something's wrong, delete the draft and the tag, fix it, and tag again:
+
+```bash
+gh release delete v0.3.0 --cleanup-tag --yes && git tag -d v0.3.0
+```
+
+### Rehearsing a release
+
+A throwaway tag such as `v0.9.99` runs the whole tag pipeline (signing, the Sparkle key, the
+appcast) into a draft that nobody sees. Delete it afterwards with the same command, so the next
+release's notes start from the last real version.
 
 ## Signing
 

@@ -9,7 +9,7 @@ public enum CommandRefusal: Error, Equatable, CustomStringConvertible {
     case badScale, badBaseShape, badBaseStyle, badMagnet, badSeed, noProjectName, badModel
     case noPicture(String)
     case unknownOption(String)
-    case projectNotHere, importAsItIs, newShapeNotHere, sidesNeedImage, scaleForObject, improveImage
+    case projectNotHere, importAsItIs, newShapeNotHere, sidesNeedImage, scaleForObject, improveImage, noChange, changeNotHere
     case queueMoveUsage, queueRemoveUsage
 
     public var description: String {
@@ -32,6 +32,8 @@ public enum CommandRefusal: Error, Equatable, CustomStringConvertible {
         case .sidesNeedImage: "--back, --left and --right go with mimic make … --image <front picture>"
         case .scaleForObject: "--scale is for characters; give an object's longest side with --size"
         case .improveImage: "--improve works on a description, not --image"
+        case .noChange: "--change needs what to change, in quotes"
+        case .changeNotHere: "--change goes with mimic make … --image and mimic make-another; for a description, change the description"
         case .queueMoveUsage: "usage: mimic queue move <name> --to front|end|<place> | --up | --down"
         case .queueRemoveUsage: "usage: mimic queue remove <name>"
         }
@@ -61,6 +63,8 @@ public struct MakeRequest: Equatable, Sendable {
     public var image: String?
     public var sides: [PictureSide: URL] = [:]
     public var description: String?
+    /// What to change in the picture (#156), as typed.
+    public var change: String?
     public var restyle = false, improve = false, wait = false, newShape = false
     /// Nil unless given: make starts from 42, make-another from the mini's own.
     public var seed: Int?
@@ -131,6 +135,9 @@ public struct MakeRequest: Equatable, Sendable {
                 r.sides[PictureSide(rawValue: String(a.dropFirst(2)))!] = URL(fileURLWithPath: v)
             case "--restyle": r.restyle = true
             case "--improve": r.improve = true
+            case "--change":
+                guard let v = value()?.trimmingCharacters(in: .whitespacesAndNewlines), !v.isEmpty else { throw CommandRefusal.noChange }
+                r.change = v
             case "--wait": r.wait = true
             case "--new-shape": r.newShape = true
             case "--seed": guard let v = value().flatMap(Int.init) else { throw CommandRefusal.badSeed }; r.seed = v
@@ -152,10 +159,11 @@ public struct MakeRequest: Equatable, Sendable {
     /// to make it at: `sizes` and `object` as typed, or as a resize keeps them.
     public func checkedSizes(_ sizes: Sizes, object: Bool) throws -> Sizes {
         if project != nil && command != .make && command != .import { throw CommandRefusal.projectNotHere }
-        if command == .import && (image != nil || restyle || improve || seed != nil || model != nil || newShape || description != nil) {
+        if command == .import && (image != nil || restyle || improve || seed != nil || model != nil || newShape || description != nil || change != nil) {
             throw CommandRefusal.importAsItIs
         }
         if newShape && command != .makeAnother { throw CommandRefusal.newShapeNotHere }
+        if change != nil && !(command == .makeAnother || command == .make && image != nil) { throw CommandRefusal.changeNotHere }
         if !sides.isEmpty && (command != .make || image == nil) { throw CommandRefusal.sidesNeedImage }
         var sizes = sizes
         if let scale {

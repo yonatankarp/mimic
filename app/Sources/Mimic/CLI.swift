@@ -240,15 +240,20 @@ enum CLI {
                 }
                 else { return fail(usage) }
                 let into = try request.project.map { try project($0, install) }
+                if request.change != nil && !request.restyle { print("A change redraws the picture, so it gets the grey sculpt too.") }
+                let used = request.change.flatMap { worded($0, cli.defaults, kind: kind) }
                 ahead = try jobs.make(name: name, picture: picture, restyle: request.restyle, seed: request.seed ?? 42, sizes: sizes,
                                       kind: kind, model: request.model ?? EngineDownload.selected(defaults: cli.defaults), project: into,
-                                      shown: request.shown, sides: request.sides)
+                                      shown: request.shown, sides: request.sides, fixes: request.change.map { [$0] } ?? [], fixUsed: used)
             case .makeAnother:
+                // Worded for what the mini is, read from it.
+                let was = Gallery.folder(install.runs, of).map(MiniSettings.load)?.kind ?? .character
+                let used = request.change.flatMap { worded($0, cli.defaults, kind: was) }
                 if request.newShape {
-                    ahead = try jobs.makeNewShape(of: of, as: name, seed: request.seed).ahead
+                    ahead = try jobs.makeNewShape(of: of, as: name, seed: request.seed, change: request.change, changeUsed: used).ahead
                     print("Making \(name), a new 3D shape of \(of).")
                 } else {
-                    ahead = try jobs.makeAnotherVersion(of: of, as: name, seed: request.seed).ahead
+                    ahead = try jobs.makeAnotherVersion(of: of, as: name, seed: request.seed, change: request.change, changeUsed: used).ahead
                     print("Making \(name), another version of \(of).")
                 }
             case .import:
@@ -476,6 +481,21 @@ enum CLI {
         } catch {
             print("Couldn't improve it: \(error) Using your description as it is.")
             return .description(description)
+        }
+    }
+
+    /// The AI helper's edit instruction for a `--change` (#156), or nil to use it as typed:
+    /// without a helper that's said nowhere, as the change still works; a failed one says so.
+    private static func worded(_ change: String, _ defaults: UserDefaults, kind: MiniKind) -> String? {
+        guard let helper = DescriptionHelper.configured(defaults: defaults) else { return nil }
+        print("Wording the change…")
+        do {
+            let used = try helper.rewriteFix(change, kind: kind.rawValue)
+            print("✨ Change: \(used)")
+            return used
+        } catch {
+            print("Couldn't word it: \(error) Using your change as it is.")
+            return nil
         }
     }
 
