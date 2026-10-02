@@ -3,17 +3,26 @@ import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
-/// Where step 1's pictures are made (#247): Draw Things on this Mac, the default, or Black Forest
-/// Labs' online service with the person's own key. Stored like the helper's provider, so `mimic make`
-/// through the PATH symlink reads the app's choice.
+/// Where step 1's pictures are made (#247): Draw Things on this Mac, the default, or an online
+/// service with the person's own key. Stored like the helper's provider, so `mimic make` through
+/// the PATH symlink reads the app's choice.
 public enum ImageService: String, CaseIterable, Sendable {
-    case drawThings = "drawthings", bfl
+    case drawThings = "drawthings", bfl, openai
     public static let key = "imageService"
     public static func load(_ d: UserDefaults) -> ImageService { ImageService(rawValue: d.string(forKey: key) ?? "") ?? .drawThings }
+
+    /// The online service this is, nil for Draw Things. Each one's entry is in its own file.
+    public var online: OnlineService? {
+        switch self {
+        case .drawThings: nil
+        case .bfl: .bfl
+        case .openai: .openai
+        }
+    }
 }
 
 /// Makes step 1's pictures: draws one from a description, or redraws one as a grey sculpt.
-/// Draw Things and the online service both do; the job runner asks whichever was chosen.
+/// Draw Things and the online services all do; the job runner asks whichever was chosen.
 public protocol PictureMaker: AnyObject, Sendable {
     func draw(description: String, seed: Int, kind: MiniKind) throws -> Data
     func sculpt(picture: URL, seed: Int, kind: MiniKind, change: String?) throws -> Data
@@ -25,171 +34,128 @@ public protocol PictureMaker: AnyObject, Sendable {
 
 extension DrawThings: PictureMaker {}
 
-/// Black Forest Labs' API, which runs the same FLUX.2 Klein as Draw Things, so the prompts carry
-/// over unchanged. Asynchronous: a request is submitted, then its `polling_url` is asked until the
-/// picture is ready, and the picture is fetched from the address it gives.
-public final class OnlineImages: PictureMaker, @unchecked Sendable {
-    /// The Keychain account the key is saved under (service "com.mimic.app", as the helper's keys).
-    public static let keyAccount = "bfl"
-    /// Klein 9B: the model Mimic's prompts were written for, and BFL's least expensive.
-    public static let model = "flux-2-klein-9b"
-    public static let defaultBase = URL(string: "https://api.bfl.ai")!
+/// An online picture service's client: a picture maker whose key can be checked for free.
+public protocol OnlineImages: PictureMaker {
+    var service: OnlineService { get }
+    /// Settings' Test and the setup check: a request that costs nothing and proves the key.
+    func check() throws
+}
 
+/// One online picture service, everything about it that isn't how its API is asked: what people
+/// see, where its key is kept and may go, and how to check it. Settings, the checks, the report
+/// and every message read the name from here, so none of them names a service itself.
+public struct OnlineService: Sendable {
+    /// The name people see.
+    public let name: String
+    /// The Keychain account its key is saved under (service "com.mimic.app", as the helper's keys).
+    public let keyAccount: String
+    /// Where to get a key: Settings' "Get a key".
+    public let keyPage: URL
+    public let base: URL
+    /// The header the key goes in, and what goes before it there.
+    let keyHeader: String
+    let keyPrefix: String
+    /// Hosts the key may go to over https, besides the address it was set up with; "*.example.com"
+    /// is any host under it.
+    let keyHosts: [String]
+    /// A GET on this path checks the key for free.
+    let checkPath: String
+    /// Its client, asking `key` for the key only when a request goes out.
+    let client: @Sendable (_ base: URL, _ key: @escaping @Sendable () -> String?) -> any OnlineImages
+
+    public func client(base: URL? = nil, key: @escaping @Sendable () -> String?) -> any OnlineImages { client(base ?? self.base, key) }
+
+    /// The service Settings chose, with the key saved for it; nil when pictures are made by Draw Things.
+    public static func configured(defaults: UserDefaults, service: String = Keychain.service) -> (any OnlineImages)? {
+        guard let s = ImageService.load(defaults).online else { return nil }
+        return s.client { Keychain.read(account: s.keyAccount, service: service) }
+    }
+
+    func mayHaveKey(host: String) -> Bool {
+        keyHosts.contains { $0.hasPrefix("*.") ? host.hasSuffix($0.dropFirst()) : host == $0 }
+    }
+}
+
+/// What every online client shares: the key, Stop, and requests that only ever take the key
+/// where it may go.
+public class OnlineClient: @unchecked Sendable {
+    public let service: OnlineService
     let base: URL
     private let key: @Sendable () -> String?
-    /// How long a picture may take, and how often to ask whether it's ready.
+    /// How long a picture may take.
     var timeout: TimeInterval = 300
-    var poll: TimeInterval = 0.5
 
     private let lock = NSLock()
     private var task: URLSessionDataTask?
     private var canceled = false
 
-    /// `key` is asked only when a request goes out: reading the Keychain can wait on a prompt.
-    public init(base: URL = OnlineImages.defaultBase, key: @escaping @Sendable () -> String?) {
-        self.base = base; self.key = key
+    init(service: OnlineService, base: URL, key: @escaping @Sendable () -> String?) {
+        self.service = service; self.base = base; self.key = key
     }
-
-    /// The service Settings chose, with the key saved for it; nil when pictures are made by Draw Things.
-    public static func configured(defaults: UserDefaults, service: String = Keychain.service) -> OnlineImages? {
-        guard ImageService.load(defaults) == .bfl else { return nil }
-        return OnlineImages { Keychain.read(account: keyAccount, service: service) }
-    }
-
-    public func draw(description: String, seed: Int, kind: MiniKind) throws -> Data {
-        try make(["prompt": DrawThings.drawPrompt(description, kind: kind), "seed": seed], width: 1024, height: 1024)
-    }
-
-    public func sculpt(picture: URL, seed: Int, kind: MiniKind, change: String?) throws -> Data {
-        // The size Draw Things gets: multiples of 64, which FLUX.2's multiples of 16 accept.
-        let (png, w, h) = try DrawThings.fitForEdit(picture)
-        return try make(["prompt": DrawThings.redrawPrompt(kind: kind, change: change), "seed": seed,
-                         "input_image": Self.dataURL(png)], width: w, height: h)
-    }
-
-    /// The picture inline, as a data URL: FLUX.2's OpenAPI only says "Path to the input image", and
-    /// BFL's own FLUX.2 example sends a local file this way (docs.bfl.ml/cookbook/video_start_from_images).
-    static func dataURL(_ png: Data) -> String { "data:image/png;base64," + png.base64EncodedString() }
 
     public func cancel() { lock.withLock { canceled = true; task?.cancel() } }
     public func reset() { lock.withLock { canceled = false } }
+    var isCanceled: Bool { lock.withLock { canceled } }
 
-    /// Settings' Test and the setup check: asks for the account's credits, which costs nothing
-    /// and proves the key.
-    public func check(timeout: TimeInterval = 15) throws {
-        var req = URLRequest(url: base.appendingPathComponent("v1/credits"))
-        req.setValue(try validKey(), forHTTPHeaderField: "x-key")
-        req.timeoutInterval = timeout
-        _ = try json(req)
-    }
+    /// An error naming this service.
+    func fail(_ problem: OnlineImagesError.Problem) -> OnlineImagesError { OnlineImagesError(problem, service: service.name) }
 
-    // MARK: Requests
-
-    private func validKey() throws -> String {
+    func validKey() throws -> String {
         let k = key()?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        guard !k.isEmpty else { throw OnlineImagesError.noKey }
+        guard !k.isEmpty else { throw fail(.noKey) }
         return k
     }
 
-    private func make(_ body: [String: Any], width: Int, height: Int) throws -> Data {
-        if lock.withLock({ canceled }) { throw OnlineImagesError.cancelled }
-        let key = try validKey()
-        var b = body
-        // PNG, as Draw Things gives: the default is JPEG. Moderation stays at BFL's default.
-        b["output_format"] = "png"; b["width"] = width; b["height"] = height
-        var submit = URLRequest(url: base.appendingPathComponent("v1/\(Self.model)"))
-        submit.httpMethod = "POST"
-        submit.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        submit.setValue(key, forHTTPHeaderField: "x-key")
-        submit.httpBody = try JSONSerialization.data(withJSONObject: b)
-        submit.timeoutInterval = 60
-        let started = try json(submit)
-        guard let polling = (started["polling_url"] as? String).flatMap(URL.init(string:)), sendsKey(to: polling) else {
-            throw OnlineImagesError.failed("it gave no address to collect the picture from")
-        }
-        let deadline = Date().addingTimeInterval(timeout)
-        func wait() {
-            let until = Date().addingTimeInterval(poll)
-            while Date() < until, !lock.withLock({ canceled }) { usleep(20_000) }
-        }
-        while true {
-            if lock.withLock({ canceled }) { throw OnlineImagesError.cancelled }
-            if Date() > deadline { throw OnlineImagesError.timedOut }
-            var ask = URLRequest(url: polling)
-            ask.setValue(key, forHTTPHeaderField: "x-key")
-            ask.timeoutInterval = 30
-            let reply: [String: Any]
-            do { reply = try json(ask) } catch let e as OnlineImagesError where [.busy, .timedOut, .unreachable, .noInternet].contains(e) {
-                // The request is paid for already: a hiccup while asking is asked again, until the deadline.
-                wait(); continue
-            }
-            switch reply["status"] as? String {
-            case "Ready":
-                guard let sample = ((reply["result"] as? [String: Any])?["sample"] as? String).flatMap(URL.init(string:)) else {
-                    throw OnlineImagesError.failed("no picture in the reply")
-                }
-                // The delivery address is signed: it needs no key, so none is sent there.
-                return try Self.png(fetch(URLRequest(url: sample)).data, width: width, height: height)
-            case "Request Moderated", "Content Moderated":
-                let reasons = ((reply["details"] as? [String: Any])?["Moderation Reasons"] as? [String]) ?? []
-                throw OnlineImagesError.refused(reasons)
-            case "Error", "Failed", "Task not found":
-                // Task not found is final, as BFL's docs say (and get_result answers it with a 404).
-                throw OnlineImagesError.failed("")
-            default:
-                // Pending, Reasoning, Generating: asked again shortly, until the deadline or a Stop.
-                wait()
-            }
-        }
+    /// A request to `path` on the service, carrying the key.
+    func request(_ path: String, key: String) -> URLRequest {
+        var req = URLRequest(url: base.appendingPathComponent(path))
+        authorize(&req, key: key)
+        return req
     }
 
-    /// The key goes to BFL's own hosts over https (a polling address may be a regional one), or to
-    /// this Mac in tests: never to whatever address a reply names.
+    func authorize(_ req: inout URLRequest, key: String) {
+        req.setValue(service.keyPrefix + key, forHTTPHeaderField: service.keyHeader)
+    }
+
+    /// The free key check's request.
+    func checkRequest(timeout: TimeInterval) throws -> URLRequest {
+        var req = request(service.checkPath, key: try validKey())
+        req.timeoutInterval = timeout
+        return req
+    }
+
+    /// The key goes to the service's own hosts over https, or to the address it was set up with
+    /// (this Mac in tests): never to whatever address a reply names.
     func sendsKey(to url: URL) -> Bool {
         guard let host = url.host?.lowercased() else { return false }
         if host == base.host?.lowercased() && url.scheme == base.scheme && url.port == base.port { return true }
-        return url.scheme == "https" && (host == "bfl.ai" || host.hasSuffix(".bfl.ai"))
+        return url.scheme == "https" && service.mayHaveKey(host: host)
     }
 
-    /// A reply's JSON, or the error its status means.
-    private func json(_ req: URLRequest) throws -> [String: Any] {
-        let (status, data) = try fetch(req)
-        let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
-        let detail = json["detail"] as? String ?? ""
-        switch status {
-        case 200: return json
-        // A task get_result doesn't know: its status says so, and the poll loop ends on it.
-        case 404 where json["status"] is String: return json
-        // Seen from api.bfl.ai: no key or an unknown one is 403 "Not authenticated"; a key not
-        // shaped like one is 422 "Invalid API key format".
-        case 401, 403: throw OnlineImagesError.badKey
-        case 422 where detail.localizedCaseInsensitiveContains("api key"): throw OnlineImagesError.badKey
-        case 402: throw OnlineImagesError.noCredits
-        case 429, 500...599: throw OnlineImagesError.busy
-        default:
-            var why = detail.isEmpty ? String(decoding: data, as: UTF8.self) : detail
-            // A service that echoes the key in its error text must not put it on screen: taken out
-            // before the text is cut short, or a cut key would stay.
-            if let k = key(), !k.isEmpty { why = why.replacingOccurrences(of: k, with: "…") }
-            throw OnlineImagesError.failed(String(why.prefix(200)))
-        }
+    /// Error text a service sent, for a message: the key taken out before it's cut short, or a
+    /// cut key would stay.
+    func masked(_ text: String) -> String {
+        var why = text
+        if let k = key(), !k.isEmpty { why = why.replacingOccurrences(of: k, with: "…") }
+        return String(why.prefix(200))
     }
 
-    private func fetch(_ req: URLRequest) throws -> (status: Int, data: Data) {
+    func fetch(_ req: URLRequest) throws -> (status: Int, data: Data) {
         let done = DispatchSemaphore(value: 0)
-        nonisolated(unsafe) var result: Result<(Int, Data), Error> = .failure(OnlineImagesError.unreachable)
+        nonisolated(unsafe) var result: Result<(Int, Data), Error> = .failure(fail(.unreachable))
+        let name = service.name
         let t = URLSession.shared.dataTask(with: req) { data, resp, err in
             defer { done.signal() }
-            if let err = err as? URLError { result = .failure(OnlineImagesError.from(err)); return }
+            if let err = err as? URLError { result = .failure(OnlineImagesError(.from(err), service: name)); return }
             guard let data, let http = resp as? HTTPURLResponse else { return }
             result = .success((http.statusCode, data))
         }
-        t.delegate = KeepKey { [self] url in self.sendsKey(to: url) }
+        t.delegate = KeepKey(header: service.keyHeader) { [self] url in self.sendsKey(to: url) }
         let stopNow = lock.withLock { () -> Bool in
             if !canceled { task = t; t.resume() }
             return canceled
         }
-        if stopNow { throw OnlineImagesError.cancelled }
+        if stopNow { throw fail(.cancelled) }
         done.wait()
         lock.withLock { task = nil }
         return try result.get()
@@ -197,8 +163,8 @@ public final class OnlineImages: PictureMaker, @unchecked Sendable {
 
     /// A PNG of the size asked for, as Draw Things gives and step 1 writes `source.png`. PNG and the
     /// size are asked for, but anything else that comes back is converted and scaled to them.
-    static func png(_ data: Data, width: Int, height: Int) throws -> Data {
-        let unreadable = OnlineImagesError.failed("the picture it sent can't be read")
+    func png(_ data: Data, width: Int, height: Int) throws -> Data {
+        let unreadable = fail(.failed("the picture it sent can't be read"))
         guard let src = CGImageSourceCreateWithData(data as CFData, nil), let image = CGImageSourceCreateImageAtIndex(src, 0, nil) else {
             throw unreadable
         }
@@ -219,46 +185,56 @@ public final class OnlineImages: PictureMaker, @unchecked Sendable {
 
 /// URLSession follows a redirect with every header, the key too: a redirect to an address the key
 /// mustn't go to is followed without it.
-private final class KeepKey: NSObject, URLSessionTaskDelegate, Sendable {
+final class KeepKey: NSObject, URLSessionTaskDelegate, Sendable {
+    let header: String
     let allowed: @Sendable (URL) -> Bool
-    init(_ allowed: @escaping @Sendable (URL) -> Bool) { self.allowed = allowed }
+    init(header: String, _ allowed: @escaping @Sendable (URL) -> Bool) { self.header = header; self.allowed = allowed }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
                     newRequest request: URLRequest) async -> URLRequest? {
         guard let url = request.url, !allowed(url) else { return request }
         var stripped = request
-        stripped.setValue(nil, forHTTPHeaderField: "x-key")
+        stripped.setValue(nil, forHTTPHeaderField: header)
         return stripped
     }
 }
 
-/// In plain words, since a job keeps `String(describing:)` as why it failed. None names Draw
-/// Things: a failure that does is taken for a Draw Things setup problem (JobProgress.drawThingsCaused).
-public enum OnlineImagesError: Error, CustomStringConvertible, Equatable {
-    case noKey, badKey, noCredits, busy, refused([String]), timedOut, noInternet, unreachable, failed(String), cancelled
+/// In plain words, naming the service, since a job keeps `String(describing:)` as why it failed.
+/// None names Draw Things: a failure that does is taken for a Draw Things setup problem
+/// (JobProgress.drawThingsCaused).
+public struct OnlineImagesError: Error, CustomStringConvertible, Equatable {
+    public enum Problem: Equatable, Sendable {
+        case noKey, badKey, noCredits, busy, refused([String]), timedOut, noInternet, unreachable, failed(String), cancelled
 
-    static func from(_ e: URLError) -> OnlineImagesError {
-        switch e.code {
-        case .cancelled: .cancelled
-        case .notConnectedToInternet, .networkConnectionLost, .cannotFindHost, .dnsLookupFailed, .dataNotAllowed: .noInternet
-        case .timedOut: .timedOut
-        default: .unreachable
+        static func from(_ e: URLError) -> Problem {
+            switch e.code {
+            case .cancelled: .cancelled
+            case .notConnectedToInternet, .networkConnectionLost, .cannotFindHost, .dnsLookupFailed, .dataNotAllowed: .noInternet
+            case .timedOut: .timedOut
+            default: .unreachable
+            }
         }
     }
 
+    public let problem: Problem
+    /// The service's name, as people see it.
+    public let service: String
+
+    public init(_ problem: Problem, service: String) { self.problem = problem; self.service = service }
+
     public var description: String {
-        switch self {
-        case .noKey: "No Black Forest Labs key is saved. Paste yours in Settings, under Pictures."
-        case .badKey: "Black Forest Labs turned the key down. Copy it again from your account and save it in Settings, under Pictures."
-        case .noCredits: "Your Black Forest Labs account is out of credits. Add some on their website, then try again."
-        case .busy: "Black Forest Labs is busy, or you've reached your account's limit. Try again in a minute."
-        case .refused(let why) where why.isEmpty: "Black Forest Labs wouldn't make this picture. Try different words or another picture."
-        case .refused(let why): "Black Forest Labs wouldn't make this picture (\(why.joined(separator: ", ").lowercased())). Try different words or another picture."
-        case .timedOut: "Black Forest Labs took too long to make the picture. Try again."
+        switch problem {
+        case .noKey: "No \(service) key is saved. Paste yours in Settings, under Pictures."
+        case .badKey: "\(service) turned the key down. Copy it again from your account and save it in Settings, under Pictures."
+        case .noCredits: "Your \(service) account is out of credits, or has reached its spending limit. Add credits or raise your limit on their website, then try again."
+        case .busy: "\(service) is busy, or you've reached your account's limit. Try again in a minute."
+        case .refused(let why) where why.isEmpty: "\(service) wouldn't make this picture. Try different words or another picture."
+        case .refused(let why): "\(service) wouldn't make this picture (\(why.joined(separator: ", ").lowercased())). Try different words or another picture."
+        case .timedOut: "\(service) took too long to make the picture. Try again."
         case .noInternet: "No internet connection. Connect, then try again."
-        case .unreachable: "Couldn't reach Black Forest Labs. Try again in a minute."
-        case .failed(let why) where why.isEmpty: "Black Forest Labs couldn't make the picture. Try again."
-        case .failed(let why): "Black Forest Labs couldn't make the picture: \(why)"
+        case .unreachable: "Couldn't reach \(service). Try again in a minute."
+        case .failed(let why) where why.isEmpty: "\(service) couldn't make the picture. Try again."
+        case .failed(let why): "\(service) couldn't make the picture: \(why)"
         case .cancelled: "Stopped."
         }
     }

@@ -35,8 +35,8 @@ Mimic doesn't need to cut it out again.
 **Turn it into a grey sculpt first (recommended)** has Mimic redraw your picture as an
 unpainted grey statue, with the same pose, before the 3D model sees it. The 3D model understands a
 grey sculpt far better than a painting or a photo, so the mini comes out cleaner. It needs Draw
-Things (see [Getting started](getting-started.md#set-up-draw-things)), or Black Forest Labs
-online, which is sent your picture to redraw it (see
+Things (see [Getting started](getting-started.md#set-up-draw-things)), or an online service
+(Black Forest Labs or OpenAI), which is sent your picture to redraw it (see
 [Choose what makes the pictures](settings.md#choose-what-makes-the-pictures)).
 
 Leave it on, unless:
@@ -60,9 +60,8 @@ A flat 2D cartoon, with outlines and flat colours, can come out as a flat sheet.
 - is always made with the Pixal3D model, whichever one you chose in Settings. Pixal3D keeps cartoon
   shapes smooth, where TRELLIS.2 builds them out of flat panels.
 
-It's for characters made from a picture, and it needs the Pixal3D model and Draw Things (or Black
-Forest Labs, online). If you
-don't have Pixal3D yet, New Mini says "Cartoons need the Pixal3D model", with **Open Settings**:
+It's for characters made from a picture, and it needs the Pixal3D model and Draw Things (or an online
+service). If you don't have Pixal3D yet, New Mini says "Cartoons need the Pixal3D model", with **Open Settings**:
 download it in **Settings → 3D Model**.
 
 Try Again and Make Another Version make a cartoon the same way.
@@ -113,7 +112,7 @@ details list every change, oldest first.
 If you set up an AI helper for descriptions, it also rewrites your change into a precise
 instruction before the picture is redrawn. New Mini says "Writing the change…" meanwhile.
 
-A change needs Draw Things, or Black Forest Labs online. In Terminal it's `--change`, and Terminal doesn't stop to show you the
+A change needs Draw Things, or an online service. In Terminal it's `--change`, and Terminal doesn't stop to show you the
 picture: see [Mimic from a terminal](cli.md).
 
 ## Write a description that works

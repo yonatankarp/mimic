@@ -212,7 +212,7 @@ enum CLI {
         jobs.heldForPower = cli.power
         // Pictures are made where the app's Settings say: Draw Things, or online (#247).
         let suite = cli.defaults == .standard ? nil : "com.mimic.app"  // as Power.holds: UserDefaults isn't Sendable
-        jobs.pictureService = { OnlineImages.configured(defaults: suite.flatMap(UserDefaults.init(suiteName:)) ?? .standard) }
+        jobs.pictureService = { OnlineService.configured(defaults: suite.flatMap(UserDefaults.init(suiteName:)) ?? .standard) }
         // This terminal runs the queue only until its own mini is made; the app runs the rest.
         jobs.keepGoing = { [name] in $0.contains { $0.name == name } }
         let mine = Mine(name: name, runs: install.runs)

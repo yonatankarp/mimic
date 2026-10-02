@@ -36,8 +36,8 @@ If Mimic is already making another mini, in the app or another Terminal, yours j
 [queue](queue.md) and the command returns straight away. Add `--wait` to stay and watch it instead.
 
 A picture drawn from a description, or redrawn with `--restyle` or `--change`, is made where the
-app's **Settings → Draw Things & AI** says: Draw Things on your Mac, or Black Forest Labs online
-with the key saved there (see
+app's **Settings → Draw Things & AI** says: Draw Things on your Mac, or Black Forest Labs or
+OpenAI online with the key saved there (see
 [Choose what makes the pictures](settings.md#choose-what-makes-the-pictures)).
 
 | Option | What it does |

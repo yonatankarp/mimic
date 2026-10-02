@@ -124,7 +124,7 @@ public final class JobRunner: @unchecked Sendable {
     /// what it made, instead of to the Trash.
     private var keepWork = false
     private var power: @Sendable () -> Bool = { false }
-    private var service: @Sendable () -> OnlineImages? = { OnlineImages.configured(defaults: .standard) }
+    private var service: @Sendable () -> (any OnlineImages)? = { OnlineService.configured(defaults: .standard) }
     /// The picture maker of the running job, chosen as it starts: what Stop stops.
     private var pictures: PictureMaker?
     public var onChange: (@Sendable (JobStatus) -> Void)?
@@ -161,7 +161,7 @@ public final class JobRunner: @unchecked Sendable {
 
     /// The online picture service Settings chose (#247), or nil for Draw Things: asked as each job
     /// starts, so a change in Settings counts from the next one. `mimic make` gives the app's.
-    public var pictureService: @Sendable () -> OnlineImages? {
+    public var pictureService: @Sendable () -> (any OnlineImages)? {
         get { lock.withLock { service } }
         set { lock.withLock { service = newValue } }
     }

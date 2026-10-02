@@ -196,16 +196,16 @@ struct SettingsView: View {
 
 private struct CheckRow: View {
     /// What each part is for, in a sentence: the labels name the parts, this says why they matter.
-    static let what: [String: String] = [
+    static var what: [String: String] { [
         "engine": "Turns your picture into a 3D shape, on your Mac's graphics chip.",
         "models": "What the 3D engine has learned, for the 3D model in use. Downloaded once.",
         "space": "Each mini needs about 150 MB while it's being made.",
         "drawthings-app": "A free app that draws characters from a description and turns pictures into grey sculpts.",
         "drawthings-api": "Lets Mimic ask Draw Things for pictures. Mimic opens Draw Things when it needs it, unless you turn that off below.",
         "drawthings-model": "The picture model Mimic asks Draw Things to use.",
-        Checks.onlineID: "Black Forest Labs draws characters from a description and turns pictures into grey sculpts, online.",
+        Checks.onlineID: "\(ImageService.load(.standard).online?.name ?? "The online service") draws characters from a description and turns pictures into grey sculpts, online.",
         "slicer": "Turns a mini into instructions for your printer.",
-    ]
+    ] }
     let check: Check
     let result: CheckResult?
     let setup: SetupModel

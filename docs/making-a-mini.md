@@ -53,10 +53,10 @@ chest, shield on his back". Mimic fills in a name from it, such as "Dwarf Cleric
 
 A description needs Draw Things, a free app: Mimic uses it to draw your character first. If it isn't
 set up, New Mini says so, with **Open Settings**. See
-[Getting started](getting-started.md#set-up-draw-things). Or have Black Forest Labs draw it online
-with your own API key, instead of Draw Things: then your description is sent to them, and each
-picture is one paid request. Until a key that works is saved, New Mini says "A description needs a
-working Black Forest Labs key." See
+[Getting started](getting-started.md#set-up-draw-things). Or have an online service (Black Forest Labs
+or OpenAI) draw it with your own API key, instead of Draw Things: then your description is sent to
+that service, and each picture is one paid request. Until a key that works is saved, New Mini says
+so, naming the service: "A description needs a working OpenAI key.", for example. See
 [Choose what makes the pictures](settings.md#choose-what-makes-the-pictures).
 
 ### Let the AI helper write a fuller description

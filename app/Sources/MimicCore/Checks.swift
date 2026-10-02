@@ -34,7 +34,7 @@ public struct Checks: Sendable {
     /// Settings → Open Draw Things when needed: then Draw Things being closed is fine.
     public var autoOpen: Bool
     /// The online picture service Settings chose (#247): then its key is checked instead of Draw Things.
-    public var online: OnlineImages?
+    public var online: (any OnlineImages)?
     public var run: Runner
     public var freeBytes: @Sendable (URL) -> Int64?
 
@@ -43,7 +43,7 @@ public struct Checks: Sendable {
                 appFolders: [URL] = Slicer.appFolders(),
                 drawThings: DrawThings = DrawThings(),
                 autoOpen: Bool = DrawThingsApp.enabled(),
-                online: OnlineImages? = OnlineImages.configured(defaults: .standard),
+                online: (any OnlineImages)? = OnlineService.configured(defaults: .standard),
                 run: @escaping Runner = Checks.execute,
                 freeBytes: @escaping @Sendable (URL) -> Int64? = Checks.freeBytes) {
         self.install = install; self.model = model; self.appFolders = appFolders; self.drawThings = drawThings; self.autoOpen = autoOpen
@@ -56,7 +56,7 @@ public struct Checks: Sendable {
     public static let drawThingsIDs: Set<String> = ["drawthings-app", "drawthings-api", "drawthings-model"]
     /// The online service's one check, in their place when it makes the pictures.
     public static let onlineID = "images-online"
-    public static let onlineLabel = "Black Forest Labs key works"
+    public static func onlineLabel(_ service: OnlineService) -> String { "\(service.name) key works" }
 
     public var all: [Check] {
         let s = self
@@ -84,9 +84,10 @@ public struct Checks: Sendable {
     private var pictures: [Check] {
         let s = self
         if let online {
-            return [Check(id: Self.onlineID, label: Self.onlineLabel, required: false, fix: "") {
+            let label = Self.onlineLabel(online.service)
+            return [Check(id: Self.onlineID, label: label, required: false, fix: "") {
                 let why: String? = { do { try online.check(); return nil } catch { return "\(error)" } }()
-                return CheckResult(id: Self.onlineID, label: Self.onlineLabel, required: false, ok: why == nil, fix: why ?? "")
+                return CheckResult(id: Self.onlineID, label: label, required: false, ok: why == nil, fix: why ?? "")
             }]
         }
         return [

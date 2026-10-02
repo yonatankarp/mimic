@@ -454,29 +454,73 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   fake server only. Key reads happen off the main thread: an ad-hoc-signed update is a new
   identity to the Keychain, so macOS may ask once to let Mimic use the saved key.
 - **Pictures can be made online instead of by Draw Things** (#247, `MimicCore/OnlineImages.swift`).
-  Settings → Pictures (`imageService`: `drawthings`, the default, or `bfl`). Only Black Forest
-  Labs: it runs the same FLUX.2 Klein, so the prompts in `DrawThings.swift` carry over word for
-  word (OpenAI and Gemini would need their own prompts, and the cartoon check again). The model is
-  pinned to `flux-2-klein-9b`, which both draws and edits. `input_image` is a PNG data URL
-  (`data:image/png;base64,…`) at `DrawThings.editSize`: the OpenAPI only says "Path to the input
-  image", and BFL's own FLUX.2 example (cookbook/video_start_from_images) sends a local file that
-  way; Kontext's page also takes bare base64. PNG is asked for (the default is JPEG). The API is
-  async: submit, then ask the `polling_url` every 0.5 s for up to 300 s (a 5xx, 429, timeout or
-  dropped connection meanwhile is asked again, since the picture is paid for; "Task not found", a
-  404, is final), then fetch `result.sample`, which needs no key and gets none. What comes back is
-  scaled to the size asked for if it isn't it, so the 3D step gets what Draw Things would give.
-  Seen live with made-up keys: none or an unknown one is 403 "Not authenticated", one not shaped
-  like a key is 422 "Invalid API key format"; both read as a wrong key. The key goes only to the
-  address it was set up with (scheme, host and port) or https `*.bfl.ai` (polling addresses can
-  be regional), and a redirect anywhere else is followed without it (`KeepKey`). `PictureMaker` is the one seam: `DrawThings` and `OnlineImages` both
-  are one, and the job runner picks one as each job starts (`JobRunner.pictureService`), so Stop
-  cancels the one in use, and a change in Settings counts from the next job. The key is a Keychain
-  account `bfl`, as the helper's. `GET /v1/credits` checks it for free: Settings' Test and the
+  Settings → Pictures (`imageService`: `drawthings`, the default, `bfl` or `openai`). Each online
+  service is one `OnlineService` entry, in its own file (`BlackForestLabs.swift`,
+  `OpenAIImages.swift`): the name people see, its Keychain account, its "Get a key" page, its
+  address, the header its key goes in, the hosts the key may go to, the free GET that checks the
+  key, and its client. Settings, the checks, the report, New Mini, Fixes and every error read the
+  name from the entry, so no other file names a service (a test checks each one's messages name it
+  and no other). `OnlineClient` is what the clients share: the key (read only as a request goes
+  out), Stop, and `fetch`, which sends the key only to the address it was set up with (scheme, host
+  and port) or the entry's hosts over https, follows a redirect anywhere else without the key's
+  header (`KeepKey`), and cuts the key out of error text before it's shortened. Errors are
+  `OnlineImagesError(problem, service: name)`, in the same plain words for every service.
+  `PictureMaker` is the one seam: `DrawThings` and each online client are one, and the job runner
+  picks one as each job starts (`JobRunner.pictureService`), so Stop cancels the one in use, and a
+  change in Settings counts from the next job. The entry's free check is Settings' Test and the
   `images-online` check, which replaces the three Draw Things checks; it isn't in the Draw Things
-  watch, which would ask every few seconds. Its errors never say "Draw Things", or the popover
+  watch, which would ask every few seconds. The errors never say "Draw Things", or the popover
   would send people to its setup steps. No `--image-service` flag: a per-make choice would have to
-  be saved with the mini, since the app may run it from the queue later. Proven against a local
-  fake server only; there's no cancel in the API, so a stopped request is probably still charged.
+  be saved with the mini, since the app may run it from the queue later. What comes back is scaled
+  to the size asked for if it isn't it, so the 3D step gets what Draw Things would give.
+  - *Black Forest Labs* runs the same FLUX.2 Klein, so the prompts in `DrawThings.swift` carry
+    over word for word. The model is pinned to `flux-2-klein-9b`, which both draws and edits.
+    `input_image` is a PNG data URL (`data:image/png;base64,…`) at `DrawThings.editSize`: the
+    OpenAPI only says "Path to the input image", and BFL's own FLUX.2 example
+    (cookbook/video_start_from_images) sends a local file that way; Kontext's page also takes bare
+    base64. PNG is asked for (the default is JPEG). The API is async: submit, then ask the
+    `polling_url` every 0.5 s for up to 300 s (a 5xx, 429, timeout or dropped connection meanwhile
+    is asked again, since the picture is paid for; "Task not found", a 404, is final), then fetch
+    `result.sample`, which needs no key and gets none. Seen live with made-up keys: none or an
+    unknown one is 403 "Not authenticated", one not shaped like a key is 422 "Invalid API key
+    format"; both read as a wrong key. The key is `x-key`, to https `*.bfl.ai` (polling addresses
+    can be regional), Keychain account `bfl`, checked by `GET /v1/credits`. There's no cancel in
+    the API, so a stopped request is probably still charged.
+  - *OpenAI* is pinned to `gpt-image-2.5-sunburst`: OpenAI's docs recommend it for generating and
+    editing (Flare is the faster everyday one), and a grey sculpt has to keep the character. Text
+    to picture is `POST /v1/images/generations` (JSON), picture to picture `POST /v1/images/edits`
+    as multipart with the picture as `image[]`, a PNG at `DrawThings.editSize`. Both ask for
+    `output_format: png` and `background: opaque` (a see-through background would leave the 3D
+    step nothing to cut out), and the picture comes back in the reply as `b64_json`. The size asked
+    for is the one wanted when the model takes it (sides in multiples of 16, at most 3:1, 655,360
+    to 8,294,400 pixels), else the same shape with a 1536 long side and the short side in
+    sixteens, at least 512: past 3:1 that's 1536x512, the nearest it takes, since the scaling
+    stretches. One synchronous request, so Stop cancels it (whether OpenAI still
+    charges a cancelled one isn't known); its timeout is 300 s, as OpenAI says a picture can take
+    two minutes. No seed: the Image API has none, so Try Again and a variation number don't
+    reproduce a picture. Quality is left at `auto`, OpenAI's default. The prompts are FLUX's,
+    unchanged: GPT Image models read whole sentences, and these already say each thing the 3D step
+    needs (one full-body figure, a plain light grey background, an unpainted grey sculpt, no base)
+    in plain words; without a real-key run there's nothing to tune them against, so any OpenAI
+    wording would go in `OpenAIImages.swift` once one shows a need. Seen live with made-up keys:
+    none, a malformed one and an unknown one are all 401 `invalid_api_key`, whose message repeats
+    part of the key, so it's never shown; only that code is a wrong key. Any other 401 (a
+    restricted key without a scope, an address not on the project's list) is shown in OpenAI's
+    words, and the free check passes a 401 whose message says "Missing scopes": a restricted key
+    allowed to make pictures but not to list models is still a key OpenAI knows, and failing it
+    would turn off descriptions and the sculpt for a key that can make them (the message shape is
+    from OpenAI's restricted-key answers, not seen live). A 429 is out of credits when its type is
+    `insufficient_quota` or its code is a billing one from OpenAI's error codes guide
+    (`credit_balance_exhausted`, the organisation and project spend limits, the organisation usage
+    limit): asking again won't help, so the message says to add credits or raise the limit. Any
+    other 429 or a 5xx is busy, 400 `moderation_blocked` a refusal with its `moderation_details`
+    categories; anything else, such as 403 for an organisation not yet verified for GPT Image, in
+    OpenAI's own words. The key is `Authorization: Bearer`, to https `api.openai.com` only,
+    Keychain account `openai-images` (the helper's OpenAI key is `openai`; one key for both would
+    mean removing it in one place removes it from the other), checked by `GET /v1/models`.
+    URLSession drops `Authorization` on a redirect to another host by itself, so `KeepKey` is
+    tested directly for it.
+  Both are proven against local fake servers only.
 - **Report a Problem makes a zip and opens a filled-in issue** (`MimicCore/Report.swift`, `Log.swift`;
   #100). A link can't attach a file, so Help → Report a Problem… (or the action on a mini that
   didn't finish) writes `runs/_reports/mimic-report-….zip`, shows it in Finder, and opens
