@@ -180,8 +180,9 @@ for the new one.
 **Test** sends a tiny request and says **It works.**, or what went wrong.
 
 !!! note "What the helper sees"
-    A cloud service receives only the text you give it to rewrite, nothing else: no pictures, no
-    minis. Ollama runs on your Mac, so with it your descriptions stay there.
+    A cloud service receives only what you type: a description, or what to change in a picture,
+    never the picture itself, and no minis. Ollama runs on your Mac, so with it what you type stays
+    there.
 
 ## Advanced
 
@@ -202,16 +203,12 @@ It asks first:
 
 - **Reset** forgets Mimic's settings, its tips and any saved AI keys, and shows the tour again.
 - **Reset All** does the same and also removes the 3D engine, so first-launch setup shows again and
-  downloads it again (about 8 GB).
+  downloads it again (8.3 to 9.3 GB, depending on the 3D model).
 
 Your minis are always kept, and so is the folder you chose for them. Everything else on these tabs
-goes back to how it started, including the 3D model: Mimic goes back to TRELLIS.2. You can't
-reset while a mini is being made.
-
-!!! warning
-    If you only had Pixal3D downloaded, Mimic shows its welcome screen after a reset, because
-    TRELLIS.2 isn't there. Choose Pixal3D on that screen and press **Download**: Mimic checks the
-    files you already have instead of downloading them again.
+goes back to how it started, except that **Reset** keeps the 3D model you use. After **Reset All**,
+setup starts on TRELLIS.2, and you can choose Pixal3D there instead. You can't reset while a mini is
+being made.
 
 ### Which Mimic this is
 

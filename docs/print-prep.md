@@ -12,8 +12,8 @@ takes 6 s and 1.5 GB. At 100 mm on a 0.4 mm nozzle, 157 s and 13.2 GB against 14
 ## What it does, step by step
 
 1. **Reads the model** (`model.glb`, written by the 3D engine or by File → Import Model…).
-2. **Turns it to face the front** (`--turn`). TRELLIS.2 builds figures facing away, so Mimic turns
-   them 180°.
+2. **Turns it to face the front** (`--turn`), the way a slicer's front view looks at it. Pixal3D
+   builds figures facing the other way from TRELLIS.2, so Mimic turns them 180°.
 3. **Stands an object up** (objects only, `--ground bottom`). A model that leans a few degrees is
    levelled by up to 30°, then set on a side it can stand on: see
    [Objects resting on a flat side](#objects-resting-on-a-flat-side).
@@ -129,14 +129,14 @@ what the mini needs:
 | `--inflate` | Only when it was set by hand. |
 | `--no-base`, or `--base-shape`, `--base-style`, `--magnet` | Only when they aren't the default. |
 | `--fit longest --ground bottom` | For anything that isn't a character. |
-| `--turn 180` | For a mini made with TRELLIS.2. Never for an imported model, which faces whichever way its file has it. |
+| `--turn 180` | For a mini made with Pixal3D. Never for an imported model, which faces whichever way its file has it. |
 | `--base-seed N` | With a floor on the base: the mini's own variation number (42 if it has none), so Try Again lays the stones the same way and another version differently. |
 
 So a TRELLIS.2 tiefling at 38 mm on a 0.2 mm nozzle, on a hex base with a stone floor, runs:
 
 ```bash
 mimic _prep model.glb tiefling.stl --height 38.0 --base 25.0 --nozzle 0.2 \
-    --base-shape hex --base-style stone --turn 180 --base-seed 42
+    --base-shape hex --base-style stone --base-seed 42
 ```
 
 ## Run it by hand
@@ -158,9 +158,10 @@ cd ~/Desktop/prep-test
 mimic _prep model.glb dwarf.stl --height 32 --nozzle 0.2 --turn 180 --faces 400000
 ```
 
-Add `--turn 180` when the mini was made with TRELLIS.2 (its `settings.json` says
-`"model": "trellis2-q8"`). The input has to be a GLB: for an STL, import it with
-File → Import Model… or `mimic import` first, and use the `model.glb` that makes.
+Add `--turn 180` when the mini was made with Pixal3D (its `settings.json` says
+`"model": "pixal3d-sv"`, or has no `model` at all); leave it out for TRELLIS.2. The input has to
+be a GLB: for an STL, import it with File → Import Model… or `mimic import` first, and use the
+`model.glb` that makes.
 
 It writes `dwarf.stl`, `dwarf_front.png`, `dwarf_left.png`, `dwarf_right.png`, `dwarf_back.png` and
 `prep-result.json`, and prints what it did. It exits with 0 when it worked, or prints
@@ -198,7 +199,7 @@ Other lines it may add:
 | `prep: set on its most stable side (turned 90°)` | An object was set on another side. | Nothing. |
 | `mini_prep: magnet hole 5.2 mm wide, 2.2 mm deep, for a 5 × 2 mm magnet; base 3.40 mm tall` | The hole, and the base height it needed. | Nothing. |
 | `mini_prep: no base, so no magnet hole` | A magnet was asked for without a base. | Nothing. |
-| `mini_prep: WARNING footprint 41.3 mm is wider than the 40 mm base; raise the base to at least 43 mm` | The figure reaches out past its base. | "Some thin parts may be fragile. Check it in your slicer before printing." |
+| `mini_prep: WARNING footprint 41.3 mm is wider than the 40 mm base; raise the base to at least 43 mm` | The figure reaches out past its base. | "The bottom of the figure reaches past the edge of its base. Resize This Mini with a bigger base size to fit it on." |
 | `mini_prep: WARNING part: …` | A part was left out. | The same words, on the mini's page. |
 | `mini_prep: WARNING stand: …` | An object without a base can't stand. | The same words, on the mini's page. |
 | `mini_prep: FAILED: …` | Print prep stopped. | Why the mini didn't finish. |

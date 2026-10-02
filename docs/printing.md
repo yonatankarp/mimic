@@ -127,9 +127,8 @@ orange warning sign, and it stays there after you quit, until you resize the min
   since it would print floating in mid-air, and says how long it was. Try
   [Make Another Version…](versions.md). If you use Pixal3D, TRELLIS.2
   (**Settings → 3D Model**) joins held things more reliably.
-- *Some thin parts may be fragile.* Mimic says this when the bottom of the figure reaches past
-  the edge of its base. Check it in your slicer before printing. A wider base, in
-  **Resize This Mini…**, gives it more to stand on.
+- *The bottom of the figure reaches past the edge of its base.* Resize it with a bigger base
+  size, in **Resize This Mini…**, to fit it on.
 - *It can't stand on its own.* An object made without a base that would tip over is left
   upright, as the 3D engine made it. Turn on **Add a base** in Resize to stand it up.
 

@@ -59,12 +59,14 @@ The same choices are in **Mini → Move in Queue** for the selected mini, with +
 ## Take a mini out of the queue
 
 Press the remove button beside it, or right-click it → **Take Out of Queue…**, and confirm with
-**Take Out**.
+**Take Out**. Mimic says what happens to it:
 
-- A new mini hasn't been made yet, so its picture and settings go to the Trash, where you can get
-  them back.
-- A resize is cancelled with **Don't Resize**, and the mini keeps its size.
-- A mini waiting for Try Again stays as it was, ready to try again later.
+- A new mini: "It hasn't been made yet, so its picture and settings go to the Trash, where you can
+  get them back."
+- A model you're importing: "It hasn't been made yet, so it goes to the Trash, where you can get it
+  back."
+- A resize is cancelled with **Don't Resize**: "It keeps its current size."
+- A mini waiting for Try Again: "It stays, so you can try again later."
 
 ## Pause the queue
 
@@ -86,11 +88,13 @@ made carries on either way.
 ## Stop a mini
 
 Click the progress in the toolbar and press **Stop…**, or choose **Mini → Stop Making…**
-(**Stop Resizing…** for a resize). It's also in the Dock icon's menu. Mimic asks first, then:
+(**Stop Resizing…** for a resize). It's also in the Dock icon's menu. Mimic asks first, and says
+what happens to the mini:
 
-- A new mini is thrown away. Its pieces are in the Trash if you want them.
-- A resize keeps the mini's old size.
-- A Try Again goes back to how the mini was before, ready to try again.
+- A new mini, or a model you're importing: "What's been made so far will be thrown away." Its
+  pieces are in the Trash if you want them.
+- A resize: "It keeps its previous size."
+- A Try Again: "It's kept, so you can try again later." The mini goes back to how it was before.
 
 The queue carries on with the next mini. Only the mini being made stops.
 

@@ -70,8 +70,9 @@ appears under **Improved description**: Make Mini draws from that one. Change an
 or press **Use Original** to go back to your own words.
 
 !!! note "What the helper sees"
-    A cloud service receives only the description you type, nothing else. Your key is kept in your
-    Mac's Keychain. With Ollama, your descriptions never leave your Mac.
+    A cloud service receives only what you type: a description, or what to change in a picture,
+    never the picture itself. Your key is kept in your Mac's Keychain. With Ollama, what you type
+    never leaves your Mac.
 
 ## Name it, and pick its project
 

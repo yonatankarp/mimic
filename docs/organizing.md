@@ -58,7 +58,7 @@ The details panel has:
 - **Print tips for a 0.4 mm nozzle** (or the mini's nozzle): the slicer settings to use, with
   **Copy Settings**. See [Printing and exporting](printing.md#print-tips-and-warnings).
 
-If print prep left a part out, or some thin parts may be fragile, a warning sits over the 3D
+If print prep left a part out, or the figure's bottom reaches past its base, a warning sits over the 3D
 view until you resize the mini or make it again.
 
 A mini that isn't ready has a different page:

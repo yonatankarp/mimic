@@ -86,9 +86,11 @@ picture that's already cut out (at least 2% of it transparent) is used as it is.
 
 - **[TRELLIS.2](https://github.com/microsoft/TRELLIS.2)**, Microsoft's model, at its own defaults,
   1024 resolution. With pictures of the back and sides, its multi-image mode takes 2 to 8 cut-out
-  pictures, front first. It builds figures facing away, so print prep turns them round.
+  pictures, front first.
 - **Pixal3D**, the single-view model, with the settings Mimic was tuned on: a 20° camera, structure
-  guidance 10 (the default 7.5 dropped a sword blade; 13 detached thin parts), 1024 resolution.
+  guidance 10 (the default 7.5 dropped a sword blade; 13 detached thin parts), 1024 resolution. It
+  builds figures facing the other way from TRELLIS.2, so print prep turns them round to face the
+  front, as your slicer shows it.
 
 Both run with 8 sampling steps rather than the stock 12: the same shape, 16 to 31% faster. If an
 engine build ever ignored that, Mimic stops it at once rather than let it run the slow way, and asks
@@ -170,8 +172,9 @@ online for these:
 - **An AI helper, only if you choose a cloud one** in Settings: it receives the description you
   type, and what you type in **What to change**, nothing else. Its key stays in your Keychain and is
   only sent to the address it was saved for. Ollama runs on your Mac, so with it nothing leaves.
-- **Report a Problem** makes a file on your Mac and opens GitHub's form in your browser. Nothing is
-  sent unless you attach the file and send the form yourself.
+- **Report a Problem** makes a file on your Mac and opens GitHub's form in your browser, and so
+  does the report Mimic offers after it quits unexpectedly. Nothing is sent unless you attach the
+  file and send the form yourself.
 
 Mimic's time estimates are learned from your own minis and kept on your Mac only. See
 [Where your files are](files.md) for everything it keeps.

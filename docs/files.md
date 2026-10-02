@@ -9,7 +9,7 @@ lives where, what each file is, and what you can safely change by hand.
 | What | Where |
 |---|---|
 | Your minis and projects | `~/Documents/Mimic`, or the folder chosen in Settings → General |
-| Reports from Report a Problem | `_reports/` in the minis folder |
+| Reports from Report a Problem, and of a crash | `_reports/` in the minis folder |
 | The 3D engine and its models | `~/Library/Application Support/Mimic/engine/` |
 | The queue | `~/Library/Application Support/Mimic/queues/<key>/` |
 | Time estimates | `~/Library/Application Support/Mimic/timings.jsonl` |
@@ -30,7 +30,7 @@ By default it's **Documents → Mimic** (`~/Documents/Mimic`), made when you mak
 │   ├── tiefling-2/          another version of it
 │   └── raven/
 ├── Orc Warband/             an empty project
-└── _reports/                Report a Problem's zips (never shown as a project)
+└── _reports/                Report a Problem's zips, crash reports' too (never shown as a project)
 ```
 
 How Mimic reads it:
@@ -178,7 +178,7 @@ its `installDir` to the checkout, so it keeps:
 |---|---|
 | Minis | `runs/` in the checkout (or a folder chosen in its own Settings) |
 | 3D engine and models | `engine/` in the checkout |
-| Queue | `~/Library/Application Support/Mimic/queues/<key>/`, keyed by the checkout's `runs/` path |
+| Queue | `~/Library/Application Support/Mimic/queues/<key>/`, keyed by its minis folder and shared with any Mimic using the same one |
 | Time estimates | `~/Library/Application Support/Mimic/timings.jsonl`, the same file as the installed app |
 
 Run from a terminal, two environment variables change that:

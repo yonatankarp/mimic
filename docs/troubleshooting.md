@@ -9,7 +9,7 @@ When a mini stops part way, Mimic tells you, and you lose nothing: its page says
 **This mini didn't finish**, with the reason underneath. The same happens in the progress popover
 in the toolbar, and in a notification when you aren't looking at Mimic.
 
-<!-- screenshot: troubleshooting-mini-didnt-finish.png | Main window, a mini selected whose make failed: "This mini didn't finish" with its reason, and the Try Again and Report a Problem… buttons -->
+![A mini that didn't finish: This mini didn't finish, why it stopped, and Try Again and Report a Problem…](images/screens/troubleshooting-mini-didnt-finish.png){ width="700" }
 
 Press **Try Again** on its page, in the popover or on the notification. You'll also find it in the
 **Mini** menu and when you right-click the mini. Try Again carries on from the step that failed,
@@ -124,16 +124,16 @@ so on the mini's page: "A part came out separate from the figure (about 30 mm lo
 out." Try **Make Another Version…**. If you use Pixal3D, TRELLIS.2 joins held things more
 reliably. [Tuning print prep](print-prep.md#parts-left-out) explains how Mimic decides.
 
-### Some thin parts may be fragile
+### The bottom reaches past the base
 
-Mimic says this when the figure reaches out wider than its base. Look at the mini in your slicer
-before printing, or give it a bigger base with **Mini → Resize This Mini…**.
+"The bottom of the figure reaches past the edge of its base." Mimic says this when the figure is
+wider at the bottom than its base. Give it a bigger base with **Mini → Resize This Mini…**, so it
+fits on.
 
 ### It can't stand on its own
 
 An object without a base that has no flat side to stand on is left upright, as the 3D model made
-it, and its page says it can't stand on its own. Resize it with **Add a base** turned on (the
-message calls it "Add a round base").
+it, and its page says it can't stand on its own. Resize it with **Add a base** turned on.
 
 ### The 3D model came out flat
 
@@ -156,21 +156,51 @@ on GitHub for you to attach it to.
   **Mini** menu or by right-clicking the mini.
 - For anything else: choose **Help → Report a Problem…**.
 
-<!-- screenshot: troubleshooting-report-a-problem.png | The "Report a problem with “Dwarf Cleric”?" alert, with the "Include the picture (the issue is public)" checkbox unticked and the Make Report and Cancel buttons -->
+![Report a problem with “Snow Ghost”?: what goes in the file, Include the picture unticked, Include a picture of Mimic's window ticked with its preview, and Cancel and Make Report](images/screens/troubleshooting-report-a-problem.png){ width="384" }
 
 Mimic first says what goes in the file. Press **Make Report**. The file has:
 
 - which version of Mimic this is, and which Mac (model, chip, memory and macOS version)
 - Mimic's own notes on what happened, from the last hour, and only since Mimic was last opened
+- how Mimic is set up: the 3D model and the engine's version, Draw Things' model and whether its
+  command line tool or the app draws, which AI helper (never its key or address), free disk space,
+  memory pressure, whether your Mac is on battery, its graphics chip, what's being made and waiting
+  and how the last job ended (by kind and step, never by name), the nozzle, base and grey sculpt,
+  and a few of its settings
 - for a mini, its notes on how it was made and its settings
 
-Keys, passwords and your Mac's user name are taken out first. The mini's picture is left out unless
-you tick **Include the picture (the issue is public)**. The 3D files and previews are never
-included.
+Keys, passwords and your Mac's user name are taken out first. Two boxes say which pictures go in,
+since the issue is public:
 
-Mimic then shows the file in Finder and opens GitHub's bug report form with the version and your Mac
-filled in. Drag the file into the form's logs box, say what you did, and send it. You need a GitHub
-account to send it. Nothing is sent until you do.
+- **Include the picture (the issue is public)**, when reporting a mini that has one: the picture
+  it was built from. It starts unticked.
+- **Include a picture of Mimic's window (the issue is public)**, when the main window is open: the
+  window as it was when you chose Report a Problem, with any sheet open on it, but not Settings.
+  It starts ticked, with a preview of the picture underneath, so you can see what it shows, minis'
+  names and pictures included. Untick it to leave it out.
+
+The 3D files and previews themselves are never included.
+
+Mimic then shows the file in Finder and opens GitHub's bug report form with the version, your Mac
+and a short list of the setup filled in. Drag the file into the form's logs box, say what you did,
+and send it. You need a GitHub account to send it. Nothing is sent until you do.
+
+### After Mimic quits unexpectedly
+
+If Mimic (or `mimic` in Terminal) crashed, the next time you open Mimic it asks
+"Mimic quit unexpectedly last time. Report it?"
+
+- **Report** makes the same kind of file, with what macOS noted about the crash, Mimic's own notes
+  from before it, and the setup as it is now. There's no picture of the window, since Mimic had
+  already gone. Mimic shows the file in Finder and opens GitHub's form, titled with the crash, for
+  you to say what you were doing.
+- **Not Now** makes no report.
+- **Don't Ask Again** stops Mimic asking about crashes at all.
+
+Each crash is asked about once, whatever you answer. Mimic's notes from before the crash can only be
+read on an administrator account; on another, the file says so. A crash of the 3D engine or of
+Draw Things' command line tool isn't asked about: it shows as a mini that didn't finish, with
+**Report a Problem…** on its page.
 
 !!! tip
     The reports stay in your minis folder, in a folder called `_reports`, which Mimic doesn't show
