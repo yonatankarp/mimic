@@ -104,13 +104,21 @@ public final class OnlineImages: PictureMaker, @unchecked Sendable {
             throw OnlineImagesError.failed("it gave no address to collect the picture from")
         }
         let deadline = Date().addingTimeInterval(timeout)
+        func wait() {
+            let until = Date().addingTimeInterval(poll)
+            while Date() < until, !lock.withLock({ canceled }) { usleep(20_000) }
+        }
         while true {
             if lock.withLock({ canceled }) { throw OnlineImagesError.cancelled }
             if Date() > deadline { throw OnlineImagesError.timedOut }
             var ask = URLRequest(url: polling)
             ask.setValue(key, forHTTPHeaderField: "x-key")
             ask.timeoutInterval = 30
-            let reply = try json(ask)
+            let reply: [String: Any]
+            do { reply = try json(ask) } catch let e as OnlineImagesError where [.busy, .timedOut, .unreachable].contains(e) {
+                // The request is paid for already: a hiccup while asking is asked again, until the deadline.
+                wait(); continue
+            }
             switch reply["status"] as? String {
             case "Ready":
                 guard let sample = ((reply["result"] as? [String: Any])?["sample"] as? String).flatMap(URL.init(string:)) else {
@@ -121,12 +129,12 @@ public final class OnlineImages: PictureMaker, @unchecked Sendable {
             case "Request Moderated", "Content Moderated":
                 let reasons = ((reply["details"] as? [String: Any])?["Moderation Reasons"] as? [String]) ?? []
                 throw OnlineImagesError.refused(reasons)
-            case "Error", "Task not found", "Failed":
-                throw OnlineImagesError.failed(reply["status"] as? String ?? "")
+            case "Error", "Failed":
+                throw OnlineImagesError.failed("")
             default:
-                // Pending, Reasoning, Generating: asked again shortly, Stop or not.
-                let until = Date().addingTimeInterval(poll)
-                while Date() < until, !lock.withLock({ canceled }) { usleep(20_000) }
+                // Pending, Reasoning, Generating, and Task not found (as BFL's own example polls on):
+                // asked again shortly, until the deadline or a Stop.
+                wait()
             }
         }
     }

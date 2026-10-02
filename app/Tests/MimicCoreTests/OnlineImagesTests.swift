@@ -13,7 +13,9 @@ final class OnlineImagesTests: XCTestCase {
 
     /// A fake BFL: submits answer with a polling address on this server, which says `status`
     /// (Ready after `pending` asks), and the picture is at /sample.png.
-    static func fake(status: String = "Ready", pending: Int = 0, submit: Int = 200, details: String = "null") throws -> FakeLLM {
+    /// `hiccups`: how many of the first asks fail with 503 before it answers.
+    static func fake(status: String = "Ready", pending: Int = 0, submit: Int = 200, details: String = "null",
+                     hiccups: Int = 0) throws -> FakeLLM {
         let asked = Counter()
         nonisolated(unsafe) var port: UInt16 = 0
         let server = try FakeLLM { r in
@@ -22,7 +24,9 @@ final class OnlineImagesTests: XCTestCase {
                 return (submit, Data(#"{"id":"t1","polling_url":"http://127.0.0.1:\#(port)/v1/get_result?id=t1"}"#.utf8))
             }
             if path.hasPrefix("/v1/get_result") {
-                let s = asked.next() < pending ? "Pending" : status
+                let n = asked.next()
+                if n < hiccups { return (503, Data()) }
+                let s = n - hiccups < pending ? "Pending" : status
                 let result = s == "Ready" ? #"{"sample":"http://127.0.0.1:\#(port)/sample.png"}"# : "null"
                 return (200, Data(#"{"id":"t1","status":"\#(s)","result":\#(result),"details":\#(details)}"#.utf8))
             }
@@ -148,6 +152,43 @@ final class OnlineImagesTests: XCTestCase {
         XCTAssertTrue(before.requests.isEmpty, "a picture was asked for after Stop")
         early.reset()
         XCTAssertEqual(try early.draw(description: "a dwarf", seed: 1, kind: .character), Self.picture)
+    }
+
+    /// The picture is paid for once submitted: a busy moment, or "Task not found" before the task
+    /// shows up, while asking whether it's ready is asked again, not given up on.
+    func testAHiccupWhileWaitingIsAskedAgain() throws {
+        let busy = try Self.fake(hiccups: 2)
+        defer { busy.stop() }
+        XCTAssertEqual(try service(busy).draw(description: "a dwarf", seed: 1, kind: .character), Self.picture)
+        let notYet = try Self.fake(status: "Task not found")
+        defer { notYet.stop() }
+        let s = service(notYet)
+        s.timeout = 0.3
+        XCTAssertThrowsError(try s.draw(description: "a dwarf", seed: 1, kind: .character)) {
+            XCTAssertEqual($0 as? OnlineImagesError, .timedOut, "asked until the deadline")
+        }
+        XCTAssertGreaterThan(notYet.requests.filter { $0.head.contains("get_result") }.count, 1)
+    }
+
+    /// Stop on a mini whose picture is being made online stops the request, and the new mini goes
+    /// to the Trash, as with Draw Things.
+    func testStopDuringAJobStopsTheOnlineRequest() throws {
+        let server = try Self.fake(pending: .max)
+        defer { server.stop() }
+        let fx = try Fixture(); try fx.modelFiles()
+        let online = service(server)
+        online.timeout = 5  // a Stop that doesn't reach it ends as timed out, not stopped
+        let trashed = TrashSpy()
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/false"), trash: { trashed($0) })
+        jobs.pictureService = { online }
+        try jobs.make(name: "dwarf", picture: .description("a dwarf"), restyle: false, seed: 1, sizes: Sizes(), model: EngineDownload.standard)
+        XCTAssertTrue(eventually { server.requests.filter { $0.head.contains("get_result") }.count >= 2 })
+        let started = Date()
+        XCTAssertTrue(jobs.cancel())
+        jobs.waitUntilDone()
+        XCTAssertLessThan(Date().timeIntervalSince(started), 3, "Stop waited for the picture")
+        XCTAssertEqual(jobs.status?.canceled, true)
+        XCTAssertEqual(trashed.trashed.map(\.lastPathComponent), ["dwarf"])
     }
 
     func testAPictureThatNeverComesTimesOut() throws {

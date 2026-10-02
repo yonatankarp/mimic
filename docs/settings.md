@@ -162,7 +162,8 @@ picture model. Under **Pictures**, **Make pictures with** chooses where that mod
     With **Black Forest Labs, online**, your description, or the picture to be redrawn, is sent to
     Black Forest Labs to make the picture. The 3D model and print file are still made on your Mac.
     Each picture Mimic draws or redraws is one request on your account, paid from your credits
-    there: one per mini, plus one for each extra side picture you add. A new version with a new
+    there: one for a mini made from a description or with the grey sculpt, plus one for each extra
+    side picture it redraws. A picture used as it is costs nothing. A new version with a new
     picture costs the same again; a picture that's already made is never asked for twice.
 
 If Black Forest Labs turns a picture down (its moderation does that now and then), is busy, or

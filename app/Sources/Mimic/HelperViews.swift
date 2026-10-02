@@ -121,7 +121,7 @@ struct HelperSection: View {
         } footer: {
             Text(current == .ollama
                  ? "Optional. Ollama runs on this Mac, so what you type stays here."
-                 : "Optional. Cloud services receive only what you type: a description, or what to change in a picture, never the picture itself. Keys are kept in your Mac's Keychain.")
+                 : "Optional. A cloud helper receives only what you type: a description, or what to change in a picture, never the picture itself. Keys are kept in your Mac's Keychain.")
                 .foregroundStyle(.secondary)
         }
         .onChange(of: provider) { _, _ in model = ""; address = ""; testResult = nil; load() }
@@ -265,7 +265,7 @@ struct PicturesSection: View {
             Text("Pictures")
         } footer: {
             Text(online
-                 ? "Your description, or the picture to redraw, is sent to Black Forest Labs. Each picture Mimic draws or redraws is one request on your account: one per mini, plus one for each extra side picture. The key is kept in your Mac's Keychain."
+                 ? "Your description, or the picture to redraw, is sent to Black Forest Labs. Each picture Mimic draws or redraws is one paid request on your account: one for a description or a grey sculpt, plus one for each side picture it redraws. A picture used as it is costs nothing. The key is kept in your Mac's Keychain."
                  : "Draw Things makes the pictures on this Mac, so nothing is sent anywhere.")
                 .foregroundStyle(.secondary)
         }
