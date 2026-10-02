@@ -14,12 +14,11 @@ struct MakeView: View {
     private let health = Health.shared
     @State private var start = Start.picture
     @State private var picture: Picture?
-    @State private var choosing = false
     @State private var dropTargeted = false
-    /// Pictures of the back and sides besides `picture`, the front (#66), and the place a
-    /// picture is being chosen for or dragged over.
+    /// Pictures of the back and sides besides `picture`, the front (#66), the place a picture
+    /// is being chosen for, and the one dragged over.
     @State private var sides: [PictureSide: Picture] = [:]
-    @State private var choosingSide: PictureSide?
+    @State private var chooser = PictureChooser()
     @State private var sideTargeted: PictureSide?
     @State private var restyle = true
     @State private var cartoon = false
@@ -156,10 +155,10 @@ struct MakeView: View {
         // so does text while a field is being typed in (see paste()).
         .background { Button("") { paste() }.keyboardShortcut("v").hidden() }
         // One importer for every place: a second one on the same sheet would never open.
-        .fileImporter(isPresented: Binding(get: { choosing || choosingSide != nil }, set: { if !$0 { choosing = false; choosingSide = nil } }),
+        .fileImporter(isPresented: Binding(get: { chooser.isOpen }, set: { if !$0 { chooser.close() } }),
                       allowedContentTypes: [.image]) { result in
             guard case .success(let url) = result else { return }
-            if let side = choosingSide { takeSide(side, url) } else { take(url) }
+            if let side = chooser.side { takeSide(side, url) } else { take(url) }
         }
         // File → Import from iPhone (Continuity Camera): a photo taken for it, or a scan.
         .importsItemProviders([.image]) { receive($0); return true }
@@ -284,7 +283,7 @@ struct MakeView: View {
 
     private var picturePane: some View {
         Group {
-            Button { choosing = true } label: {
+            Button { chooser.open(nil) } label: {
                 VStack(spacing: 6) {
                     if let picture {
                         Image(nsImage: picture.image).resizable().scaledToFit().frame(maxHeight: 180)
@@ -376,7 +375,7 @@ struct MakeView: View {
 
     private func sideSlot(_ side: PictureSide) -> some View {
         let words = side == .back ? "back" : "\(side.rawValue) side"
-        return Button { choosingSide = side } label: {
+        return Button { chooser.open(side) } label: {
             VStack(spacing: 4) {
                 if let p = sides[side] {
                     Image(nsImage: p.image).resizable().scaledToFit().frame(height: 60)
