@@ -606,7 +606,8 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   user, device, boot and incident ids. The issue's title is the exception and the top frame in
   Mimic's own binary (the trap and `abort` frames above it say nothing), with the crashed version.
   The crashed launch's log comes from `log show` filtered by its pid, which works on an
-  administrator account only; on a standard one about.txt says it couldn't be read. Crashes of
+  administrator account only; on a standard one about.txt says it couldn't be read. It's run by
+  `Checks.execute` with a 60 s timeout (about 1 s is usual), so a stuck `log` can't hang the report. Crashes of
   trellis-cli and draw-things-cli aren't offered: they're failed jobs, with Report a Problem on
   the mini. Don't Ask Again is `crashDontAsk`. The setup (#283) goes in too, as it is at the
   next launch: the crashed launch's queue and last job went with it.

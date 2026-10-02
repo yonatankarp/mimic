@@ -126,25 +126,20 @@ public enum CrashReport {
     // MARK: The log before it
 
     /// The crashed launch's own log, its last hour, from the Mac's log. Reading another launch's
-    /// log needs an administrator account, so nil on a standard one; about.txt then says so.
-    public static func appLog(_ crash: Crash, subsystem: String = Log.subsystem) -> String? {
+    /// log needs an administrator account, so nil on a standard one; about.txt then says so. nil
+    /// too when `log` hasn't answered within a minute: a stuck one mustn't hang the report.
+    public static func appLog(_ crash: Crash, subsystem: String = Log.subsystem, run: Checks.Runner = Checks.execute) -> String? {
         guard let pid = crash.pid else { return nil }
         let end = crash.crashed ?? crash.date
         let start = max(crash.launched ?? .distantPast, end.addingTimeInterval(-3600))
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "yyyy-MM-dd HH:mm:ssZ"
-        let p = Process(), out = Pipe()
-        p.executableURL = URL(fileURLWithPath: "/usr/bin/log")
-        p.arguments = ["show", "--style", "ndjson", "--start", f.string(from: start), "--end", f.string(from: end.addingTimeInterval(1)),
-                       "--predicate", "processID == \(pid) AND subsystem == \"\(subsystem)\""]
-        p.standardOutput = out
-        p.standardError = FileHandle.nullDevice
-        guard (try? p.run()) != nil else { return nil }
-        let data = out.fileHandleForReading.readDataToEndOfFile()
-        p.waitUntilExit()
-        guard p.terminationStatus == 0 else { return nil }
-        let text = lines(ndjson: String(decoding: data, as: UTF8.self))
+        guard let result = run("/usr/bin/log", ["show", "--style", "ndjson", "--start", f.string(from: start),
+                                                "--end", f.string(from: end.addingTimeInterval(1)),
+                                                "--predicate", "processID == \(pid) AND subsystem == \"\(subsystem)\""], 60),
+              result.status == 0 else { return nil }
+        let text = lines(ndjson: result.output)
         return text.isEmpty ? nil : text
     }
 
