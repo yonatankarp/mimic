@@ -352,24 +352,23 @@ struct MakeView: View {
         start == .picture && makingWith.multiView ? sides.mapValues(\.url) : [:]
     }
 
-    private var sidesRow: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("More pictures of the same \(thing) (optional)")
-            Text("Its back and sides, so the 3D model doesn't have to guess them. Drop each on its place, or click to choose.")
-                .font(.callout).foregroundStyle(.secondary)
-            HStack(spacing: 8) { ForEach(PictureSide.allCases, id: \.self) { sideSlot($0) } }
-                .disabled(!makingWith.multiView)
-                .opacity(makingWith.multiView ? 1 : 0.5)
-            if !makingWith.multiView {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(cartoonOn ? "Cartoons are made with Pixal3D, which uses only the front picture."
-                                   : "\(makingWith.name) uses only the front picture. TRELLIS.2 can use these too.")
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    if !cartoonOn && madeWith == nil { OpenSettingsButton(tab: .model) { Text("Open Settings") } }
-                }
-                .font(.callout)
+    /// Only when the model can use them (#254); pictures already added stay in `sides` while
+    /// it's hidden, and `sidesUsed` sends none of them.
+    @ViewBuilder private var sidesRow: some View {
+        if makingWith.multiView {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("More pictures of the same \(thing) (optional)")
+                Text("Its back and sides, so the 3D model doesn't have to guess them. Drop each on its place, or click to choose.")
+                    .font(.callout).foregroundStyle(.secondary)
+                HStack(spacing: 8) { ForEach(PictureSide.allCases, id: \.self) { sideSlot($0) } }
             }
+        } else if !cartoonOn {
+            HStack(alignment: .firstTextBaseline) {
+                Text("TRELLIS.2 can also use pictures of the back and sides.").foregroundStyle(.secondary)
+                Spacer()
+                if madeWith == nil { OpenSettingsButton(tab: .model) { Text("Open Settings") } }
+            }
+            .font(.callout)
         }
     }
 
@@ -404,7 +403,6 @@ struct MakeView: View {
         }
         .onDrop(of: PictureDrop.types, isTargeted: Binding(get: { sideTargeted == side },
                                                            set: { sideTargeted = $0 ? side : sideTargeted == side ? nil : sideTargeted })) { providers in
-            guard makingWith.multiView else { return false }
             Task {
                 if let item = await PictureDrop.pictures(Array(providers.prefix(1))).first { takeSide(side, item.url) }
                 else { say("That picture can't be read.", error: true) }

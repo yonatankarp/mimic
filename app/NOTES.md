@@ -341,7 +341,8 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   render stayed a back view (its shoes came out pointing at the camera, the one slip), so side
   pictures share the front's prompt. Step 1 is one run per picture but timed as one step, so
   its time left doesn't start over for each. Pixal3D's single-view set takes one picture, so New Mini shows
-  the slots switched off with the reason (and a cartoon is always Pixal3D); its four-picture
+  the slots only when the model it will use can take them (#254; a cartoon is always Pixal3D).
+  Pictures already added stay while they're hidden, and `sidesUsed` sends none of them. Pixal3D's four-picture
   multiview set is still not offered. Left out for now: Draw Things drawing the missing views
   from the front, and lining the pictures up (same height, feet on one line) before the engine.
 - **Children get an explicit environment,** never the app's own: launched from the Dock, the
