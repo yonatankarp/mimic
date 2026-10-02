@@ -47,7 +47,8 @@ final class GalleryTests: XCTestCase {
 
     /// The name New Mini says is taken is the one Make Mini refuses (#219): any mini or project
     /// with it, except a failed attempt's folder where the new one would go. A finished mini
-    /// keeps its name without its 3D model (#308).
+    /// keeps its name without its 3D model (#308), and so does one waiting for its picture to be
+    /// checked (#380).
     func testANewMinisNameIsTakenAsMakeRefusesIt() throws {
         let fx = try Fixture(), fm = FileManager.default, runs = fx.install.runs
         _ = try fx.mini("dwarf")
@@ -64,6 +65,16 @@ final class GalleryTests: XCTestCase {
         fm.createFile(atPath: printed.appendingPathComponent("owlbear.stl").path, contents: Data("stl".utf8))
         try fm.createDirectory(at: made, withIntermediateDirectories: true)
         try MiniSettings.update(made) { $0.source = .image; $0.made = Sizes(height: "32") }
+        // Stopped once its picture was made, for it to be checked (#156), and one whose 3D step
+        // failed after that: only the second is a failed attempt.
+        let checking = party.appendingPathComponent("knight"), broke = party.appendingPathComponent("ogre")
+        for (d, failure) in [(checking, nil), (broke, "the 3D step failed")] as [(URL, String?)] {
+            try fm.createDirectory(at: d, withIntermediateDirectories: true)
+            try MiniSettings.update(d) { $0.source = .image; $0.checkPicture = true; $0.failed = failure }
+            fm.createFile(atPath: d.appendingPathComponent("source.png").path, contents: Data("png".utf8))
+        }
+        XCTAssertTrue(Gallery.nameTaken(runs, "knight", project: "Party"), "a picture waiting to be checked, where it would go")
+        XCTAssertFalse(Gallery.nameTaken(runs, "ogre", project: "Party"), "a failed attempt with its picture is made again")
         XCTAssertTrue(Gallery.nameTaken(runs, "owlbear", project: nil), "a mini with its print file, without its 3D model")
         XCTAssertTrue(Gallery.nameTaken(runs, "imp", project: nil), "a mini its settings say was made, without its 3D model")
         XCTAssertTrue(Gallery.nameTaken(runs, "dwarf", project: nil), "a made mini")
