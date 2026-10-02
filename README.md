@@ -4,7 +4,7 @@
 
 <p align="center"><b>Turn any character into a miniature you can print.</b><br>
 Drop in a picture, or describe your character, and Mimic makes a 3D-printable mini of it.<br>
-No subscriptions, and everything runs on your own Mac with no accounts or uploads, unless you choose to have pictures made online with your own account.</p>
+No subscriptions, and everything runs on your own Mac, unless you choose an online picture service or a cloud AI helper in Settings, with your own account.</p>
 
 ![A picture of a dwarf cleric, and the printable mini Mimic made from it, seen from the front and side](docs/images/pipeline.jpg)
 

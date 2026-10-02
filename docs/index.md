@@ -8,8 +8,10 @@ hide:
 
 **Turn any character into a miniature you can print.** Drop in a picture, or describe your
 character, and Mimic makes a 3D-printable mini of it. No subscriptions, and everything runs on
-your own Mac with no accounts or uploads, unless you choose to have pictures made online: then
-Black Forest Labs or OpenAI gets your picture or description, under your own account.
+your own Mac with no accounts or uploads, unless you choose otherwise in Settings, with your own
+account. An online picture service (Black Forest Labs or OpenAI) gets the description to draw, or
+the picture to redraw as a grey sculpt. A cloud AI helper gets only what you type, never your
+picture. Your 3D models are always made on your Mac.
 
 ![A picture of a dwarf cleric, and the printable mini Mimic made from it, seen from the front and side](images/pipeline.jpg)
 
