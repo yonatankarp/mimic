@@ -4,6 +4,8 @@ Everything Mimic does in its window, it also does as a `mimic` command in Termin
 engine and the same minis. It's handy for making a batch of minis from a script, resizing a whole
 project in one go, or reading your minis as JSON.
 
+Each section below shows the commands for one job, then every option those commands take.
+
 ## Install it
 
 1. Finish Mimic's first-launch download in the app: `make` and `retry` need the 3D engine.
@@ -17,34 +19,38 @@ mimic --version
 
 `mimic --help` lists every command and option.
 
-## Make your first mini
+## Make a mini
 
 Give it a name and a description, or a picture:
 
 ```bash
 mimic make "Dwarf Cleric" "dwarf cleric, warhammer held against chest"
-mimic make tiefling --image art.png --restyle
+mimic make tiefling --image art.png --restyle --height 38 --nozzle 0.2
+mimic make teapot "a round teapot with a curved spout" --object --size 80
 ```
 
 The name can be anything, as in the app. Terminal shows each step while the mini is made and says
-where its print file is when it's done. `--restyle` turns the picture into a grey sculpt first,
-like **Turn it into a grey sculpt first** in New Mini. Ctrl-C stops the mini and everything it
-started.
+where its print file is when it's done. Ctrl-C stops the mini and everything it started.
 
 If Mimic is already making another mini, in the app or another Terminal, yours joins the
 [queue](queue.md) and the command returns straight away. Add `--wait` to stay and watch it instead.
 
-## Choose its size, base and nozzle
+| Option | What it does |
+|---|---|
+| `--image FILE` | Start from your own picture instead of a description |
+| `--restyle` | Redraw that picture as a grey sculpt first, like **Turn it into a grey sculpt first** in New Mini (its tabletop export is then grey) |
+| `--back FILE` / `--left FILE` / `--right FILE` | With `--image` (the front): pictures of the same character from the back and sides, so the 3D model doesn't guess them. Any of them; TRELLIS.2 only |
+| `--change "TEXT"` | With `--image`: redraw the picture with this change first, e.g. `"close the cape so both arms show"`. It gets the grey sculpt too |
+| `--improve` | With a description: let the AI helper chosen in Settings write a fuller one first |
+| `--object` | Make anything that isn't a character: no base, sized by its longest side, set on its flat bottom |
+| `--seed N` | Try a different version of the same character (42 unless you give it) |
+| `--model ID` | Make it with this 3D model instead of the one chosen in Settings (`mimic models` lists them) |
+| `--project NAME` | Put it in that project; a new one is made if needed |
+| `--wait` | If another mini is being made, stay until this one is made, instead of returning once it's in the queue |
 
-The same choices as [Sizes and bases](sizes-and-bases.md), as options:
+Its size, base and nozzle, the same choices as [Sizes and bases](sizes-and-bases.md):
 
-```bash
-mimic make tiefling --image art.png --height 38 --nozzle 0.2 --base-shape hex --base-style stone
-mimic make teapot "a round teapot with a curved spout" --object --size 80
-```
-
-`--object` makes anything that isn't a character: no base, sized by its longest side. Every option
-is in the [table below](#every-option).
+--8<-- "docs/.snippets/size-options.md"
 
 ## Resize a mini, or a whole project
 
@@ -54,7 +60,17 @@ mimic resize --project "Tiefling Party" --height 32
 ```
 
 Only print prep runs again, so a resize takes about a minute. With `--project`, every mini in the
-project gets the new size, like **Resize All…**.
+project gets the new size, like **Resize All…**. A resize keeps the mini's base shape, floor, magnet
+and nozzle unless you give them.
+
+| `resize` option | What it does |
+|---|---|
+| `--project NAME` | Resize every mini in that project, instead of one mini |
+| `--wait` | If another mini is being made, stay until this one is resized |
+
+Plus the size, base and nozzle to resize it to:
+
+--8<-- "docs/.snippets/size-options.md"
 
 ## Make another version
 
@@ -66,21 +82,50 @@ mimic make-another tiefling --change "close the cape so both arms show"
 mimic keep tiefling-2                   # keep this one, move the other versions to the Trash
 ```
 
-These match [Versions](versions.md) in the app. `--change` redraws the picture with your change
-first; in Terminal it carries straight on to the 3D shape, where the app stops to show you the
-picture.
+These match [Versions](versions.md) in the app. `make-another` uses the mini's own picture or
+description and sizes. `retry` takes only `--wait`; `keep` takes no options.
 
-## Copy, import and export
+| `make-another` option | What it does |
+|---|---|
+| `--new-shape` | Keep the picture it made and make only the 3D shape again |
+| `--change "TEXT"` | Redraw the picture with this change first. It starts from the picture this mini was made from, so changes add up. In Terminal it carries straight on; the app stops to show you the picture first |
+| `--seed N` | Use this seed instead of a new one |
+| `--wait` | If another mini is being made, stay until this one is made |
+
+## Copy and import
 
 ```bash
 mimic duplicate tiefling --as "Tiefling Display"   # the same shape, to resize separately
 mimic import "Ogre Chief.stl" --height 32          # print prep for a GLB or STL made elsewhere
-mimic open tiefling                                # open its print file in your slicer
-mimic export tiefling --vtt                        # a low-poly .glb for a virtual tabletop
 ```
 
-`export` saves the `.glb` in the folder you're in. See [Printing and exporting](printing.md) for
-when it comes out in colour.
+`duplicate` needs `--as "<new name>"`, the copy's name, and takes nothing else. `import` takes the
+model as it is, so it has no picture options:
+
+| `import` option | What it does |
+|---|---|
+| `--object` | It isn't a character: no base, sized by its longest side |
+| `--project NAME` | Put it in that project; a new one is made if needed |
+| `--wait` | If another mini is being made, stay until this one is made |
+
+Plus its size, base and nozzle:
+
+--8<-- "docs/.snippets/size-options.md"
+
+## Open and export
+
+```bash
+mimic open tiefling           # open its print file in your slicer
+mimic export tiefling --vtt   # a low-poly .glb for a virtual tabletop
+```
+
+`open` uses the slicer chosen in Settings and takes no options. `export` saves the `.glb` in the
+folder you're in; see [Printing and exporting](printing.md) for when it comes out in colour.
+
+| `export` option | What it does |
+|---|---|
+| `--vtt` | The kind of export, for a virtual tabletop (needed) |
+| `--triangles N` | How many triangles the low-poly model has (5,000 unless you give it) |
 
 ## Find, rename and organise your minis
 
@@ -89,14 +134,25 @@ mimic list                                  # every mini, by project
 mimic info tiefling                         # its size, filament, how it was made and its versions
 mimic rename tiefling --to "Tiefling Warlock"
 mimic trash tiefling-3                      # to the Trash, where you can put it back
+mimic projects
 mimic project create "Orc Warband"
-mimic move tiefling --project "Orc Warband" # or --unsorted
-mimic project delete "Orc Warband"          # its minis go to Unsorted; --trash-minis trashes them
+mimic project rename "Orc Warband" --to "Orc Horde"
+mimic move tiefling --project "Orc Horde"   # or --unsorted
+mimic project delete "Orc Horde"            # its minis go to Unsorted
 ```
 
 A mini goes by its name in `mimic list`, or by the name you gave it in Mimic:
 `mimic info "Élodie"`. Changes show in the app straight away. See
 [Your minis and projects](organizing.md).
+
+| Option | Commands | What it does |
+|---|---|---|
+| `--json` | `list`, `info`, `projects` | Print it as JSON, for scripts ([below](#json-for-scripts)) |
+| `--to NAME` | `rename`, `project rename` | The new name (needed) |
+| `--project NAME` / `--unsorted` | `move` | Where to move it (one of them is needed) |
+| `--trash-minis` | `project delete` | Move the project's minis to the Trash too, instead of to Unsorted |
+
+`trash` takes one or more names and no options; `project create` takes only the project's name.
 
 ## Watch and change the queue
 
@@ -110,86 +166,22 @@ mimic stop                          # stop the mini being made, in Mimic or anot
 
 There's one queue for the app and every Terminal. See [The queue](queue.md).
 
-## Every option
+| Option | Commands | What it does |
+|---|---|---|
+| `--json` | `queue` | Print it as JSON, for scripts ([below](#json-for-scripts)) |
+| `--to front` / `end` / `<place>` | `queue move` | Where to move it: first, last, or a place from 1 |
+| `--up` / `--down` | `queue move` | One place up or down |
 
-Not every command takes every option. The size options are shared by `make`, `resize` and
-`import`; the rest belong to one or two commands each.
+`queue remove`, `queue pause`, `queue resume` and `stop` take no options.
 
-### Size options
+## See the 3D models
 
-For `make`, `resize` (one mini or `--project`) and `import`.
+```bash
+mimic models   # the 3D models, which are downloaded, and which one Mimic uses
+```
 
-| Option | What it does |
-|---|---|
-| `--height MM` | How tall the character is, feet to top; the base adds about 2 mm |
-| `--size MM` | For an object, its longest side (set from the nozzle unless you give it); for a character, the same as `--height` |
-| `--scale 28` / `32` / `35` / `54` / `75` | Match the scale your other minis use: sets the height and base for an average human (`--height` and `--base` still win). Characters only |
-| `--base MM` | Size of the base: across it, or across the flat sides for a hex |
-| `--base-shape round` / `square` / `hex` | The base's shape (round unless you give it) |
-| `--base-style plain` / `stone` / `wood` / `cobble` | A floor pressed into the top of the base: flagstones, planks or cobblestones (plain unless you give it) |
-| `--magnet 5x2` / `6x2` / `8x3` / `none` | A hole under the base for a round magnet this wide by this tall, in mm, with a little room to spare; the base gets taller to fit it (none unless you give it) |
-| `--nozzle 0.2` / `0.4` / `0.6` | Your printer's nozzle |
-| `--inflate MM` | Extra thickness for thin parts (set from the nozzle unless you give it) |
-| `--no-base` | Keep the character's own base instead of adding one |
-| `--add-base` | Give an object a base too (sized to its shadow unless you give `--base`) |
-
-A resize keeps the mini's base shape, floor, magnet and nozzle unless you give them.
-
-### `mimic make`
-
-`mimic make "<name>" "<description>"` or `mimic make "<name>" --image <picture>`, plus the size
-options and:
-
-| Option | What it does |
-|---|---|
-| `--image FILE` | Start from your own picture instead of a description |
-| `--restyle` | Redraw that picture as a grey sculpt first (its tabletop export is then grey) |
-| `--back FILE` / `--left FILE` / `--right FILE` | With `--image` (the front): pictures of the same character from the back and sides, so the 3D model doesn't guess them. Any of them; TRELLIS.2 only |
-| `--change "TEXT"` | With `--image`: redraw the picture with this change first, e.g. `"close the cape so both arms show"`. It gets the grey sculpt too |
-| `--improve` | With a description: let the AI helper chosen in Settings write a fuller one first |
-| `--object` | Make anything that isn't a character: no base, sized by its longest side, set on its flat bottom |
-| `--seed N` | Try a different version of the same character (42 unless you give it) |
-| `--model ID` | Make it with this 3D model instead of the one chosen in Settings (`mimic models` lists them) |
-| `--project NAME` | Put it in that project; a new one is made if needed |
-| `--wait` | If another mini is being made, stay until this one is made, instead of returning once it's in the queue |
-
-### `mimic make-another`
-
-`mimic make-another <name>` makes the next version, with the mini's own picture or description and
-sizes.
-
-| Option | What it does |
-|---|---|
-| `--new-shape` | Keep the picture it made and make only the 3D shape again |
-| `--change "TEXT"` | Redraw the picture with this change first. It starts from the picture this mini was made from, so changes add up. In Terminal it carries straight on; the app stops to show you the picture first |
-| `--seed N` | Use this seed instead of a new one |
-| `--wait` | As for `make` |
-
-### `mimic resize`
-
-`mimic resize <name>`, or `mimic resize --project "<project>"` for every mini in a project (like
-**Resize All…**). Takes the size options and `--wait`.
-
-### `mimic retry`
-
-`mimic retry <name>` carries on from the step that failed. Takes `--wait`.
-
-### `mimic import`
-
-`mimic import <file.glb|file.stl>` takes the model as it is. Takes the size options, `--object`,
-`--project NAME` and `--wait`.
-
-### Other commands
-
-| Command | Options |
-|---|---|
-| `mimic duplicate <name>` | `--as "<new name>"`, the copy's name (needed) |
-| `mimic export <name>` | `--vtt` (needed), and `--triangles N` for how many triangles the low-poly model has (5,000 unless you give it) |
-| `mimic rename <name>`, `mimic project rename "<project>"` | `--to "<new name>"` (needed) |
-| `mimic move <name>` | `--project "<project>"` or `--unsorted` |
-| `mimic project delete "<project>"` | `--trash-minis` moves its minis to the Trash too, instead of to Unsorted |
-| `mimic queue move <name>` | `--to front`, `--to end`, `--to <place>`, `--up` or `--down` |
-| `mimic list`, `projects`, `queue`, `models`, `info <name>` | `--json` prints it as JSON, for scripts ([below](#json-for-scripts)) |
+`--json` prints it as JSON. Change the model in **Settings → 3D Model**, or for one mini with
+`make --model`.
 
 ## JSON for scripts
 
