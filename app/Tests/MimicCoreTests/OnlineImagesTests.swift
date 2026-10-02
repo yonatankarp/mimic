@@ -28,7 +28,8 @@ final class OnlineImagesTests: XCTestCase {
                 if n < hiccups { return (503, Data()) }
                 let s = n - hiccups < pending ? "Pending" : status
                 let result = s == "Ready" ? #"{"sample":"http://127.0.0.1:\#(port)/sample.png"}"# : "null"
-                return (200, Data(#"{"id":"t1","status":"\#(s)","result":\#(result),"details":\#(details)}"#.utf8))
+                // As api.bfl.ai answers an id it doesn't know: 404, with the status in the body.
+                return (s == "Task not found" ? 404 : 200, Data(#"{"id":"t1","status":"\#(s)","result":\#(result),"details":\#(details)}"#.utf8))
             }
             if path == "/sample.png" { return (200, OnlineImagesTests.picture) }
             if path == "/v1/credits" { return (submit, Data(#"{"credits":12.5}"#.utf8)) }
@@ -82,7 +83,10 @@ final class OnlineImagesTests: XCTestCase {
         XCTAssertEqual(b["prompt"] as? String, DrawThings.redrawPrompt(kind: .object, change: "a taller lid"))
         let (w, h) = DrawThings.editSize(width: 8, height: 8)
         XCTAssertEqual(b["width"] as? Int, w); XCTAssertEqual(b["height"] as? Int, h)
-        let sent = try XCTUnwrap((b["input_image"] as? String).flatMap { Data(base64Encoded: $0) })
+        // A data URL, the form BFL's own FLUX.2 example sends a local picture in.
+        let inline = try XCTUnwrap(b["input_image"] as? String)
+        XCTAssertTrue(inline.hasPrefix("data:image/png;base64,"), String(inline.prefix(40)))
+        let sent = try XCTUnwrap(Data(base64Encoded: String(inline.dropFirst("data:image/png;base64,".count))))
         XCTAssertTrue(sent.starts(with: [0x89, 0x50, 0x4E, 0x47]), "the picture goes as a PNG")
     }
 
@@ -100,6 +104,13 @@ final class OnlineImagesTests: XCTestCase {
         XCTAssertThrowsError(try service(server).check()) { XCTAssertEqual($0 as? OnlineImagesError, .badKey) }
         let good = try Self.fake()
         defer { good.stop() }
+        // A key not shaped like one: api.bfl.ai answers 422 "Invalid API key format", seen live.
+        let malformed = try FakeLLM(status: 422, body: #"{"detail":"Invalid API key format"}"#)
+        defer { malformed.stop() }
+        XCTAssertThrowsError(try service(malformed).check()) { XCTAssertEqual($0 as? OnlineImagesError, .badKey) }
+        XCTAssertThrowsError(try service(malformed).draw(description: "a dwarf", seed: 1, kind: .character)) {
+            XCTAssertEqual($0 as? OnlineImagesError, .badKey)
+        }
         XCTAssertNoThrow(try service(good).check())
         XCTAssertTrue(try XCTUnwrap(good.requests.last).head.hasPrefix("GET /v1/credits"))
     }
@@ -154,20 +165,18 @@ final class OnlineImagesTests: XCTestCase {
         XCTAssertEqual(try early.draw(description: "a dwarf", seed: 1, kind: .character), Self.picture)
     }
 
-    /// The picture is paid for once submitted: a busy moment, or "Task not found" before the task
-    /// shows up, while asking whether it's ready is asked again, not given up on.
+    /// The picture is paid for once submitted: a busy moment while asking whether it's ready is
+    /// asked again, not given up on. A task BFL doesn't know (a 404 "Task not found") is final.
     func testAHiccupWhileWaitingIsAskedAgain() throws {
         let busy = try Self.fake(hiccups: 2)
         defer { busy.stop() }
         XCTAssertEqual(try service(busy).draw(description: "a dwarf", seed: 1, kind: .character), Self.picture)
-        let notYet = try Self.fake(status: "Task not found")
-        defer { notYet.stop() }
-        let s = service(notYet)
-        s.timeout = 0.3
-        XCTAssertThrowsError(try s.draw(description: "a dwarf", seed: 1, kind: .character)) {
-            XCTAssertEqual($0 as? OnlineImagesError, .timedOut, "asked until the deadline")
+        let lost = try Self.fake(status: "Task not found")
+        defer { lost.stop() }
+        XCTAssertThrowsError(try service(lost).draw(description: "a dwarf", seed: 1, kind: .character)) {
+            XCTAssertEqual($0 as? OnlineImagesError, .failed(""))
         }
-        XCTAssertGreaterThan(notYet.requests.filter { $0.head.contains("get_result") }.count, 1)
+        XCTAssertEqual(lost.requests.filter { $0.head.contains("get_result") }.count, 1)
     }
 
     /// Stop on a mini whose picture is being made online stops the request, and the new mini goes

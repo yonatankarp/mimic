@@ -64,8 +64,12 @@ public final class OnlineImages: PictureMaker, @unchecked Sendable {
         // The size Draw Things gets: multiples of 64, which FLUX.2's multiples of 16 accept.
         let (png, w, h) = try DrawThings.fitForEdit(picture)
         return try make(["prompt": DrawThings.redrawPrompt(kind: kind, change: change), "seed": seed, "width": w, "height": h,
-                         "input_image": png.base64EncodedString()])
+                         "input_image": Self.dataURL(png)])
     }
+
+    /// The picture inline, as a data URL: FLUX.2's OpenAPI only says "Path to the input image", and
+    /// BFL's own FLUX.2 example sends a local file this way (docs.bfl.ml/cookbook/video_start_from_images).
+    static func dataURL(_ png: Data) -> String { "data:image/png;base64," + png.base64EncodedString() }
 
     public func cancel() { lock.withLock { canceled = true; task?.cancel() } }
     public func reset() { lock.withLock { canceled = false } }
@@ -129,11 +133,11 @@ public final class OnlineImages: PictureMaker, @unchecked Sendable {
             case "Request Moderated", "Content Moderated":
                 let reasons = ((reply["details"] as? [String: Any])?["Moderation Reasons"] as? [String]) ?? []
                 throw OnlineImagesError.refused(reasons)
-            case "Error", "Failed":
+            case "Error", "Failed", "Task not found":
+                // Task not found is final, as BFL's docs say (and get_result answers it with a 404).
                 throw OnlineImagesError.failed("")
             default:
-                // Pending, Reasoning, Generating, and Task not found (as BFL's own example polls on):
-                // asked again shortly, until the deadline or a Stop.
+                // Pending, Reasoning, Generating: asked again shortly, until the deadline or a Stop.
                 wait()
             }
         }
@@ -151,13 +155,19 @@ public final class OnlineImages: PictureMaker, @unchecked Sendable {
     private func json(_ req: URLRequest) throws -> [String: Any] {
         let (status, data) = try fetch(req)
         let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+        let detail = json["detail"] as? String ?? ""
         switch status {
         case 200: return json
+        // A task get_result doesn't know: its status says so, and the poll loop ends on it.
+        case 404 where json["status"] is String: return json
+        // Seen from api.bfl.ai: no key or an unknown one is 403 "Not authenticated"; a key not
+        // shaped like one is 422 "Invalid API key format".
         case 401, 403: throw OnlineImagesError.badKey
+        case 422 where detail.localizedCaseInsensitiveContains("api key"): throw OnlineImagesError.badKey
         case 402: throw OnlineImagesError.noCredits
         case 429, 500...599: throw OnlineImagesError.busy
         default:
-            var why = (json["detail"] as? String) ?? String(decoding: data.prefix(200), as: UTF8.self)
+            var why = detail.isEmpty ? String(decoding: data.prefix(200), as: UTF8.self) : detail
             // A service that echoes the key in its error text must not put it on screen.
             if let k = key(), !k.isEmpty { why = why.replacingOccurrences(of: k, with: "…") }
             throw OnlineImagesError.failed(why)
