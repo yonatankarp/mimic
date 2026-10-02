@@ -243,13 +243,33 @@ final class TimingsTests: XCTestCase {
         t.clear()
         t.seedIfNeeded(runs: fx.install.runs, machine: mac)
         XCTAssertEqual(t.load().count, 0, "Clear must not bring the imported minis back")
+
+        // The app and `mimic make` starting together on a new Mac both seed, while a job
+        // finishes (#333). Planted: the check and the import were outside the lock, so the minis
+        // went in twice or the second seed's clear wiped the finished job.
+        for _ in 0..<20 {
+            try FileManager.default.removeItem(at: t.url)
+            DispatchQueue.concurrentPerform(iterations: 8) { i in
+                t.seedIfNeeded(runs: fx.install.runs, machine: mac)  // each Mimic seeds as it starts
+                if i == 0 { t.append([record(steps: [3: 1])]) }
+            }
+            let all = t.load()
+            XCTAssertEqual(all.filter { $0.imported == true }.count, 1, "seeded once")
+            XCTAssertEqual(all.filter { $0.imported == nil }.count, 1, "the finished job kept")
+        }
     }
 
     /// Development Mimics keep their own history, so trying things never touches the real one.
     func testWhereTheHistoryLives() {
         let home = URL(fileURLWithPath: "/Users/someone")
         XCTAssertEqual(Timings.standard(environment: [:], home: home).url.path, "/Users/someone/Library/Application Support/Mimic/timings.jsonl")
-        XCTAssertEqual(Timings.standard(environment: ["MIMIC_HOME": "/tmp/dev"], home: home).url.path, "/tmp/dev/timings.jsonl")
-        XCTAssertEqual(Timings.standard(environment: ["MIMIC_TIMINGS": "/tmp/t.jsonl", "MIMIC_HOME": "/tmp/dev"], home: home).url.path, "/tmp/t.jsonl")
+        XCTAssertEqual(Timings.standard(environment: ["MIMIC_HOME": "/tmp"], home: home).url.path, "/tmp/timings.jsonl")
+        XCTAssertEqual(Timings.standard(environment: ["MIMIC_TIMINGS": "/tmp/t.jsonl", "MIMIC_HOME": "/tmp"], home: home).url.path, "/tmp/t.jsonl")
+        // Read as the minis and the queue are (#333). Planted: a mistyped folder kept the history
+        // somewhere of its own while Mimic used the real minis and queue.
+        XCTAssertEqual(Timings.standard(environment: ["MIMIC_HOME": "/tmp/no-such-mimic"], home: home).url.path,
+                       "/Users/someone/Library/Application Support/Mimic/timings.jsonl")
+        let tilde = Timings.standard(environment: ["MIMIC_HOME": "~"], home: home).url.path
+        XCTAssertEqual(tilde, FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("timings.jsonl").path)
     }
 }
