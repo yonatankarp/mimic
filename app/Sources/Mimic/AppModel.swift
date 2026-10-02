@@ -172,6 +172,7 @@ final class AppModel {
         setup = SetupModel(install: install)
         updates.model = self
         wire(jobs)
+        setAsideSeen = jobs.queue.setAside().count
         reload()
         // Run the checks at launch, so Make is blocked (and Settings flagged) before anyone opens Settings.
         Health.shared.check(install)
@@ -228,6 +229,7 @@ final class AppModel {
         let install = Install.locate()
         self.install = install
         self.jobs = JobRunner(install: install, timings: timings, version: BuildInfo.version)
+        setAsideSeen = self.jobs.queue.setAside().count
         wire(self.jobs)
         selection = []
         reload()
@@ -292,9 +294,18 @@ final class AppModel {
         updates.tick()
     }
 
+    /// How many queue files that wouldn't read are put aside, as last seen: one more is said.
+    @ObservationIgnored private var setAsideSeen = 0
+
     /// Returns whether it reloaded the list, so a caller about to reload too can skip its own.
     @discardableResult
     func refreshQueue() -> Bool {
+        // A queue that wouldn't read was put aside (#306), by this Mimic or another: said once.
+        let aside = jobs.queue.setAside().count
+        if aside > setAsideSeen {
+            problem = "Mimic couldn't read its list of minis waiting to be made, so it put the list aside and started a new one. Minis that were waiting didn't start: make or resize them again."
+        }
+        setAsideSeen = aside
         let q = jobs.queue.entries()
         var changed = false
         if q != queue { queue = q; changed = true }

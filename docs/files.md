@@ -146,8 +146,10 @@ colour: Mimic works out the same placement from the mini's settings, as print pr
   SHA-256 of that folder's path. Inside: `queue.json` (the minis waiting, oldest first), `job.json`
   and `job.pid` (the mini being made and which Mimic is making it), the lock files `queue.lock` and
   `job.lock`, and while they apply, `paused` (the queue is paused), `job.stop` (`mimic stop` asking)
-  and `moving` (the minis folder is being moved). The queue isn't in the minis folder so that two
-  Macs sharing it through iCloud never share a queue.
+  and `moving` (the minis folder is being moved). A `queue.json` that won't read (damaged, or from
+  a newer Mimic) is never written over: it's renamed to `queue.json.unreadable-<date and time>`, as
+  it was, and a new queue starts. You can delete those copies. The queue isn't in the minis folder
+  so that two Macs sharing it through iCloud never share a queue.
 - **timings.jsonl** has one line per mini made on this Mac (the Mac, the model, the sizes and each
   step's time), at most 2,000 lines. It's what time estimates are learned from, and it's never
   sent anywhere. Settings → Advanced → **Clear…** empties it.

@@ -175,6 +175,15 @@ Mimic makes one mini at a time, whichever Mimic asked for it: this app, another 
 `mimic` in Terminal. A new mini joins the queue and waits its turn. A mini another
 Mimic is making shows in the toolbar, but you stop it where it was started.
 
+### The list of minis waiting couldn't be read
+
+If the file that keeps the queue gets damaged, Mimic puts it aside, untouched, and starts a new
+queue, telling you it couldn't read its list of minis waiting to be made. The minis that were
+waiting are still in your list, but didn't start: a new mini shows that it didn't finish (press
+**Try Again**), an imported model too (press **Resize This Mini…**), and a resize didn't happen
+(resize it again). The old file stays in the queue's
+folder (see [Files on disk](files.md)) in case you want to report it.
+
 ## Report a problem
 
 Still stuck, or something looks wrong? Mimic can gather what's needed to fix it and open a bug
