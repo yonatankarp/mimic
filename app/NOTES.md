@@ -488,7 +488,8 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   The crashed launch's log comes from `log show` filtered by its pid, which works on an
   administrator account only; on a standard one about.txt says it couldn't be read. Crashes of
   trellis-cli and draw-things-cli aren't offered: they're failed jobs, with Report a Problem on
-  the mini. Don't Ask Again is `crashDontAsk`.
+  the mini. Don't Ask Again is `crashDontAsk`. The setup (#283) goes in too, as it is at the
+  next launch: the crashed launch's queue and last job went with it.
 - **One job at a time, and a queue shared by every Mimic** (`MimicCore/Queue.swift`, `Jobs.swift`;
   0.5.0). A job asked for while one runs, in this Mimic or another (the installed app, a dev
   build, `mimic` in Terminal), joins the queue's `queue.json` (on this Mac, see #102 below): an array of `{name, job, added, sizes?}`,

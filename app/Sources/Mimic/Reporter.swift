@@ -79,13 +79,19 @@ final class Reporter {
         if answer == .alertThirdButtonReturn { UserDefaults.standard.set(true, forKey: CrashReport.dontAskKey) }
         guard answer == .alertFirstButtonReturn else { return }
         let folder = model.install.runs.appendingPathComponent("_reports"), build = BuildInfo.line, mac = Report.mac
+        // The setup as it is now: the crashed launch's queue and last job went with it.
+        let install = model.install, known = setupKnown(nil)
         Task {
-            let made: URL? = await Task.detached {
-                try? CrashReport.write(crash, to: folder, build: build, mac: mac, appLog: CrashReport.appLog(crash))
+            let made: (URL, ReportSetup)? = await Task.detached {
+                var setup = ReportSetup.current(install: install)
+                known(&setup)
+                guard let zip = try? CrashReport.write(crash, to: folder, build: build, mac: mac, appLog: CrashReport.appLog(crash),
+                                                       setup: setup) else { return nil }
+                return (zip, setup)
             }.value
             guard let made else { model.problem = "Couldn't make the report. Check that Mimic's folder is still there, then try again."; return }
-            NSWorkspace.shared.activateFileViewerSelecting([made])
-            NSWorkspace.shared.open(CrashReport.issueURL(crash, build: build, mac: mac))
+            NSWorkspace.shared.activateFileViewerSelecting([made.0])
+            NSWorkspace.shared.open(CrashReport.issueURL(crash, build: build, mac: mac, setup: made.1))
         }
     }
 
