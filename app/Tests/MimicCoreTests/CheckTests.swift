@@ -154,8 +154,9 @@ final class CheckTests: XCTestCase {
         XCTAssertLessThan(Date().timeIntervalSince(started), 5)
     }
 
-    /// A program that finishes but leaves something running with its output open still
-    /// answers, once the time is up.
+    /// A program that finishes but leaves something running with its output open answers as soon
+    /// as it exits, not when the time is up. Waiting out the time left its exit no time to be
+    /// seen, and a busy Mac read that as a failed check.
     func testSomethingLeftHoldingTheOutputDoesNotHang() throws {
         let pidFile = f.root.appendingPathComponent("left.pid")
         let leaves = f.root.appendingPathComponent("leaves")
@@ -165,8 +166,8 @@ final class CheckTests: XCTestCase {
             if let pid = pid.flatMap({ pid_t($0) }) { kill(pid, SIGKILL) }
         }
         let started = Date()
-        let result = Checks.execute(leaves.path, [], 0.5)
-        XCTAssertLessThan(Date().timeIntervalSince(started), 5)
+        let result = Checks.execute(leaves.path, [], 20)
+        XCTAssertLessThan(Date().timeIntervalSince(started), 10, "waited out the time instead of the exit")
         XCTAssertEqual(result?.status, 0)
         XCTAssertEqual(result?.output, "ok\n")
     }
