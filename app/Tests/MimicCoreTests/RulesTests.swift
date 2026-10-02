@@ -95,6 +95,21 @@ final class RulesTests: XCTestCase {
         }
     }
 
+    /// Sizes stay inside what New Mini and Resize let you choose, from Terminal or settings.json
+    /// too: a 5,000 mm figure ran the 3D step, then print prep thrashed the Mac (#318).
+    func testSizesOutsideTheAppsRangesAreRefused() throws {
+        XCTAssertEqual(try Sizes(height: "15", base: "20", inflate: "0").flags(),
+                       ["--height", "15.0", "--base", "20.0", "--inflate", "0.0"])
+        XCTAssertEqual(try Sizes(height: "200", base: "80", inflate: "0.4").flags(),
+                       ["--height", "200.0", "--base", "80.0", "--inflate", "0.4"])
+        for (bad, key) in [(Sizes(height: "5000"), "height"), (Sizes(height: "14"), "height"), (Sizes(height: "1e20"), "height"),
+                           (Sizes(base: "81"), "base"), (Sizes(base: "19"), "base"), (Sizes(inflate: "0.5"), "inflate")] {
+            XCTAssertThrowsError(try bad.flags(), key) { XCTAssertEqual($0 as? RequestError, .badNumber(key)) }
+        }
+        XCTAssertEqual(RequestError.badNumber("height").description, "The height must be a number from 15 to 200 mm.")
+        XCTAssertEqual(RequestError.badNumber("inflate").description, "The extra thickness must be a number from 0 to 0.4 mm.")
+    }
+
     func testNozzleIsOneOfTheOfferedSizes() throws {
         XCTAssertEqual(try Sizes(nozzle: "0.2").flags(), ["--nozzle", "0.2"])
         for bad in ["0.3", "0.20", "--image", "1e9"] {
