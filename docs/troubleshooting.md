@@ -19,6 +19,10 @@ any other mini.
 
 A few things to know:
 
+- **Read the reason first.** It says what to do when there's something to do: press **Repair**
+  next to the 3D engine in Settings, use a picture with a plainer background, or, when your Mac ran
+  out of memory, quit other apps first (see [Not enough memory](#not-enough-memory)). Try Again on
+  its own would only fail the same way.
 - **Try Again uses the 3D model the mini was first made with.** If you've removed that model,
   Mimic says so: download it again in [Settings → 3D Model](settings.md#3d-model), or make a new
   version instead.

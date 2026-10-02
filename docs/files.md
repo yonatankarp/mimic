@@ -73,8 +73,8 @@ Everything about one mini is in its folder. For a mini called `tiefling`:
 You may also see, briefly:
 
 - `tiefling.part.stl` while print prep writes the print file; it replaces `tiefling.stl` in one go.
-- `prep-result.json`, which print prep writes for the job to read, and which goes as soon as the
-  job has read it.
+- `prep-result.json`, which print prep writes for the job to read (and building the 3D shape too,
+  when it fails, to say why), and which goes as soon as the job has read it.
 
 ### settings.json
 

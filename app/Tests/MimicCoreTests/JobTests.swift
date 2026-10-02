@@ -334,6 +334,38 @@ final class JobTests: XCTestCase {
         XCTAssertNil(s.notes); XCTAssertNil(s.fragile); XCTAssertNil(s.failed, "a finished run clears them")
     }
 
+    /// Why the 3D step failed reaches the person as `mimic _engine` said it, in its report (#305):
+    /// on the job, and kept with the mini. Killed outright (signal 9, which is how macOS ends a
+    /// program when the Mac runs out of memory) it says so; with no reason at all, which step
+    /// stopped, keeping its own capitals.
+    func testTheReasonThe3DStepFailedIsSaid() throws {
+        let fx = try Fixture()
+        let picture = try fx.picture()
+        try fx.modelFiles()
+        func make(_ name: String, _ mimic: String) throws -> (JobStatus?, MiniSettings) {
+            let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: mimic), trash: { _ in })
+            try jobs.make(name: name, picture: .image(picture), restyle: false, seed: 1, sizes: sizes, model: EngineDownload.standard)
+            jobs.waitUntilDone()
+            return (jobs.status, MiniSettings.load(fx.install.runs.appendingPathComponent(name)))
+        }
+        let why = "Couldn't find the character in the picture. Try one with a plain background."
+        let (said, saved) = try make("said", try fx.prep("says-why", PrepReport(failure: why), "echo 'Traceback: boom' >&2; exit 1"))
+        XCTAssertEqual(said?.problem, why)
+        XCTAssertEqual(saved.failed, why)
+        XCTAssertEqual(saved.failedStep, 2)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fx.install.runs.appendingPathComponent("said/prep-result.json").path))
+
+        let memory = "It looks like your Mac ran out of memory while building the 3D shape. Quit other apps, then try again."
+        let (killed, killedSaved) = try make("killed", try fx.script("killed", "if [ \"$1\" = _engine ]; then kill -9 $$; fi"))
+        XCTAssertEqual(killed?.exit, -9)
+        XCTAssertEqual(killed?.problem, memory)
+        XCTAssertEqual(killedSaved.failed, memory)
+
+        let (quiet, quietSaved) = try make("quiet", try fx.script("quiet", "if [ \"$1\" = _engine ]; then echo 'exit code 3' >&2; exit 1; fi"))
+        XCTAssertEqual(quiet?.problem, "It stopped while building the 3D shape.")
+        XCTAssertEqual(quietSaved.failed, "It stopped while building the 3D shape.")
+    }
+
     /// Stop during the 3D step: the job and its child end, it reads as stopped, and the
     /// half-made mini goes to the Trash.
     func testStopEndsTheJobAndTrashesAHalfMadeMini() throws {

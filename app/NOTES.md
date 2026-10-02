@@ -274,6 +274,15 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   byte-identical mesh (PLY) and texture to the wrapper's run of the same build and seed. It is
   handled before the CLI finds the Mimic folder: the queue's `job.pid` names this very
   program, and the leftover-job cleanup would otherwise stop it.
+- **Why a step failed comes from its report, never its log** (#305). `_engine` writes what it
+  says for people (no character found in the picture, the engine missing or ignoring
+  PIXAL3D_STEPS: press Repair) into the same prep-result.json print prep reports through, and the
+  job reads it the same way; paths and exit codes go to pixal3d.log only (`Engine.Failure.forPeople`).
+  A program killed outright (signal 9: macOS ends the biggest one that way when memory runs out)
+  can't write one, so trellis-cli's -9 is said by `_engine`, and a step's own -9 by the job
+  (`JobStep.outOfMemory`). With no reason at all the job says which step stopped, in that step's
+  own capitals ("3D"). Proven by `testTheEngineReportsWhyItFailed` and
+  `testTheReasonThe3DStepFailedIsSaid`.
 - **Cutouts: Apple Vision, not rembg or trellis-cli's BiRefNet.** Measured on the four minis'
   pictures against the u2net cutouts the Python wrapper made (`source__matted.png`): masks agree
   97.4–99.5% (IoU), and where they differ Vision is right. It kept the elf's bow tips, which

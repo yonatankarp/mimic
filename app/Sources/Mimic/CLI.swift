@@ -559,7 +559,8 @@ enum CLI {
             if s.fragile { print("Heads up: \(PrepReport.footprintNote)") }
             return 0
         }
-        return fail("It didn't finish: \(s.problem ?? "a step failed (exit \(s.exit ?? -1))"). See the logs in \(folder.path)")
+        let why = s.problem ?? "a step failed (exit \(s.exit ?? -1))"
+        return fail("It didn't finish: \(why.hasSuffix(".") ? String(why.dropLast()) : why). See the logs in \(folder.path)")
     }
 
     /// `--wait` while another Mimic runs the queue: shows its progress until it's made there, or
@@ -645,6 +646,8 @@ enum CLI {
             }
             return 0
         } catch {
+            // What the person is told goes to the job as print prep's does (#305): the log is for bug reports.
+            if let f = error as? Engine.Failure, f.forPeople { try? PrepReport(failure: f.description).write(beside: URL(fileURLWithPath: files[1])) }
             _ = fail("\(error)")
             return 1
         }
