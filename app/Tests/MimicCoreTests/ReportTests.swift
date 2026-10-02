@@ -120,7 +120,7 @@ final class ReportTests: XCTestCase {
     func testTheBugFormHasTheFieldsTheLinkFills() throws {
         let form = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../../.github/ISSUE_TEMPLATE/bug.yml")
         let text = try String(contentsOf: form, encoding: .utf8)
-        for id in ["what", "version", "mac", "logs"] { XCTAssertTrue(text.contains("id: \(id)\n"), "bug.yml has no \(id) field") }
+        for id in ["what", "version", "mac", "logs", "more"] { XCTAssertTrue(text.contains("id: \(id)\n"), "bug.yml has no \(id) field") }
     }
 
     func testTheMacLine() {

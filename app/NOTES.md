@@ -465,6 +465,16 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   reads back as `<private>`. `OSLogStore(scope: .currentProcessIdentifier)` reads it with no
   permission (checked on this Mac, and by a test); the whole Mac's store needs an administrator.
   So a report has this launch's last hour only, never an earlier launch or `mimic` in Terminal.
+  The setup (`ReportSetup.swift`, #283) goes in as setup.txt and, its first nine lines cut to
+  100 characters each, into the form's `more`: the 3D model and engine VERSION, Draw Things' model
+  (asked of its API only; reading its models folder would show a privacy prompt) and cli or app,
+  the helper's provider (never its key or address), free space, `kern.memorystatus_vm_pressure_level`,
+  power, the Metal GPU, the queue and last job by kind and step (never a name), and the nozzle,
+  base and grey sculpt of the mini, else the last job's, else New Mini's. Priority is fixed (nice
+  10), so it's stated, not read. A picture of the main window and its sheets (not Settings) goes in
+  as window.png when "Include a picture of Mimic's window" is ticked, on by default under a preview:
+  taken as the action starts, before the alert, by drawing the views (`cacheDisplay`), which needs
+  no Screen Recording permission. What Metal draws, the 3D view, may come out empty.
 - **A crash is offered as a report at the next launch** (`MimicCore/CrashReport.swift`; #284). The
   app and `mimic` are one binary, so both crash as `mimic-….ips` in `~/Library/Logs/DiagnosticReports`
   (an .ips is a header line of JSON, then the report's JSON). At launch the newest one written since
@@ -603,8 +613,8 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   menus): the import itself, an STL through real print prep, and its refusals are tested; the
   windows weren't looked at, and no real HeroForge STL or other generator's GLB was tried.
 
-- Report a Problem in the app: the alert and its picture box, Finder showing the zip, and the
-  filled-in GitHub form. The zip, the scrubbing, the link and reading the app's log back are tested.
+- Report a Problem in the app: the alert, its picture boxes and the window's preview, Finder
+  showing the zip, and the filled-in GitHub form. The zip, the scrubbing, the link and reading the app's log back are tested.
 
 - The crash question at launch after a real crash of Mimic, and the crashed launch's log in its
   report: finding, trimming and scrubbing a made-up report, the zip and the link are tested, and

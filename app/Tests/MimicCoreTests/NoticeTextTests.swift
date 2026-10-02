@@ -34,14 +34,14 @@ final class NoticeTextTests: XCTestCase {
     func testReportingAMiniNamesItAndItsSettings() {
         let q = ReportQuestion(mini: "Élodie the Druid")
         XCTAssertEqual(q.title, "Report a problem with “Élodie the Druid”?")
-        XCTAssertEqual(q.text, "Mimic puts its notes on making this mini, the mini's settings, and which Mac and version this is, "
+        XCTAssertEqual(q.text, "Mimic puts its notes on making this mini, the mini's settings, and which Mac, version and setup this is, "
             + "into one file, with keys and passwords taken out. Then it shows you the file and opens a form on GitHub to attach it to.")
     }
 
     func testReportingFromTheHelpMenuIsAboutWhatHappened() {
         let q = ReportQuestion(mini: nil)
         XCTAssertEqual(q.title, "Report a problem?")
-        XCTAssertEqual(q.text, "Mimic puts its notes on what happened, and which Mac and version this is, into one file, "
+        XCTAssertEqual(q.text, "Mimic puts its notes on what happened, and which Mac, version and setup this is, into one file, "
             + "with keys and passwords taken out. Then it shows you the file and opens a form on GitHub to attach it to.")
     }
 }
