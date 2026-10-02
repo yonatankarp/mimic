@@ -110,7 +110,7 @@ final class ProjectTests: XCTestCase {
         XCTAssertEqual(ran(fx), [d.appendingPathComponent("raven.stl").path, d.appendingPathComponent("raven.stl").path])
         XCTAssertEqual(MiniSettings.load(d).made, sizes, "the finished job wrote its sizes elsewhere")
         XCTAssertEqual(jobs.estimate("raven", .generate, history: []).total,
-                       Estimator.estimate(JobShape(.generate, settings: MiniSettings.load(d), sizes: nil), history: []).total)
+                       Estimator.estimate(JobShape(.generate, settings: MiniSettings.load(d), service: .drawThings, sizes: nil), history: []).total)
 
         try Gallery.rename(runs, from: "raven", to: "raven-familiar")
         let renamed = runs.appendingPathComponent("Tiefling Party/raven-familiar")

@@ -237,7 +237,8 @@ for the new one.
 
 Mimic times every mini it makes to tell you how long the next will take. **Time estimates** says
 whether it's using its own figures (until you've made a few minis) or how many of your minis it's
-learned from. The times are kept on your Mac only and never sent anywhere.
+learned from. Pictures drawn by Draw Things and by each online service are timed apart, so
+switching between them doesn't throw the estimate off. The times are kept on your Mac only and never sent anywhere.
 
 **Clear…** makes Mimic forget them and go back to its own figures. Your minis are kept.
 

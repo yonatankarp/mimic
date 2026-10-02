@@ -167,7 +167,7 @@ final class SidePictureTests: XCTestCase {
         XCTAssertEqual(Estimator.estimate(three, history: history).steps[.picture], 150)
         XCTAssertEqual(Estimator.estimate(one, history: history).steps[.shape], 200)
         XCTAssertEqual(Estimator.estimate(three, history: history).steps[.shape], 300)
-        XCTAssertEqual(JobShape(.generate, settings: { var s = MiniSettings(); s.source = .image; s.sides = [.back, .left]; return s }()).pictures, 3)
+        XCTAssertEqual(JobShape(.generate, settings: { var s = MiniSettings(); s.source = .image; s.sides = [.back, .left]; return s }(), service: .drawThings).pictures, 3)
     }
 
     /// A picture chosen for the back goes to the back, not the front: SwiftUI closes the chooser

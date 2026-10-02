@@ -21,8 +21,9 @@ enum CLI {
         // its app, so it would read its own empty settings rather than the app's.
         let defaults = Bundle.main.bundleIdentifier == nil ? UserDefaults(suiteName: "com.mimic.app") ?? .standard : .standard
         let install = Install.locate(defaults: defaults)
-        let cli = Context(defaults: defaults, install: install, power: Power.holds(suite: defaults == .standard ? nil : "com.mimic.app"),
-                          timings: Timings.standard())
+        let suite = defaults == .standard ? nil : "com.mimic.app"  // as Power.holds: UserDefaults isn't Sendable
+        let cli = Context(defaults: defaults, install: install, power: Power.holds(suite: suite), timings: Timings.standard(),
+                          pictureService: { OnlineService.configured(defaults: suite.flatMap(UserDefaults.init(suiteName:)) ?? .standard) })
         var rest = Array(args.dropFirst())
         // --json on a listing (#130): taken out first, so each listing reads its arguments as before.
         let json = ["list", "projects", "queue", "models", "info"].contains(args.first) && rest.contains("--json")
@@ -54,6 +55,9 @@ enum CLI {
         let install: Install
         let power: @Sendable () -> Bool
         let timings: Timings
+        /// Pictures are made where the app's Settings say: Draw Things, or online (#247). The
+        /// queue's times ask it too (#325).
+        let pictureService: @Sendable () -> (any OnlineImages)?
     }
 
     /// For the completion scripts (not for people, so not in the usage): a name a line.
@@ -146,6 +150,7 @@ enum CLI {
     private static func queue(_ rest: [String], _ cli: Context, json: Bool) -> Int32 {
         let jobs = JobRunner(install: cli.install)
         jobs.heldForPower = cli.power
+        jobs.pictureService = cli.pictureService
         jobs.cleanUpLeftovers()
         let command: QueueCommand
         do { command = try QueueCommand.parse(rest) } catch { return fail("\(error)") }
@@ -210,9 +215,7 @@ enum CLI {
         timings.seedIfNeeded(runs: install.runs)  // before the first record marks it done
         let jobs = JobRunner(install: install, timings: timings, version: BuildInfo.version)
         jobs.heldForPower = cli.power
-        // Pictures are made where the app's Settings say: Draw Things, or online (#247).
-        let suite = cli.defaults == .standard ? nil : "com.mimic.app"  // as Power.holds: UserDefaults isn't Sendable
-        jobs.pictureService = { OnlineService.configured(defaults: suite.flatMap(UserDefaults.init(suiteName:)) ?? .standard) }
+        jobs.pictureService = cli.pictureService
         // This terminal runs the queue only until its own mini is made; the app runs the rest.
         jobs.keepGoing = { [name] in $0.contains { $0.name == name } }
         let mine = Mine(name: name, runs: install.runs)

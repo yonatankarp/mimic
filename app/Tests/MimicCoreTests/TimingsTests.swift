@@ -29,7 +29,7 @@ final class TimingsTests: XCTestCase {
         try fm.removeItem(at: raven.appendingPathComponent("model.glb"))  // its picture only
         let crow = try fx.mini("crow")  // its picture and its 3D shape
         for d in [owl, raven, crow] { try MiniSettings.update(d) { $0.source = .desc; $0.desc = "a bird" } }
-        let full = Estimator.estimate(JobShape(.generate, settings: MiniSettings.load(owl)), history: [])
+        let full = Estimator.estimate(JobShape(.generate, settings: MiniSettings.load(owl), service: .drawThings), history: [])
         let picture = try XCTUnwrap(full.steps[.picture]), printFile = try XCTUnwrap(full.steps[.print])
         let rows = jobs.queueTimes(["owl", "raven", "crow"].map { QueueEntry(name: $0, job: .generate) }, running: nil, history: [])
         XCTAssertEqual(rows.map(\.estimate.total), [full.total, full.total - picture, printFile])
@@ -89,6 +89,49 @@ final class TimingsTests: XCTestCase {
         var shape = make; shape.drawn = false
         XCTAssertEqual(Estimator.estimate(shape, history: drawn + copied, machine: mac).steps[.picture], 1)
         XCTAssertEqual(Estimator.estimate(shape, history: drawn, machine: mac).steps[.picture], 5, "no copied pictures yet: the fixed seconds")
+    }
+
+    /// Draw Things takes about 20 s a picture, an online service a minute or two: each is
+    /// estimated from its own (#325). Planted: both fed one median, wrong whichever you use.
+    /// A copied picture is the same whichever is chosen.
+    func testTheFirstStepDependsOnWhoDrawsThePicture() throws {
+        func drawn(_ seconds: Double, by service: String) -> [TimingRecord] {
+            (0..<3).map { _ in var r = record(steps: [1: seconds, 2: 300, 3: 6]); r.pictureService = service; return r }
+        }
+        let history = drawn(20, by: "drawthings") + drawn(90, by: "openai") + drawn(60, by: "bfl")
+            + (0..<3).map { _ in var r = record(steps: [1: 1, 2: 300, 3: 6], source: "picture"); r.pictureService = "openai"; return r }
+        var shape = make
+        XCTAssertEqual(Estimator.estimate(shape, history: history, machine: mac).steps[.picture], 20)
+        shape.service = .openai
+        XCTAssertEqual(Estimator.estimate(shape, history: history, machine: mac).steps[.picture], 90)
+        shape.service = .bfl
+        XCTAssertEqual(Estimator.estimate(shape, history: history, machine: mac).steps[.picture], 60)
+        shape.drawn = false
+        XCTAssertEqual(Estimator.estimate(shape, history: history, machine: mac).steps[.picture], 1)
+
+        // The queue's times ask the service Settings chose.
+        let fx = try Fixture()
+        try MiniSettings.update(try fx.mini("owl")) { $0.source = .desc; $0.desc = "a bird" }
+        let jobs = JobRunner(install: fx.install, tools: fx.tools())
+        let here = history.map { var r = $0; r.machine = .current; return r }
+        XCTAssertEqual(jobs.estimate("owl", .generate, history: here).steps[.picture], 20)
+        jobs.pictureService = { OpenAIImages(key: { nil }) }
+        XCTAssertEqual(jobs.estimate("owl", .generate, history: here).steps[.picture], 90)
+    }
+
+    /// A history written before Mimic kept who drew each picture still reads, as Draw Things':
+    /// the only way there was until online pictures (0.11.0).
+    func testOlderRecordsCountAsDrawThings() throws {
+        let fx = try Fixture()
+        let t = Timings(url: fx.root.appendingPathComponent("timings.jsonl"))
+        let line = #"{"base":25,"date":"2026-09-30T10:00:00Z","height":32,"job":"make","machine":{"chip":"Apple M2 Max","gpuCores":30,"memoryGB":32},"mini":"character","model":"pixal3d-sv","nozzle":"0.4","outcome":"finished","restyled":false,"source":"description","steps":{"1":20,"2":300,"3":6},"total":326,"version":"0.10.0"}"#
+        try Data(String(repeating: line + "\n", count: 3).utf8).write(to: t.url)
+        let old = t.load()
+        XCTAssertEqual(old.count, 3)
+        XCTAssertNil(old.first?.pictureService)
+        XCTAssertEqual(Estimator.estimate(make, history: old, machine: mac).steps[.picture], 20)
+        var online = make; online.service = .openai
+        XCTAssertEqual(Estimator.estimate(online, history: old, machine: mac).steps[.picture], 60, "not learned from Draw Things")
     }
 
     /// Print prep grows with the size and a finer nozzle: a resize is estimated from ones like it
