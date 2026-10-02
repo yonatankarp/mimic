@@ -1,4 +1,5 @@
-# Tests every change, builds the disk image, and drafts a release when a version tag is pushed:
+# Tests every change, builds the disk image (except for pull requests), and drafts a release
+# when a version tag is pushed:
 #   git tag v0.2.0 && git push origin v0.2.0
 name: Build and release
 
@@ -97,6 +98,9 @@ jobs:
           echo "MIMIC_SIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
           echo "MIMIC_SIGN_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
       - name: Package
+        # A release build (~2 min), so not on pull requests: main checks it after every merge,
+        # and a tag always runs it.
+        if: github.event_name != 'pull_request'
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "A version tag looks like v1.2.3, not $GITHUB_REF_NAME."; exit 1; }
@@ -112,6 +116,7 @@ jobs:
             hdiutil detach "$RUNNER_TEMP/dmg"
           fi
       - name: Check hardened runtime
+        if: github.event_name != 'pull_request'
         # The app in the disk image, and an ad hoc dev build (how anyone builds it on their own
         # Mac), are signed with the hardened runtime inside out, and still start: Sparkle loads
         # before main, so `--version` would crash here if the runtime refused it.
@@ -135,6 +140,7 @@ jobs:
           MIMIC_SIGN_IDENTITY= app/bundle.sh
           check "app/build/Mimic Dev.app"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: github.event_name != 'pull_request'
         with:
           name: mimic
           path: dist/*
