@@ -239,7 +239,7 @@ public enum Prep {
 
         var mesh = try GLB.read(URL(fileURLWithPath: o.glb))
         lap("read \(mesh.triangles.count) triangles")
-        let placed = try place(&mesh, o, log: log)
+        let placed = try place(&mesh, o, leavingOutItsBase: true, log: log)
         let standsAlone = placed.standsAlone, footprint = placed.footprint
         let height = Float(o.height), baseHeight = o.effectiveBaseHeight
         let thing = o.groundBottom ? "object" : "figure"
@@ -253,7 +253,7 @@ public enum Prep {
                                                floor: Solid.Floor(o.baseStyle, nozzle: Float(o.nozzle), seed: o.baseSeed),
                                                hole: o.hole.map { Solid.Hole(radius: Float($0.width) / 2, top: Float(max(0, o.flatten) + $0.depth)) })
         let solid = Solid(mesh: mesh, voxel: Float(o.effectiveVoxel), inflate: Float(o.effectiveInflate),
-                          base: base, cut: o.flatten > 0 ? Float(o.flatten) : nil)
+                          base: base, cut: o.flatten > 0 ? Float(o.flatten) : nil, figureFloor: placed.figureFloor)
         var out = solid.surface(mesh)
         mesh = Mesh()
         lap("solid \(solid.nx)x\(solid.ny)x\(solid.nz) grid, \(out.triangles.count) triangles")
@@ -322,8 +322,12 @@ public enum Prep {
     /// --flatten that `run` takes off everything once the solid is cut. Kept step by step beside
     /// the positions, which keep their own float arithmetic, so print files come out as before.
     /// Also what Export for Virtual Tabletop places a model by when its mini has no `Placement`.
-    static func place(_ mesh: inout Mesh, _ o: PrepOptions, log: (String) -> Void = { _ in }) throws
-        -> (standsAlone: Bool, footprint: Double, toPrint: simd_double4x4) {
+    /// With `leavingOutItsBase`, a base the engine copied from the picture (`Mesh.baseTop`) is
+    /// what the figure stands on: it's measured and set on Mimic's base from that base's top, and
+    /// `figureFloor` is where `run` cuts the figure off, so the engine's base isn't printed. Not
+    /// when Export for Virtual Tabletop places a model again for a print file made before that.
+    static func place(_ mesh: inout Mesh, _ o: PrepOptions, leavingOutItsBase: Bool = false, log: (String) -> Void = { _ in }) throws
+        -> (standsAlone: Bool, footprint: Double, toPrint: simd_double4x4, figureFloor: Float?) {
         var toPrint = matrix_identity_double4x4
         if o.turn != 0 {
             // A rotation, not a mirror, so the triangles keep their winding.
@@ -364,7 +368,15 @@ public enum Prep {
         // sunk into the base instead of holding the figure up on a pin.
         let top = mesh.bounds.hi.z
         var samples = mesh.surfaceSamples()
-        let ground0 = Mesh.percentileZ(samples, 0.005)
+        var ground0 = Mesh.percentileZ(samples, 0.005)
+        // A base in the picture comes back as a base of the engine's own: a hollow drum, often
+        // wider than Mimic's, which printed hanging over it on supports, its rim ragged where it
+        // was cut flat. The figure stands on its top instead, and the drum is left out.
+        var ownBase = false
+        if leavingOutItsBase, !o.noBase, !o.groundBottom, let t = mesh.baseTop(ground: ground0, top: top) {
+            log(String(format: "prep: left out the 3D model's own base (%.0f%% of its height)", 100 * (t - ground0) / (top - ground0)))
+            ground0 = t; ownBase = true
+        }
         // An object's extents leave out the floating specks the generator left (dropped later),
         // so one can't count as part of its longest side. Not a percentile of the surface, like
         // the ground: that trims thin tips, and a teapot's spouts came out 90 mm long, not 80.
@@ -399,21 +411,26 @@ public enum Prep {
                 total += s.area; sum += s.area * s.centroid
             }
             centre = total > 0 ? sum / total : .zero
-            for p in samples where p.z >= ground && p.z <= ground + 0.15 * height {
+            // Standing on the engine's base, not its top: that's left out.
+            let above = ownBase ? ground + 0.01 * height : ground
+            for p in samples where p.z >= above && p.z <= ground + 0.15 * height {
                 reach = max(reach, simd_length(SIMD2(p.x, p.y) - centre))
             }
         }
         let footprint = 2 * Double(reach)
 
-        // Sink the feet 0.6 mm into the base so the two are one solid.
+        // Sink the feet 0.6 mm into the base so the two are one solid. Standing on the engine's
+        // base, the figure is cut off 0.6 mm into Mimic's, and the engine's base top sits further
+        // down, so its skin, grown by the inflate, is cut off with it.
         let baseHeight = o.effectiveBaseHeight
-        let feet: Float = o.noBase ? 0 : Float(baseHeight) - 0.6
+        let floor: Float? = ownBase ? Float(baseHeight) - 0.6 : nil
+        let feet: Float = o.noBase ? 0 : Float(baseHeight) - 0.6 - (ownBase ? Float(o.effectiveInflate + 2 * o.effectiveVoxel) : 0)
         let shift = SIMD3(centre.x, centre.y, ground - feet)
         for n in mesh.positions.indices { mesh.positions[n] -= shift }
         // `run` takes --flatten off the print file afterwards, whether or not it cut anything.
         var move = matrix_identity_double4x4
         move.columns.3 = SIMD4(-SIMD3<Double>(shift) - SIMD3(0, 0, o.flatten), 1)
-        return (standsAlone, footprint, move * toPrint)
+        return (standsAlone, footprint, move * toPrint, floor)
     }
 
     /// Turning by `q` about `centre`, as `level` and `rest` turn a mesh.
@@ -434,6 +451,11 @@ public enum Prep {
     public static let standWarning = "mini_prep: WARNING stand: "
     /// Marks why prep failed in prep.log; the job reads it from `PrepReport` too.
     public static let failure = "mini_prep: FAILED: "
+    /// The flat area, in hundredths of the height squared, within 0.5% of the height, that makes
+    /// the top of a base the engine made (`Mesh.baseTop`). Measured on 13 real models: three
+    /// bases' tops had 1,899 (a fairy's, mostly under her robe) to 5,317; the most of the ten
+    /// minis without one was 751, a Pixal3D Lorelei's robe. About 1.6 times from each.
+    static let baseFlat: Float = 1200
     /// A model whose thinnest side is under this share of its longest is a flat sheet, not a mini.
     static let flat: Float = 0.02
     static let flatProblem = "The 3D model came out flat, like a sheet of paper. For a flat drawing, turn on \"Turn it into a grey sculpt first\" (--restyle) and make it again."
@@ -532,6 +554,41 @@ extension Mesh {
             area[find(Int32(t.x)), default: 0] += da; total += da
         }
         return triangles.map { area[find(Int32($0.x)), default: 0] >= share * total }
+    }
+
+    /// The top of a base the 3D engine made under a figure, copying one in its picture, from
+    /// `ground` (the figure's bottom) and `top`; nil when the figure stands on its own feet. Its
+    /// top is a wide flat face, low down, with hardly any flat above it. Flat either way up: the
+    /// engine's surfaces are two-sided, and its winding isn't reliable.
+    func baseTop(ground: Float, top: Float) -> Float? {
+        let height = top - ground
+        guard height > 0 else { return nil }
+        // Quarter-hundredth bins up to 13%, so a top on a bin's edge is still counted together.
+        let bin = height / 400, bins = 52
+        var flat = [Float](repeating: 0, count: bins), at = flat
+        for t in triangles {
+            let a = positions[Int(t.x)], b = positions[Int(t.y)], c = positions[Int(t.z)]
+            let cross = simd_cross(b - a, c - a), twice = simd_length(cross)
+            guard twice > 0, abs(cross.z) / twice > 0.95 else { continue }
+            let z = (a.z + b.z + c.z) / 3, k = Int(((z - ground) / bin).rounded(.down))
+            guard k >= 0, k < bins else { continue }
+            flat[k] += twice / 2; at[k] += twice / 2 * z
+        }
+        // The flat within half a hundredth either side of a bin, and in the hundredth above that.
+        func sum(_ r: Range<Int>) -> (area: Float, z: Float) {
+            let r = max(0, r.lowerBound)..<min(bins, r.upperBound)
+            return (r.reduce(0) { $0 + flat[$1] }, r.reduce(0) { $0 + at[$1] })
+        }
+        let least = Prep.baseFlat * bin * bin * 16
+        // From the highest, so a base in steps gives its top; above the bottom hundredth, which
+        // is the soles and the base's underside.
+        for k in stride(from: 47, through: 4, by: -1) {
+            let here = sum(k - 2..<k + 3)
+            guard here.area >= least, sum(k + 3..<k + 7).area < here.area / 5,
+                  flat[k] >= flat[max(0, k - 1)], flat[k] >= flat[k + 1] else { continue }
+            return here.z / here.area
+        }
+        return nil
     }
 
     /// The z below which `fraction` of the surface area lies.

@@ -23,7 +23,9 @@ takes 6 s and 1.5 GB. At 100 mm on a 0.4 mm nozzle, 157 s and 13.2 GB against 14
    The ground is where most of the bottom is (0.5% of the surface lies below it), not the lowest
    point, so a trailing wisp sinks into the base rather than holding the figure up on a pin. An
    object (`--fit longest`) is scaled so its longest side, whichever way it runs, is `--height`.
-   Floating specks don't count towards it.
+   Floating specks don't count towards it. A character standing on a base of the 3D engine's own,
+   copied from one in its picture, is measured from that base's top: see
+   [A base in the picture](#a-base-in-the-picture).
 6. **Centres it.** A character is centred on the solid cross-sections through its lower body (at 3,
    6, 9 and 12% of its height), so a raised sword or a cape doesn't pull it off the base. An object
    is centred on its whole shadow. This is also where it measures the footprint: how far the
@@ -38,6 +40,7 @@ takes 6 s and 1.5 GB. At 100 mm on a 0.4 mm nozzle, 157 s and 13.2 GB against 14
       `--base-height` tall, with a rounded top edge;
     - presses a **floor** into the base's top for `--base-style` (seams 0.45 mm deep);
     - cuts the **magnet hole** underneath;
+    - cuts off the 3D engine's own base, when it made one, so only Mimic's is printed;
     - cuts everything below `--flatten` off, so the bottom is flat however bumpy the model's own
       base was.
 9. **Keeps the largest piece** and drops the rest: see [Parts left out](#parts-left-out).
@@ -199,6 +202,7 @@ Other lines it may add:
 
 | Line | Meaning | Shown in the app as |
 |---|---|---|
+| `prep: left out the 3D model's own base (5% of its height)` | The engine made a base, copied from the picture, and it was cut off. | Nothing. |
 | `prep: levelled by 2.8°` | An object was levelled. | Nothing. |
 | `prep: set on its most stable side (turned 90°)` | An object was set on another side. | Nothing. |
 | `mini_prep: magnet hole 5.2 mm wide, 2.2 mm deep, for a 5 × 2 mm magnet; base 3.40 mm tall` | The hole, and the base height it needed. | Nothing. |
@@ -213,6 +217,18 @@ An object on a base never gets the footprint warning: its base is a plinth, size
 The app doesn't read `prep.log`: it reads the same warnings from `prep-result.json`, so rewording a
 log line changes nothing it shows. A mini's page keeps showing the last run's warnings, after a
 relaunch too, until a resize replaces them.
+
+## A base in the picture
+
+When a character's picture shows it on a base, the 3D engine copies that base: a drum under its
+feet, usually wider than Mimic's base and hollow underneath. Printed on top of Mimic's base, it
+hung over the edge on supports and came out with a ragged rim. So print prep looks for one: a wide
+flat top in the lowest 12% of the model, with hardly anything flat just above it. Feet, robes and
+rocks don't have one. When it finds one, the figure is sized from that top, stands on Mimic's base
+from there, and the engine's base is left out (sunk a little deeper into Mimic's base, by the
+inflate and two voxels, so none of its skin shows).
+
+With `--no-base`, the engine's base is kept, as the character's own. Objects are never looked at.
 
 ## Objects resting on a flat side
 

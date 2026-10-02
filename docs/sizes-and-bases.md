@@ -123,6 +123,11 @@ Some pictures and models already stand on a base or a rock. Under **Advanced**, 
 character's own base instead of adding one**: Mimic flattens the bottom of what's there so it
 sits on the print bed, and adds no base of its own.
 
+With it off, a base in your picture doesn't end up under Mimic's: the 3D engine copies it, and
+Mimic leaves its copy out and stands the figure on its own base instead. The figure is the height
+you chose from its feet, not from the bottom of that base. A mini you made with an older Mimic
+keeps both bases until you use **Resize This Mini**.
+
 ## Size an object
 
 When you make **Anything else** (a teapot, a car, a chess piece), there's no scale to match.
