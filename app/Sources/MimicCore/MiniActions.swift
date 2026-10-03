@@ -26,6 +26,7 @@ extension JobRunner {
     public func rename(_ name: String, to new: String, shown: String? = nil) throws {
         let runs = install.runs
         try queue.locked { entries in
+            try refuseWhileMoving()
             if entries.contains(where: { $0.name == name }) { throw RequestError.renameWaiting(name) }
             try Gallery.rename(runs, from: name, to: new, shown: shown, busyWith: running()?.name)
         }
@@ -36,12 +37,15 @@ extension JobRunner {
     /// Move to Trash: one waiting in the queue leaves it first, and a new mini's folder goes to
     /// the Trash with that (nil is returned); otherwise its folder goes. Refused for the one being
     /// made. Returns its folder and where it went in the Trash, for Undo (`Gallery.putBack`).
+    /// Under the queue's lock (#331): refused while the minis are moving, and another Mimic can't
+    /// queue it (a resize, say) between the look and the move.
     @discardableResult
     public func moveToTrash(_ mini: Mini, trash: (URL) throws -> URL? = Gallery.trash) throws -> (folder: URL, trashed: URL?)? {
-        if let entry = queue.entries().first(where: { $0.name == mini.name }), try remove(mini.name), entry.job == .generate {
-            return nil
+        try queue.locked { entries in
+            try refuseWhileMoving()
+            if let entry = takeOut(mini.name, &entries), entry.job == .generate { return nil }
+            return try Gallery.moveToTrash(install.runs, name: mini.name, folder: mini.folder, busyWith: running()?.name, trash: trash)
         }
-        return try Gallery.moveToTrash(install.runs, name: mini.name, folder: mini.folder, busyWith: running()?.name, trash: trash)
     }
 
     // MARK: Resize All

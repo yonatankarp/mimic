@@ -369,12 +369,15 @@ public final class JobRunner: @unchecked Sendable {
     /// the same name (from another Mimic, say) can't take the folder over first.
     @discardableResult
     public func remove(_ name: String) throws -> Bool {
-        try queue.locked { entries in
-            guard let i = entries.firstIndex(where: { $0.name == name }) else { return false }
-            let removed = entries.remove(at: i)
-            if let folder = Gallery.folder(install.runs, name), removed.again != true, removed.job == .generate || Self.importing(folder) { try? trash(folder) }
-            return true
-        }
+        try queue.locked { entries in takeOut(name, &entries) != nil }
+    }
+
+    /// `remove`, holding the queue's lock: the entry taken out, or nil when it wasn't waiting.
+    func takeOut(_ name: String, _ entries: inout [QueueEntry]) -> QueueEntry? {
+        guard let i = entries.firstIndex(where: { $0.name == name }) else { return nil }
+        let removed = entries.remove(at: i)
+        if let folder = Gallery.folder(install.runs, name), removed.again != true, removed.job == .generate || Self.importing(folder) { try? trash(folder) }
+        return removed
     }
 
     /// `remove`, for `mimic queue remove`: what it says, by the mini's name as shown. That's read
