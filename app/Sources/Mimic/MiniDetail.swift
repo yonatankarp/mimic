@@ -76,7 +76,7 @@ struct MiniDetail: View {
 
     /// The 3D view, edge to edge; or why there isn't one yet.
     @ViewBuilder private var page: some View {
-        if let stl = mini.stl {
+        if let stl = mini.printFile {
             MiniViewer(stl: stl, version: mini.madeAt, name: mini.displayName, facesAway: mini.facesAway, measured: $measured)
                 .overlay(alignment: .topLeading) { notes }
         } else if let n = model.waiting(mini.name) {
@@ -196,7 +196,7 @@ struct MiniDetail: View {
             Button("Open in \(model.slicerName)") { if let stl = mini.stl { model.openInSlicer(stl) } }
                 .buttonStyle(.glassProminent)
                 .help("Opens the print file in \(model.slicerName) to slice and print")
-                .disabled(mini.stl == nil)
+                .disabled(!mini.finished)
                 .tourCallout(.mini)
             Button { model.showDetails.toggle() } label: {
                 Label(showDetails ? "Hide Details" : "Show Details", systemImage: "sidebar.trailing")
@@ -214,7 +214,7 @@ struct MiniDetail: View {
             Section { previews } header: { Label("Previews", systemImage: "photo.on.rectangle") }
             if versions.count > 1 { versionsSection(versions, canKeep: canKeep) }
             madeFromSection(MadeFrom(settings, created: mini.created))
-            if mini.stl != nil {
+            if mini.finished {
                 tipsSection(PrintTips(nozzle: settings.made?.nozzle ?? settings.requested?.nozzle ?? SizeCard.remembered().nozzle, kind: kind))
             }
         }
@@ -223,7 +223,7 @@ struct MiniDetail: View {
 
     /// What it was made at, and what the print file measures.
     @ViewBuilder private func sizeSection(_ made: Sizes?, kind: MiniKind) -> some View {
-        let measured = mini.stl == nil ? nil : measured
+        let measured = !mini.finished ? nil : measured
         if made != nil || measured != nil {
             Section {
                 if let made {
@@ -302,7 +302,7 @@ struct MiniDetail: View {
         .buttonStyle(.plain)
         .focusable(false)  // the section has the keyboard, so arrows don't move focus between tiles
         // Dragging a preview out drops the print file itself, under the mini's name.
-        if let stl = mini.stl {
+        if let stl = mini.printFile {
             tile
                 .onDrag { NSItemProvider(contentsOf: stl) ?? NSItemProvider() }
                 .help("Click or press Space for Quick Look; drag out for the print file")
@@ -321,7 +321,7 @@ struct MiniDetail: View {
             Button("Keep This One…") { confirmKeep = true }
                 .help("Keeps this version and moves the others to the Trash.")
                 .disabled(!canKeep)
-            let finished = versions.filter { $0.stl != nil }
+            let finished = versions.filter { $0.finished }
             Button("Compare Side by Side…") {
                 let i = finished.firstIndex { $0.name == mini.name } ?? 0
                 model.sheet = .compare(finished[i].name, finished[(i + 1) % finished.count].name)

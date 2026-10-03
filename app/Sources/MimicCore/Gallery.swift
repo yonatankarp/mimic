@@ -36,6 +36,9 @@ public struct Mini: Identifiable, Hashable, Sendable {
         pictureToCheck = !finished && Pipeline.pictureToCheck(folder, settings: settings)
     }
     public var stl: URL? { existing("\(name).stl") }
+    /// Its print file as the gallery found it (`finished`), for what a view draws: `stl` looks on
+    /// disk, which an action should, but a redraw shouldn't (#459).
+    public var printFile: URL? { finished ? folder.appendingPathComponent("\(name).stl") : nil }
     public var source: URL? { existing("source.png") }
     /// The picture it was given, before step 1 made source.png from it.
     public var upload: URL? { existing("upload.img") }
