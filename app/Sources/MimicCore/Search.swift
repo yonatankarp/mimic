@@ -21,14 +21,11 @@ public enum GalleryShow: String, CaseIterable, Sendable {
 }
 
 extension Gallery {
-    /// The search field only appears past this many minis; a handful needs no searching.
-    public static let searchAfter = 6
-
     /// The minis whose shown name or description contains the query, in the gallery's order,
-    /// ignoring capitals and accents ("elodie" finds "Élodie"). With the field hidden (six or fewer) the query is ignored, so a leftover search can't hide anything.
+    /// ignoring capitals and accents ("elodie" finds "Élodie").
     public static func search(_ minis: [Mini], _ query: String) -> [Mini] {
         let q = query.trimmingCharacters(in: .whitespaces)
-        guard minis.count > searchAfter, !q.isEmpty else { return minis }
+        guard !q.isEmpty else { return minis }
         return minis.filter { mini in
             [mini.displayName, mini.settings.desc, mini.settings.descOriginal].contains { $0?.range(of: q, options: [.caseInsensitive, .diacriticInsensitive]) != nil }
         }
@@ -42,8 +39,8 @@ extension Gallery {
 
     /// Whether anything may be hidden: a search in the field, or a filter. Every project is
     /// open then and the ones with nothing to show are left out.
-    public static func narrowed(_ minis: [Mini], query: String, show: GalleryShow) -> Bool {
-        show != .all || (minis.count > searchAfter && !query.trimmingCharacters(in: .whitespaces).isEmpty)
+    public static func narrowed(query: String, show: GalleryShow) -> Bool {
+        show != .all || !query.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
     /// Ties, and minis with no size, go newest first after the rest.

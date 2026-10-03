@@ -65,7 +65,24 @@ public struct MiniMenu: Sendable {
         }
     }
 
-    /// Whether a menu lists it at all: Build Shape, Try Again and Report a Problem only for a
+    /// The one order the right-click menu and the Mini menu list them in, a section at a time
+    /// (#482): open and share it, change it, make it again, what failed, then the Trash. The app
+    /// adds Move to Project and Move in Queue after Duplicate. For several minis, Open and Resize
+    /// are their versions for several; sections with nothing listed are left out, so no two
+    /// dividers meet.
+    public func sections(for minis: [Mini]) -> [[MiniAction]] {
+        let several = minis.count > 1
+        let order: [[MiniAction]] = [
+            [several ? .openTogether : .open, .copies, .showInFinder, .exportForTabletop],
+            [several ? .resizeSeveral : .resize, .rename, .duplicate],
+            [.anotherVersion, .newShape, .editAndMakeAgain],
+            [.buildShape, .tryAgain, .reportProblem],
+            [.moveToTrash],
+        ]
+        return order.map { $0.filter { shows($0, for: minis) } }.filter { !$0.isEmpty }
+    }
+
+    /// Whether a menu lists it at all:Build Shape, Try Again and Report a Problem only for a
     /// mini they apply to. The rest are always listed, and `enabled` says when they work.
     public func shows(_ action: MiniAction, for minis: [Mini]) -> Bool {
         switch action {

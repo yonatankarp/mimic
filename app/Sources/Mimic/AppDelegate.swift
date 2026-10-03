@@ -27,7 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             alert.informativeText = "Quitting stops the download. Start it again later and it picks up where it left off."
             // First, so Esc presses it.
             alert.addButton(withTitle: "Cancel")
-            alert.addButton(withTitle: "Quit")
+            alert.addButton(withTitle: "Quit").hasDestructiveAction = true
             guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }
         }
         guard let s = model.job, s.running else { return .terminateNow }
@@ -43,7 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 + (waiting == 0 ? "" : " The \(waiting == 1 ? "mini" : "\(waiting) minis") waiting in the queue will follow.")
             // First, so Esc presses it.
             alert.addButton(withTitle: "Cancel")
-            alert.addButton(withTitle: "Quit")
+            alert.addButton(withTitle: "Quit").hasDestructiveAction = true
             guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }
         }
         jobs.keepGoing = { _ in false }  // the queue waits for the next launch

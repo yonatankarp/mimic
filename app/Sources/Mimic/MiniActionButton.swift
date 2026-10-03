@@ -11,6 +11,42 @@ extension AppModel {
     }
 }
 
+/// A mini's actions in `MiniMenu`'s one order, for its right-click menu and the Mini menu
+/// (#482), with Move to Project and Move in Queue after Duplicate.
+struct MiniActionItems: View {
+    let minis: [Mini]
+    /// The Mini menu: no icons, the shortcuts, and every item listed even when it's off.
+    var inMenuBar = false
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let sections = model.miniMenu.sections(for: minis)
+        ForEach(sections.indices, id: \.self) { i in
+            if i > 0 { Divider() }
+            ForEach(sections[i], id: \.self) { action in
+                MiniActionButton(action: action, minis: minis, showsIcon: !inMenuBar, withShortcut: inMenuBar)
+            }
+            if sections[i].contains(.duplicate) { moves }
+        }
+    }
+
+    @ViewBuilder private var moves: some View {
+        let mini = minis.count == 1 ? minis[0] : nil
+        if !inMenuBar {
+            MoveToProjectMenu(minis: minis)
+            if let mini, model.waiting(mini.name) != nil { MoveInQueueMenu(mini: mini) }
+        } else {
+            if model.sheet == nil && !minis.isEmpty {
+                MoveToProjectMenu(minis: minis, showsIcon: false)
+            } else {
+                Button("Move to Project") {}.disabled(true)
+            }
+            // The selected mini's place in the queue, while it waits (#72).
+            MoveInQueueMenu(mini: mini, showsIcon: false)
+        }
+    }
+}
+
 /// One of a mini's actions, for the right-click menu, the Mini menu, the toolbar and the page for
 /// several selected minis (#361): its title and when it works come from `MiniMenu`, so they all
 /// agree. Not listed at all when it doesn't apply (Build Shape, Try Again, Report a Problem).

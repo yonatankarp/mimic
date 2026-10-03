@@ -136,4 +136,22 @@ final class MiniMenuTests: XCTestCase {
         XCTAssertEqual(MiniMenu(waiting: ["dwarf"]).whyCantMove(m), RequestError.cantMove("dwarf").description)
         XCTAssertNil(MiniMenu(waiting: ["elf"], making: "orc").whyCantMove(m), "another mini being busy doesn't stop it")
     }
+
+    /// The right-click menu and the Mini menu list one order (#482), with the failure section
+    /// only when something in it applies: a finished mini's menu has no empty section, which
+    /// would put two dividers together.
+    func testOneOrderWithNoEmptySection() throws {
+        let fx = try Fixture()
+        let made = try mini(fx, "made"), other = try mini(fx, "other")
+        let failed = try mini(fx, "failed", finished: false) { $0.failed = "It stopped." }
+        let menu = MiniMenu()
+        XCTAssertEqual(menu.sections(for: [made]), [[.open, .copies, .showInFinder, .exportForTabletop],
+                                                    [.resize, .rename, .duplicate],
+                                                    [.anotherVersion, .newShape, .editAndMakeAgain],
+                                                    [.moveToTrash]])
+        XCTAssertEqual(menu.sections(for: [failed])[3], [.tryAgain, .reportProblem])
+        XCTAssertEqual(menu.sections(for: [made, other]).map(\.first), [.openTogether, .resizeSeveral, .anotherVersion, .moveToTrash],
+                       "the versions for several")
+        XCTAssertEqual(menu.sections(for: []).count, 4, "nothing selected: the Mini menu still lists them")
+    }
 }

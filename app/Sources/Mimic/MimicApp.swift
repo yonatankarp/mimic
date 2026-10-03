@@ -45,11 +45,13 @@ struct MimicApp: App {
                     .keyboardShortcut("n", modifiers: [.command, .shift])
                     .disabled(!model.setup.installed || model.sheet != nil)
             }
-            // The search field only shows past `Gallery.searchAfter` minis.
+            // Edit → Find ▸ Find…, where Macs keep it: the list's search field, always there.
             CommandGroup(after: .textEditing) {
-                Button("Find") { model.showWindow(); model.findRequests += 1 }
-                    .keyboardShortcut("f")
-                    .disabled(model.minis.count <= Gallery.searchAfter || model.sheet != nil)
+                Menu("Find") {
+                    Button("Find…") { model.showWindow(); model.findRequests += 1 }
+                        .keyboardShortcut("f")
+                        .disabled(model.sheet != nil)
+                }
             }
             GalleryCommands(model: model)
             SidebarCommands()
@@ -57,6 +59,7 @@ struct MimicApp: App {
             MiniCommands(model: model, reporter: delegate.reporter)
             CommandGroup(replacing: .help) {
                 Button("Mimic Help") { NSWorkspace.shared.open(Self.help) }
+                    .keyboardShortcut("?")
                 Button("Show Tour") { TourGuide.shared.begin() }
                     .disabled(!model.setup.installed || model.sheet != nil)
                 Divider()
@@ -74,8 +77,8 @@ struct MimicApp: App {
 }
 
 /// The Mini menu: what the buttons and the right-click menu do to the selected mini, with
-/// keyboard shortcuts. Disabled whenever a sheet is up, so a shortcut can't swap it out.
-/// The mini page's own toolbar and 3D view controls are in the View menu.
+/// keyboard shortcuts, and the Queue menu. Disabled whenever a sheet is up, so a shortcut can't
+/// swap it out. The mini page's own toolbar and 3D view controls are in the View menu.
 struct MiniCommands: Commands {
     let model: AppModel
     let reporter: Reporter
@@ -89,6 +92,14 @@ struct MiniCommands: Commands {
             Button(model.showDetails ? "Hide Details" : "Show Details") { model.showDetails.toggle() }
                 .keyboardShortcut("i", modifiers: [.command, .control])
                 .disabled(model.selected == nil)
+            // As the 3D view's own ⌘= and ⌘−, without clicking it first; then back, as Preview's
+            // Actual Size.
+            Button("Zoom In") { model.zoomRequests += 1 }
+                .keyboardShortcut("=")
+                .disabled(model.selected?.finished != true || model.sheet != nil)
+            Button("Zoom Out") { model.zoomRequests -= 1 }
+                .keyboardShortcut("-")
+                .disabled(model.selected?.finished != true || model.sheet != nil)
             Button("Face Front") { model.faceFrontRequests += 1 }
                 .keyboardShortcut("0")
                 .disabled(model.selected?.finished != true || model.sheet != nil)
@@ -98,49 +109,24 @@ struct MiniCommands: Commands {
             }
             .disabled(model.selected?.finished != true || model.sheet != nil)
         }
+        // In the right-click menu's order (#361, #482).
         CommandMenu("Mini") {
-            let mini = model.selected, chosen = model.chosen, several = chosen.count > 1
+            MiniActionItems(minis: model.chosen, inMenuBar: true).environment(model).environment(reporter)
+        }
+        // What the queue does, whichever mini is selected (#482). Move in Queue, for the
+        // selected mini, stays in Mini.
+        CommandMenu("Queue") {
             let free = model.sheet == nil
-            item(several ? .openTogether : .open)
-            item(.copies)
-            item(.showInFinder)
-            item(.exportForTabletop)
-            Divider()
-            item(several ? .resizeSeveral : .resize)
-            item(.buildShape)
-            item(.tryAgain)
-            item(.reportProblem)
-            item(.rename)
-            Divider()
-            item(.anotherVersion)
-            item(.newShape)
-            item(.editAndMakeAgain)
-            item(.duplicate)
-            if free && !chosen.isEmpty {
-                MoveToProjectMenu(minis: chosen, showsIcon: false).environment(model)
-            } else {
-                Button("Move to Project") {}.disabled(true)
-            }
-            Divider()
             // The job's toolbar item, from the keyboard.
             Button("Show Progress") { model.showWindow(); model.jobPopover = true }
                 .disabled(model.toolbarJob == nil || !free)
             Button(model.stopCommand ?? "Stop Making…") { model.showWindow(); model.confirmingStop = true }
                 .disabled(model.stopCommand == nil || !free)
-            // The selected mini's place in the queue, while it waits (#72).
-            MoveInQueueMenu(mini: mini, showsIcon: false).environment(model)
+            Divider()
             // Shared with every Mimic on this Mac: resuming here resumes a pause made anywhere.
             Button(model.pauseCommand) { model.togglePause() }
                 .disabled(!model.paused && model.current == nil && model.queue.isEmpty)
-            Divider()
-            item(.moveToTrash)
         }
-    }
-
-    /// One of the mini actions, on the selected minis, as the right-click menu has it (#361).
-    private func item(_ action: MiniAction) -> some View {
-        MiniActionButton(action: action, minis: model.chosen, showsIcon: false, withShortcut: true)
-            .environment(model).environment(reporter)
     }
 }
 
