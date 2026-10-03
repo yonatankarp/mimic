@@ -13,7 +13,7 @@ enum CLI {
         if args.first == "_engine" { return engine(Array(args.dropFirst())) }
         if args.first == "_prep" { return prep(Array(args.dropFirst())) }
         if args.first == "completions" {
-            guard args.count == 2, let shell = Completions.Shell(rawValue: args[1]) else { return fail("usage: mimic completions zsh|bash|fish") }
+            guard args.count == 2, let shell = Completions.Shell(rawValue: args[1]) else { return fail("usage: mimic completions zsh|bash|fish", ExitCode.usage) }
             print(Completions.script(shell), terminator: "")
             return 0
         }
@@ -30,11 +30,11 @@ enum CLI {
         rest.removeAll { $0 == "--json" && json }
         switch args.first {
         case "_names": return names(rest, cli)
-        case "list": return list(cli, json: json)
+        case "list": return rest.isEmpty ? list(cli, json: json) : fail(usage, ExitCode.usage)
         case "projects": return projects(rest, cli, json: json)
         case "move": return move(rest, cli)
         case "duplicate": return duplicate(rest, cli)
-        case "models": return models(cli, json: json)
+        case "models": return rest.isEmpty ? models(cli, json: json) : fail(usage, ExitCode.usage)
         case "queue": return queue(rest, cli, json: json)
         case "make", "resize", "retry", "make-another", "import": return make(args, cli)
         case "open": return open(rest, cli)
@@ -45,7 +45,7 @@ enum CLI {
         case "keep": return keep(rest, cli)
         case "stop": return stop(rest, cli)
         case "project": return manageProject(rest, cli)
-        default: return fail(usage)
+        default: return fail(usage, ExitCode.usage)
         }
     }
 
@@ -65,7 +65,7 @@ enum CLI {
         switch rest {
         case ["minis"]: Gallery.list(cli.install.runs).forEach { print($0.name) }
         case ["projects"]: Gallery.projects(cli.install.runs).forEach { print($0) }
-        default: return fail("usage: mimic _names minis|projects")
+        default: return fail("usage: mimic _names minis|projects", ExitCode.usage)
         }
         return 0
     }
@@ -93,7 +93,7 @@ enum CLI {
     }
 
     private static func projects(_ rest: [String], _ cli: Context, json: Bool) -> Int32 {
-        guard rest.isEmpty else { return fail(usage) }
+        guard rest.isEmpty else { return fail(usage, ExitCode.usage) }
         let install = cli.install
         let minis = Gallery.list(install.runs)
         if json { return printJSON(Gallery.projects(install.runs).map { ListingJSON.Project($0, minis: minis) }) }
@@ -106,28 +106,28 @@ enum CLI {
 
     private static func move(_ rest: [String], _ cli: Context) -> Int32 {
         let install = cli.install
-        guard rest.count >= 2, !rest[0].hasPrefix("-") else { return fail(usage) }
+        guard rest.count >= 2, !rest[0].hasPrefix("-") else { return fail(usage, ExitCode.usage) }
         let name = Rules.miniName(rest[0])
         let target: String?
         switch Array(rest.dropFirst()) {
         case ["--unsorted"]: target = nil
         case let a where a.count == 2 && a[0] == "--project":
-            do { target = try project(a[1], install) } catch { return fail("\(error)") }
-        default: return fail(usage)
+            do { target = try project(a[1], install) } catch { return fail(error) }
+        default: return fail(usage, ExitCode.usage)
         }
-        do { try JobRunner(install: install).move(mini: name, toProject: target) } catch { return fail("\(error)") }
+        do { try JobRunner(install: install).move(mini: name, toProject: target) } catch { return fail(error) }
         print("Moved \(Mini.displayName(name, runs: install.runs)) to \(target ?? "Unsorted").")
         return 0
     }
 
     private static func duplicate(_ rest: [String], _ cli: Context) -> Int32 {
         let install = cli.install
-        guard rest.count == 3, !rest[0].hasPrefix("-"), rest[1] == "--as" else { return fail(usage) }
+        guard rest.count == 3, !rest[0].hasPrefix("-"), rest[1] == "--as" else { return fail(usage, ExitCode.usage) }
         // As typed, like a name in the app: "Raven Display" is the folder raven-display.
-        guard let given = Rules.typedName(rest[2]) else { return fail("Give the copy a name.") }
+        guard let given = Rules.typedName(rest[2]) else { return fail("Give the copy a name.", ExitCode.usage) }
         let new = given.folder, of = Rules.miniName(rest[0])
         do { try JobRunner(install: install).duplicate(of, as: new, shown: given.shown) }
-        catch { return fail("\(error)") }
+        catch { return fail(error) }
         print(JobRunner(install: install).duplicatedSaying(of, as: new))
         return 0
     }
@@ -153,11 +153,11 @@ enum CLI {
         jobs.pictureService = cli.pictureService
         jobs.cleanUpLeftovers()
         let command: QueueCommand
-        do { command = try QueueCommand.parse(rest) } catch { return fail("\(error)") }
+        do { command = try QueueCommand.parse(rest) } catch { return fail(error) }
         switch command {
         case .pause, .resume:
             // Started by the app, not here: this command ends at once, and a job needs its runner.
-            do { try jobs.setPaused(command == .pause, start: false) } catch { return fail("\(error)") }
+            do { try jobs.setPaused(command == .pause, start: false) } catch { return fail(error) }
             print(command == .pause ? "Paused the queue: a mini being made finishes, and no new one starts until you resume it (mimic queue resume, or in Mimic)."
                                     : "Resumed the queue. Mimic carries on with it, or the next time you open it.")
             return 0
@@ -168,14 +168,14 @@ enum CLI {
                 case .by(let step): moved = try jobs.move(name, by: step)
                 case .to(let place): moved = try jobs.move(name, to: place)
                 }
-            } catch { return fail("\(error)") }
+            } catch { return fail(error) }
             guard moved else { return fail("\(name) isn't waiting in the queue.") }
             return listQueue(jobs, history: cli.timings.load())
         case .remove(let name, let typed):
             do {
                 guard let said = try jobs.removeSaying(name) else { return fail("\(typed) isn't waiting in the queue.") }
                 print(said)
-            } catch { return fail("\(error)") }
+            } catch { return fail(error) }
             return 0
         case .list:
             return listQueue(jobs, history: cli.timings.load(), json: json)
@@ -187,7 +187,7 @@ enum CLI {
         let install = cli.install, timings = cli.timings
         let request: MakeRequest
         do { request = try MakeRequest.parse(args, engineReady: FileManager.default.isExecutableFile(atPath: install.trellisCLI.path)) }
-        catch { return fail("\(error)") }
+        catch { return fail(error) }
         let of = request.of
         // make-another makes a new mini, next to `of`; import names it after its file, `of`.
         let imported = request.command == .import ? ModelImport.names(for: URL(fileURLWithPath: of), in: install.runs) : nil
@@ -211,7 +211,7 @@ enum CLI {
             sizes = sizes.resizing(saved.made ?? saved.requested, shapeGiven: request.shapeGiven, styleGiven: request.styleGiven,
                                    magnetGiven: request.magnetGiven)
         }
-        do { sizes = try request.checkedSizes(sizes, object: object) } catch { return fail("\(error)") }
+        do { sizes = try request.checkedSizes(sizes, object: object) } catch { return fail(error) }
         timings.seedIfNeeded(runs: install.runs)  // before the first record marks it done
         let jobs = JobRunner(install: install, timings: timings, version: BuildInfo.version)
         jobs.heldForPower = cli.power
@@ -230,7 +230,7 @@ enum CLI {
                 resized.add(m.name)
                 mine.name = m.name
             }
-            if let why = done.nothingAdded(done.failure.map { "\($0)" }) { return fail(why) }
+            if let why = done.nothingAdded(done.failure.map { "\($0)" }) { return fail(why, done.failure.map(ExitCode.of) ?? ExitCode.failed) }
             print("\(JobPresentation.QueuedNote.added(done.added.count))\(done.sameNote)\(done.skippedNote)")
             return see(jobs, mine, wait: request.wait, added: added)
         }
@@ -244,7 +244,7 @@ enum CLI {
                 else if let description = request.description {
                     picture = request.improve ? improved(description, cli.defaults, kind: kind) : .description(description)
                 }
-                else { return fail(usage) }
+                else { return fail(usage, ExitCode.usage) }
                 let into = try request.project.map { try project($0, install) }
                 if request.change != nil && !request.restyle { print("A change redraws the picture, so it gets the grey sculpt too.") }
                 let used = request.change.flatMap { worded($0, cli.defaults, kind: kind) }
@@ -271,7 +271,7 @@ enum CLI {
             case .retry: ahead = try jobs.retry(name: name)
             }
         } catch {
-            return fail("\(error)")
+            return fail(error)
         }
         if ahead != nil, jobs.hold() != nil {
             print("Added to the queue.")
@@ -283,7 +283,7 @@ enum CLI {
     }
 
     private static func open(_ rest: [String], _ cli: Context) -> Int32 {
-        guard rest.count == 1 else { return fail(usage) }
+        guard rest.count == 1 else { return fail(usage, ExitCode.usage) }
         guard let m = find(rest[0], cli.install) else { return fail(notFound(rest[0])) }
         guard let stl = m.stl else { return fail("\(m.displayName) isn't made yet.") }
         // The slicer picked in the app's Settings: `defaults` are the app's, through the symlink too.
@@ -291,7 +291,10 @@ enum CLI {
         let done = DispatchSemaphore(value: 0)
         nonisolated(unsafe) var failed: Error?
         Slicer.open(stl, in: slicer) { failed = $0; done.signal() }
-        _ = done.wait(timeout: .now() + 30)
+        // macOS saying nothing in time isn't an answer that it opened.
+        if done.wait(timeout: .now() + 30) == .timedOut {
+            return fail("Couldn't open it in \(slicer?.name ?? "your slicer"): your Mac didn't answer in 30 seconds.")
+        }
         if let failed { return fail("Couldn't open it in \(slicer?.name ?? "your slicer"): \(failed.localizedDescription)") }
         print("Opened \(m.displayName) in \(slicer?.name ?? "your Mac's app for print files").")
         return 0
@@ -304,11 +307,11 @@ enum CLI {
         switch Array(rest.dropFirst()) {
         case ["--vtt"]: break
         case let a where a.count == 3 && a[0] == "--vtt" && a[1] == "--triangles":
-            guard let n = Int(a[2]), n > 0 else { return fail("--triangles takes a number, like 5000.") }
+            guard let n = Int(a[2]), n > 0 else { return fail("--triangles takes a number, like 5000.", ExitCode.usage) }
             triangles = n
-        default: return fail(usage)
+        default: return fail(usage, ExitCode.usage)
         }
-        guard !rest[0].hasPrefix("-") else { return fail(usage) }
+        guard !rest[0].hasPrefix("-") else { return fail(usage, ExitCode.usage) }
         guard let m = find(rest[0], cli.install) else { return fail(notFound(rest[0])) }
         guard m.stl != nil else { return fail("\(m.displayName) isn't made yet.") }
         let out = URL(fileURLWithPath: "\(m.name).glb")
@@ -321,7 +324,7 @@ enum CLI {
     }
 
     private static func info(_ rest: [String], _ cli: Context, json: Bool) -> Int32 {
-        guard rest.count == 1 else { return fail(usage) }
+        guard rest.count == 1 else { return fail(usage, ExitCode.usage) }
         let install = cli.install
         let minis = Gallery.list(install.runs)
         guard let m = minis.first(where: { $0.name == Rules.miniName(rest[0]) }) else { return fail(notFound(rest[0])) }
@@ -334,29 +337,29 @@ enum CLI {
 
     private static func rename(_ rest: [String], _ cli: Context) -> Int32 {
         let install = cli.install
-        guard rest.count == 3, !rest[0].hasPrefix("-"), rest[1] == "--to" else { return fail(usage) }
+        guard rest.count == 3, !rest[0].hasPrefix("-"), rest[1] == "--to" else { return fail(usage, ExitCode.usage) }
         let old = Rules.miniName(rest[0]), before = Mini.displayName(old, runs: install.runs)
         do {
             let new = try JobRunner(install: install).rename(old, typed: rest[2])
             print("Renamed \(before) to \(Mini.displayName(new, runs: install.runs)) (\(new)).")
-        } catch { return fail("\(error)") }
+        } catch { return fail(error) }
         return 0
     }
 
     private static func trash(_ rest: [String], _ cli: Context) -> Int32 {
-        guard !rest.isEmpty, !rest.contains(where: { $0.hasPrefix("-") }) else { return fail(usage) }
+        guard !rest.isEmpty, !rest.contains(where: { $0.hasPrefix("-") }) else { return fail(usage, ExitCode.usage) }
         let jobs = JobRunner(install: cli.install)
         var code: Int32 = 0
         for text in rest {
             guard let m = find(text, cli.install) else { code = fail(notFound(text)); continue }
-            do { try jobs.moveToTrash(m); print("Moved \(m.displayName) to the Trash.") } catch { code = fail("\(error)") }
+            do { try jobs.moveToTrash(m); print("Moved \(m.displayName) to the Trash.") } catch { code = fail(error) }
         }
         return code
     }
 
     private static func keep(_ rest: [String], _ cli: Context) -> Int32 {
         let install = cli.install
-        guard rest.count == 1, !rest[0].hasPrefix("-") else { return fail(usage) }
+        guard rest.count == 1, !rest[0].hasPrefix("-") else { return fail(usage, ExitCode.usage) }
         let jobs = JobRunner(install: install)
         let minis = Gallery.list(install.runs)
         guard let m = minis.first(where: { $0.name == Rules.miniName(rest[0]) }) else { return fail(notFound(rest[0])) }
@@ -364,7 +367,7 @@ enum CLI {
         guard !picked.trash.isEmpty || picked.staying != nil else { print("\(m.displayName) has no other versions."); return 0 }
         var code: Int32 = 0
         for v in picked.trash {
-            do { try jobs.moveToTrash(v); print("Moved \(v.displayName) to the Trash.") } catch { code = fail("\(error)") }
+            do { try jobs.moveToTrash(v); print("Moved \(v.displayName) to the Trash.") } catch { code = fail(error) }
         }
         if let s = picked.staying { code = fail("\(s.displayName) is being made, so it wasn't moved to the Trash. Move it there once it's done.") }
         // As the app offers after Keep This One: the plain name, now that it's free.
@@ -378,7 +381,7 @@ enum CLI {
 
     private static func stop(_ rest: [String], _ cli: Context) -> Int32 {
         let install = cli.install
-        guard rest.isEmpty else { return fail(usage) }
+        guard rest.isEmpty else { return fail(usage, ExitCode.usage) }
         let jobs = JobRunner(install: install)
         jobs.cleanUpLeftovers()
         switch jobs.stopElsewhere() {
@@ -418,9 +421,9 @@ enum CLI {
                 print(keep ? "Deleted the project \(p): its minis are in Unsorted now, and its folder is in the Trash."
                            : "Deleted the project \(p): it's in the Trash with its minis.")
             default:
-                return fail(usage)
+                return fail(usage, ExitCode.usage)
             }
-        } catch { return fail("\(error)") }
+        } catch { return fail(error) }
         return 0
     }
 
@@ -430,7 +433,7 @@ enum CLI {
     }
 
     private static func printJSON<T: Encodable>(_ value: T) -> Int32 {
-        do { print(try ListingJSON.text(value)) } catch { return fail("\(error)") }
+        do { print(try ListingJSON.text(value)) } catch { return fail(error) }
         return 0
     }
 
@@ -547,10 +550,10 @@ enum CLI {
         guard let s = mine.status ?? jobs.status.flatMap({ $0.name == mine.name ? $0 : nil }) else {
             // Stopped (Ctrl-C) before its turn came: it's still waiting.
             print("Stopped. \(Mini.displayName(mine.name, runs: mine.runs)) is still in the queue (mimic queue remove \(mine.name) takes it out).")
-            return 130
+            return ExitCode.stopped
         }
         let folder = Gallery.folder(jobs.install.runs, s.name) ?? jobs.install.runs.appendingPathComponent(s.name)
-        if s.canceled { print("Stopped."); return 130 }
+        if s.canceled { print("Stopped."); return ExitCode.stopped }
         if s.outcome == .pictureReady {
             print("Its picture is ready to check: \(folder.appendingPathComponent("source.png").path)")
             print("To build its 3D shape: mimic retry \(s.name)")
@@ -586,11 +589,11 @@ enum CLI {
             if let r = running, r.name == mine.name { seen = true; mine.saw(r) }
             if !waiting && running?.name != mine.name {
                 // Made (or not) by another Mimic: its folder says which.
-                guard let folder = Gallery.folder(jobs.install.runs, mine.name) else { print("Stopped, or taken out of the queue."); return 130 }
+                guard let folder = Gallery.folder(jobs.install.runs, mine.name) else { return fail("Stopped, or taken out of the queue.", ExitCode.stopped) }
                 let stl = folder.appendingPathComponent("\(mine.name).stl")
                 let at = (try? FileManager.default.attributesOfItem(atPath: stl.path))?[.modificationDate] as? Date
                 if let at, at >= added { print("Done: \(stl.path)"); return 0 }
-                return fail(seen ? "It didn't finish. See the logs in \(folder.path)" : "It was taken out of the queue.")
+                return seen ? fail("It didn't finish. See the logs in \(folder.path)") : fail("It was taken out of the queue.", ExitCode.stopped)
             }
             Thread.sleep(forTimeInterval: 1)
         }
@@ -651,7 +654,7 @@ enum CLI {
         } catch {
             // What the person is told goes to the job as print prep's does (#305): the log is for bug reports.
             if let f = error as? Engine.Failure, f.forPeople { try? PrepReport(failure: f.description).write(beside: URL(fileURLWithPath: files[1])) }
-            _ = fail("\(error)")
+            _ = fail(error)
             return 1
         }
     }
@@ -675,8 +678,11 @@ enum CLI {
         }
     }
 
-    private static func fail(_ message: String) -> Int32 {
+    /// Says why on stderr and gives the exit code: 1 unless it's another (`ExitCode`).
+    private static func fail(_ message: String, _ code: Int32 = ExitCode.failed) -> Int32 {
         FileHandle.standardError.write(Data((message + "\n").utf8))
-        return 2
+        return code
     }
+
+    private static func fail(_ error: Error) -> Int32 { fail("\(error)", ExitCode.of(error)) }
 }

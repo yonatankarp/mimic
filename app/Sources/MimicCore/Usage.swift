@@ -48,6 +48,7 @@ public enum Usage {
     --change: redraws the picture with this change ("close the cape so both arms show"), with the grey sculpt;
               make-another starts from its picture, so changes add up. The AI helper, when set up, words it first.
               The app stops to show you the picture before the 3D shape; here it carries straight on
+    exit codes: 0 worked, 1 didn't work, 64 typed wrong, 130 stopped (yonatankarp.com/mimic/cli/ says more)
     --wait: while another mini is being made, make, make-another, import, resize and retry join the queue and return;
             --wait stays until this one is made
     """
