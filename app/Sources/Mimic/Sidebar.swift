@@ -219,7 +219,7 @@ struct Sidebar: View {
     }
 
     @ViewBuilder private func projectMenu(_ project: String) -> some View {
-        Button("New Mini in This Project…", systemImage: "plus") { model.makeInProject = project; model.sheet = .make }
+        Button("New Mini in This Project…", systemImage: "plus") { model.makeInProject = project; model.sheet = .make(nil) }
             .disabled(!model.setup.installed)
         Button("Open Together in \(model.slicerName)", systemImage: "printer") { model.openTogether(model.minis.filter { $0.project == project }) }
             .disabled(model.minis.filter { $0.project == project && $0.stl != nil }.count < 2 || model.packing)
@@ -486,7 +486,7 @@ struct EditAndMakeAgainButton: View {
     var showsIcon = true
     @Environment(AppModel.self) private var model
     var body: some View {
-        Button { model.sheet = .makeAgain(mini) } label: {
+        Button { model.sheet = .makeAgain(mini, MakeStart.again(mini, install: model.install)) } label: {
             if showsIcon { Label("Edit & Make Again…", systemImage: "slider.horizontal.3") } else { Text("Edit & Make Again…") }
         }
             .help(mini.settings.isImported ? AnotherVersionButton.imported
