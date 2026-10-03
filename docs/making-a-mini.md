@@ -8,22 +8,23 @@ Mimic up yet, start with [Getting started](getting-started.md).
 ## Make a mini, step by step
 
 1. Press **New Mini** in the toolbar, or ++cmd+n++.
-2. Under **What are you making?**, choose **A character (a mini)** or **Anything else**.
-3. Under **Start from**, choose **From a picture** and drop one in, or **Description** and write a
+2. Under **What are you making?**, choose **Character** or **Object**.
+3. Under **Start from**, choose **Picture** and drop one in, or **Description** and write a
    sentence.
 4. Check its **Name**, and the **Project** it goes in.
-5. Choose your **Nozzle** and how big to make it, on the right.
+5. Choose how big to make it, on the right. It's sized for your printer's nozzle, which you choose
+   once in Settings.
 6. Press **Make Mini**.
 
-![New Mini: A character (a mini), from a picture of a dwarf cleric, the grey sculpt on, Game scale with a 0.4 mm nozzle and a 32 mm hex base, and about 14 minutes beside Make Mini](images/screens/making-a-mini-new-mini.png){ width="540" }
+![New Mini: a character from a picture of a dwarf cleric, its name and project under the picture, Picture Options closed, Game Scale with a 0.4 mm nozzle and a 32 mm hex base, and about 14 minutes beside Make Mini](images/screens/making-a-mini-new-mini.png){ width="540" }
 
 The sections below go through each step.
 
-## A character, or anything else
+## A character, or an object
 
-**A character (a mini)** is a tabletop figure: it stands on a base, sized for your table. **Anything
-else** is any other thing you want to print, like a teapot, a car or a chess piece: it's sized by
-its longest side, stands on its own flat bottom, and gets no base unless you ask for one.
+**Character** is a tabletop figure, a mini: it stands on a base, sized for your table. **Object**
+is anything else you want to print, like a teapot, a car or a chess piece: it's sized by its
+longest side, stands on its own flat bottom, and gets no base unless you ask for one.
 
 Mimic draws and sculpts each kind differently, so choose before you start. Chunky characters and
 solid objects with bold shapes work best. Small details, like a pet on a shoulder or a thin handle,
@@ -33,7 +34,7 @@ may come out soft.
 
 ### From a picture
 
-Drop a picture on the dashed box, paste it (++cmd+v++), or click the box to choose a file. You can
+Choose **Picture**, then drop a picture on the dashed box, paste it (++cmd+v++), or click the box to choose a file. You can
 also drag a picture straight from Photos or a web page, or take one with your iPhone from the
 **File** menu (Import from iPhone or iPad).
 
@@ -43,8 +44,11 @@ a character, wider than it is tall.
 
 The picture's file name becomes the mini's name, which you can change.
 
-What makes a good picture, the grey sculpt, cartoons, extra pictures of the back and sides, and
-fixing something in a picture: see [Better minis from pictures](pictures.md).
+Under **Name** and **Project**, **Picture Options** is closed: most pictures need nothing there.
+Open it for more pictures of the back and sides, **It's a cartoon**, the grey sculpt switch and
+**What to change**. Each keeps its usual choice while it's closed. **Edit & Make Again…** opens it
+when the mini used any of them. What makes a good picture, and each of these options: see
+[Better minis from pictures](pictures.md).
 
 ### From a description
 
@@ -90,14 +94,15 @@ you're looking at; choose **Unsorted** for none, or **New Project…** to make o
 Right-click a project → **New Mini in This Project…** does the same. More in
 [Your minis and projects](organizing.md).
 
-## Choose a size and nozzle
+## Choose a size
 
 On the right of New Mini, under **Size & printer**:
 
-- **Nozzle**: the tip your printer prints through. Most printers come with **0.4 mm · standard**.
-- **Size for**: **Game scale** to match the other minis on your table, or **Best print** for the
+- **Nozzle**: the tip your printer prints through, as chosen in **Settings → General → Your
+  printer's nozzle**. **Change…** opens Settings. Most printers come with **0.4 mm · standard**.
+- **Size for**: **Game Scale** to match the other minis on your table, or **Best Print** for the
   clearest faces your nozzle can give.
-- **Base**: round, square or hex, plain or with a floor, and its size.
+- **Base**: round, square or hex, a plain **Top** or one with a floor, and its size.
 
 **Advanced** has the extra thickness for thin parts, a magnet hole, using the character's own base,
 and the variation number. [Sizes and bases](sizes-and-bases.md) explains every choice.
@@ -173,6 +178,9 @@ Right-click a mini → **Edit & Make Again…** opens New Mini filled in from it
 description, grey sculpt and cartoon choices, sizes and base, project and variation number, under
 a new name. Change what you like and press **Make Mini**. The new mini is a mini of its own, not one
 of the first one's versions.
+
+It keeps the nozzle the mini was made with. If that isn't the one in Settings, **Nozzle** says so,
+with a button to use the one in Settings instead.
 
 If the mini was made with another 3D model than the one chosen in Settings, New Mini says
 "Made with …", with a button to use your Mac's choice instead.

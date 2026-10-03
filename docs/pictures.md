@@ -32,7 +32,7 @@ Mimic doesn't need to cut it out again.
 
 ## The grey sculpt
 
-**Turn it into a grey sculpt first (recommended)** has Mimic redraw your picture as an
+Under **Picture Options** in New Mini, **Turn it into a grey sculpt first (recommended)** has Mimic redraw your picture as an
 unpainted grey statue, with the same pose, before the 3D model sees it. The 3D model understands a
 grey sculpt far better than a painting or a photo, so the mini comes out cleaner. It needs Draw
 Things (see [Getting started](getting-started.md#set-up-draw-things)), or an online service
@@ -49,12 +49,12 @@ Leave it on, unless:
 
 Without the grey sculpt, the shape may come out less clean.
 
-![New Mini's picture side: the picture, the Back, Left and Right boxes, It's a cartoon, Turn it into a grey sculpt first, and What to change with a change typed in](images/screens/pictures-picture-options.png){ width="280" }
+![New Mini's Picture Options open: the Back, Left and Right boxes, It's a cartoon, Turn it into a grey sculpt first, and What to change with a change typed in](images/screens/pictures-picture-options.png){ width="280" }
 
 ## Cartoons
 
 A flat 2D cartoon, with outlines and flat colours, can come out as a flat sheet. Turn on
-**It's a cartoon** in New Mini for those. A cartoon:
+**It's a cartoon** under **Picture Options** in New Mini for those. A cartoon:
 
 - always gets the grey sculpt: without it, it comes out flat,
 - is always made with the Pixal3D model, whichever one you chose in Settings. Pixal3D keeps cartoon
@@ -72,7 +72,7 @@ With only a front picture, the 3D model guesses what the back and sides look lik
 pictures of the same character, from a model sheet or a figure you photographed all round, give
 them to it.
 
-Under the picture, **More pictures of the same character (optional)** has three places: **Back**,
+Under **Picture Options**, **More pictures of the same character (optional)** has three places: **Back**,
 **Left** and **Right**. Drop a picture on each one you have, or click it to choose one. Any of them
 will do, and each goes through the grey sculpt like the front picture.
 
@@ -87,8 +87,8 @@ will do, and each goes through the grey sculpt like the front picture.
 ## Say what to change in a picture
 
 Is there something in the picture that would make a bad mini, like a cape hiding the arms, a sword
-cut off at the edge, or a stand under a vase? Say it in **What to change (optional)**, in plain
-words:
+cut off at the edge, or a stand under a vase? Say it in **What to change (optional)**, under
+**Picture Options**, in plain words:
 
 - "close the cape so both arms show"
 - "make the sword shorter so it fits in the picture"

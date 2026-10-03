@@ -81,7 +81,7 @@ final class SizeAdviceTests: XCTestCase {
     func testDefaultGameScaleIsATipNotAWarning() {
         var c = SizeCard(purpose: .game, nozzle: "0.4")
         XCTAssertFalse(c.warns)
-        XCTAssertEqual(c.note, "At 32 mm, a 0.4 mm nozzle softens faces a little. For sharper faces, use a 0.2 mm nozzle or choose Best print.")
+        XCTAssertEqual(c.note, "At 32 mm, a 0.4 mm nozzle softens faces a little. For sharper faces, use a 0.2 mm nozzle or choose Best Print.")
         c.setScale(28)
         XCTAssertFalse(c.warns, "28 mm is the edge: still a tip")
         c.setRealHeight("1.7")  // 26 mm
@@ -178,7 +178,7 @@ final class SizeAdviceTests: XCTestCase {
         c.load(Sizes(height: "32", base: "25", nozzle: "0.4"))
         XCTAssertEqual(c.purpose, .game)
         XCTAssertEqual(c.scale, 32)
-        XCTAssertEqual(c.note, "At 32 mm, a 0.4 mm nozzle softens faces a little. For sharper faces, use a 0.2 mm nozzle or choose Best print.")
+        XCTAssertEqual(c.note, "At 32 mm, a 0.4 mm nozzle softens faces a little. For sharper faces, use a 0.2 mm nozzle or choose Best Print.")
         c.load(Sizes(height: "54", base: "25", nozzle: "0.6"))
         XCTAssertEqual(c.purpose, .game); XCTAssertEqual(c.scale, 54)
         c.load(Sizes(height: "100", base: "40", nozzle: "0.4"))

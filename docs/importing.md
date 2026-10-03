@@ -8,12 +8,12 @@ parts thickened for your nozzle.
 
 1. Choose **File → Import Model…** (++cmd+shift+i++).
 2. Pick a GLB or STL file and press **Import**.
-3. In **Import a 3D Model**, choose **What is it?**: **A character (a mini)** or **Anything else**.
+3. In **Import a 3D Model**, choose **What is it?**: **Character** or **Object**.
 4. Check its **Name** (taken from the file's) and its **Project**.
 5. Choose its sizes and base, as for a new mini.
 6. Press **Import**.
 
-![Import a 3D Model for Hill Dwarf.stl: A character (a mini), Unsorted, and the size choices](images/screens/importing-import-sheet.png){ width="290" }
+![Import a 3D Model for Hill Dwarf.stl: Character, Unsorted, and the size choices](images/screens/importing-import-sheet.png){ width="290" }
 
 Only the print-ready step runs, so it's quick: about a minute, and the sheet says how long. It
 needs no picture and no Draw Things. Its progress shows in the toolbar
@@ -32,7 +32,7 @@ Mimic treats the model as it would its own 3D shape:
 
 - **A character** is sized by its height, feet to top, and stands on a base: round, square or hex,
   with a floor and a magnet hole if you like. Or keep the model's own base, under **Advanced**.
-- **Anything else** is sized by its longest side and stands on its own flat bottom, with no base
+- **An object** is sized by its longest side and stands on its own flat bottom, with no base
   unless you add one. One that would fall over is set on a steadier side.
 
 [Sizes and bases](sizes-and-bases.md) explains every choice. Mimic then makes one solid piece,

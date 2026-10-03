@@ -50,11 +50,11 @@ struct ImportSheet: View {
             Form {
                 Section {
                     Picker(selection: Binding(get: { card.kind }, set: { card.setKind($0) })) {
-                        Text("A character (a mini)").tag(MiniKind.character)
-                        Text("Anything else").tag(MiniKind.object)
+                        Text("Character").tag(MiniKind.character)
+                        Text("Object").tag(MiniKind.object)
                     } label: { Label("What is it?", systemImage: card.kind == .object ? "cube" : "person.fill") }
                     .pickerStyle(.segmented)
-                    .help("A character stands on a base; anything else is sized by its longest side")
+                    .help("A character is a mini that stands on a base; an object is sized by its longest side")
                     TextField("Name", text: $name)
                         .help("How it's listed, and what its print file is called")
                     Picker("Project", selection: $project) {

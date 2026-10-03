@@ -21,41 +21,29 @@ struct SizeSection: View {
             Label("Size & printer", systemImage: "ruler")
         }
         .onChange(of: card.purpose) { _, p in if let p { UserDefaults.standard.set(p.rawValue, forKey: SettingsKey.purpose) } }
-        .onChange(of: card.nozzle) { _, n in UserDefaults.standard.set(n, forKey: SettingsKey.nozzle) }
         .onChange(of: card.shape) { _, s in UserDefaults.standard.set(s.rawValue, forKey: SettingsKey.baseShape) }
         .onChange(of: card.style) { _, s in UserDefaults.standard.set(s.rawValue, forKey: SettingsKey.baseStyle) }
         .onChange(of: card.magnet) { _, m in UserDefaults.standard.set(m?.rawValue ?? "", forKey: SettingsKey.magnet) }
     }
 
-    /// What the size is for, and the nozzle it prints with.
+    /// What the size is for, and the nozzle it prints with (chosen in Settings).
     @ViewBuilder private var printerRows: some View {
         if !object {  // an object is sized by its longest side: no scale to match
             Picker(selection: bind(\.purpose, { if let p = $1 { $0.setPurpose(p) } })) {
-                Text("Game scale").tag(SizeCard.Purpose.game as SizeCard.Purpose?)
-                Text("Best print").tag(SizeCard.Purpose.display as SizeCard.Purpose?)
+                Text("Game Scale").tag(SizeCard.Purpose.game as SizeCard.Purpose?)
+                Text("Best Print").tag(SizeCard.Purpose.display as SizeCard.Purpose?)
             } label: {
                 // Each note is its control's subtitle, not a row of its own: the column fits unscrolled.
                 Label {
                     Text("Size for")
-                    if gameScale { Text("Matches the other minis on your table.") }  // Best print explains itself in its note below
+                    if gameScale { Text("Matches the other minis on your table.") }  // Best Print explains itself in its note below
                 } icon: { Image(systemName: card.purpose == .display ? "sparkles" : "dice") }
             }
             .pickerStyle(.segmented)
             .help("Match your other minis, or go big enough for clear faces")
         }
-        Picker(selection: bind(\.nozzle, { $0.setNozzle($1) })) {
-            Text("0.2 mm · fine").tag("0.2")
-            Text("0.4 mm · standard").tag("0.4")
-            Text("0.6 mm · fast").tag("0.6")
-        } label: {
-            Label {
-                Text("Nozzle")
-                Text("Not sure? Most printers come with 0.4 mm. Choose the same nozzle in your slicer.")
-            } icon: { Image(systemName: "printer") }
-        }
-        .pickerStyle(.segmented)
-        .help("The tip your printer prints through; finer keeps more detail")
-        .popoverTip(Tips.unlessTouring(SizeTip()), arrowEdge: .top)
+        NozzleRow(card: $card)
+            .popoverTip(Tips.unlessTouring(SizeTip()), arrowEdge: .top)
     }
 
     /// At game scale: the character's real height and the table's scale.
@@ -66,7 +54,6 @@ struct SizeSection: View {
                     TextField("", text: bind(\.realHeight, { $0.setRealHeight($1) }), prompt: Text("1.80"))
                         .labelsHidden().accessibilityLabel("How tall is the character?")
                         .frame(width: 64).multilineTextAlignment(.trailing)
-                        .help("How tall the character would be in real life, in metres or feet.")
                     Text("m")
                 }
                 .fixedSize()  // the label's long hint wraps instead of squeezing "1.80" (#167)
@@ -76,9 +63,10 @@ struct SizeSection: View {
                 if let problem = card.realHeightProblem {
                     Text(problem).foregroundStyle(.orange)
                 } else {
-                    Text("In metres or feet: 1.75, or 5'9\". A halfling ≈ 1 m. Leave blank for an average human (1.8 m).")
+                    Text("In metres or feet, like 1.75 or 5'9\".")
                 }
             }
+            .help("How tall the character would be in real life. A halfling is about 1 m; leave it blank for an average human (1.8 m).")
             Picker(selection: bind(\.scale, { $0.setScale($1) })) {
                 Text("28 mm").tag(28)
                 Text("32 mm · most common").tag(32)
@@ -87,10 +75,10 @@ struct SizeSection: View {
                 Text("75 mm").tag(75)
             } label: {
                 Text("Scale")
-                Text("Pick the scale your other minis use. At 32 mm, an average 1.8 m human stands 32 mm tall.")
+                Text("Pick the scale your other minis use.")
             }
             .pickerStyle(.menu)  // five choices don't fit a segmented row in the smallest column
-            .help("How tall an average human is on the table")
+            .help("How tall an average human is on the table: at 32 mm, a 1.8 m human stands 32 mm tall")
         }
     }
 
@@ -102,12 +90,14 @@ struct SizeSection: View {
         }
         if object {
             slider("Longest side", \.height, { $0.setHeight($1) }, SizeCard.heightRange, unit: "mm",
-                   hint: "Its biggest size, whichever way that is: height, width or depth. Set for your nozzle; type a value or drag to change it.")
+                   hint: "Height, width or depth, whichever is biggest.")
+                .help("Set for your nozzle; type a value or drag to change it")
             Toggle(SizeCard.addBase, isOn: Binding(get: { !card.noBase }, set: { card.noBase = !$0 }))
                 .help("Off: it stands on its own flat bottom")
         } else {
             slider("Character height", \.height, { $0.setHeight($1) }, SizeCard.heightRange, unit: "mm",
-                   hint: "Set for you by the choices above; type a value or drag to change it. The base adds about 2 mm.")
+                   hint: "Set for you by the choices above.")
+                .help("Type a value or drag to change it. The base adds about 2 mm.")
         }
     }
 
@@ -124,7 +114,9 @@ struct SizeSection: View {
                     }
                     .pickerStyle(.segmented).fixedSize()
                     .help("Square and hex bases fit grid and hex maps; the figure faces a flat side")
-                    Picker("Base style", selection: $card.style) {
+                    // Its own words: a menu with its label hidden would read only "Plain".
+                    Text("Top")
+                    Picker("Top", selection: $card.style) {
                         ForEach(BaseStyle.allCases, id: \.self) { Text($0.words.capitalizedFirst).tag($0) }
                     }
                     .fixedSize()
@@ -143,16 +135,17 @@ struct SizeSection: View {
         // A plain button as the label, so a click or VoiceOver's press on the words opens it too.
         DisclosureGroup(isExpanded: $advanced) {
             slider("Extra thickness for thin parts", \.inflate, { $0.setInflate($1) }, SizeCard.inflateRange, unit: "mm",
-                   hint: "Set by your nozzle. More keeps swords and capes in one piece, but softens faces.", decimals: 2)
+                   hint: "Set by your nozzle.", decimals: 2)
+                .help("More keeps swords and capes in one piece, but softens faces")
             if !card.noBase {
                 Picker(selection: $card.magnet) {
                     Text("None").tag(Magnet?.none)
                     ForEach(Magnet.allCases, id: \.self) { Text($0.words).tag(Magnet?.some($0)) }
                 } label: {
                     Text("Magnet hole")
-                    Text("A hole under the base to glue a magnet into, with a little room to spare. The base gets a little taller to fit it.")
+                    Text("A hole under the base to glue a magnet into.")
                 }
-                .help("For round magnets, sized across by tall")
+                .help("For round magnets, sized across by tall, with a little room to spare. The base gets a little taller to fit it.")
             }
             if !object {
                 Toggle("Use the character's own base instead of adding one", isOn: $card.noBase)
@@ -164,9 +157,10 @@ struct SizeSection: View {
                         TextField("", value: seed, format: .number.grouping(.never)).labelsHidden().frame(width: 90)
                             .accessibilityLabel("Variation number")
                     }
-                    Text("Same description + same number = same drawing. Change it for a different take.")
+                    Text("Change it for a different take.")
                         .font(.callout).foregroundStyle(.secondary)
                 }
+                .help("Same description and same number give the same drawing")
             }
         } label: {
             Button("Advanced") { withAnimation { advanced.toggle() } }.buttonStyle(.plain)
@@ -209,7 +203,38 @@ struct SizeSection: View {
     }
 }
 
-/// A slider with tick marks at common sizes (the base's 25, 32, 40 and 50 mm). The value still
+/// The nozzle, chosen in Settings → General, as a line: most people keep one printer. A mini
+/// resized or made again starts at the nozzle it was made with, and "Use … mm" sizes it for
+/// Settings' one; a change in Settings while the sheet is open sizes it for that.
+private struct NozzleRow: View {
+    @Binding var card: SizeCard
+    @AppStorage(SettingsKey.nozzle) private var chosen = "0.4"  // as SizeCard.remembered()
+
+    var body: some View {
+        LabeledContent {
+            HStack {
+                Text("\(card.nozzle) mm")
+                if differs {
+                    Button("Use \(chosen) mm") { card.setNozzle(chosen) }
+                } else {
+                    OpenSettingsButton(tab: .general) { Text("Change…") }
+                }
+            }
+            .fixedSize()
+        } label: {
+            Label {
+                Text("Nozzle")
+                if differs { Text("As it was made. Settings has \(chosen) mm.") }
+            } icon: { Image(systemName: "printer") }
+        }
+        .help("The tip your printer prints through, chosen in Settings → General. Choose the same nozzle in your slicer.")
+        .onChange(of: chosen) { _, n in card.setNozzle(n) }
+    }
+
+    private var differs: Bool { card.nozzle != chosen && Rules.nozzles.contains(chosen) }
+}
+
+/// A slider with tick marks at common sizes (the base's 25, 32, 40 and 50 mm), numbered. The value still
 /// goes through the card's setter, so typing any size in the field beside it keeps working.
 private struct TickedSlider: View {
     @Binding var value: Double
@@ -220,7 +245,7 @@ private struct TickedSlider: View {
         Slider(value: $value, in: range) {
             EmptyView()
         } ticks: {
-            SliderTickContentForEach(ticks, id: \.self) { SliderTick($0) }
+            SliderTickContentForEach(ticks, id: \.self) { t in SliderTick(t) { Text("\(Int(t))") } }
         }
     }
 }

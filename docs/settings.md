@@ -69,6 +69,13 @@ Lychee Slicer and CHITUBOX. Until you choose, it uses the first one it finds.
 Choose **Mac's default app for 3D files** to use any other slicer: Mimic then opens minis with
 whichever app your Mac opens 3D files with.
 
+### Choose your printer's nozzle
+
+**Your printer's nozzle** is the tip your printer prints through: **0.2 mm · fine**,
+**0.4 mm · standard** or **0.6 mm · fast**. Not sure? Most printers come with 0.4 mm. Every new mini
+is sized for it, and New Mini shows it under **Size & printer**. Choose the same nozzle in your
+slicer. See [Sizes and bases](sizes-and-bases.md#choose-your-nozzle).
+
 ### Wait for the charger on a MacBook
 
 **Start minis only when plugged in** is off unless you turn it on, and only shows on a Mac with a
@@ -271,8 +278,9 @@ problem (Help → **Report a Problem…** adds it for you).
 
 - **Mimic → Install Command-Line Tool…** adds the `mimic` command to Terminal. See
   [Mimic from a terminal](cli.md).
-- Sizes, nozzle, base and the rest are chosen per mini, in New Mini and Resize. New Mini remembers
-  your nozzle, base shape and magnet from last time (a reset forgets them too). See
+- Sizes, base and the rest are chosen per mini, in New Mini and Resize. New Mini remembers
+  what you size for, the base shape and magnet from last time (a reset forgets them too, and your
+  nozzle). See
   [Sizes and bases](sizes-and-bases.md).
 
 ## Defaults at a glance
@@ -282,6 +290,7 @@ problem (Help → **Report a Problem…** adds it for you).
 | Open Draw Things when needed | General | On |
 | Make pictures with | Draw Things & AI | Draw Things, on this Mac |
 | Open minis in | General | The first slicer Mimic finds, else the Mac's default app for 3D files |
+| Your printer's nozzle | General | 0.4 mm · standard |
 | Start minis only when plugged in | General | Off (MacBooks only) |
 | Your minis are saved in | General | Documents → Mimic |
 | Check for updates when Mimic opens | General | On |
