@@ -18,7 +18,9 @@ takes 6 s and 1.5 GB. At 100 mm on a 0.4 mm nozzle, 157 s and 13.2 GB against 14
    levelled by up to 30°, then set on a side it can stand on: see
    [Objects resting on a flat side](#objects-resting-on-a-flat-side).
 4. **Refuses a flat sheet.** If its thinnest side is under 2% of its longest, print prep stops with
-   "The 3D model came out flat, like a sheet of paper." A flat drawing needs the grey sculpt.
+   "The 3D model came out flat, like a sheet of paper." A flat drawing needs the grey sculpt. A
+   model with no size at all, or with points that aren't numbers, stops with "The 3D model has no
+   shape to print".
 5. **Scales it.** A character is scaled so `--height` is the distance from the ground to its top.
    The ground is where most of the bottom is (0.5% of the surface lies below it), not the lowest
    point, so a trailing wisp sinks into the base rather than holding the figure up on a pin. An
