@@ -86,6 +86,8 @@ struct MakeView: View {
         _earlierFixUsed = State(initialValue: form.fixUsed)
         _drawn = State(initialValue: form.drawn)
         _drawnSides = State(initialValue: form.drawnSides)
+        // Open when the mini it's filled in from has any of them set, so none is hidden.
+        _pictureOptions = State(initialValue: form.cartoon || !form.restyle || !filled.sides.isEmpty || !form.fixes.isEmpty)
     }
     @State private var message: String?
     @State private var messageIsError = false
@@ -95,6 +97,8 @@ struct MakeView: View {
     /// The project it goes in; New Project… is one named in `newProjectName`.
     @State private var project = ProjectChoice.unsorted
     @State private var newProjectName = ""
+    /// Picture Options is open: more pictures, the cartoon and grey sculpt switches, and a change.
+    @State private var pictureOptions = false
 
     /// The Project menu's choice.
     private enum ProjectChoice: Hashable {
@@ -124,6 +128,7 @@ struct MakeView: View {
             Form {
                 kindSection
                 characterSection
+                if start == .picture { pictureOptionsSection }
             }
             .formStyle(.grouped)
             .reportsHeight(0, into: $forms)
@@ -147,7 +152,7 @@ struct MakeView: View {
             model.makeInProject = nil
         }
         // Two equal columns: 540 each from the default window up (the size column's hints mostly
-        // on one line, so Game scale fits unscrolled), 460 each in the smallest.
+        // on one line, so Game Scale fits unscrolled), 460 each in the smallest.
         .frame(width: room.sheetWidth, height: height)
         .fitsForms($height, $forms, room: room.height)
         .onChange(of: card.kind) { _, k in
@@ -181,28 +186,26 @@ struct MakeView: View {
         .importsItemProviders([.image]) { receive($0); return true }
     }
 
-    /// What it is: a character or anything else.
+    /// What it is: a character or an object.
     private var kindSection: some View {
         Section {
             // A segmented control shows words only (SwiftUI drops a segment's symbol on
             // the Mac), so the symbol for the choice sits on the row's label.
             Picker(selection: Binding(get: { card.kind }, set: { card.setKind($0) })) {
-                Text("A character (a mini)").tag(MiniKind.character)
-                Text("Anything else").tag(MiniKind.object)
+                Text("Character").tag(MiniKind.character)
+                Text("Object").tag(MiniKind.object)
             } label: { Label("What are you making?", systemImage: object ? "cube" : "person.fill") }
             .pickerStyle(.segmented)
             // One help for the whole control: a segment of a Mac segmented picker takes no help of its own.
-            .help("A character stands on a base; anything else is sized by its longest side")
+            .help("A character is a mini that stands on a base; an object is sized by its longest side")
         }
     }
 
-    /// Where it starts from, what it's called and where it's kept.
+    /// Where it starts from, what it's called and where it's kept: what everyone fills in.
     private var characterSection: some View {
         Section {
             startRows
             nameRows
-        } header: {
-            Label(object ? "Object" : "Character", systemImage: object ? "cube" : "person.fill")
         } footer: {
             Label(object ? "Solid objects with bold shapes work best. Thin handles, wires and fine texture may come out soft."
                          : "Chunky characters with bold shapes work best. Small details, like a pet on a shoulder, may come out soft.",
@@ -215,7 +218,7 @@ struct MakeView: View {
     /// A picture or a description, and the 3D model a remade mini keeps.
     @ViewBuilder private var startRows: some View {
         Picker(selection: $start) {
-            Text("From a picture").tag(Start.picture)
+            Text("Picture").tag(Start.picture)
             Text("Description").tag(Start.description)
         } label: { Label("Start from", systemImage: start == .picture ? "photo" : "text.cursor") }
         .pickerStyle(.segmented)
@@ -327,37 +330,55 @@ struct MakeView: View {
             ForEach(picture.map { MakeAdvice.pictureWarnings(width: $0.width, height: $0.height, kind: card.kind) } ?? [], id: \.self) {
                 Label($0, systemImage: "exclamationmark.triangle.fill").font(.callout).foregroundStyle(.orange)
             }
-            sidesRow
-            if !object {
-                Toggle(isOn: $cartoon) {
-                    Text("It's a cartoon")
-                    Text("For flat drawings with outlines and flat colours. Made from the grey sculpt with Pixal3D, which keeps cartoon shapes smooth.")
-                }
-                .disabled(!health.picturesReady || pixal3dHere == false)
-                .help("Flat 2D cartoon art comes out smoother this way")
-                if health.picturesReady && pixal3dHere == false {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text("Cartoons need the Pixal3D model.").foregroundStyle(.secondary)
-                        Spacer()
-                        OpenSettingsButton(tab: .model) { Text("Open Settings") }
-                    }
-                    .font(.callout)
-                }
-            }
-            Toggle(isOn: Binding(get: { restyle || cartoonOn }, set: { restyle = $0 })) {
-                Text("Turn it into a grey sculpt first (recommended)")
-                Text(cartoonOn ? "A cartoon always gets the grey sculpt: without it, it comes out flat."
-                               : "Mimic redraws it as a grey statue, which the 3D engine understands far better. Turn it off if your picture is already a grey 3D model, or to keep its colours for Export for Virtual Tabletop: the shape may come out less clean.")
-            }
-            .disabled(!health.picturesReady || cartoonOn)
-            .help("Redraws your picture as a grey statue with the same pose")
-            FixBox(text: $fix, earlier: earlierFixes, kind: card.kind, turnsSculptOn: !(restyle || cartoonOn))
-                .disabled(!health.picturesReady)
-            if let again, drawn != nil, !trimmedFix.isEmpty {
-                Text("Starts from the picture \(again.displayName) was drawn as.").font(.callout).foregroundStyle(.secondary)
-            }
-            if !health.picturesReady { needsPictures("The grey sculpt needs \(health.pictureNeed).") } else { opensWhenNeeded }
         }
+    }
+
+    /// What most pictures need left as they are, folded away: more pictures, a cartoon, the grey
+    /// sculpt and a change. Closed, each keeps its default.
+    private var pictureOptionsSection: some View {
+        Section {
+            // A plain button as the label, as Advanced's, so a click on the words opens it too.
+            DisclosureGroup(isExpanded: $pictureOptions) {
+                pictureOptionRows
+            } label: {
+                Button("Picture Options") { withAnimation { pictureOptions.toggle() } }.buttonStyle(.plain)
+            }
+            // In sight with it closed: without them, the picture is made without the grey sculpt.
+            if !health.picturesReady { needsPictures("The grey sculpt needs \(health.pictureNeed).") }
+        }
+    }
+
+    @ViewBuilder private var pictureOptionRows: some View {
+        sidesRow
+        if !object {
+            Toggle(isOn: $cartoon) {
+                Text("It's a cartoon")
+                Text("For flat drawings with outlines and flat colours. Made from the grey sculpt with Pixal3D, which keeps cartoon shapes smooth.")
+            }
+            .disabled(!health.picturesReady || pixal3dHere == false)
+            .help("Flat 2D cartoon art comes out smoother this way")
+            if health.picturesReady && pixal3dHere == false {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Cartoons need the Pixal3D model.").foregroundStyle(.secondary)
+                    Spacer()
+                    OpenSettingsButton(tab: .model) { Text("Open Settings") }
+                }
+                .font(.callout)
+            }
+        }
+        Toggle(isOn: Binding(get: { restyle || cartoonOn }, set: { restyle = $0 })) {
+            Text("Turn it into a grey sculpt first (recommended)")
+            Text(cartoonOn ? "A cartoon always gets the grey sculpt: without it, it comes out flat."
+                           : "Mimic redraws it as a grey statue, which the 3D engine understands far better. Turn it off if your picture is already a grey 3D model, or to keep its colours for Export for Virtual Tabletop: the shape may come out less clean.")
+        }
+        .disabled(!health.picturesReady || cartoonOn)
+        .help("Redraws your picture as a grey statue with the same pose")
+        FixBox(text: $fix, earlier: earlierFixes, kind: card.kind, turnsSculptOn: !(restyle || cartoonOn))
+            .disabled(!health.picturesReady)
+        if let again, drawn != nil, !trimmedFix.isEmpty {
+            Text("Starts from the picture \(again.displayName) was drawn as.").font(.callout).foregroundStyle(.secondary)
+        }
+        if health.picturesReady { opensWhenNeeded }
     }
 
     // MARK: Pictures of the back and sides (#66)

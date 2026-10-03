@@ -30,6 +30,8 @@ struct SettingsView: View {
     private var health: Health { .shared }
     @AppStorage(SettingsTab.key) private var tab = SettingsTab.general
     @AppStorage(SettingsKey.slicer) private var slicer = ""
+    /// The size card reads it (`SizeCard.remembered`): most people keep one printer.
+    @AppStorage(SettingsKey.nozzle) private var nozzle = "0.4"
     @AppStorage(DrawThingsApp.enabledKey) private var openDrawThings = true
     @AppStorage(Power.key) private var holdOnBattery = false
     /// A MacBook: the battery setting means nothing on a Mac mini.
@@ -112,6 +114,17 @@ struct SettingsView: View {
         } footer: {
             Text("Mimic lists the slicers it finds on this Mac. The Mac's default app works with any other slicer.")
                 .foregroundStyle(.secondary)
+        }
+        Section {
+            Picker(selection: $nozzle) {
+                Text("0.2 mm · fine").tag("0.2")
+                Text("0.4 mm · standard").tag("0.4")
+                Text("0.6 mm · fast").tag("0.6")
+            } label: {
+                Text("Your printer's nozzle")
+                Text("Not sure? Most printers come with 0.4 mm. Choose the same nozzle in your slicer.")
+            }
+            .help("The tip your printer prints through; finer keeps more detail. New minis are sized for it.")
         }
         if hasBattery {
             Section {

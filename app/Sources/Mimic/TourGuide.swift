@@ -303,10 +303,10 @@ struct GalleryTip: Tip {
     var image: Image? { Image(systemName: "sidebar.left") }
 }
 
-/// On the nozzle, the first time New Mini or Resize opens outside the tour.
+/// On the nozzle's line, the first time New Mini or Resize opens outside the tour.
 struct SizeTip: Tip {
     var title: Text { Text("Size and nozzle") }
-    var message: Text? { Text("Game scale matches the other minis on your table; Best print goes for detail. Not sure of your nozzle? It's most likely 0.4 mm.") }
+    var message: Text? { Text("Game Scale matches the other minis on your table; Best Print goes for detail. Your printer's nozzle is set in Settings, and is most likely 0.4 mm.") }
     var image: Image? { Image(systemName: "ruler") }
 }
 

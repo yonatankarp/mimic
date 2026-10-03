@@ -132,10 +132,10 @@ public struct SizeCard: Equatable, Sendable {
             // faces just come out a little soft. Only really small sizes, or a 0.6 nozzle under
             // its 54 mm sweet spot (see PrintTips), turn faces into bumps.
             if (nozzle == "0.4" && h < 28) || (nozzle == "0.6" && h < 50) {
-                note = "At \(Int(h)) mm, a \(nozzle) mm nozzle turns faces into bumps. Use a 0.2 mm nozzle, or choose Best print."
+                note = "At \(Int(h)) mm, a \(nozzle) mm nozzle turns faces into bumps. Use a 0.2 mm nozzle, or choose Best Print."
                 warns = true
             } else if nozzle == "0.4" && h < 50 {
-                note = "At \(Int(h)) mm, a 0.4 mm nozzle softens faces a little. For sharper faces, use a 0.2 mm nozzle or choose Best print."
+                note = "At \(Int(h)) mm, a 0.4 mm nozzle softens faces a little. For sharper faces, use a 0.2 mm nozzle or choose Best Print."
             }
         case (_, .display):
             h = Self.bestPrint[nozzle] ?? 100

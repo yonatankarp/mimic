@@ -57,10 +57,10 @@ brew install --cask yonatankarp/mimic/mimic
 
 ![Mimic: your minis on the left; a finished halfling bard in a 3D view in the middle; its size, filament, previews and how it was made in a panel on the right](docs/images/app.jpg)
 
-1. Press **New Mini** (⌘N), and choose what you're making: 🧙 **A character** (a tabletop mini) or
-   🏺 **Anything else** (a teapot, a car, a chess piece).
+1. Press **New Mini** (⌘N), and choose what you're making: 🧙 **Character** (a tabletop mini) or
+   🏺 **Object** (a teapot, a car, a chess piece).
 2. Drop in a picture of it, or switch to **Description** and write a sentence.
-3. Pick your printer's nozzle and how big to make it.
+3. Pick how big to make it. It's sized for your printer's nozzle, set once in Settings.
 4. Press **Make Mini**. A mini takes about 8–15 minutes, depending on the 3D model, and New
    Mini shows how long on your Mac. Keep using Mimic meanwhile: its progress is in the toolbar
    (click it for the steps, the queue and Stop), and Mimic tells you when it's ready. Closing the

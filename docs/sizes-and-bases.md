@@ -3,14 +3,15 @@
 How big Mimic makes a mini, what it stands on, and how to change either later. The same choices
 are in **New Mini**, **Resize** and **Import a 3D Model**, under **Size & printer**.
 
-Mimic remembers your nozzle, what you size for, and the base's shape, floor and magnet from one
-mini to the next, since most people keep one printer and one table.
+Your nozzle is set once, in Settings. Mimic remembers what you size for, and the base's shape,
+floor and magnet from one mini to the next, since most people keep one printer and one table.
 
-![Size & printer in New Mini: Game scale, 0.4 mm nozzle, 32 mm scale, a hex base with a stone floor, and Advanced open with extra thickness, a 6 × 2 mm magnet hole and the variation number](images/screens/sizes-and-bases-size-card.png){ width="300" }
+![Size & printer in New Mini: Game Scale, the 0.4 mm nozzle with Change…, 32 mm scale, a hex base with a stone floor, and Advanced open with extra thickness, a 6 × 2 mm magnet hole and the variation number](images/screens/sizes-and-bases-size-card.png){ width="300" }
 
 ## Choose your nozzle
 
-**Nozzle** is the tip your printer prints through:
+The nozzle is the tip your printer prints through. Choose yours once, in **Settings → General →
+Your printer's nozzle** (**Change…** beside **Nozzle** opens it), and every new mini is sized for it:
 
 | Choice | Good for |
 |---|---|
@@ -22,14 +23,17 @@ Not sure? It's most likely 0.4 mm. Choose the same nozzle in your slicer. The no
 much thin parts are thickened (see [Thin parts](#thin-parts)), and each mini's page shows the slicer
 settings for it.
 
+Resize and **Edit & Make Again…** start from the nozzle the mini was made with. If that isn't the
+one in Settings, **Nozzle** says so, with a button to use the one in Settings instead.
+
 ## Size a character for your table
 
 **Size for** has two choices:
 
-- **Game scale** matches the other minis on your table.
-- **Best print** goes big enough for faces to come out clearly on your nozzle.
+- **Game Scale** matches the other minis on your table.
+- **Best Print** goes big enough for faces to come out clearly on your nozzle.
 
-### Game scale
+### Game Scale
 
 Pick the **Scale** your other minis use, and say **How tall is the character?** in real life.
 Mimic works out the mini's height: at 32 mm, an average 1.8 m human stands 32 mm tall, a 2 m
@@ -54,11 +58,11 @@ than the scale's own base.
 !!! tip "Small minis on a 0.4 mm nozzle"
     At 32 mm on a 0.4 mm nozzle, faces come out a little soft. They still print fine. Under
     28 mm (or under 50 mm on a 0.6 mm nozzle) faces turn into bumps, and Mimic warns you. For
-    sharper faces, use a 0.2 mm nozzle or choose **Best print**.
+    sharper faces, use a 0.2 mm nozzle or choose **Best Print**.
 
-### Best print
+### Best Print
 
-**Best print** sizes the character so its face comes out clearly on your nozzle:
+**Best Print** sizes the character so its face comes out clearly on your nozzle:
 
 | Nozzle | Height | Base |
 |---|---|---|
@@ -76,14 +80,14 @@ adds about 2 mm.
 
 ## Choose a base
 
-**Base** has a shape and a floor, side by side, and a size under them.
+**Base** has a shape and a **Top**, side by side, and a size under them.
 
 - **Round**, **Square** or **Hex**. Square and hex bases fit grid and hex maps, and the figure
   faces a flat side.
 - **Plain**, or a floor pressed into the top of the base: **Stone floor** (flagstones),
   **Wooden floor** (planks) or **Cobblestones**. The stones or planks are part of the base, so they
   print, and the feet still stand firmly on it.
-- **Base size**, from 20 to 80 mm, with marks at 25, 32, 40 and 50 mm. You can type any size.
+- **Base size**, from 20 to 80 mm, with numbered marks at 25, 32, 40 and 50 mm. You can type any size.
   For a round base it's the width across; for a square, each side; for a hex, across its flat
   sides. A 25 mm base fits one map square, and a 25 mm hex fits one hex of a 1-inch hex map.
 
@@ -131,7 +135,7 @@ keeps both bases until you use **Resize This Mini**.
 
 ## Size an object
 
-When you make **Anything else** (a teapot, a car, a chess piece), there's no scale to match.
+When you make an **Object** (a teapot, a car, a chess piece), there's no scale to match.
 Instead, **Longest side** is its biggest size, whichever way that is: height, width or depth.
 Mimic suggests a size that keeps details clear on your nozzle:
 
@@ -160,7 +164,7 @@ To resize several at once:
 - Select several minis (++cmd++-click or ++shift++-click), then right-click → **Resize N Minis…**.
 - Or right-click a project → **Resize All…**.
 
-Choose one size, base and nozzle for all of them, and each mini waits its turn. Each keeps its own
+Choose one size and base for all of them, and each mini waits its turn. Each keeps its own
 kind of base: an object without a base stays without one. Minis already that size are left out.
 
 !!! tip "The same mini at two sizes"
