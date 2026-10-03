@@ -519,6 +519,41 @@ final class AppModel {
         reload()
     }
 
+    /// Rename… and Keep This One's "Call it …?": renames `mini`'s folder to `new`, `shown` being
+    /// the name as typed (nil carries its own over, see `Gallery.rename`). It stays selected if it
+    /// was. Edit → Undo gives it back the name it was shown as, and Redo this one again (#343).
+    func rename(_ mini: Mini, to new: String, shown: String? = nil) throws {
+        try jobs.rename(mini.name, to: new, shown: shown)
+        // Both in one go, so the window never shows another mini in between.
+        if selection.remove(mini.id) != nil { selection.insert(new) }
+        reload()
+        let old = mini.name, oldShown = mini.displayName
+        undo?.registerUndo(withTarget: self) { model in
+            guard let renamed = model.minis.first(where: { $0.name == new }) else { return }
+            do { try model.rename(renamed, to: old, shown: oldShown) }
+            catch { model.problem = model.plainWords(error, else: "Couldn't rename it back. Is its folder open in another app?"); return }
+            model.selection = [old]
+        }
+        undo?.setActionName("Rename")
+    }
+
+    /// Duplicate…: copies `mini` as `new`. Edit → Undo moves the copy to the Trash, as Move to
+    /// Trash would (its Redo puts it back), so cancelling the Resize that follows doesn't leave
+    /// an unwanted copy behind.
+    func duplicate(_ mini: Mini, as new: String, shown: String) throws {
+        try jobs.duplicate(mini.name, as: new, shown: shown)
+        reload()
+        let original = mini.name
+        undo?.registerUndo(withTarget: self) { model in
+            guard let copy = model.minis.first(where: { $0.name == new }) else { return }
+            model.trash(copy)
+            if model.minis.contains(where: { $0.name == original }) { model.selection = [original] }
+            model.undo?.setActionName("Duplicate")
+        }
+        undo?.setActionName("Duplicate")
+        selection = [new]
+    }
+
     func renameProject(_ old: String, to text: String) throws {
         let new = try jobs.renameProject(old, to: text)
         // A collapsed project stays collapsed under its new name.
