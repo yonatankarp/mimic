@@ -205,3 +205,24 @@ public struct Checks: Sendable {
         return (try? url.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]))?.volumeAvailableCapacityForImportantUsage
     }
 }
+
+/// One loop for however many want it (#347): the first to `join` starts it, and it's cancelled
+/// once the last has gone. Settings, New Mini and Setup each watch Draw Things while they're open,
+/// and two can be open at once (New Mini's Open Settings), so each running its own loop checked
+/// Draw Things side by side.
+@MainActor public final class SharedLoop {
+    private var joined = 0
+    private var loop: Task<Void, Never>?
+
+    public init() {}
+
+    /// Until the calling task is cancelled, as a view's `.task` is when the view goes. `body` runs
+    /// only when nobody else's is running already.
+    public func join(_ body: @escaping @MainActor () async -> Void) async {
+        joined += 1
+        if loop == nil { loop = Task { await body() } }
+        while !Task.isCancelled { try? await Task.sleep(for: .seconds(3600)) }
+        joined -= 1
+        if joined == 0 { loop?.cancel(); loop = nil }
+    }
+}

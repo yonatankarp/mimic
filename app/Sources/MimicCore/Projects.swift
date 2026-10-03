@@ -85,10 +85,7 @@ extension JobRunner {
             }
             let from = runs.appendingPathComponent(old), to = runs.appendingPathComponent(new)
             if old.lowercased() == new.lowercased() {
-                // Only the capitals change: the disk sees one name, so it goes through a third.
-                let step = runs.appendingPathComponent("_rename-\(UUID().uuidString)")
-                try FileManager.default.moveItem(at: from, to: step)
-                try FileManager.default.moveItem(at: step, to: to)
+                try Gallery.moveChangingCase(from, to: to)
             } else {
                 try FileManager.default.moveItem(at: from, to: to)
             }

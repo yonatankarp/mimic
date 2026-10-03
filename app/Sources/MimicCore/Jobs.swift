@@ -525,7 +525,8 @@ public final class JobRunner: @unchecked Sendable {
                 // Checked when it was queued, so rare: its folder went, or its model was removed.
                 var s = JobStatus(name: entry.name, kind: entry.job, step: entry.job == .prep ? .print : .picture, started: Date())
                 s.running = false; s.exit = 1
-                s.problem = (error as? RequestError)?.description ?? String(describing: error)
+                s.problem = plainWords(error) ?? "Couldn't start it. Check that its folder is still there, then try again."
+                Log.queue.error("\(entry.name, privacy: .public) couldn't start: \(String(describing: error), privacy: .public)")
                 lock.withLock { current = s }
                 notify()
             }
@@ -634,7 +635,9 @@ public final class JobRunner: @unchecked Sendable {
                 ran.code = try run(step)
             } catch {
                 ran.code = 1
-                ran.problem = String(describing: error)
+                // In plain words (#324): the raw text, a Cocoa error's say, is for the log.
+                ran.problem = plainWords(error) ?? "It stopped while \(number.during)."
+                append(log, "\(error)\n")
             }
             ran.took[number, default: 0] += Date().timeIntervalSince(began)  // step 1 is one run per picture
             if ran.code != 0 { break }

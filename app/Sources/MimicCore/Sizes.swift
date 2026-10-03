@@ -231,6 +231,12 @@ public struct MiniSettings: Codable, Equatable, Sendable {
     /// How many pictures it's made from: the front, and those of the back and sides (#66).
     public var pictures: Int { source == .image ? 1 + (sides?.count ?? 0) : 1 }
     public var isImported: Bool { imported != nil }
+    /// The 3D model it was made with, as its page and `info --json` say. None recorded is Pixal3D,
+    /// the only one before 0.4.0, but only for a mini that has settings at all: one without says
+    /// nothing about how it was made, and an imported one wasn't made by a model (#328).
+    public var madeWith: EngineModel? {
+        !isImported && (source != nil || requested != nil) ? EngineDownload.model(model) : nil
+    }
     /// What the redraw is told to change, or nil when it has no fix.
     public var change: String? { fixes?.last.map { fixUsed ?? $0 } }
 

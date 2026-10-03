@@ -171,7 +171,7 @@ public enum ListingJSON {
             }
             madeFrom = MadeFrom(source: s.source.map { $0 == .image ? "picture" : "description" }, description: s.desc, typed: s.descOriginal,
                                 seed: s.seed, shapeSeed: s.shapeSeed,
-                                model: s.source != nil || s.requested != nil ? EngineDownload.model(s.model)?.id : nil, greySculpt: s.source == .image ? s.restyle : nil,
+                                model: s.madeWith?.id, greySculpt: s.source == .image ? s.restyle : nil,
                                 cartoon: s.cartoon, fixes: s.fixes)
             versions = info.versions.map(\.name)
             failed = info.state == .unfinished ? s.failed : nil
