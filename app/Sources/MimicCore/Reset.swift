@@ -9,6 +9,14 @@ public enum Reset {
     /// model in use is kept while its files are: forgetting it would ask for TRELLIS.2, the
     /// standard one, and send a Mac that has only Pixal3D to setup to download it. Saved keys go
     /// only from this app's own Keychain service; outside an app (no bundle id) none are deleted.
+    /// The settings `UserDefaults.standard` saves to, the only ones Reset clears (#381): the app's
+    /// bundle id, or outside an app (`swift run`, the bare binary) the program's name, as macOS
+    /// names them then. Never Mimic's "com.mimic.app" from a copy that isn't Mimic, though
+    /// `mimic` in Terminal reads those (CLI.swift): it has no Reset.
+    public static func ownDomain(bundleID: String? = Bundle.main.bundleIdentifier) -> String {
+        bundleID ?? ProcessInfo.processInfo.processName
+    }
+
     public static func run(install: Install, domain: String, removeEngine: Bool,
                            keychainService: String? = Keychain.ownService) throws {
         let defaults = UserDefaults.standard

@@ -58,4 +58,13 @@ final class ResetTests: XCTestCase {
         XCTAssertFalse(Keychain.has(account: HelperProvider.anthropic.rawValue, service: dev), "its own key is forgotten")
         XCTAssertEqual(Keychain.read(account: HelperProvider.anthropic.rawValue, service: release), "sk-release", "the other app's is kept")
     }
+
+    /// Reset clears the settings of the Mimic it's in (#381). Outside an app (no bundle id, as
+    /// with `swift run`) that's the settings saved under the program's name, never Mimic's.
+    /// Planted: it cleared "com.mimic.app".
+    func testResetClearsOnlyTheSettingsOfTheMimicItsIn() {
+        XCTAssertEqual(Reset.ownDomain(bundleID: "com.mimic.app.dev"), "com.mimic.app.dev")
+        XCTAssertEqual(Reset.ownDomain(bundleID: nil), ProcessInfo.processInfo.processName)
+        XCTAssertNotEqual(Reset.ownDomain(bundleID: nil), "com.mimic.app")
+    }
 }
