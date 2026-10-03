@@ -230,7 +230,7 @@ enum CLI {
                 resized.add(m.name)
                 mine.name = m.name
             }
-            if let why = done.nothingAdded(done.failure.map { "\($0)" }) { return fail(why) }
+            if let why = done.nothingAdded(done.failure.map { "\($0)" }) { return fail(why, done.failure.map(ExitCode.of) ?? ExitCode.failed) }
             print("\(JobPresentation.QueuedNote.added(done.added.count))\(done.sameNote)\(done.skippedNote)")
             return see(jobs, mine, wait: request.wait, added: added)
         }
