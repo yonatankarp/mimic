@@ -23,8 +23,8 @@ struct OpenSettingsButton<Content: View>: View {
     }
 }
 
-/// The Settings window (⌘,): is everything set up, which 3D model, Draw Things and the AI
-/// helper, and the rest.
+/// The Settings window (⌘,): is everything set up, which 3D model, what makes the pictures and
+/// the AI helper, and the rest.
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
     private var health: Health { .shared }
@@ -46,7 +46,8 @@ struct SettingsView: View {
             if EngineDownload.catalogue.count > 1 {
                 Tab("3D Model", systemImage: "cube", value: .model) { pane { ModelsSection() } }
             }
-            Tab("Draw Things & AI", systemImage: "wand.and.sparkles", value: .drawThings) { pane { drawThings } }
+            // `drawThings` is the tab's saved name from before it was Pictures (#481).
+            Tab("Pictures", systemImage: "wand.and.sparkles", value: .drawThings) { pane { drawThings } }
             Tab("Advanced", systemImage: "gearshape.2", value: .advanced) { pane { advanced } }
         }
         // Here, not in a tab: a tab's views go when another is shown, and these must keep going.
@@ -77,7 +78,9 @@ struct SettingsView: View {
             Text("Needed to make minis")
         }
         Section {
-            ForEach(health.checks.filter { !$0.required }) { row($0) }
+            // Pictures first, as one row: its tab has the details and the steps (#481).
+            if health.checks.contains(where: { Checks.pictureIDs.contains($0.id) }) { picturesRow }
+            ForEach(health.checks.filter { !$0.required && !Checks.pictureIDs.contains($0.id) }) { row($0) }
             if !health.online {
                 Toggle(isOn: $openDrawThings) {
                     Text("Open Draw Things when needed")
@@ -85,16 +88,6 @@ struct SettingsView: View {
                 }
                     .help("Opens Draw Things in the background when a mini needs a picture")
                     .onChange(of: openDrawThings) { if !model.running { health.check(model.install) } }
-            }
-            if drawThingsProblem {
-                // The steps are on their own tab now; this is the way there.
-                LabeledContent("Draw Things isn't set up yet") {
-                    Button("Set Up Draw Things…") { tab = .drawThings }
-                }
-            } else if health.online && health.results[Checks.onlineID]?.ok == false {
-                LabeledContent("Online pictures aren't set up yet") {
-                    Button("Set Up Pictures…") { tab = .drawThings }
-                }
             }
         } header: {
             Text("Optional")
@@ -159,7 +152,9 @@ struct SettingsView: View {
         } else if health.picturesReady {
             Section {
                 SetupStep(done: true, title: "Draw Things is set up.",
-                          detail: health.drawThingsOpensWhenNeeded ? "Mimic opens it when it needs it." : nil)
+                          detail: health.drawThingsOpensWhenNeeded
+                              ? "Mimic opens it when it needs it. Its API server has to be on: in Draw Things, Settings → Advanced → API Server, HTTP, port 7860."
+                              : nil)
             } header: {
                 Text("Draw Things")
             }
@@ -174,6 +169,28 @@ struct SettingsView: View {
             Text(BuildInfo.line).font(.callout.monospacedDigit()).foregroundStyle(.secondary).textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .help("Which Mimic this is. Include it when you report a problem.")
+        }
+    }
+
+    /// What makes the pictures, ready or not, and the way to its tab. Only switches tabs, so
+    /// no ellipsis.
+    private var picturesRow: some View {
+        let ready = health.readiness.picturesChecked
+        let service = ImageService.load(.standard).online
+        let fix = health.results[Checks.onlineID]?.fix ?? ""
+        let detail = switch ready {
+        case false?: service == nil ? "Draw Things isn't set up yet." : fix.isEmpty ? "Online pictures aren't set up yet." : fix
+        default: service.map { "\($0.name), online" } ?? "Draw Things, on this Mac"
+        }
+        return HStack(alignment: .firstTextBaseline) {
+            CheckMark(ok: ready, required: false)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Pictures")
+                Text(detail).font(.callout).foregroundStyle(.secondary)
+            }
+            .help("What draws a character from a description and turns a picture into a grey sculpt")
+            Spacer()
+            Button(ready == false ? "Set Up" : "Change") { tab = .drawThings }
         }
     }
 
@@ -200,7 +217,7 @@ struct SettingsView: View {
         if health.running { return "Checking…" }
         if model.running { return "Checks paused while a mini is being made." }
         guard let when = health.lastChecked else { return "" }
-        let bad = health.results.values.filter { !$0.ok }.count
+        let bad = health.readiness.problems
         let head = bad == 0 ? "Everything's ready." : "\(bad) thing\(bad > 1 ? "s" : "") to look at."
         return "\(head) Last checked at \(when.formatted(date: .omitted, time: .shortened))."
     }
@@ -213,28 +230,19 @@ private struct CheckRow: View {
         "engine": "Turns your picture into a 3D shape, on your Mac's graphics chip.",
         "models": "What the 3D engine has learned, for the 3D model in use. Downloaded once.",
         "space": "Each mini needs about 150 MB while it's being made.",
-        "drawthings-app": "A free app that draws characters from a description and turns pictures into grey sculpts.",
-        "drawthings-api": "Lets Mimic ask Draw Things for pictures. Mimic opens Draw Things when it needs it, unless you turn that off below.",
-        "drawthings-model": "The picture model Mimic asks Draw Things to use.",
-        Checks.onlineID: "\(ImageService.load(.standard).online?.name ?? "The online service") draws characters from a description and turns pictures into grey sculpts, online.",
         "slicer": "Turns a mini into instructions for your printer.",
     ] }
     let check: Check
     let result: CheckResult?
     let setup: SetupModel
     var stagger = 0.0
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
-            mark.frame(width: 18)
+            CheckMark(ok: result?.ok, required: check.required, stagger: stagger)
             VStack(alignment: .leading, spacing: 2) {
                 Text(result?.label ?? check.label)
                     .help(Self.what[check.id] ?? "")
-                if result?.label == Checks.opensWhenNeeded {
-                    Text("Its API server has to be on: in Draw Things, Settings → Advanced → API Server, HTTP, port 7860.")
-                        .font(.callout).foregroundStyle(.secondary)
-                }
                 if let result, !result.ok {
                     Text(setup.running && SetupModel.checkIDs.contains(check.id) ? setup.status : result.fix)
                         .font(.callout).foregroundStyle(.secondary)
@@ -250,7 +258,7 @@ private struct CheckRow: View {
             Spacer()
             if let result, !result.ok, SetupModel.checkIDs.contains(check.id) {
                 if setup.running {
-                    ProgressView(value: setup.fraction).frame(width: 80)
+                    ProgressView("Downloading \(setup.target.name)", value: setup.fraction).labelsHidden().frame(width: 80)
                 } else {
                     Button(check.id == "engine" ? "Repair" : "Download") { setup.start() }
                 }
@@ -258,19 +266,28 @@ private struct CheckRow: View {
         }
     }
 
-    /// A turning dotted circle while the check runs, which becomes its answer in place.
-    private var mark: some View {
-        let (symbol, color): (String, Color) = switch result.map({ ($0.ok, $0.required) }) {
+}
+
+/// A turning dotted circle while a check runs (`ok` nil), which becomes its answer in place.
+private struct CheckMark: View {
+    let ok: Bool?
+    let required: Bool
+    var stagger = 0.0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        let (symbol, color): (String, Color) = switch ok {
         case nil: ("circle.dotted", .secondary)
-        case (true, _)?: ("checkmark.circle.fill", .green)
-        case (false, true)?: ("xmark.circle.fill", .red)
-        case (false, false)?: ("exclamationmark.triangle.fill", .orange)
+        case true?: ("checkmark.circle.fill", .green)
+        case false? where required: ("xmark.circle.fill", .red)
+        case false?: ("exclamationmark.triangle.fill", .orange)
         }
-        return Image(systemName: symbol)
+        Image(systemName: symbol)
             .foregroundStyle(color)
-            .symbolEffect(.rotate, options: .repeat(.continuous), isActive: result == nil && !reduceMotion)
+            .symbolEffect(.rotate, options: .repeat(.continuous), isActive: ok == nil && !reduceMotion)
             .contentTransition(.symbolEffect(.replace))
-            .animation(reduceMotion ? nil : .default.delay(stagger), value: result)
+            .animation(reduceMotion ? nil : .default.delay(stagger), value: ok)
+            .frame(width: 18)
     }
 }
 
@@ -320,7 +337,7 @@ private struct ModelsSection: View {
                 Text("\(m.name) · \(Checks.gigabytes(m.bytes)) GB")
                 Text(m.described(minutes: model.learnedMinutes(m))).font(.callout).foregroundStyle(.secondary)
                 if downloading {
-                    ProgressView(value: setup.fraction)
+                    ProgressView("Downloading \(m.name)", value: setup.fraction).labelsHidden()
                     Text(setup.status).font(.callout).foregroundStyle(.secondary).monospacedDigit()
                 } else if let problem = setup.problem, setup.target == m {
                     Text(problem).font(.callout).foregroundStyle(.red)
@@ -368,7 +385,7 @@ struct SetupStep: View {
     }
 }
 
-/// The Draw Things steps, ticking off as they're done: Settings and the setup screen.
+/// The Draw Things steps, ticking off as they're done: Settings → Pictures.
 struct DrawThingsSteps: View {
     private var health: Health { .shared }
 
@@ -464,7 +481,8 @@ private struct ResetSection: View {
                 .foregroundStyle(.secondary)
         }
         .confirmationDialog("Reset Mimic?", isPresented: $asking) {
-            Button("Reset") { reset(removeEngine: false) }
+            // Both destructive: plain Reset deletes the saved keys too.
+            Button("Reset", role: .destructive) { reset(removeEngine: false) }
             Button("Reset All", role: .destructive) { reset(removeEngine: true) }
             Button("Cancel", role: .cancel) {}
         } message: {

@@ -44,6 +44,21 @@ final class ReadinessTests: XCTestCase {
         XCTAssertFalse(Readiness(checks: checks, results: [Checks.onlineID: result(Checks.onlineID, false)]).picturesReady)
     }
 
+    /// General shows the pictures' checks as one row (#481), so they're one thing to look at.
+    func testThePicturesChecksAreOneRowAndOneProblem() {
+        let checks = (Checks.drawThingsIDs.sorted() + ["slicer"]).map { check($0) }
+        var results = ["drawthings-app": result("drawthings-app", false), "drawthings-api": result("drawthings-api", false)]
+        XCTAssertNil(Readiness(checks: checks, results: results).picturesChecked, "not until every one is back")
+        results["drawthings-model"] = result("drawthings-model", true)
+        XCTAssertEqual(Readiness(checks: checks, results: results).picturesChecked, false)
+        XCTAssertEqual(Readiness(checks: checks, results: results).problems, 1, "two red Draw Things checks are one row")
+        results["slicer"] = result("slicer", false)
+        XCTAssertEqual(Readiness(checks: checks, results: results).problems, 2)
+        let online = [check(Checks.onlineID)]
+        XCTAssertEqual(Readiness(checks: online, results: [Checks.onlineID: result(Checks.onlineID, true)]).picturesChecked, true)
+        XCTAssertNil(Readiness(checks: [check("slicer")], results: ["slicer": result("slicer", true)]).picturesChecked, "no pictures' check yet")
+    }
+
     func testDrawThingsOpensWhenNeededOnlyWhenClosed() {
         let checks = [check("drawthings-api")]
         let closed = Readiness(checks: checks, results: ["drawthings-api": result("drawthings-api", true, label: Checks.opensWhenNeeded)])

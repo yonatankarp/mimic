@@ -169,7 +169,7 @@ final class SetupModel {
 }
 
 /// The main window until the 3D engine is there: what's about to be downloaded, the download,
-/// and Draw Things, which is optional.
+/// and a line on Draw Things, which is optional.
 struct SetupView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -204,8 +204,6 @@ struct SetupView: View {
             .padding(40)
             .frame(maxWidth: .infinity)
         }
-        // Ticks the Draw Things steps off as they're done.
-        .task { await Health.shared.watchDrawThings(model.install) }
     }
 
     private var engineCard: some View {
@@ -260,16 +258,12 @@ struct SetupView: View {
         .background(.quaternary, in: .rect(cornerRadius: 16))  // content, not a control: no glass
     }
 
+    /// One line, so Download stays the one thing to do here (#481): the steps are in Settings.
     private var drawThingsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Draw Things").font(.headline)
-                Text("Optional").font(.caption).padding(.horizontal, 8).padding(.vertical, 2)
-                    .background(.quaternary, in: Capsule())
-            }
-            Text("A free app that lets Mimic draw a character from a description, and turn drawings into grey sculpts. It doesn't even need to be open: Mimic uses its command line tool, which comes with the 3D engine. Your own pictures work without it, and you can set it up any time in Settings → Draw Things & AI. There you can also have an online service make the pictures instead, with your own key.")
+            Text("Draw Things").font(.headline)
+            Text("Optional: describe a character or make grey sculpts. Set it up later in Settings → Pictures.")
                 .foregroundStyle(.secondary)
-            DrawThingsSteps()
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)

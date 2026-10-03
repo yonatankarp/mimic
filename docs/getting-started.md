@@ -65,7 +65,7 @@ The first time you open it, Mimic shows **Welcome to Mimic**: before your first 
 3D engine, the part that turns a picture into a model. It runs on your Mac, so nothing you make is
 uploaded.
 
-![Welcome to Mimic on first launch: the 3D engine with Download, the choice of TRELLIS.2 (recommended) or Pixal3D, and the three Draw Things steps, with a note that an online service can make the pictures instead](images/screens/getting-started-welcome.png){ width="580" }
+![Welcome to Mimic on first launch: the 3D engine with Download, the choice of TRELLIS.2 (recommended) or Pixal3D, and a line saying Draw Things is optional and can be set up later in Settings → Pictures](images/screens/getting-started-welcome.png){ width="580" }
 
 1. Under **Which 3D model?**, choose one:
     - **TRELLIS.2 (recommended)**: the most reliable with what a figure holds or carries, like a
@@ -91,7 +91,8 @@ Draw Things is optional. Your own pictures work without it. With it, Mimic can a
 - make minis from **cartoons**,
 - redraw a picture with **what to change**, like "close the cape so both arms show".
 
-The welcome window lists three steps, and ticks each one off as it's done:
+The welcome window only says it's optional. Set it up whenever you like in
+**Settings → Pictures**, which lists three steps and ticks each one off as it's done:
 
 1. **Get Draw Things from the App Store.** It's free.
 2. **Connect Mimic to it.** Mimic does this itself, with Draw Things' command line tool, which comes
@@ -99,10 +100,8 @@ The welcome window lists three steps, and ticks each one off as it's done:
 3. **Download FLUX.2 Klein.** In Draw Things' model list, search for FLUX.2 Klein and download it.
    It's big, so give it a few minutes.
 
-You can do this any time: the same steps are in **Settings → Draw Things & AI**.
-
 !!! tip "Rather not install Draw Things?"
-    In **Settings → Draw Things & AI**, set **Make pictures with** to **Black Forest Labs, online**
+    In **Settings → Pictures**, set **Make pictures with** to **Black Forest Labs, online**
     or **OpenAI, online**, and save your API key from that service. The pictures are then made
     online, on your account, and Draw Things isn't needed. Your description, or the picture to
     redraw, is sent to that service, and each picture is one paid request. See
@@ -118,7 +117,7 @@ You can do this any time: the same steps are in **Settings → Draw Things & AI*
 ## Take the tour
 
 Once the download is done, a short tour shows you around, in five stops on the real buttons:
-welcome, starting a new mini, making it, a finished mini, and Settings.
+a quick look around, starting a new mini, making it, a finished mini, and Settings.
 
 To learn by doing, press **Use the Sample** at the second stop: New Mini opens with a sample
 picture of a dwarf, ready to make. Press **Make Mini**: its progress opens in the toolbar, and the

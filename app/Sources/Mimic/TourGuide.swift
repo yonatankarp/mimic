@@ -221,7 +221,7 @@ struct TourCallout: View {
 
     static func title(_ stop: TourStep) -> String {
         switch stop {
-        case .welcome: "Welcome to Mimic"
+        case .welcome: "A quick look around"
         case .newMini: "Start a new mini"
         case .make: "Make it"
         case .mini: "A finished mini"
@@ -233,7 +233,7 @@ struct TourCallout: View {
     private var text: String {
         switch stop {
         case .welcome:
-            "Mimic turns a picture or a few words into a mini you can 3D print, right here on your Mac. Here's a quick look around."
+            "Mimic turns a picture or a few words into a mini you can 3D print, right here on your Mac."
         case .newMini:
             "Press + (or ⌘N) to start one from a picture or a description. To learn by doing, use the sample dwarf."
         case .make:

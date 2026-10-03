@@ -46,6 +46,18 @@ public struct Readiness: Sendable {
     /// Its API has answered in this check, so its connection is known to be on.
     public var drawThingsConnected: Bool { ok("drawthings-api") && !drawThingsOpensWhenNeeded }
 
+    /// Settings → General's one Pictures row (#481): nil while one of the pictures' checks is
+    /// still running (or none has started), else `picturesReady`.
+    public var picturesChecked: Bool? {
+        let ids = checks.map(\.id).filter(Checks.pictureIDs.contains)
+        return ids.isEmpty || ids.contains { results[$0] == nil } ? nil : picturesReady
+    }
+
+    /// How many things General says to look at: the pictures' checks count as one, its one row.
+    public var problems: Int {
+        Set(results.values.filter { !$0.ok }.map { Checks.pictureIDs.contains($0.id) ? "pictures" : $0.id }).count
+    }
+
     /// Why a mini can't be made right now, or nil. Only known failures count: a check still
     /// running doesn't block.
     public var blocking: String? {
@@ -90,6 +102,8 @@ public struct Checks: Sendable {
     public static let drawThingsIDs: Set<String> = ["drawthings-app", "drawthings-api", "drawthings-model"]
     /// The online service's one check, in their place when it makes the pictures.
     public static let onlineID = "images-online"
+    /// Whatever makes the pictures: Draw Things' checks, or the online service's.
+    public static let pictureIDs = drawThingsIDs.union([onlineID])
     public static func onlineLabel(_ service: OnlineService) -> String { "\(service.name) key works" }
 
     public var all: [Check] {

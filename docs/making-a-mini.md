@@ -68,7 +68,7 @@ so, naming the service: "A description needs a working OpenAI key.", for example
 Got only a few words? An AI helper can turn "elf archer" into a full description, ready for Mimic to
 draw. It's off unless you choose one:
 
-1. Open **Settings** (++cmd+comma++) → **Draw Things & AI**.
+1. Open **Settings** (++cmd+comma++) → **Pictures**.
 2. Under **AI helper for descriptions**, choose a **Helper**: **Claude (Anthropic)** or an
    **OpenAI-compatible service** with your own API key, or **Ollama, on this Mac**.
 3. Press **Test** to check it works.
