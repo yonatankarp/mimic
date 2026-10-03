@@ -112,6 +112,8 @@ enum CLI {
         switch Array(rest.dropFirst()) {
         case ["--unsorted"]: target = nil
         case let a where a.count == 2 && a[0] == "--project":
+            // An option isn't a project's name (#449).
+            if a[1].hasPrefix("--") { return fail(CommandRefusal.noProjectName) }
             do { target = try project(a[1], install) } catch { return fail(error) }
         default: return fail(usage, ExitCode.usage)
         }
@@ -123,6 +125,7 @@ enum CLI {
     private static func duplicate(_ rest: [String], _ cli: Context) -> Int32 {
         let install = cli.install
         guard rest.count == 3, !rest[0].hasPrefix("-"), rest[1] == "--as" else { return fail(usage, ExitCode.usage) }
+        if rest[2].hasPrefix("--") { return fail(CommandRefusal.noNewName("--as")) }  // #449
         // As typed, like a name in the app: "Raven Display" is the folder raven-display.
         guard let given = Rules.typedName(rest[2]) else { return fail("Give the copy a name.", ExitCode.usage) }
         let new = given.folder, of = Rules.miniName(rest[0])
@@ -339,6 +342,7 @@ enum CLI {
     private static func rename(_ rest: [String], _ cli: Context) -> Int32 {
         let install = cli.install
         guard rest.count == 3, !rest[0].hasPrefix("-"), rest[1] == "--to" else { return fail(usage, ExitCode.usage) }
+        if rest[2].hasPrefix("--") { return fail(CommandRefusal.noNewName("--to")) }  // #449
         let old = Rules.miniName(rest[0]), before = Mini.displayName(old, runs: install.runs)
         do {
             let new = try JobRunner(install: install).rename(old, typed: rest[2])
@@ -411,9 +415,11 @@ enum CLI {
         }
         do {
             switch rest.first {
-            case "create" where rest.count == 2:
+            // An option isn't a project's name (#449): create shows the usage, as with no name.
+            case "create" where rest.count == 2 && !rest[1].hasPrefix("--"):
                 print("Made a new project, \(try jobs.createProject(rest[1])).")
             case "rename" where rest.count == 4 && rest[2] == "--to":
+                if rest[3].hasPrefix("--") { throw CommandRefusal.noNewName("--to") }
                 let old = try existing(rest[1])
                 print("Renamed the project \(old) to \(try jobs.renameProject(old, to: rest[3])).")
             case "delete" where rest.count == 2 || (rest.count == 3 && rest[2] == "--trash-minis"):
