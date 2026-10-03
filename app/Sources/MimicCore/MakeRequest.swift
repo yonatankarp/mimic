@@ -135,7 +135,8 @@ public struct MakeRequest: Equatable, Sendable {
         while let a = rest.first {
             rest.removeFirst()
             if a.hasPrefix("-") { r.options.append(a) }
-            func value() -> String? { rest.isEmpty ? nil : rest.removeFirst() }
+            // The next option isn't this one's value (#430); "-1" still is, for the range check.
+            func value() -> String? { rest.first.map { !$0.hasPrefix("--") } == true ? rest.removeFirst() : nil }
             switch a {
             case "--height", "--size": guard let v = value() else { throw CommandRefusal.noNumber(a) }; r.sizes.height = v
             case "--scale":
