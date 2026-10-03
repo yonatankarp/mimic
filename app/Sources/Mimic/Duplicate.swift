@@ -47,22 +47,10 @@ struct DuplicateSheet: View {
         guard let shown = Rules.shownName(text) else { problem = "Give it a name."; return }
         let new = Rules.folderName(shown)
         do {
-            try model.jobs.duplicate(mini.name, as: new, shown: shown)
+            try model.duplicate(mini, as: new, shown: shown)
         } catch {
             problem = model.plainWords(error, else: "Couldn't make the copy. Is the disk full, or its folder open in another app?"); return
         }
-        model.reload()
-        // Undo moves the copy to the Trash, as Move to Trash would (its Redo puts it back), so
-        // cancelling the Resize that follows doesn't leave an unwanted copy behind.
-        let original = mini.name
-        model.undo?.registerUndo(withTarget: model) { model in
-            guard let copy = model.minis.first(where: { $0.name == new }) else { return }
-            model.trash(copy)
-            if model.minis.contains(where: { $0.name == original }) { model.selection = [original] }
-            model.undo?.setActionName("Duplicate")
-        }
-        model.undo?.setActionName("Duplicate")
-        model.selection = [new]
         // Straight on to its size: the sheet's item changes, so this one closes as Resize opens.
         if let copy = model.minis.first(where: { $0.name == new }) { model.sheet = .resize(copy) } else { dismiss() }
     }

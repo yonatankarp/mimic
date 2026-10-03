@@ -402,18 +402,9 @@ struct MiniDetail: View {
     /// The kept version takes the plain name. Undo gives it back its own, so a second Undo can
     /// put the version that had the plain name back from the Trash.
     private func rename(to name: String) {
-        let old = mini.name
-        do { try model.jobs.rename(old, to: name) }
+        do { try model.rename(mini, to: name) }
         catch { model.problem = model.plainWords(error, else: "Couldn't rename it. Is its folder open in another app?"); return }
-        model.reload()
         model.selection = [name]
-        model.undo?.registerUndo(withTarget: model) { model in
-            do { try model.jobs.rename(name, to: old) }
-            catch { model.problem = model.plainWords(error, else: "Couldn't rename it back. Is its folder open in another app?"); return }
-            model.reload()
-            model.selection = [old]
-        }
-        model.undo?.setActionName("Rename")
     }
 }
 

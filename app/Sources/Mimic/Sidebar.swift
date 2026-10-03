@@ -355,16 +355,12 @@ struct RenameSheet: View {
     }
 
     private func rename() {
-        let new: String
+        guard let shown = Rules.shownName(text) else { problem = RequestError.noName.description; return }
         do {
-            new = try model.jobs.rename(mini.name, typed: text)
+            try model.rename(mini, to: Rules.folderName(shown), shown: shown)
         } catch {
             problem = model.plainWords(error, else: "Couldn't rename it. Is its folder open in another app?"); return
         }
-        let wasSelected = model.selection.contains(mini.id)
-        // Both in one go, so the window never shows another mini in between.
-        if wasSelected { model.selection.remove(mini.id); model.selection.insert(new) }
-        model.reload()
         dismiss()
     }
 }
