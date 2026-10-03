@@ -48,7 +48,7 @@ Click the 3D view first, so it has the keyboard.
 |---|---|
 | ++left++ / ++right++ | Turns the mini |
 | ++up++ / ++down++ | Tilts the mini |
-| ++cmd+"="++ / ++cmd+"-"++ | Zooms in and out, without clicking it first too |
+| ++cmd+"="++ / ++cmd+"-"++ | Zooms in and out (also in the **View** menu, without clicking first) |
 | ++cmd+0++, or double-click | Turns it back to face you and zooms back out |
 
 With a mouse or trackpad: drag to turn it, and scroll or pinch to zoom toward the pointer.
