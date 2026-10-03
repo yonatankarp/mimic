@@ -17,8 +17,13 @@ final class SizeAdviceTests: XCTestCase {
                             ("6ft 2in", 33), ("5 feet 9 inches", 31), ("5'", 27), ("5 ft", 27), ("-1", 32)] {
             XCTAssertEqual(SizeCard.gameHeight(real: typed, scale: 32), mm, typed)
         }
+        // A plain number too tall to be metres is centimetres (#335): "180" was 180 m, clamped to
+        // the slider's top. A giant in metres stays metres.
+        for (typed, mm) in [("180", 32.0), ("90", 16), ("175,5", 31), ("8", 142), ("12", 213)] {
+            XCTAssertEqual(SizeCard.gameHeight(real: typed, scale: 32), mm, typed)
+        }
         var c = SizeCard(purpose: .game)
-        for fine in ["", "  ", "1,5", "6'2\""] { c.setRealHeight(fine); XCTAssertNil(c.realHeightProblem, fine) }
+        for fine in ["", "  ", "1,5", "6'2\"", "180"] { c.setRealHeight(fine); XCTAssertNil(c.realHeightProblem, fine) }
         for bad in ["tall", "0", "6'2\"x", "1.8.2"] {
             c.setRealHeight(bad)
             XCTAssertEqual(c.realHeightProblem, "Couldn't read that, so it's using 1.8 m. Try 1.75 or 5'9\".", bad)
