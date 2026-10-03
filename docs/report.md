@@ -16,7 +16,7 @@ on GitHub for you to attach it to.
   **Mini** menu or by right-clicking the mini.
 - For anything else: choose **Help → Report a Problem…**.
 
-![Report a problem with “Snow Ghost”?: what goes in the file, Include the picture unticked, Include a picture of Mimic's window unticked with its preview, and Cancel and Make Report](images/screens/troubleshooting-report-a-problem.png){ width="384" }
+![Report a problem with “Elf Scout”?: what goes in the file, Include the picture unticked, Include a picture of Mimic's window unticked with its preview, and Cancel and Make Report](images/screens/troubleshooting-report-a-problem.png){ width="392" }
 
 Mimic first says what goes in the file. Press **Make Report**. The file has:
 
