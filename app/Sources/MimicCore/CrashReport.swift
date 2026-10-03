@@ -11,7 +11,8 @@ public struct Crash: Equatable, Sendable {
     public let what: String
     /// "0.11.0 (build 412)", or "" when the report doesn't say.
     public let version: String
-    /// The exception, the crashing thread's frames and the libraries they're in, as JSON.
+    /// The exception (with where an uncaught one was thrown), the crashing thread's frames and
+    /// the libraries they're in, as JSON.
     public let trimmed: String
     public let pid: Int?
     public let launched: Date?, crashed: Date?
@@ -103,7 +104,7 @@ public enum CrashReport {
         let build = header["build_version"] as? String ?? bundle?["CFBundleVersion"] as? String ?? ""
         let version = short.isEmpty ? "" : short + (build.isEmpty || build == short ? "" : " (build \(build))")
 
-        var kept = body.filter { ["exception", "termination", "asi", "procName", "procPath", "parentProc", "pid", "procLaunch",
+        var kept = body.filter { ["exception", "termination", "asi", "asiBacktraces", "procName", "procPath", "parentProc", "pid", "procLaunch",
                                   "captureTime", "osVersion", "cpuType", "translated", "bundleInfo"].contains($0.key) }
         var thread = threads[faulting].filter { ["name", "queue", "id"].contains($0.key) }
         thread["frames"] = frames
