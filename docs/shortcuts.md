@@ -100,7 +100,7 @@ Click a preview in the details panel first.
 
 | Item | What it does |
 |---|---|
-| **Undo** ++cmd+z++ | Puts back minis you moved to the Trash, undoes **Keep This One…**, a rename after it, and **Duplicate…** |
+| **Undo** ++cmd+z++ | Puts back minis you moved to the Trash, and undoes **Rename…**, **Keep This One…** (and the rename after it) and **Duplicate…** |
 | **Find** ++cmd+f++ | Puts the cursor in the list's search field *(when you have more than six minis)* |
 
 ### View

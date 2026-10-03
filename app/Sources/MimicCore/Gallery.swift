@@ -335,11 +335,15 @@ extension Gallery {
     /// A mini renamed or copied in Finder ("Dwarf Cleric", "dwarf-cleric copy", iCloud's
     /// "dwarf-cleric 2"), or whose print file no longer matches its folder: the name its files
     /// have now, or nil when it's fine. That's its one print file's name (a `.part.stl` print
-    /// prep left behind aside), else the folder's.
+    /// prep left behind aside), else the folder's. Only one Mimic made, which has its previews
+    /// beside it: one dropped in from elsewhere ("crow.stl") is left as it is (#336).
     static func oddFiles(_ mini: Mini) -> String? {
-        let stls = ((try? FileManager.default.contentsOfDirectory(atPath: mini.folder.path)) ?? [])
-            .filter { $0.lowercased().hasSuffix(".stl") && !$0.lowercased().hasSuffix(".part.stl") }
-        let files = stls.count == 1 ? String(stls[0].dropLast(4)) : mini.name
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: mini.folder.path)) ?? []
+        let stls = names.filter { $0.lowercased().hasSuffix(".stl") && !$0.lowercased().hasSuffix(".part.stl") }
+        let stem = stls.count == 1 ? String(stls[0].dropLast(4)) : nil
+        let files = stem.flatMap { s in
+            ["front", "left", "right", "side", "back"].contains { names.contains("\(s)_\($0).png") } ? s : nil
+        } ?? mini.name
         return !Rules.isValidName(mini.name) || (mini.stl == nil && files != mini.name) ? files : nil
     }
 
