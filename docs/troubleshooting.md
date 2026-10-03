@@ -180,6 +180,12 @@ A flat drawing can come out of the 3D model as a flat sheet. Turn on
 **Turn it into a grey sculpt first** in New Mini and make it again. For a cartoon, also turn on
 **It's a cartoon**.
 
+### The 3D model has no shape to print
+
+The 3D model came out broken: all its points in one place, or some that aren't numbers. Make its
+shape again with **New 3D Shape…**. For a model you imported, the file itself is broken: export it
+again from the program that made it.
+
 ### Another Mimic is making a mini
 
 Mimic makes one mini at a time, whichever Mimic asked for it: this app, another copy of Mimic, or
