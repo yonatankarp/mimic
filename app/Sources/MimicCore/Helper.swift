@@ -376,7 +376,9 @@ public struct DescriptionHelper: Sendable {
         }
         t.delegate = KeepKey(header: provider.keyHeader) { [self] url in self.sendsKey(to: url) }
         t.resume()
-        done.wait()
+        // A cancelled Task (New Mini closed, #346) stops the request rather than waiting it out.
+        while done.wait(timeout: .now() + 0.2) == .timedOut { if Task.isCancelled { t.cancel() } }
+        if Task.isCancelled { throw CancellationError() }
         // A service that echoes the key in its error text must not put it on screen.
         if case .failure(let e) = result, case .refused(let why)? = e as? HelperError, let key, !key.isEmpty {
             throw HelperError.refused(why.replacingOccurrences(of: key, with: "…"))
