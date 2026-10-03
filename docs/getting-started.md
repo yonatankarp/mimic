@@ -176,5 +176,7 @@ Mimic is also a `mimic` command, with the same engine as the app. To add it to T
 3. Press **Copy Command**, paste it into Terminal and press Return. It asks for your Mac password,
    once.
 
+If you installed Mimic with Homebrew, `mimic` is already there: skip these steps.
+
 Then type `mimic` to make minis from there. Every command is in
 [Mimic from a terminal](cli.md).
