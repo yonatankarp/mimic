@@ -181,8 +181,10 @@ when needed**.
     side picture it redraws. A picture used as it is costs nothing. A new version with a new
     picture costs the same again; a picture that's already made is never asked for twice.
 
-If the service turns a picture down (its moderation does that now and then), is busy, or takes
-too long, the mini stops with a message saying so, and nothing else about it changes. Press
+If the service is busy, Mimic waits and asks again, twice at most; a request the service turns
+away isn't charged. If the service turns a picture down (its moderation does that now and then),
+is still busy, or takes too long, the mini stops with a message saying so, and nothing else about
+it changes. Press
 **Try Again**, or change the description. If your account is out of credits or has reached its
 spending limit, the message says so: add credits or raise your limit on the service's website
 first.

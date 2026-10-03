@@ -59,15 +59,12 @@ public final class BlackForestLabs: OnlineClient, OnlineImages, @unchecked Senda
         submit.setValue("application/json", forHTTPHeaderField: "Content-Type")
         submit.httpBody = try JSONSerialization.data(withJSONObject: b)
         submit.timeoutInterval = 60
-        let started = try json(submit)
+        let started = try self.submit { try json(submit) }
         guard let polling = (started["polling_url"] as? String).flatMap(URL.init(string:)), sendsKey(to: polling) else {
             throw fail(.failed("it gave no address to collect the picture from"))
         }
         let deadline = Date().addingTimeInterval(timeout)
-        func wait() {
-            let until = Date().addingTimeInterval(poll)
-            while Date() < until, !isCanceled { usleep(20_000) }
-        }
+        func wait() { pause(poll) }
         // The request is paid for already: a hiccup while asking, or while fetching the picture,
         // is tried again until the deadline.
         let hiccups: [OnlineImagesError.Problem] = [.busy, .timedOut, .unreachable, .noInternet]
