@@ -172,6 +172,14 @@ final class CrashReportTests: XCTestCase {
         XCTAssertTrue(what.contains("There's no screenshot"), what)
         XCTAssertTrue(what.hasSuffix("What I was doing when it quit: "), what)
         XCTAssertTrue(q["logs"]?.contains("Drag it into this box") == true)
+
+        // A saved key in what crashed goes from the title and the question too (#352).
+        let key = "0f1e2d3c-4b5a-4987-8a6b-5c4d3e2f1a0b"
+        let keyed = Crash(file: c.file, date: c.date, what: "Fatal error: \(key)", version: c.version, trimmed: c.trimmed,
+                          pid: nil, launched: nil, crashed: nil)
+        let link = CrashReport.issueURL(keyed, build: "b", mac: "m", saved: [key]).absoluteString
+        XCTAssertFalse(link.contains(key), "the saved key is in the issue")
+        XCTAssertTrue(link.contains(Report.newIssue.absoluteString))
     }
 
     /// The setup as it is now (#283): in the zip as setup.txt and in the issue's Anything else.

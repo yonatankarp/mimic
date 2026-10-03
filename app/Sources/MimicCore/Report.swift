@@ -26,10 +26,12 @@ public enum Report {
     private static let named = try! NSRegularExpression(pattern:
         #"(?i)\b([A-Za-z0-9_\-]*(?:api[_-]?key|access[_-]?key|x-key|token|secret|password|passwd|authorization))(["']?\s*[:=]\s*["']?)(?!\[)([^\s"',;}]+)"#)
 
-    /// `text` without anything secret: API keys and tokens, and the home folder (which says who
-    /// the person is) as ~.
-    public static func scrub(_ text: String, home: String = FileManager.default.homeDirectoryForCurrentUser.path) -> String {
-        var s = text
+    /// `text` without anything secret: the keys saved in Settings (`saved`, from
+    /// `Keychain.all`), other API keys and tokens, and the home folder (which says who the
+    /// person is) as ~.
+    public static func scrub(_ text: String, home: String = FileManager.default.homeDirectoryForCurrentUser.path,
+                             saved: [String] = []) -> String {
+        var s = removing(saved, from: text)
         func replace(_ re: NSRegularExpression, _ with: String) {
             s = re.stringByReplacingMatches(in: s, range: NSRange(s.startIndex..., in: s), withTemplate: with)
         }
@@ -44,6 +46,17 @@ public enum Report {
             }
         }
         return s
+    }
+
+    /// `text` without the saved keys, in any case and, for one with dashes, without them too: a
+    /// Black Forest Labs key is a UUID (#352), which nothing else can tell from the ones a crash
+    /// report needs, and its API takes it in either case, with or without dashes.
+    static func removing(_ saved: [String], from text: String) -> String {
+        saved.reduce(text) { s, key in
+            Set([key, key.replacingOccurrences(of: "-", with: "")]).reduce(s) {
+                $0.replacingOccurrences(of: $1, with: "[key removed]", options: .caseInsensitive)
+            }
+        }
     }
 
     // MARK: The Mac
@@ -74,9 +87,10 @@ public enum Report {
     /// Writes the report into `folder` and returns the zip. `mini` adds its logs and
     /// settings.json, and its picture when `picture` is set. `appLog` nil means it couldn't be
     /// read, which about.txt says. `extra` adds files by name, scrubbed too: a crash's report.
-    /// `setup` goes in as setup.txt, `window` (a PNG) as window.png.
+    /// `setup` goes in as setup.txt, `window` (a PNG) as window.png. `saved` are the keys to take
+    /// out wherever they are (`Keychain.all`).
     public static func write(to folder: URL, mini: Mini?, picture: Bool, build: String, mac: String, appLog: String?,
-                             extra: [String: String] = [:], setup: ReportSetup? = nil, window: Data? = nil,
+                             extra: [String: String] = [:], setup: ReportSetup? = nil, window: Data? = nil, saved: [String] = [],
                              now: Date = Date(), home: String = FileManager.default.homeDirectoryForCurrentUser.path) throws -> URL {
         let fm = FileManager.default
         let stamp = DateFormatter()
@@ -88,7 +102,7 @@ public enum Report {
         defer { try? fm.removeItem(at: scratch) }
         try fm.createDirectory(at: top, withIntermediateDirectories: true)
         func text(_ s: String, _ file: String, in dir: URL = top) throws {
-            try Data(scrub(s, home: home).utf8).write(to: dir.appendingPathComponent(file))
+            try Data(scrub(s, home: home, saved: saved).utf8).write(to: dir.appendingPathComponent(file))
         }
 
         var about = [build, mac, ISO8601DateFormatter().string(from: now)]
@@ -138,7 +152,7 @@ public enum Report {
 
     /// bug.yml's form filled in through its field ids. The picture and logs can't go in a link,
     /// so the logs box says to drag the zip in; the setup's summary goes in Anything else.
-    public static func issueURL(build: String, mac: String, failure: String?, setup: ReportSetup? = nil,
+    public static func issueURL(build: String, mac: String, failure: String?, setup: ReportSetup? = nil, saved: [String] = [],
                                 home: String = FileManager.default.homeDirectoryForCurrentUser.path) -> URL {
         var fields = [("template", "bug.yml"), ("version", build), ("mac", mac),
                       ("logs", "Mimic made a report and showed it in Finder. Drag it into this box to attach it.")]
@@ -148,7 +162,7 @@ public enum Report {
                        ("what", "A mini didn't finish. Mimic said: \(scrub(failure, home: home))\n\nWhat I did: ")]
         }
         let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~")
-        let query = fields.map { k, v in "\(k)=\(v.addingPercentEncoding(withAllowedCharacters: allowed) ?? "")" }.joined(separator: "&")
+        let query = fields.map { k, v in "\(k)=\(removing(saved, from: v).addingPercentEncoding(withAllowedCharacters: allowed) ?? "")" }.joined(separator: "&")
         return URL(string: newIssue.absoluteString + "?" + query)!
     }
 }
