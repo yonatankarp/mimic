@@ -93,7 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // Mimic and its window come to the front first (the window may have been closed while a
     // mini is made), then act: the job's popover keeps track of whether it is.
-    @objc private func newMini() { model.showWindow(); Task { model.sheet = .make } }
+    @objc private func newMini() { model.showWindow(); Task { model.sheet = .make(nil) } }
     @objc private func showProgress() { model.showWindow(); Task { model.jobPopover = true } }
     @objc private func togglePause() { model.togglePause() }
     @objc private func stopJob() { model.showWindow(); Task { model.confirmingStop = true } }

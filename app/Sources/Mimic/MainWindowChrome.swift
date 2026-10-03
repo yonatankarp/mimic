@@ -27,7 +27,7 @@ struct MainWindowChrome: ViewModifier {
                 ToolbarItem(placement: .primaryAction) { NeedsSetupItem() }
                 ToolbarSpacer(.fixed, placement: .primaryAction)
                 ToolbarItem(placement: .primaryAction) {
-                    Button { model.sheet = .make } label: { Label("New Mini", systemImage: "plus") }
+                    Button { model.sheet = .make(nil) } label: { Label("New Mini", systemImage: "plus") }
                         .help("Make a new mini (⌘N)")
                         .disabled(!model.setup.installed)
                         .tourCallout(.newMini)
@@ -37,8 +37,8 @@ struct MainWindowChrome: ViewModifier {
             // closure, the sheet kept getting the starting 640).
             .sheet(item: $model.sheet, onDismiss: { model.askToKeep = model.keepWhenClosed; model.keepWhenClosed = nil }) { [room] sheet in
                 switch sheet {
-                case .make: MakeView(room: room)
-                case .makeAgain(let mini): MakeView(room: room, form: MakeForm.again(mini, install: model.install, card: .remembered()), again: mini)
+                case .make(let start): MakeView(room: room, start: start)
+                case .makeAgain(let mini, let start): MakeView(room: room, start: start, again: mini)
                 case .resize(let mini): ResizeView(mini: mini, room: room)
                 case .resizeAll(let p):
                     let group = model.minis.filter { $0.project == p }
