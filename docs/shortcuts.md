@@ -110,6 +110,8 @@ Click a preview in the details panel first.
 
 | Item | What it does |
 |---|---|
+| **Show Toolbar** / **Hide Toolbar** | Shows or hides the toolbar |
+| **Customize Toolbar…** | Choose which buttons the toolbar shows, and in what order |
 | **Sort By** ▸ | **Date Made**, **Name** or **Size** |
 | **Show** ▸ | **All Minis**, **Characters**, **Objects** or **Unfinished Minis** |
 | **Show Sidebar** ++ctrl+cmd+s++ | Shows or hides the list of minis |
@@ -200,6 +202,9 @@ Resize…** for a resize).
 | **Show Details** / **Hide Details** | On a mini's page: the details panel, ++ctrl+cmd+i++ |
 
 A note about a new version of Mimic also appears in the toolbar when there is one.
+
+To move a button or take it out, choose **View → Customize Toolbar…** (or right-click the toolbar)
+and drag it. Dragging the default set into the toolbar there puts them all back.
 
 ## The Dock icon's menu
 

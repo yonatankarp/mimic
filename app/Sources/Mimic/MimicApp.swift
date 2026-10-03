@@ -55,6 +55,7 @@ struct MimicApp: App {
             }
             GalleryCommands(model: model)
             SidebarCommands()
+            ToolbarCommands()  // View → Show Toolbar and Customize Toolbar…
             ImportFromDevicesCommands()  // File → Import from iPhone, for New Mini's picture
             MiniCommands(model: model, reporter: delegate.reporter)
             CommandGroup(replacing: .help) {
