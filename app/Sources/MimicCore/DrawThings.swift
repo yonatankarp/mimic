@@ -26,7 +26,7 @@ public final class DrawThings: @unchecked Sendable {
     private var task: URLSessionDataTask?
     private var process: GroupProcess?
     private var canceled = false
-    /// How long a picture request waits for Draw Things to answer.
+    /// How long a picture waits for Draw Things to answer, through the API or the CLI.
     var requestTimeout: TimeInterval = 900
 
     /// FLUX.2 Klein is step-distilled: these are the settings it was made for.
@@ -206,10 +206,23 @@ public final class DrawThings: @unchecked Sendable {
         }
         close(fds[1])
         if let queue { Leftover.record(pid: p.pid, queue: queue) }
+        // The same limit as the API's (#433): a stuck CLI is stopped, not waited on until Stop.
+        nonisolated(unsafe) var tooLong = false
+        let limit = DispatchWorkItem { [self] in
+            let running = lock.withLock { () -> Bool in
+                guard process === p else { return false }
+                tooLong = true
+                return true
+            }
+            if running { p.terminateGroup() }
+        }
+        DispatchQueue.global().asyncAfter(deadline: .now() + requestTimeout, execute: limit)
         let text = String(decoding: FileHandle(fileDescriptor: fds[0], closeOnDealloc: true).readDataToEndOfFile(), as: UTF8.self)
         let code = p.wait()
-        let wasCanceled = lock.withLock { () -> Bool in process = nil; return canceled }
+        limit.cancel()
+        let (wasCanceled, timedOut) = lock.withLock { () -> (Bool, Bool) in process = nil; return (canceled, tooLong) }
         if wasCanceled { throw DrawThingsError.cancelled }
+        if timedOut { throw DrawThingsError.timedOut }
         guard code == 0 else { throw DrawThingsError.refused(Self.tail(text)) }
         guard let png = try? Data(contentsOf: output) else { throw DrawThingsError.refused("no picture in the reply") }
         return png

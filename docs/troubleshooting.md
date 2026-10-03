@@ -122,8 +122,8 @@ it's set up and Mimic still can't use it:
 - **Did you turn off Open Draw Things when needed?** Then Draw Things has to be open while a mini
   needs a picture. Turn it back on in [Settings → General](settings.md#open-draw-things-when-needed).
 
-If a mini stopped because Draw Things didn't answer in time, Draw Things was on but busy or stuck:
-quit and reopen it, then press **Try Again**.
+If a mini stopped because Draw Things didn't answer in time, Draw Things was busy or stuck: Mimic
+waits up to 15 minutes for each picture. Quit and reopen Draw Things, then press **Try Again**.
 
 If a mini stopped because of Draw Things, fix the cause and press **Try Again**.
 
