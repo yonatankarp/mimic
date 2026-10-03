@@ -161,7 +161,7 @@ again, in about a minute. The mini itself doesn't change: the same shape, at the
 mini is being made, the resize waits its turn in [the queue](queue.md). A mini that's waiting or
 being made itself can be resized once it's made.
 
-![Resize All in Adventuring Party at Game Scale: no real height to type, a line saying each character keeps its own and that one mini without one gets the Character height](images/screens/sizes-and-bases-resize-all.png){ width="290" }
+![Resizing three minis together at Game Scale: no real height to type, but a line saying each character keeps its own, and that the one mini without one gets the Character height](images/screens/sizes-and-bases-resize-all.png){ width="290" }
 
 To resize several at once:
 
