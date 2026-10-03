@@ -115,7 +115,7 @@ struct SizeSection: View {
                     .pickerStyle(.segmented).fixedSize()
                     .help("Square and hex bases fit grid and hex maps; the figure faces a flat side")
                     // Its own words: a menu with its label hidden would read only "Plain".
-                    Text("Top")
+                    Text("Top").accessibilityHidden(true)  // the menu's own label says it
                     Picker("Top", selection: $card.style) {
                         ForEach(BaseStyle.allCases, id: \.self) { Text($0.words.capitalizedFirst).tag($0) }
                     }
