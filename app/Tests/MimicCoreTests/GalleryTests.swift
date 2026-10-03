@@ -233,6 +233,25 @@ final class GalleryTests: XCTestCase {
         XCTAssertNotEqual(after, before, "a reload wouldn't pass the new time on")
     }
 
+    /// The sidebar's picture and "Picture ready to check" are found when the gallery is read,
+    /// not looked for on disk every time a row is drawn (#437).
+    func testARowsPictureAndStatusAreFoundOnceWhenListed() throws {
+        let fx = try Fixture(), fm = FileManager.default
+        let d = try fx.mini("dwarf")
+        let listed = try XCTUnwrap(Gallery.list(fx.install.runs).first)
+        XCTAssertEqual(listed.thumbnail?.lastPathComponent, "dwarf_front.png")
+        XCTAssertFalse(listed.pictureToCheck)
+        let waiting = try fx.mini("elf")
+        for f in ["elf.stl", "model.glb"] { try fm.removeItem(at: waiting.appendingPathComponent(f)) }
+        try MiniSettings.update(waiting) { $0.checkPicture = true; $0.created = Date() }
+        let toCheck = try XCTUnwrap(Gallery.list(fx.install.runs).first { $0.name == "elf" })
+        XCTAssertTrue(toCheck.pictureToCheck)
+        for f in ["dwarf_front.png", "source.png"] { try fm.removeItem(at: d.appendingPathComponent(f)) }
+        try fm.removeItem(at: waiting.appendingPathComponent("source.png"))
+        XCTAssertEqual(listed.thumbnail?.lastPathComponent, "dwarf_front.png", "looked on disk again")
+        XCTAssertTrue(toCheck.pictureToCheck, "looked on disk again")
+    }
+
     /// A resize makes a new print file; the list goes by when each mini was asked for, so it
     /// stays where it was (#75). A mini from before that date was saved goes by its folder's.
     func testAResizeKeepsTheMinisPlace() throws {

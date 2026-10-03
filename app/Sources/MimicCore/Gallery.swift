@@ -17,15 +17,23 @@ public struct Mini: Identifiable, Hashable, Sendable {
     /// It has its print file, as the gallery found it on its reload: what the Unfinished
     /// filter goes by, so filtering never looks on disk.
     public let finished: Bool
+    /// Its sidebar picture (its first view, else its picture) and whether its picture waits to be
+    /// checked, found once here, as the gallery reads it: a row's redraw never looks on disk (#437).
+    public let thumbnail: URL?
+    public let pictureToCheck: Bool
     public var id: String { name }
 
     /// The 3D shape in a mini's folder: what step 2 (or an import) writes and print prep reads.
     public static let modelFile = "model.glb"
+    private static let views = ["front", "left", "right", "side", "back"]
 
     public init(name: String, folder: URL, madeAt: Date, created: Date? = nil, project: String? = nil, settings: MiniSettings = MiniSettings(),
                 finished: Bool = true) {
         self.name = name; self.folder = folder; self.madeAt = madeAt; self.created = created ?? madeAt; self.project = project
         self.settings = settings; self.finished = finished
+        thumbnail = Self.views.lazy.compactMap { Self.existing("\(name)_\($0).png", in: folder) }.first
+            ?? Self.existing("source.png", in: folder) ?? Self.existing("upload.img", in: folder)
+        pictureToCheck = !finished && Pipeline.pictureToCheck(folder, settings: settings)
     }
     public var stl: URL? { existing("\(name).stl") }
     public var source: URL? { existing("source.png") }
@@ -34,7 +42,7 @@ public struct Mini: Identifiable, Hashable, Sendable {
     /// Its views, front first. A mini rendered before the left and right views has a side view
     /// instead, until a resize renders them (and removes it).
     public var renders: [(view: String, url: URL)] {
-        ["front", "left", "right", "side", "back"].compactMap { v in existing("\(name)_\(v).png").map { (v, $0) } }
+        Self.views.compactMap { v in existing("\(name)_\(v).png").map { (v, $0) } }
     }
     /// The pictures of the back and sides it was given besides the front one (#66): as step 1
     /// made them, else as given.
@@ -92,15 +100,17 @@ public struct Mini: Identifiable, Hashable, Sendable {
         return f.string(from: date)
     }
 
-    private func existing(_ file: String) -> URL? {
+    private func existing(_ file: String) -> URL? { Self.existing(file, in: folder) }
+    private static func existing(_ file: String, in folder: URL) -> URL? {
         let u = folder.appendingPathComponent(file)
         return FileManager.default.fileExists(atPath: u.path) ? u : nil
     }
 
-    /// Settings and `finished` included, so a reload notices a run that failed or finished, or a
-    /// rename that moved its versions.
+    /// Settings, `finished` and what the row shows included, so a reload notices a run that
+    /// failed or finished, or a rename that moved its versions.
     public static func == (a: Mini, b: Mini) -> Bool {
         a.name == b.name && a.madeAt == b.madeAt && a.project == b.project && a.settings == b.settings && a.finished == b.finished
+            && a.thumbnail == b.thumbnail && a.pictureToCheck == b.pictureToCheck
     }
     public func hash(into h: inout Hasher) { h.combine(name) }
 }

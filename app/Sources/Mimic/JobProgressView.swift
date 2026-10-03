@@ -62,9 +62,9 @@ struct JobProgressView: View {
                     }
                 }
                 Spacer(minLength: 0)
-                // The gallery's own record of where it is, not a search of the minis folder every second.
-                JobPicture(status: s, folder: model.minis.first { $0.name == s.name }?.folder ?? Gallery.folder(model.install.runs, s.name)
-                           ?? model.install.runs.appendingPathComponent(s.name))
+                // The gallery's own record of where it is; until the new mini is listed, JobPicture
+                // looks for it away from the drawing (#437).
+                JobPicture(status: s, folder: model.minis.first { $0.name == s.name }?.folder, runs: model.install.runs)
             }
             ProgressView(value: JobProgress.fraction(s, estimate: estimate, now: now))
                 .progressViewStyle(GlidingBar(working: s.running))
@@ -410,8 +410,10 @@ private struct StepMark: View {
 /// ready. Success gets a checkmark badge; failure a warning badge and a small shake, no fuss.
 private struct JobPicture: View {
     let status: JobStatus
-    /// runs/<name>, where the job writes source.png and the renders.
-    let folder: URL
+    /// Where the job writes source.png and the renders, as the gallery knows it; nil for a new
+    /// mini not listed yet, which is looked for under `runs`.
+    let folder: URL?
+    let runs: URL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// The picture shown and its file's time, once there is one.
     @State private var shown: Shown?
@@ -449,10 +451,12 @@ private struct JobPicture: View {
             .accessibilityHidden(true)
             // Looked for every second, as the popover's clock goes, so the picture appears the
             // moment step 1 writes it; off the main thread, not while the popover is drawn (#340).
-            .task(id: "\(folder.path) \(status.name) \(status.kind == .prep || status.succeeded)") {
-                let (folder, name, resized) = (folder, status.name, status.kind == .prep || status.succeeded)
+            .task(id: "\(folder?.path ?? "") \(status.name) \(status.kind == .prep || status.succeeded)") {
+                let (folder, runs, name, resized) = (folder, runs, status.name, status.kind == .prep || status.succeeded)
                 while !Task.isCancelled {
-                    let found = await Task.detached { Self.find(folder, name, resized: resized) }.value
+                    let found = await Task.detached {
+                        Self.find(folder ?? Gallery.folder(runs, name) ?? runs.appendingPathComponent(name), name, resized: resized)
+                    }.value
                     if found != shown { shown = found }
                     try? await Task.sleep(for: .seconds(1))
                 }

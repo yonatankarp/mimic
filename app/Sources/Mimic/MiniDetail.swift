@@ -336,7 +336,7 @@ struct MiniDetail: View {
     private func versionTile(_ v: Mini) -> some View {
         Button { model.selection = [v.id] } label: {
             VStack(spacing: 4) {
-                Thumbnail(url: v.renders.first?.url ?? v.source ?? v.upload, version: v.madeAt)
+                Thumbnail(url: v.thumbnail, version: v.madeAt)
                     .frame(width: 64, height: 64)
                     .clipShape(.rect(cornerRadius: 10))
                     .overlay { RoundedRectangle(cornerRadius: 10).stroke(Color.accentColor, lineWidth: v.name == mini.name ? 3 : 0) }
