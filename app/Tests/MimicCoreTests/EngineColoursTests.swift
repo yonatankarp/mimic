@@ -278,6 +278,8 @@ final class EngineColoursTests: XCTestCase {
         }
         XCTAssertNil(try whyGrey(), "in colour")
         XCTAssertNil(try whyGrey { $0.restyle = true }, "grey, as the save window said")
+        XCTAssertEqual(try whyGrey { $0.model = "no-such-engine" }, "this Mimic doesn't know the 3D model it was made with, no-such-engine",
+                       "placed again (no record) by a model this Mimic doesn't have")
         try GLB.encode(PrepTests.box(half: [4, 3, 10])).write(to: glb)
         XCTAssertEqual(try whyGrey(), "its 3D model has no colours saved with it")
         try Data("not a model".utf8).write(to: glb)

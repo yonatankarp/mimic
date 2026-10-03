@@ -307,6 +307,8 @@ public enum Tabletop {
         do {
             colours = try EngineColours.of(mini)
             if colours == nil, inColour(mini.settings) { whyGrey = "its 3D model has no colours saved with it" }
+        } catch RequestError.unknownModel(let id) {  // placing it again needs its model's settings
+            whyGrey = "this Mimic doesn't know the 3D model it was made with, \(id)"
         } catch {
             whyGrey = FileManager.default.fileExists(atPath: mini.folder.appendingPathComponent(Mini.modelFile).path)
                 ? "Mimic couldn't read the colours from its 3D model" : "its 3D model is missing from its folder"
