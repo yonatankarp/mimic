@@ -23,6 +23,8 @@ public final class DrawThings: @unchecked Sendable {
     private var task: URLSessionDataTask?
     private var process: Process?
     private var canceled = false
+    /// How long a picture request waits for Draw Things to answer.
+    var requestTimeout: TimeInterval = 900
 
     /// FLUX.2 Klein is step-distilled: these are the settings it was made for.
     static var settings: [String: Any] { [
@@ -238,12 +240,14 @@ public final class DrawThings: @unchecked Sendable {
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
-        req.timeoutInterval = 900
+        req.timeoutInterval = requestTimeout
         let done = DispatchSemaphore(value: 0)
         nonisolated(unsafe) var result: Result<Data, Error> = .failure(DrawThingsError.notRunning)
         let t = URLSession.shared.dataTask(with: req) { data, resp, err in
             defer { done.signal() }
             if let err = err as? URLError, err.code == .cancelled { result = .failure(DrawThingsError.cancelled); return }
+            // On, but slow or stuck: not its API Server setting (#321).
+            if let err = err as? URLError, err.code == .timedOut { result = .failure(DrawThingsError.timedOut); return }
             guard err == nil, let data, let http = resp as? HTTPURLResponse else { result = .failure(DrawThingsError.notRunning); return }
             guard http.statusCode == 200 else {
                 result = .failure(DrawThingsError.refused(String(decoding: data.prefix(300), as: UTF8.self))); return
@@ -342,10 +346,11 @@ public struct DrawThingsApp: Sendable {
 }
 
 public enum DrawThingsError: Error, CustomStringConvertible, Equatable {
-    case notRunning, noModel, cancelled, badPicture, refused(String), apiOff, closedWhileOpening
+    case notRunning, timedOut, noModel, cancelled, badPicture, refused(String), apiOff, closedWhileOpening
     public var description: String {
         switch self {
         case .notRunning: "Draw Things isn't answering. Open Draw Things, then Settings → Advanced → API Server: turn it on, HTTP, port 7860."
+        case .timedOut: "Draw Things didn't answer in time. It may be busy or stuck: quit and reopen Draw Things, then try again."
         case .noModel: "FLUX.2 Klein isn't downloaded in Draw Things. Search for it in Draw Things' model list and download it."
         case .cancelled: "Stopped."
         case .badPicture: "That picture can't be read."
