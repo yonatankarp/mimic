@@ -21,7 +21,9 @@ final class OpenAIImagesTests: XCTestCase {
     }
 
     private func service(_ server: FakeLLM, key: String? = "k-123") -> OpenAIImages {
-        OpenAIImages(base: URL(string: "http://127.0.0.1:\(server.port)")!, key: { key })
+        let s = OpenAIImages(base: URL(string: "http://127.0.0.1:\(server.port)")!, key: { key })
+        s.retryWaits = [0.05, 0.05]
+        return s
     }
 
     private func problem(_ e: Error) -> OnlineImagesError.Problem? { (e as? OnlineImagesError)?.problem }
@@ -139,8 +141,26 @@ final class OpenAIImagesTests: XCTestCase {
             XCTAssertThrowsError(try service(server).draw(description: "a dwarf", seed: 1, kind: .character), "\(status) \(code)") {
                 XCTAssertEqual(problem($0), expected, "\(status) \(type) \(code)")
             }
+            // Busy is asked twice more first (#320); nothing else is, since asking again won't help.
+            XCTAssertEqual(server.requests.count, expected == .busy ? 3 : 1, "\(status) \(type) \(code)")
         }
         XCTAssertTrue(OnlineImagesError(.noCredits, service: "OpenAI").description.contains("raise your limit"))
+    }
+
+    /// A request turned away as busy isn't charged, so it's sent again (#320), after as long as the
+    /// service's Retry-After asks.
+    func testABusyRequestIsAskedAgainWhenTheServiceSays() throws {
+        let picture = #"{"created":1,"data":[{"b64_json":"\#(OnlineImagesTests.picture.base64EncodedString())"}]}"#
+        let asked = Counter()
+        let server = try FakeLLM(headers: "Retry-After: 1\r\n") { _ in
+            asked.next() == 0 ? (429, Data(#"{"error":{"message":"Rate limit reached","type":"requests","code":"rate_limit_exceeded"}}"#.utf8))
+                              : (200, Data(picture.utf8))
+        }
+        defer { server.stop() }
+        let started = Date()
+        XCTAssertEqual(OnlineImagesTests.size(try service(server).draw(description: "a dwarf", seed: 1, kind: .character)), [1024, 1024])
+        XCTAssertGreaterThanOrEqual(Date().timeIntervalSince(started), 1, "waited as Retry-After asked")
+        XCTAssertEqual(server.requests.count, 2)
     }
 
     /// A restricted key allowed to make pictures but not to list models is turned down by the free
