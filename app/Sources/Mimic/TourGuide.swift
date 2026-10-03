@@ -31,6 +31,30 @@ final class TourGuide {
         .lazy.compactMap { $0.url(forResource: "sample-dwarf", withExtension: "png") }.first
     static let sampleName = "Sample Dwarf"
 
+    // How long each wait is, in seconds, and what it waits for. Each works around the order in
+    // which SwiftUI opens and closes things, with no event of its own to wait on instead.
+
+    /// The New Mini callout closing before New Mini opens: both at once left an empty glass
+    /// panel of the callout on screen.
+    static let calloutCloses = 0.3
+    /// Between stops: the last popover closing before the next opens (both in one update can
+    /// drop the second).
+    static let betweenStops = 0.2
+    /// Into New Mini: longer than `calloutCloses` plus the sheet sliding in.
+    static let intoNewMini = 0.8
+    /// From New Mini's stop to its first stop inside, or from its last stop back to the main
+    /// window: the sheet opening or closing.
+    static let acrossNewMini = 0.5
+    /// After Make Mini: longer than `AppModel.showJobDelay`, so the job's popover has opened
+    /// before the next stop shows.
+    static let afterMakeMini = 1.0
+    /// A popover closed by something other than the tour: long enough for the sheet change
+    /// that may have closed it (pressing + or Make Mini) to be seen first.
+    static let afterDismiss = 0.15
+    /// Before the tour starts: longer than setup's "done" crossfade to the gallery
+    /// (`SetupModel.crossfade`), or the window's first frame at launch.
+    static let beforeStart = 1.0
+
     func begin() {
         UserDefaults.standard.set(true, forKey: Tour.seenKey)
         go(to: .welcome)
@@ -48,12 +72,17 @@ final class TourGuide {
             // "Use the Sample" opens it with the sample picture, read once here (#341).
             let start = usingSample ? Self.samplePicture.map { MakeStart(MakeForm(picture: $0, name: Self.sampleName, card: .remembered())) } : nil
             Task { @MainActor in
-                try? await Task.sleep(for: .seconds(0.3))
+                try? await Task.sleep(for: .seconds(Self.calloutCloses))
                 model.sheet = .make(start)
             }
         }
         if step == .make, model.sheet?.isNewMini == true { model.sheet = nil; usingSample = false }
-        after.map { go(to: $0, wait: step == .newMini ? 0.8 : step == .make ? 0.5 : 0.2) } ?? leave()
+        let wait = switch step {
+        case .newMini: Self.intoNewMini
+        case .make: Self.acrossNewMini
+        default: Self.betweenStops
+        }
+        after.map { go(to: $0, wait: wait) } ?? leave()
     }
 
     /// Cancel (or Esc, which presses it) in New Mini leaves the tour from its stops there.
@@ -69,10 +98,10 @@ final class TourGuide {
     /// (it opens a moment later, so the wait is longer than that). Cancel leaves the tour first.
     func sheetChanged(_ model: AppModel) {
         guard let step else { return }
-        if step == .newMini, model.sheet?.isNewMini == true { go(to: .make, wait: 0.5) }
+        if step == .newMini, model.sheet?.isNewMini == true { go(to: .make, wait: Self.acrossNewMini) }
         if step.inNewMini, model.sheet?.isNewMini != true {
             usingSample = false
-            Tour.next(after: .make, onScreen: onScreen).map { go(to: $0, wait: 1) } ?? leave()
+            Tour.next(after: .make, onScreen: onScreen).map { go(to: $0, wait: Self.afterMakeMini) } ?? leave()
         }
     }
 
@@ -82,7 +111,7 @@ final class TourGuide {
     func dismissed(_ stop: TourStep) {
         guard step == stop, visible else { return }
         Task {
-            try? await Task.sleep(for: .seconds(0.15))
+            try? await Task.sleep(for: .seconds(Self.afterDismiss))
             if step == stop && visible { leave() }
         }
     }
@@ -97,7 +126,7 @@ final class TourGuide {
         return "\(i + 1) of \(all.count)"
     }
 
-    private func go(to next: TourStep, wait: Double = 0.2) {
+    private func go(to next: TourStep, wait: Double = betweenStops) {
         visible = false
         step = next
         Task {
@@ -250,7 +279,7 @@ struct TourHost: ViewModifier {
             .task(id: model.setup.installed) {
                 guard Tour.shouldStart(seen: UserDefaults.standard.bool(forKey: Tour.seenKey), installed: model.setup.installed)
                 else { return }
-                try? await Task.sleep(for: .seconds(1))
+                try? await Task.sleep(for: .seconds(TourGuide.beforeStart))
                 if !Task.isCancelled && model.sheet == nil { guide.begin() }
             }
     }

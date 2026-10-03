@@ -101,6 +101,11 @@ final class SetupModel {
         }
     }
 
+    /// Seconds a finished first setup shows it's done before the gallery fades in.
+    private static let doneShown = 1.2
+    /// Seconds of that fade to the gallery (`TourGuide.beforeStart` waits longer).
+    private static let crossfade = 0.5
+
     /// On first launch a finished setup shows it's done for a moment, then the gallery fades in
     /// in its place. A Repair from Settings just ends.
     private func finish(downloaded: Bool, demo: Bool = false) async {
@@ -114,8 +119,8 @@ final class SetupModel {
         let present = demo || EngineDownload.present(install, chosen)
         if present && !installed {
             justFinished = true
-            try? await Task.sleep(for: .seconds(1.2))
-            withAnimation(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : .easeInOut(duration: 0.5)) {
+            try? await Task.sleep(for: .seconds(Self.doneShown))
+            withAnimation(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : .easeInOut(duration: Self.crossfade)) {
                 installed = true
                 justFinished = false
             }
