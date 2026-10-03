@@ -48,10 +48,18 @@ public enum Engine {
         }
     }
 
-    /// Where the pictures for the multi-image mode are put together, beside the 3D model, as
-    /// trellis-cli keeps its single-view staging in `model.svviews`.
+    /// Where the pictures for the multi-image mode are put together, beside the 3D model.
     static func views(_ output: URL) -> URL {
         output.deletingLastPathComponent().appendingPathComponent("model.mvviews")
+    }
+
+    /// Where trellis-cli builds the 3D model, in a folder of its own beside it (#316): it writes
+    /// in place, so a crash or a leftover stopped at launch would leave half of one, and Try
+    /// Again would take it for the finished model. Moved to `output` once it's whole. The same
+    /// file name, since trellis-cli names what it leaves beside it (model.ply, model.svviews)
+    /// after it; they go with the folder.
+    static func building(_ output: URL) -> URL {
+        output.deletingLastPathComponent().appendingPathComponent("model.building").appendingPathComponent(output.lastPathComponent)
     }
 
     public static func environment(_ base: [String: String]) -> [String: String] {
@@ -208,13 +216,19 @@ public enum Engine {
         say("[pixal3d] model=\(model.id) seed=\(seed)\(model.family == .pixal3dSingleView ? " gss=\(gss)" : "")"
             + (views == nil ? " steps=\(steps)" : " pictures=\(sides.count + 1)"))
 
+        // Emptied first: what a crash left there must not pass for this run's model.
+        let building = Self.building(output), work = building.deletingLastPathComponent()
+        try? FileManager.default.removeItem(at: work)
+        try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: work) }
+
         var fds: [Int32] = [0, 0]
         guard pipe(&fds) == 0 else { throw Failure("Couldn't start the 3D engine (no pipe).") }
         // Not a new session: trellis-cli stays in this program's group, so Stop ends both.
         let process: GroupProcess
         do {
             process = try GroupProcess(executable: cli.path,
-                                       arguments: arguments(model: model, image: image, output: output,
+                                       arguments: arguments(model: model, image: image, output: building,
                                                             models: engine.appendingPathComponent("models/\(model.id)"), seed: seed, views: views),
                                        environment: Self.environment(environment),
                                        workingDirectory: engine.path, output: (fds[1], fds[0]), newSession: false)
@@ -243,8 +257,12 @@ public enum Engine {
         // Killed outright: how macOS ends the biggest program when the Mac runs out of memory.
         if code == -9 { say("[pixal3d] trellis-cli was killed (signal 9)"); throw Failure(JobStep.shape.outOfMemory, forPeople: true) }
         guard code == 0 else { throw Failure("The 3D engine stopped with exit code \(code).") }
-        guard FileManager.default.fileExists(atPath: output.path) else {
-            throw Failure("The 3D engine finished without writing \(output.path).")
+        guard FileManager.default.fileExists(atPath: building.path) else {
+            throw Failure("The 3D engine finished without writing \(building.path).")
+        }
+        // In one go, replacing any model.glb already there.
+        guard rename(building.path, output.path) == 0 else {
+            throw Failure("Couldn't move the 3D model to \(output.path): \(String(cString: strerror(errno))).")
         }
     }
 

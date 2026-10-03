@@ -19,9 +19,12 @@ public final class DrawThings: @unchecked Sendable {
     public let cli: String?
     /// Opens Draw Things when a picture needs it (`openIfNeeded`).
     public let app: DrawThingsApp
+    /// The job queue's folder, where the running CLI is put on record (`Leftover`) so a crashed
+    /// Mimic's is stopped at the next launch; nil keeps no record.
+    let queue: URL?
     private let lock = NSLock()
     private var task: URLSessionDataTask?
-    private var process: Process?
+    private var process: GroupProcess?
     private var canceled = false
     /// How long a picture request waits for Draw Things to answer.
     var requestTimeout: TimeInterval = 900
@@ -58,12 +61,13 @@ public final class DrawThings: @unchecked Sendable {
 
     public init(environment: [String: String] = ProcessInfo.processInfo.environment,
                 home: URL = FileManager.default.homeDirectoryForCurrentUser, app: DrawThingsApp = .mac,
-                cli: String? = DrawThings.findCLI()) {
+                cli: String? = DrawThings.findCLI(), queue: URL? = nil) {
         base = URL(string: environment["DRAWTHINGS_URL"] ?? "http://127.0.0.1:7860")!
         modelsDir = home.appendingPathComponent("Library/Containers/com.liuliu.draw-things/Data/Documents/Models")
         pinnedModel = environment["DRAWTHINGS_MODEL"]
         self.app = app
         self.cli = cli
+        self.queue = queue
     }
 
     /// Mimic's own copy of `draw-things-cli`, which setup downloads, when it's there.
@@ -165,11 +169,6 @@ public final class DrawThings: @unchecked Sendable {
         return a + ["--output", output]
     }
 
-    /// The file the CLI says it wrote ("Wrote: <path>"), from output full of progress lines.
-    static func wrotePath(_ output: String) -> String? {
-        lines(output).last { $0.contains("Wrote: ") }.map { String($0[$0.range(of: "Wrote: ")!.upperBound...]) }
-    }
-
     /// The last lines of what the CLI printed: what went wrong.
     static func tail(_ output: String) -> String { lines(output).suffix(3).joined(separator: " ") }
 
@@ -185,28 +184,34 @@ public final class DrawThings: @unchecked Sendable {
         defer { try? FileManager.default.removeItem(at: dir) }
         let input = dir.appendingPathComponent("in.png"), output = dir.appendingPathComponent("out.png")
         if let image { try image.write(to: input) }
-        // At the same lower priority as a job's other programs (#136). nice runs the CLI in its own
-        // place, so Stop still ends it.
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/usr/bin/nice")
-        p.arguments = ["-n", String(JobRunner.nice), cli]
-            + Self.cliArguments(model: model, prompt: prompt, seed: seed, width: width, height: height,
-                                image: image == nil ? nil : input.path, output: output.path)
-        let pipe = Pipe()
-        p.standardOutput = pipe; p.standardError = pipe
-        let stopNow = try lock.withLock { () -> Bool in
-            if !canceled { try p.run(); process = p }
-            return canceled
+        // Like a job's other programs (#323): at their lower priority (#136; nice runs the CLI in
+        // its own place, same pid), in a session of its own so Stop ends whatever it started too,
+        // with Mimic's own environment rather than the shell's, and on record while it runs.
+        var fds: [Int32] = [0, 0]
+        guard pipe(&fds) == 0 else { throw DrawThingsError.refused("couldn't start draw-things-cli") }
+        let p: GroupProcess
+        do {
+            p = try lock.withLock {
+                if canceled { throw DrawThingsError.cancelled }
+                let p = try GroupProcess(executable: "/usr/bin/nice", arguments: ["-n", String(JobRunner.nice), cli]
+                                            + Self.cliArguments(model: model, prompt: prompt, seed: seed, width: width, height: height,
+                                                                image: image == nil ? nil : input.path, output: output.path),
+                                         environment: Tools.childEnvironment(), output: (fds[1], fds[0]))
+                process = p
+                return p
+            }
+        } catch {
+            close(fds[0]); close(fds[1])
+            throw error
         }
-        if stopNow { throw DrawThingsError.cancelled }
-        let text = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-        p.waitUntilExit()
+        close(fds[1])
+        if let queue { Leftover.record(pid: p.pid, queue: queue) }
+        let text = String(decoding: FileHandle(fileDescriptor: fds[0], closeOnDealloc: true).readDataToEndOfFile(), as: UTF8.self)
+        let code = p.wait()
         let wasCanceled = lock.withLock { () -> Bool in process = nil; return canceled }
         if wasCanceled { throw DrawThingsError.cancelled }
-        guard p.terminationStatus == 0 else { throw DrawThingsError.refused(Self.tail(text)) }
-        guard let png = try? Data(contentsOf: URL(fileURLWithPath: Self.wrotePath(text) ?? output.path)) else {
-            throw DrawThingsError.refused("no picture in the reply")
-        }
+        guard code == 0 else { throw DrawThingsError.refused(Self.tail(text)) }
+        guard let png = try? Data(contentsOf: output) else { throw DrawThingsError.refused("no picture in the reply") }
         return png
     }
 
@@ -230,7 +235,11 @@ public final class DrawThings: @unchecked Sendable {
 
     /// Stops a request in flight (Stop during the picture step), or the next one asked for: a
     /// Stop while the model is looked up or the picture resized still counts (#170).
-    public func cancel() { lock.withLock { canceled = true; task?.cancel(); process?.terminate() } }
+    public func cancel() {
+        let p = lock.withLock { canceled = true; task?.cancel(); return process }
+        // Off this thread: it waits a few seconds before forcing a CLI that won't stop.
+        if let p { DispatchQueue.global().async { p.terminateGroup() } }
+    }
 
     /// Forgets an earlier Stop: when a job starts, before it can be stopped.
     public func reset() { lock.withLock { canceled = false } }
