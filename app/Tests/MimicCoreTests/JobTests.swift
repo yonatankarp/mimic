@@ -440,13 +440,13 @@ final class JobTests: XCTestCase {
             if let s = try? String(contentsOfFile: childFile, encoding: .utf8), let p = pid_t(s.trimmingCharacters(in: .whitespacesAndNewlines)) { child = p; break }
             usleep(50_000)
         }
+        let started = try XCTUnwrap(Leftover.startTime(child))
         XCTAssertEqual(jobs.status?.step, .shape)
         XCTAssertTrue(jobs.cancel())
         jobs.waitUntilDone()
         XCTAssertEqual(jobs.status?.canceled, true)
         XCTAssertNotEqual(jobs.status?.exit, 0)
-        usleep(200_000)
-        XCTAssertNotEqual(kill(child, 0), 0, "Stop left the 3D engine's child running")
+        XCTAssertNotEqual(Leftover.startTime(child), started, "Stop left the 3D engine's child running")
         XCTAssertEqual(spy.trashed.map(\.lastPathComponent), ["mini"])
         XCTAssertEqual(jobs.status?.stopSays, "Nothing was kept. It's in the Trash if you want the pieces.")
         XCTAssertFalse(jobs.cancel(), "Stop acted on a job that had already ended (#322)")
@@ -520,9 +520,13 @@ final class JobTests: XCTestCase {
             usleep(50_000)
         }
         XCTAssertGreaterThan(child, 0)
+        // Ended or not is asked by its start time, not kill(pid, 0) (#439): that one also answers
+        // for a program that has ended but whose exit launchd hasn't collected yet, which on a busy
+        // Mac can take a while. Stop's own check rightly doesn't count those.
+        let started = try XCTUnwrap(Leftover.startTime(child))
         XCTAssertTrue(jobs.cancel())
         jobs.waitUntilDone()
-        XCTAssertNotEqual(kill(child, 0), 0, "the job ended while what it started still ran")
+        XCTAssertNotEqual(Leftover.startTime(child), started, "the job ended while what it started still ran")
         XCTAssertFalse(Leftover.recorded(queue: fx.install.queue))
     }
 
@@ -538,8 +542,10 @@ final class JobTests: XCTestCase {
         for sig in [SIGHUP, SIGTERM] {
             let fx = try Fixture()
             let started = fx.root.appendingPathComponent("started").path, termed = fx.root.appendingPathComponent("termed").path
-            // Ends as soon as it hears SIGTERM, as the 3D engine should.
-            let engine = try fx.script("fake-engine", "trap 'touch \(termed); exit 143' TERM; touch \(started); sleep 60 & wait")
+            // Ends as soon as it hears SIGTERM, as the 3D engine should. Short sleeps, not one long
+            // one in the background (#439): a program started in the same instant as Stop can miss
+            // its SIGTERM, and then only the SIGKILL 5 s later ends it, as Stop is meant to.
+            let engine = try fx.script("fake-engine", "trap 'touch \(termed); exit 143' TERM; touch \(started); while :; do sleep 0.1; done")
             let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: engine), trash: { _ in })
             // Listening before the job starts, as `mimic make` does: its programs still hear Stop.
             let signals = jobs.stopOnSignals()

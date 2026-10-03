@@ -53,13 +53,22 @@ public struct Slicer: Hashable, Sendable, Identifiable {
         return all.first { $0.id == picked } ?? all.first
     }
 
+    /// Hands a file to an app (nil: the Mac's default app for it) and says how that went.
+    public typealias Opener = @Sendable (_ file: URL, _ app: URL?, _ done: @escaping @Sendable (Error?) -> Void) -> Void
+
+    /// The real one. The tests pass their own: when macOS can't open a file it also shows
+    /// Finder's "can't be found" alert.
+    public static let workspace: Opener = { file, app, done in
+        if let app {
+            NSWorkspace.shared.open([file], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration()) { _, error in done(error) }
+        } else {
+            done(NSWorkspace.shared.open(file) ? nil : CocoaError(.fileReadUnknown))
+        }
+    }
+
     /// Opens a print file in `slicer`, or in the Mac's default app for STL files when it's nil:
     /// the app's Open in, and `mimic open`. `done` hears back once macOS has answered.
-    public static func open(_ file: URL, in slicer: Slicer?, done: (@Sendable (Error?) -> Void)? = nil) {
-        if let slicer {
-            NSWorkspace.shared.open([file], withApplicationAt: slicer.app, configuration: NSWorkspace.OpenConfiguration()) { _, error in done?(error) }
-        } else {
-            done?(NSWorkspace.shared.open(file) ? nil : CocoaError(.fileReadUnknown))
-        }
+    public static func open(_ file: URL, in slicer: Slicer?, done: (@Sendable (Error?) -> Void)? = nil, opener: Opener = workspace) {
+        opener(file, slicer?.app) { done?($0) }
     }
 }

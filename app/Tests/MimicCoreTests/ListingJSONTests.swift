@@ -183,6 +183,13 @@ final class ListingJSONTests: XCTestCase {
         for args in [["rename", "nobody", "--to", "x"], ["rename", "orc", "--to", "elf"], ["project", "create", "orc"]] {
             XCTAssertEqual(try mimic(fx, args).code, ExitCode.failed, "\(args)")
         }
+        // An option isn't a name: `move orc --project --wait` made a project called "--wait" (#449).
+        let before = try FileManager.default.contentsOfDirectory(atPath: fx.install.runs.path).sorted()
+        for args in [["move", "orc", "--project", "--wait"], ["duplicate", "orc", "--as", "--wait"], ["rename", "orc", "--to", "--wait"],
+                     ["project", "create", "--wait"], ["project", "rename", "Warband", "--to", "--wait"]] {
+            XCTAssertEqual(try mimic(fx, args).code, ExitCode.usage, "\(args)")
+        }
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: fx.install.runs.path).sorted(), before, "nothing made or renamed")
     }
 
     /// Runs the built `mimic` with `MIMIC_HOME` on the fixture: its exit code and what it printed.
