@@ -674,7 +674,7 @@ enum CLI {
             try PrepReport(warnings: result.warnings).write(beside: URL(fileURLWithPath: options.stl))
             return 0
         } catch {
-            if let stl { try? PrepReport(failure: "\(error)").write(beside: stl) }
+            if let stl { try? PrepReport(failed: error).write(beside: stl) }
             return fail(Prep.failure + "\(error)")
         }
     }

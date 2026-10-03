@@ -166,6 +166,11 @@ public struct PrepReport: Codable, Equatable, Sendable {
 
     public init(warnings: [Warning] = [], failure: String? = nil) { self.warnings = warnings; self.failure = failure }
 
+    /// The report of a print prep that failed with `error` (#440): why, when it's in words for
+    /// people. Anything else, such as a file's or JSON's raw text, is for prep.log only, and the
+    /// job says which step stopped instead.
+    public init(failed error: Error) { self.init(failure: plainWords(error) ?? (error as? PrepError)?.description) }
+
     /// The report for the print file `stl`.
     public static func file(beside stl: URL) -> URL { stl.deletingLastPathComponent().appendingPathComponent("prep-result.json") }
 

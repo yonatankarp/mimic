@@ -93,7 +93,9 @@ final class SetupModel {
             } catch let e as SetupError {
                 problem = e.description
             } catch {
-                problem = "Setup stopped (\(error.localizedDescription)). Press Try Again: it carries on where it stopped."
+                // Its raw text is for the log, not the setup screen (#440).
+                Log.setup.error("Setup stopped by: \(String(describing: error), privacy: .public)")
+                problem = plainWords(error) ?? "Setup stopped. Press Try Again: it carries on where it stopped."
             }
             await finish(downloaded: EngineDownload.present(install, target))
         }
