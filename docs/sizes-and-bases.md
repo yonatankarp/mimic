@@ -43,7 +43,8 @@ tiefling a little taller, and a 1 m halfling about half that.
 | **54 mm** | 54 mm | 40 mm |
 | **75 mm** | 75 mm | 50 mm |
 
-Type the real height in metres or feet: `1.75`, `1,80`, `5'9"` or `6 ft 2` all work. Leave it
+Type the real height in metres or feet: `1.75`, `1,80`, `5'9"` or `6 ft 2` all work. A number
+over 20, such as `180`, is taken as centimetres, so a giant can still be `8` metres. Leave it
 blank for an average human. If Mimic can't read what you typed, it says so under the field and
 uses 1.8 m.
 

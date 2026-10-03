@@ -163,10 +163,12 @@ public struct SizeCard: Equatable, Sendable {
     }
 
     /// A typed real height in metres: "1.8", "1,80", or feet and inches: 6'2", 6 ft 2, 5 feet 9 in.
-    /// Curly quotes too, which a Mac may type for ' and ". Nil when it can't be read, or isn't above 0.
+    /// Curly quotes too, which a Mac may type for ' and ". A plain number over 20 is centimetres
+    /// (#335): no height over 13 m fits the slider even at 28 mm, while a giant of 8 m does.
+    /// Nil when it can't be read, or isn't above 0.
     public static func metres(_ text: String) -> Double? {
         let t = text.trimmingCharacters(in: .whitespaces).lowercased().replacingOccurrences(of: ",", with: ".")
-        var m = Double(t)
+        var m = Double(t).map { $0 > 20 ? $0 / 100 : $0 }
         if m == nil, let f = t.wholeMatch(of: #/(\d+(?:\.\d+)?)\s*(?:'|’|′|ft|feet|foot)\s*(?:(\d+(?:\.\d+)?)\s*(?:"|”|″|''|’’|in|inch|inches)?)?/#) {
             m = ((Double(f.1) ?? 0) * 12 + (f.2.flatMap { Double($0) } ?? 0)) * 0.0254
         }
