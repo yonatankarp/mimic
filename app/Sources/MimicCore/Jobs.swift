@@ -445,16 +445,18 @@ public final class JobRunner: @unchecked Sendable {
     /// still keeps it (#171).
     @discardableResult
     public func cancel(keepingWork: Bool = false) -> Bool {
-        let p: GroupProcess? = lock.withLock {
-            guard current?.running == true else { return nil as GroupProcess? }
+        // Decided, and its program and picture maker taken, in one go (#322): read again after,
+        // a job that had ended, or the next one just starting, would be stopped instead.
+        let stopping = lock.withLock { () -> (GroupProcess?, (any PictureMaker)?)? in
+            guard current?.running == true else { return nil }
             if current?.canceled != true { keepWork = keepingWork }
             current?.canceled = true
-            return process
+            return (process, pictures)
         }
-        guard status?.canceled == true else { return false }
+        guard let stopping else { return false }
         Log.queue.notice("Stop asked for\(keepingWork ? ", to carry on next launch" : "", privacy: .public)")
-        picturesInUse.cancel()
-        if let p { DispatchQueue.global().async { p.terminateGroup() } }
+        (stopping.1 ?? drawThings).cancel()
+        if let p = stopping.0 { DispatchQueue.global().async { p.terminateGroup() } }
         return true
     }
 
