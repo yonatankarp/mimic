@@ -138,7 +138,8 @@ and press **Try Again**:
   press **Remove**, paste it and press **Save**. **Test** says whether it works.
 - **Out of credits, or a spending limit reached:** add credits, or raise your limit, in your account
   with that service.
-- **Busy, or you've reached your account's limit:** wait a minute and try again.
+- **Busy, or you've reached your account's limit:** Mimic has already asked twice more by itself,
+  waiting as long as the service said to. Wait a minute and try again.
 - **It wouldn't make this picture:** the service's moderation turned the description or the
   picture down. Try different words or another picture.
 - **It took too long, or couldn't be reached:** check your internet connection and try again.

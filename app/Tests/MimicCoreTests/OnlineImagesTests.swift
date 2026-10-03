@@ -17,14 +17,16 @@ final class OnlineImagesTests: XCTestCase {
     /// `hiccups`: how many of the first asks fail with `hiccup` (a status, or 0 for a dropped
     /// connection) before it answers. `downloads`: how the first fetches of the picture answer
     /// (a status, 0 for a dropped connection) before it's sent. `resigned`: each Ready names the
-    /// picture at a new signed address, else always the same one.
+    /// picture at a new signed address, else always the same one. `busy`: how many of the first
+    /// submits answer 429 before `submit`.
     static func fake(status: String = "Ready", pending: Int = 0, submit: Int = 200, details: String = "null",
-                     hiccups: Int = 0, hiccup: Int = 503, downloads: [Int] = [], resigned: Bool = false) throws -> FakeLLM {
-        let asked = Counter(), fetched = Counter()
+                     hiccups: Int = 0, hiccup: Int = 503, downloads: [Int] = [], resigned: Bool = false, busy: Int = 0) throws -> FakeLLM {
+        let asked = Counter(), fetched = Counter(), submitted = Counter()
         let port = Port()
         let server = try FakeLLM { r in
             let path = r.head.split(separator: " ").dropFirst().first.map(String.init) ?? ""
             if path.hasPrefix("/v1/flux-2-klein-9b") {
+                if submitted.next() < busy { return (429, Data(#"{"detail":"Too many active tasks"}"#.utf8)) }
                 return (submit, Data(#"{"id":"t1","polling_url":"http://127.0.0.1:\#(port.value)/v1/get_result?id=t1"}"#.utf8))
             }
             if path.hasPrefix("/v1/get_result") {
@@ -56,6 +58,7 @@ final class OnlineImagesTests: XCTestCase {
     private func service(_ server: FakeLLM, key: String? = "k-123") -> BlackForestLabs {
         let s = BlackForestLabs(base: URL(string: "http://127.0.0.1:\(server.port)")!, key: { key })
         s.poll = 0.05
+        s.retryWaits = [0.05, 0.05]
         return s
     }
 
@@ -138,12 +141,14 @@ final class OnlineImagesTests: XCTestCase {
             XCTAssertEqual(($0 as? OnlineImagesError)?.problem, .refused(["Violence"]))
             XCTAssertTrue("\($0)".contains("wouldn't make this picture (violence)"), "\($0)")
         }
-        for (code, error) in [(402, OnlineImagesError.Problem.noCredits), (429, .busy)] {
+        // Busy is asked twice more first (#320); out of credits isn't, since asking again won't help.
+        for (code, error, asked) in [(402, OnlineImagesError.Problem.noCredits, 1), (429, .busy, 3), (503, .busy, 3)] {
             let server = try Self.fake(submit: code)
             defer { server.stop() }
             XCTAssertThrowsError(try service(server).draw(description: "a dwarf", seed: 1, kind: .character)) {
                 XCTAssertEqual(($0 as? OnlineImagesError)?.problem, error)
             }
+            XCTAssertEqual(server.requests.count, asked, "\(code)")
         }
         for p in [OnlineImagesError.Problem.noKey, .badKey, .noCredits, .busy, .refused([]), .timedOut, .failed("x")] {
             let e = OnlineImagesError(p, service: OnlineService.bfl.name)
@@ -178,6 +183,30 @@ final class OnlineImagesTests: XCTestCase {
         XCTAssertTrue(before.requests.isEmpty, "a picture was asked for after Stop")
         early.reset()
         XCTAssertEqual(Self.size(try early.draw(description: "a dwarf", seed: 1, kind: .character)), [1024, 1024])
+    }
+
+    /// A request turned away as busy isn't charged, so it's sent again (#320): a busy moment
+    /// doesn't fail a queued mini nobody is watching. Stop while it waits to ask again ends it.
+    func testABusySubmitIsAskedAgain() throws {
+        let server = try Self.fake(busy: 2)
+        defer { server.stop() }
+        XCTAssertEqual(Self.size(try service(server).draw(description: "a dwarf", seed: 1, kind: .character)), [1024, 1024])
+        XCTAssertEqual(server.requests.filter { $0.head.hasPrefix("POST /v1/flux-2-klein-9b") }.count, 3)
+
+        let busy = try Self.fake(submit: 429)
+        defer { busy.stop() }
+        let s = service(busy)
+        s.retryWaits = [30, 30]
+        DispatchQueue.global().async {
+            _ = eventually { busy.requests.count >= 1 }
+            s.cancel()
+        }
+        let started = Date()
+        XCTAssertThrowsError(try s.draw(description: "a dwarf", seed: 1, kind: .character)) {
+            XCTAssertEqual(($0 as? OnlineImagesError)?.problem, .cancelled)
+        }
+        XCTAssertLessThan(Date().timeIntervalSince(started), 5)
+        XCTAssertEqual(busy.requests.count, 1, "asked again after Stop")
     }
 
     /// The picture is paid for once submitted: a busy moment while asking whether it's ready is
