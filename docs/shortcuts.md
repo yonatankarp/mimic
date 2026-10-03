@@ -15,6 +15,7 @@ before it acts.
 | ++cmd+o++ | **Open in …** your slicer, or **Open Together in …** for several minis |
 | ++cmd+r++ | **Resize This Mini…**, or resize the selected minis together |
 | ++opt+cmd+r++ | **Show in Finder** |
+| ++shift+cmd+e++ | **Export for Virtual Tabletop…** |
 | ++cmd+"Delete"++ | **Move to Trash** |
 | ++cmd+z++ | **Undo**: puts minis moved to the Trash back, among other things |
 | ++cmd+f++ | **Find**: the search field at the top of the list *(when you have more than six minis)* |
@@ -123,6 +124,7 @@ What you can do to the selected mini, or minis. The same items are in a mini's r
 | **Open in …** ++cmd+o++ | Opens the mini in your slicer. With several selected, it's **Open Together in …**: all of them on one bed |
 | **Copies…** | Several of each on the plate, in one print file |
 | **Show in Finder** ++opt+cmd+r++ | Shows the print file, or the mini's folder if it isn't made yet |
+| **Export for Virtual Tabletop…** ++shift+cmd+e++ | A small 3D model of the mini to drag into a virtual tabletop (see [Printing and exporting](printing.md#export-for-a-virtual-tabletop)) |
 | **Resize This Mini…** ++cmd+r++ | Makes the print file again at new sizes. With several selected, it's **Resize 3 Minis…** (or however many) |
 | **Build Shape** | Makes the 3D shape from a redrawn picture *(when its picture waits to be checked)* |
 | **Try Again** | Makes a mini that didn't finish, from the step that failed *(when it didn't finish)* |

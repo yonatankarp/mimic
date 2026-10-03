@@ -114,6 +114,10 @@ struct MiniCommands: Commands {
             Button("Show in Finder") { model.showInFinder(chosen) }
                 .keyboardShortcut("r", modifiers: [.command, .option])
                 .disabled(chosen.isEmpty)
+            // As in the right-click menu (#345), which no open sheet leaves within reach.
+            Button("Export for Virtual Tabletop…") { if let mini { model.exportForTabletop(mini) } }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+                .disabled(mini?.stl == nil || !free)
             Divider()
             if several {
                 Button("Resize \(chosen.count) Minis…") { model.sheet = .resizeSeveral(chosen) }
