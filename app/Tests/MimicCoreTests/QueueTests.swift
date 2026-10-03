@@ -423,6 +423,29 @@ final class QueueTests: XCTestCase {
         defer { close(next) }
         XCTAssertEqual(flock(next, LOCK_EX | LOCK_NB), 0, "a job's leftover program holds the lock")
     }
+
+    /// The list of minis is read again when a job joins or leaves the queue, or another Mimic
+    /// starts or finishes a mini; not for its progress, a hold or a pause, read every few seconds.
+    func testQueueChangesThatReadTheListAgain() {
+        let started = Date()
+        let goblin = JobStatus(name: "goblin", kind: .generate, step: .picture, started: started)
+        var later = goblin
+        later.step = .shape
+        let before = QueueState(entries: [QueueEntry(name: "orc", job: .prep, added: started)], elsewhere: goblin)
+        func changed(_ change: (inout QueueState) -> Void) -> Bool {
+            var s = before
+            change(&s)
+            return s.listChanged(from: before)
+        }
+        XCTAssertFalse(changed { _ in })
+        XCTAssertFalse(changed { $0.elsewhere = later }, "another Mimic's progress")
+        XCTAssertFalse(changed { $0.hold = .battery })
+        XCTAssertFalse(changed { $0.paused = true; $0.hold = .paused })
+        XCTAssertTrue(changed { $0.entries = [] }, "the orc started, or left the queue")
+        XCTAssertTrue(changed { $0.entries.append(QueueEntry(name: "elf", job: .generate, added: started)) })
+        XCTAssertTrue(changed { $0.elsewhere = nil }, "another Mimic finished the goblin")
+        XCTAssertTrue(changed { $0.elsewhere = JobStatus(name: "elf", kind: .generate, step: .picture, started: started) })
+    }
 }
 
 /// A switch the job runner reads from its own threads.
