@@ -21,6 +21,11 @@ as "Importing", and if another mini is being made, it waits its turn in [the que
 
 **Import Model…** is ready once Mimic's first download is done.
 
+If Mimic can't use the file, Import says why: for example that it's damaged, or isn't really a GLB
+or STL. A GLB too big for Mimic to read says "That model is too big for Mimic to read. Try a
+simpler one, with fewer triangles." Export a lighter version from the app it came from, and import
+that.
+
 ## What Mimic does with it
 
 Mimic treats the model as it would its own 3D shape:
@@ -60,8 +65,9 @@ You can't make it again: **Try Again**, **Make Another Version…**, **New 3D Sh
 imported.
 
 If its print-ready step fails, its page offers **Resize This Mini…** instead of Try Again: try
-other sizes, or check the model in the app it came from. Stop an import before its first print file
-is made, or take it out of the queue, and it goes to the Trash.
+other sizes, or check the model in the app it came from. If Mimic quit unexpectedly while importing
+it, its page says "Mimic stopped while making it. Resize it to try again." Stop an import before
+its first print file is made, or take it out of the queue, and it goes to the Trash.
 
 ## Import in Terminal
 

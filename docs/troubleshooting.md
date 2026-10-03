@@ -125,8 +125,6 @@ it's set up and Mimic still can't use it:
 If a mini stopped because Draw Things didn't answer in time, Draw Things was busy or stuck: Mimic
 waits up to 15 minutes for each picture. Quit and reopen Draw Things, then press **Try Again**.
 
-If a mini stopped because of Draw Things, fix the cause and press **Try Again**.
-
 ### Online pictures don't work
 
 With **Make pictures with** set to **Black Forest Labs, online** or **OpenAI, online**, a mini
@@ -200,7 +198,7 @@ queue, telling you it couldn't read its list of minis waiting to be made. The mi
 waiting are still in your list, but didn't start: a new mini shows that it didn't finish (press
 **Try Again**), an imported model too (press **Resize This Mini…**), and a resize didn't happen
 (resize it again). The old file stays in the queue's
-folder (see [Files on disk](files.md)) in case you want to report it.
+folder (see [Where your files are](files.md#application-support)) in case you want to report it.
 
 ## Report a problem
 
@@ -209,7 +207,7 @@ report for you: see [Report a problem or an idea](report.md).
 
 ## Where the logs are
 
-Each mini keeps its own logs in its folder: choose **Mini → Show in Finder** (++cmd+option+r++) to
+Each mini keeps its own logs in its folder: choose **Mini → Show in Finder** (++opt+cmd+r++) to
 see it. There's a log of each run's steps, one from the 3D engine and one from print prep. Mimic's
 own notes, about setup, downloads and the queue, are kept by macOS rather than in a file: Report a
 Problem gathers the last hour of them for you. [Where your files are](files.md#a-minis-folder) says

@@ -223,7 +223,8 @@ Pick one under **Helper**:
 For a cloud service, paste your key under **API key** and press **Save**. Mimic keeps it in your
 Mac's Keychain and shows **API key saved in your Keychain**, with **Remove** to delete it. A key is
 only ever sent to the address it was saved for: change the address and you'll need to save a key
-for the new one.
+for the new one. The address has to start with `https://`, unless the service runs on your own Mac
+(`localhost` or `127.0.0.1`), where `http://` works too.
 
 **Test** sends a tiny request and says **It works.**, or what went wrong.
 

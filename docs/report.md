@@ -84,8 +84,8 @@ wrong**. The form asks for what helps most:
 - **Mimic version**: at the bottom of **Settings → Advanced**, or **Mimic → About Mimic**.
 - **Your Mac and macOS version**: Apple menu → About This Mac.
 - **Logs and pictures**: for a mini that failed or came out wrong, its picture and its log files.
-  Right-click the mini → **Show in Finder**; the logs are `generate.job.log`, `pixal3d.log` and
-  `prep.log` in its folder. If a check in **Settings** is red, a screenshot of it helps too.
+  Right-click the mini → **Show in Finder**; the logs are `generate.job.log`, `prep.job.log`,
+  `pixal3d.log` and `prep.log` in its folder. If a check in **Settings** is red, a screenshot of it helps too.
 
 ## Suggest an idea
 
