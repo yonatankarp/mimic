@@ -1,5 +1,6 @@
 import Foundation
 import simd
+import Synchronization
 
 /// The size card of the Make and Resize sheets: what the mini is for, the nozzle, and the
 /// sizes those suggest. Ported number for number from the web page's size card.
@@ -323,7 +324,17 @@ public enum Filament {
         return abs(six) / 6
     }
 
-    public static func volume(stl: URL) -> Double? { (try? STL.read(stl)).map(volume) }
+    /// A print file's volume, read again only when its time changes: a project's total is added
+    /// up whenever any of its minis changes, and each print file is tens of megabytes (#340).
+    public static func volume(stl: URL) -> Double? {
+        let time = (try? FileManager.default.attributesOfItem(atPath: stl.path))?[.modificationDate] as? Date
+        if let time, let kept = known.withLock({ $0[stl.path] }), kept.time == time { return kept.volume }
+        guard let v = (try? STL.read(stl)).map(volume) else { return nil }
+        if let time { known.withLock { $0[stl.path] = (time, v) } }
+        return v
+    }
+    /// Never emptied: one entry per print file looked at, a few bytes each.
+    private static let known = Mutex<[String: (time: Date, volume: Double)]>([:])
 
     public static func grams(_ mm3: Double) -> Double { mm3 / 1000 * density }
 

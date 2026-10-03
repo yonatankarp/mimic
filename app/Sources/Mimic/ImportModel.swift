@@ -105,7 +105,7 @@ struct ImportSheet: View {
     private var slug: String { Rules.shownName(name) == nil ? "" : Rules.folderName(name) }
 
     private var taken: String? {
-        guard !slug.isEmpty, Gallery.nameInUse(model.install.runs, slug) || model.waiting(slug) != nil || model.current?.name == slug else { return nil }
+        guard !slug.isEmpty, model.nameInUse(slug) || model.waiting(slug) != nil || model.current?.name == slug else { return nil }
         return model.displayName(slug)
     }
 

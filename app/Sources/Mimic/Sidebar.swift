@@ -571,18 +571,22 @@ struct ProjectNameSheet: View {
 }
 
 /// "up to 23 g" beside a project's name: its minis' filament added up. Read from their print
-/// files off the main thread, again whenever one is made or resized.
+/// files off the main thread, again whenever one is made or resized; only the print files that
+/// changed are read again (`Filament.volume(stl:)`).
 private struct ProjectFilament: View {
     let minis: [Mini]
 
     @State private var total: Double?
 
+    /// As the gallery found them: `Mini.stl` would look on disk on every redraw.
+    private var stls: [URL] { minis.filter(\.finished).map { $0.folder.appendingPathComponent("\($0.name).stl") } }
+
     var body: some View {
         Text(total.map(Filament.short) ?? "")
             .font(.caption).foregroundStyle(.secondary).monospacedDigit()
             .help("Roughly the filament for every mini in it, printed solid")
-            .task(id: minis.map { "\($0.stl?.path ?? "")@\($0.madeAt.timeIntervalSince1970)" }) {
-                let stls = minis.compactMap(\.stl)
+            .task(id: minis.filter(\.finished).map { "\($0.folder.path)@\($0.madeAt.timeIntervalSince1970)" }) {
+                let stls = stls
                 total = stls.isEmpty ? nil : await Task.detached { stls.compactMap(Filament.volume(stl:)).reduce(0, +) }.value
             }
     }
