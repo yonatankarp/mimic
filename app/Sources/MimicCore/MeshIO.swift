@@ -313,6 +313,16 @@ public enum Tabletop {
     /// (always redrawn as one, #156), and a description is drawn grey.
     public static func inColour(_ s: MiniSettings) -> Bool { s.source == .image && s.restyle != true && s.change == nil && !s.isImported }
 
+    /// What the save window says, before saving, so a grey one isn't a surprise (#256).
+    public static func saveMessage(_ mini: Mini) -> String {
+        let grey = "A low-poly model of \(mini.displayName) in grey, for a virtual tabletop."
+        return inColour(mini.settings)
+            ? "A low-poly model of \(mini.displayName) in its colours, for a virtual tabletop."
+            : mini.settings.change != nil
+            ? grey + " A version with a change to its picture is redrawn as a grey sculpt, so it can't keep the picture's colours."
+            : grey + " A mini comes out in colour when it's made from a colour picture with “Turn it into a grey sculpt first” off."
+    }
+
     /// Writes `mini`'s .glb to `url`, and says how many triangles and bytes it came to, whether
     /// it's in colour, and why it's grey when it was meant to be in colour (`inColour`), in words
     /// for the person: the save window had already said it would be in colour (#317).
