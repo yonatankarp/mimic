@@ -13,8 +13,8 @@ struct JobProgressView: View {
     @State private var retryDetail: String?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    static let steps: [(JobStep, String)] = [(.picture, "Getting the picture ready"), (.shape, "Building the 3D shape (the long part)"),
-                                             (.print, "Making the print-ready file")]
+    static let steps: [(JobStep, String)] = [(.picture, String(localized: "Getting the picture ready")), (.shape, String(localized: "Building the 3D shape (the long part)")),
+                                             (.print, String(localized: "Making the print-ready file"))]
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -324,8 +324,10 @@ private struct QueueRow: View {
     /// "Make · takes about 9 minutes · ready in about 20 minutes", without when it's ready while
     /// the queue is held.
     private var times: String {
-        let takes = "\(entry.job == .generate ? "Make" : model.importing(entry.name) ? "Import" : "Resize") · takes \(JobProgress.about(estimate.total))"
-        return model.hold == nil ? "\(takes) · ready in \(JobProgress.about(ready))" : takes
+        let about = JobProgress.about(estimate.total)
+        let takes = entry.job == .generate ? String(localized: "Make · takes \(about)")
+            : model.importing(entry.name) ? String(localized: "Import · takes \(about)") : String(localized: "Resize · takes \(about)")
+        return model.hold == nil ? String(localized: "\(takes) · ready in \(JobProgress.about(ready))") : takes
     }
 }
 
@@ -340,7 +342,7 @@ struct JobQuestions: ViewModifier {
                 Button("Cancel", role: .cancel) {}
                 Button("Stop", role: .destructive) { model.stop() }
             } message: {
-                Text((model.job?.stopAsks ?? "") + (model.queue.isEmpty ? "" : " The queue carries on with the next one."))
+                Text((model.job?.stopAsks ?? "") + (model.queue.isEmpty ? "" : " " + String(localized: "The queue carries on with the next one.")))
             }
             .confirmationDialog(model.unqueueing.map(unqueueTitle) ?? "",
                                 isPresented: unqueueing, presenting: model.unqueueing) { e in
@@ -357,7 +359,7 @@ struct JobQuestions: ViewModifier {
     }
 
     private func unqueueTitle(_ e: QueueEntry) -> String {
-        model.isResize(e) ? "Cancel resizing “\(model.displayName(e.name))”?" : "Remove “\(model.displayName(e.name))” from the queue?"
+        model.isResize(e) ? String(localized: "Cancel resizing “\(model.displayName(e.name))”?") : String(localized: "Remove “\(model.displayName(e.name))” from the queue?")
     }
 
     private func stopTitle(_ s: JobStatus) -> String {
@@ -387,8 +389,8 @@ private struct StepMark: View {
 
     private var said: String {
         switch state {
-        case .pending: "not started"
-        case .active: "in progress"
+        case .pending: String(localized: "not started")
+        case .active: String(localized: "in progress")
         case .done: "done"
         case .failed: "failed"
         }
@@ -517,7 +519,8 @@ struct JobToolbarItem: View {
                     }
                 } else if let hold = model.queueHeld {
                     // Nothing running and the queue held: what it waits for, and Resume in the popover.
-                    Label("\(hold == .paused ? "Paused" : "On battery") · \(model.queue.count) waiting",
+                    Label(hold == .paused ? String(localized: "Paused · \(model.queue.count) waiting")
+                          : String(localized: "On battery · \(model.queue.count) waiting"),
                           systemImage: hold == .paused ? "pause.circle" : "battery.50percent")
                         .labelStyle(.titleAndIcon)
                 }
@@ -528,19 +531,20 @@ struct JobToolbarItem: View {
     }
 
     private var tip: String {
-        if let s = model.toolbarJob { return s.running ? "Show progress, the queue and Stop" : "Show how it went" }
+        if let s = model.toolbarJob { return s.running ? String(localized: "Show progress, the queue and Stop") : String(localized: "Show how it went") }
         return model.queueHeld?.sentence ?? ""
     }
 
     private func label(_ s: JobStatus, now: Date) -> String {
         let who = model.displayName(s)
-        let waiting = model.queue.isEmpty ? "" : " · \(model.queue.count) waiting" + (model.paused ? ", paused" : "")
+        let n = model.queue.count
+        let waiting = model.queue.isEmpty ? "" : " · " + (model.paused ? String(localized: "\(n) waiting, paused") : String(localized: "\(n) waiting"))
         switch s.outcome {
-        case .running: return "\(model.doing(s)) \(who) · \(JobProgress.clock(now.timeIntervalSince(s.started)))\(waiting)"
-        case .stopped: return "Stopped \(who)\(waiting)"
-        case .finished: return "\(who) is ready" + waiting
-        case .pictureReady: return "Check the picture of \(who)" + waiting
-        case .failed: return "\(who) didn't finish" + waiting
+        case .running: return String(localized: "\(model.doing(s)) \(who) · \(JobProgress.clock(now.timeIntervalSince(s.started)))") + waiting
+        case .stopped: return String(localized: "Stopped \(who)") + waiting
+        case .finished: return String(localized: "\(who) is ready") + waiting
+        case .pictureReady: return String(localized: "Check the picture of \(who)") + waiting
+        case .failed: return String(localized: "\(who) didn't finish") + waiting
         }
     }
 }

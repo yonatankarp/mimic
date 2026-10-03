@@ -19,7 +19,7 @@ extension AppModel {
     func move(_ names: [String], to project: String?) {
         for name in Gallery.dropped(names) where minis.first(where: { $0.name == name })?.project != project {
             do { try jobs.move(mini: name, toProject: project) }
-            catch { problem = Problem("Couldn't move it", plainWords(error, else: "Is its folder open in another app?")) }
+            catch { problem = Problem(String(localized: "Couldn't move it"), plainWords(error, else: String(localized: "Is its folder open in another app?"))) }
         }
         reload()
     }
@@ -36,7 +36,7 @@ extension AppModel {
         undo?.registerUndo(withTarget: self) { model in
             guard let renamed = model.minis.first(where: { $0.name == new }) else { return }
             do { try model.rename(renamed, to: old, shown: oldShown) }
-            catch { model.problem = Problem("Couldn't rename it back", model.plainWords(error, else: "Is its folder open in another app?")); return }
+            catch { model.problem = Problem(String(localized: "Couldn't rename it back"), model.plainWords(error, else: String(localized: "Is its folder open in another app?"))); return }
             model.selection = [old]
         }
         undo?.setActionName("Rename")
@@ -68,7 +68,7 @@ extension AppModel {
 
     func deleteProject(_ name: String, keepMinis: Bool) {
         do { try jobs.deleteProject(name, keepMinis: keepMinis) }
-        catch { problem = Problem("Couldn't delete the project", plainWords(error, else: "Try Show in Finder and move it to the Trash there.")) }
+        catch { problem = Problem(String(localized: "Couldn't delete the project"), plainWords(error, else: String(localized: "Try Show in Finder and move it to the Trash there."))) }
         reload()
     }
 
@@ -86,7 +86,7 @@ extension AppModel {
     func trash(_ group: [Mini]) {
         let picked = Gallery.toTrash(group, busyWith: current?.name)
         trashEach(picked.trash)
-        if let s = picked.staying { problem = Problem("Couldn't move “\(s.displayName)” to the Trash", "It's being made. Move it to the Trash once it's done.") }
+        if let s = picked.staying { problem = Problem(String(localized: "Couldn't move “\(s.displayName)” to the Trash"), String(localized: "It's being made. Move it to the Trash once it's done.")) }
     }
 
     func trash(_ mini: Mini) { trashEach([mini]) }
@@ -99,7 +99,7 @@ extension AppModel {
                 // Waiting to be made: out of the queue, and a new mini's folder goes to the Trash with it.
                 if let moved = try jobs.moveToTrash(mini), let trashed = moved.trashed { undoable(moved.folder, trashed) }
             } catch {
-                problem = Problem("Couldn't move it to the Trash", plainWords(error, else: "Try Show in Finder and delete it there."))
+                problem = Problem(String(localized: "Couldn't move it to the Trash"), plainWords(error, else: String(localized: "Try Show in Finder and delete it there.")))
             }
         }
         if !refreshQueue() { reload() }  // picks the newest mini if one of these was selected
@@ -111,7 +111,7 @@ extension AppModel {
         let name = folder.lastPathComponent
         undo?.registerUndo(withTarget: self) { model in
             do { try Gallery.putBack(model.install.runs, from: trashed, to: folder) }
-            catch { model.problem = Problem("Couldn't put it back", model.plainWords(error, else: "Is it still in the Trash?")); return }
+            catch { model.problem = Problem(String(localized: "Couldn't put it back"), model.plainWords(error, else: String(localized: "Is it still in the Trash?"))); return }
             model.reload()
             model.selection = [name]
             model.undo?.registerUndo(withTarget: model) { model in
@@ -129,7 +129,7 @@ extension AppModel {
         let picked = Gallery.toKeep(mini, in: minis, busyWith: current?.name)
         trashEach(picked.trash)
         if let v = picked.staying {
-            let staying = "“\(v.displayName)” is being made, so it wasn't moved to the Trash. Move it there once it's done."
+            let staying = String(localized: "“\(v.displayName)” is being made, so it wasn't moved to the Trash. Move it there once it's done.")
             problem = Problem("Couldn't move every version to the Trash", problem.map { $0.message + " " + staying } ?? staying)
             return false
         }

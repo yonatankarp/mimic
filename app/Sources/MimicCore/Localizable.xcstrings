@@ -21,6 +21,16 @@
         }
       }
     },
+    "%@ %@ · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ %@ · %@"
+          }
+        }
+      }
+    },
     "%@ About %lld minutes a mini on this Mac." : {
       "localizations" : {
         "en" : {
@@ -57,6 +67,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ GB, about %lld minutes on a fast connection"
+          }
+        }
+      }
+    },
+    "%@ Give your mini a name." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ Give your mini a name."
+          }
+        }
+      }
+    },
+    "%@ Last checked at %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ Last checked at %@."
           }
         }
       }
@@ -251,12 +281,33 @@
         }
       }
     },
+    "%@ on this Mac" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ on this Mac"
+          }
+        }
+      }
+    },
     "%@ picture" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ picture"
+          }
+        }
+      }
+    },
+    "%@ side" : {
+      "comment" : "“left side”: in “Add a picture of the %@”",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ side"
           }
         }
       }
@@ -361,12 +412,12 @@
         }
       }
     },
-    "%@ · %lld waiting" : {
+    "%@ · %lld mm squares" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ · %lld waiting"
+            "value" : "%@ · %lld mm squares"
           }
         }
       }
@@ -381,12 +432,32 @@
         }
       }
     },
+    "%@ · ready in %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · ready in %@"
+          }
+        }
+      }
+    },
     "%@, %@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@, %@"
+          }
+        }
+      }
+    },
+    "%@, once the jobs ahead of it are done" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, once the jobs ahead of it are done"
           }
         }
       }
@@ -421,12 +492,66 @@
         }
       }
     },
+    "%lld ahead of it." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld ahead of it."
+          }
+        }
+      }
+    },
+    "%lld minis added to the queue." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld mini added to the queue."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minis added to the queue."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld minis selected" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld minis selected"
+          }
+        }
+      }
+    },
+    "%lld minutes" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minute"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minutes"
+                }
+              }
+            }
           }
         }
       }
@@ -457,6 +582,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld mm · %@ mm nozzle"
+          }
+        }
+      }
+    },
+    "%lld things to look at." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld thing to look at."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld things to look at."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld waiting" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld waiting"
+          }
+        }
+      }
+    },
+    "%lld waiting, paused" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld waiting, paused"
+          }
+        }
+      }
+    },
+    "%lld were already that size." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld was already that size."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld were already that size."
+                }
+              }
+            }
           }
         }
       }
@@ -631,6 +820,26 @@
         }
       }
     },
+    "3D view of %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3D view of %@"
+          }
+        }
+      }
+    },
+    "3D view of %@, %lld mm tall with base, %@ footprint" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3D view of %@, %lld mm tall with base, %@ footprint"
+          }
+        }
+      }
+    },
     "54 mm" : {
       "localizations" : {
         "en" : {
@@ -677,6 +886,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "A change needs %@ first"
+          }
+        }
+      }
+    },
+    "A change needs %@ first." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A change needs %@ first."
           }
         }
       }
@@ -741,12 +960,32 @@
         }
       }
     },
+    "A description needs %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A description needs %@."
+          }
+        }
+      }
+    },
     "A file came down damaged (%@). Press Try Again to download it once more." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "A file came down damaged (%@). Press Try Again to download it once more."
+          }
+        }
+      }
+    },
+    "A finished mini" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A finished mini"
           }
         }
       }
@@ -761,12 +1000,22 @@
         }
       }
     },
-    "A folder in your minis folder. %@ into it." : {
+    "A folder in your minis folder. %@ moves into it." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A folder in your minis folder. %@ into it."
+            "value" : "A folder in your minis folder. %@ moves into it."
+          }
+        }
+      }
+    },
+    "A folder in your minis folder. The %lld minis move into it." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A folder in your minis folder. The %lld minis move into it."
           }
         }
       }
@@ -787,6 +1036,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "A hole under the base to glue a magnet into."
+          }
+        }
+      }
+    },
+    "A low-poly .glb to drag into a virtual tabletop" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A low-poly .glb to drag into a virtual tabletop"
           }
         }
       }
@@ -851,6 +1110,16 @@
         }
       }
     },
+    "A quick look around" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A quick look around"
+          }
+        }
+      }
+    },
     "AI helper for descriptions" : {
       "localizations" : {
         "en" : {
@@ -877,6 +1146,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "API key saved in your Keychain"
+          }
+        }
+      }
+    },
+    "Across the flat sides." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Across the flat sides."
           }
         }
       }
@@ -911,12 +1190,32 @@
         }
       }
     },
+    "Added to the queue." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added to the queue."
+          }
+        }
+      }
+    },
     "Advanced" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Advanced"
+          }
+        }
+      }
+    },
+    "All Minis" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All Minis"
           }
         }
       }
@@ -1031,12 +1330,34 @@
         }
       }
     },
-    "Based on %lld mini%@ made on this Mac" : {
+    "Base size" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Based on %lld mini%@ made on this Mac"
+            "value" : "Base size"
+          }
+        }
+      }
+    },
+    "Based on %lld minis made on this Mac" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Based on %lld mini made on this Mac"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Based on %lld minis made on this Mac"
+                }
+              }
+            }
           }
         }
       }
@@ -1047,6 +1368,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Being made"
+          }
+        }
+      }
+    },
+    "Being made…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Being made…"
           }
         }
       }
@@ -1091,6 +1422,16 @@
         }
       }
     },
+    "Building the 3D shape (the long part)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Building the 3D shape (the long part)"
+          }
+        }
+      }
+    },
     "Call it “%@”?" : {
       "localizations" : {
         "en" : {
@@ -1127,6 +1468,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cancel Resize…"
+          }
+        }
+      }
+    },
+    "Cancel resizing “%@”?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel resizing “%@”?"
           }
         }
       }
@@ -1241,6 +1592,26 @@
         }
       }
     },
+    "Character height" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Character height"
+          }
+        }
+      }
+    },
+    "Characters" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Characters"
+          }
+        }
+      }
+    },
     "Check Again" : {
       "localizations" : {
         "en" : {
@@ -1291,6 +1662,26 @@
         }
       }
     },
+    "Check that Mimic can write to its folder, then try again." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check that Mimic can write to its folder, then try again."
+          }
+        }
+      }
+    },
+    "Check that Mimic's folder is still there, then try again." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check that Mimic's folder is still there, then try again."
+          }
+        }
+      }
+    },
     "Check the picture" : {
       "localizations" : {
         "en" : {
@@ -1307,6 +1698,56 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Check the picture of %@"
+          }
+        }
+      }
+    },
+    "Checking" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking"
+          }
+        }
+      }
+    },
+    "Checking the files already here…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking the files already here…"
+          }
+        }
+      }
+    },
+    "Checking…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking…"
+          }
+        }
+      }
+    },
+    "Checks paused while a mini is being made." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checks paused while a mini is being made."
+          }
+        }
+      }
+    },
+    "Choose a 3D model to make print-ready: a GLB or STL file." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a 3D model to make print-ready: a GLB or STL file."
           }
         }
       }
@@ -1337,6 +1778,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Choose the version to show on this side"
+          }
+        }
+      }
+    },
+    "Choose where Mimic keeps your minis." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose where Mimic keeps your minis."
+          }
+        }
+      }
+    },
+    "Choose…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose…"
           }
         }
       }
@@ -1421,6 +1882,16 @@
         }
       }
     },
+    "Connect Mimic to it." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect Mimic to it."
+          }
+        }
+      }
+    },
     "Copied" : {
       "localizations" : {
         "en" : {
@@ -1501,6 +1972,16 @@
         }
       }
     },
+    "Copy Command" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Command"
+          }
+        }
+      }
+    },
     "Copy Description" : {
       "localizations" : {
         "en" : {
@@ -1521,6 +2002,46 @@
         }
       }
     },
+    "Copy this command, paste it into Terminal once, then type mimic to make minis from there. It asks for your Mac password, because it adds mimic to a folder every account on this Mac uses." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy this command, paste it into Terminal once, then type mimic to make minis from there. It asks for your Mac password, because it adds mimic to a folder every account on this Mac uses."
+          }
+        }
+      }
+    },
+    "Couldn't ask Ollama which models it has. Check that it's running." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't ask Ollama which models it has. Check that it's running."
+          }
+        }
+      }
+    },
+    "Couldn't build its shape" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't build its shape"
+          }
+        }
+      }
+    },
+    "Couldn't build the shape" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't build the shape"
+          }
+        }
+      }
+    },
     "Couldn't change the folder" : {
       "localizations" : {
         "en" : {
@@ -1531,12 +2052,152 @@
         }
       }
     },
+    "Couldn't delete the project" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't delete the project"
+          }
+        }
+      }
+    },
+    "Couldn't do that. Is the folder open in another app?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't do that. Is the folder open in another app?"
+          }
+        }
+      }
+    },
+    "Couldn't export %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't export %@"
+          }
+        }
+      }
+    },
     "Couldn't find the character in the picture. Try one with a plain background." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn't find the character in the picture. Try one with a plain background."
+          }
+        }
+      }
+    },
+    "Couldn't make a new 3D shape" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't make a new 3D shape"
+          }
+        }
+      }
+    },
+    "Couldn't make another version" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't make another version"
+          }
+        }
+      }
+    },
+    "Couldn't make the copy. Is the disk full, or its folder open in another app?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't make the copy. Is the disk full, or its folder open in another app?"
+          }
+        }
+      }
+    },
+    "Couldn't make the report" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't make the report"
+          }
+        }
+      }
+    },
+    "Couldn't move it" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't move it"
+          }
+        }
+      }
+    },
+    "Couldn't move it to the Trash" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't move it to the Trash"
+          }
+        }
+      }
+    },
+    "Couldn't move your minis, so they're still where they were. Check that Mimic can write to that folder, then try again." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't move your minis, so they're still where they were. Check that Mimic can write to that folder, then try again."
+          }
+        }
+      }
+    },
+    "Couldn't move “%@” to the Trash" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't move “%@” to the Trash"
+          }
+        }
+      }
+    },
+    "Couldn't pause the queue" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't pause the queue"
+          }
+        }
+      }
+    },
+    "Couldn't put it back" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't put it back"
+          }
+        }
+      }
+    },
+    "Couldn't put them in one print file" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't put them in one print file"
           }
         }
       }
@@ -1571,12 +2232,92 @@
         }
       }
     },
+    "Couldn't read the queue" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't read the queue"
+          }
+        }
+      }
+    },
+    "Couldn't remove it from the queue" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't remove it from the queue"
+          }
+        }
+      }
+    },
+    "Couldn't remove the 3D engine. %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't remove the 3D engine. %@"
+          }
+        }
+      }
+    },
+    "Couldn't rename it" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't rename it"
+          }
+        }
+      }
+    },
+    "Couldn't rename it back" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't rename it back"
+          }
+        }
+      }
+    },
+    "Couldn't rename it. Is its folder open in another app?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't rename it. Is its folder open in another app?"
+          }
+        }
+      }
+    },
+    "Couldn't resume the queue" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't resume the queue"
+          }
+        }
+      }
+    },
     "Couldn't save the key in your Keychain (error %@)." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn't save the key in your Keychain (error %@)."
+          }
+        }
+      }
+    },
+    "Couldn't save the key in your Keychain. Try again." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't save the key in your Keychain. Try again."
           }
         }
       }
@@ -1601,6 +2342,26 @@
         }
       }
     },
+    "Couldn't start. Check that Mimic's folder is still there, then try again." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't start. Check that Mimic's folder is still there, then try again."
+          }
+        }
+      }
+    },
+    "Couldn't try again" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't try again"
+          }
+        }
+      }
+    },
     "Create" : {
       "localizations" : {
         "en" : {
@@ -1617,6 +2378,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Crisp edges, small lettering and fine texture. Slow, but the most detail."
+          }
+        }
+      }
+    },
+    "Date Made" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date Made"
           }
         }
       }
@@ -1741,12 +2512,32 @@
         }
       }
     },
+    "Download FLUX.2 Klein." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download FLUX.2 Klein."
+          }
+        }
+      }
+    },
     "Downloading %@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Downloading %@"
+          }
+        }
+      }
+    },
+    "Drag it to turn it around, and Open in %@ sends it to your slicer. The panel on the right has its size, previews and print tips." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drag it to turn it around, and Open in %@ sends it to your slicer. The panel on the right has its size, previews and print tips."
           }
         }
       }
@@ -1767,6 +2558,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Drag minis onto it to move them here. Right-click for more."
+          }
+        }
+      }
+    },
+    "Drag or press the arrow keys to turn · pinch, scroll, ⌘= or ⌘− to zoom · double-click to face front" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drag or press the arrow keys to turn · pinch, scroll, ⌘= or ⌘− to zoom · double-click to face front"
+          }
+        }
+      }
+    },
+    "Drag to turn · scroll to zoom" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drag to turn · scroll to zoom"
           }
         }
       }
@@ -1841,6 +2652,16 @@
         }
       }
     },
+    "Draw Things is set up." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Draw Things is set up."
+          }
+        }
+      }
+    },
     "Draw Things isn't answering. Open Draw Things, then Settings → Advanced → API Server: turn it on, HTTP, port 7860." : {
       "localizations" : {
         "en" : {
@@ -1857,6 +2678,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Draw Things isn't ready. Check the setup steps, then try again."
+          }
+        }
+      }
+    },
+    "Draw Things isn't set up yet." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Draw Things isn't set up yet."
           }
         }
       }
@@ -1961,6 +2792,38 @@
         }
       }
     },
+    "Each character keeps its own real height. %lld minis have no real height saved, so they get the Character height below." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Each character keeps its own real height. One mini has no real height saved, so it gets the Character height below."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Each character keeps its own real height. %lld minis have no real height saved, so they get the Character height below."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Each mini needs about 150 MB while it's being made." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Each mini needs about 150 MB while it's being made."
+          }
+        }
+      }
+    },
     "Edit & Make Again" : {
       "localizations" : {
         "en" : {
@@ -2001,12 +2864,52 @@
         }
       }
     },
+    "Everything's ready." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Everything's ready."
+          }
+        }
+      }
+    },
+    "Export for Virtual Tabletop" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export for Virtual Tabletop"
+          }
+        }
+      }
+    },
     "Export for Virtual Tabletop…" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Export for Virtual Tabletop…"
+          }
+        }
+      }
+    },
+    "Exported %@ in grey" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exported %@ in grey"
+          }
+        }
+      }
+    },
+    "Extra thickness for thin parts" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Extra thickness for thin parts"
           }
         }
       }
@@ -2261,6 +3164,16 @@
         }
       }
     },
+    "Get Draw Things from the App Store." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get Draw Things from the App Store."
+          }
+        }
+      }
+    },
     "Get OrcaSlicer, a free slicer for most printers" : {
       "localizations" : {
         "en" : {
@@ -2277,6 +3190,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Get a key"
+          }
+        }
+      }
+    },
+    "Getting the picture ready" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Getting the picture ready"
           }
         }
       }
@@ -2307,6 +3230,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Give your mini a name"
+          }
+        }
+      }
+    },
+    "Gives it a new name" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gives it a new name"
           }
         }
       }
@@ -2347,6 +3280,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Height with base"
+          }
+        }
+      }
+    },
+    "Height, width or depth, whichever is biggest." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Height, width or depth, whichever is biggest."
           }
         }
       }
@@ -2401,6 +3344,26 @@
         }
       }
     },
+    "How long each side of the square base is" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How long each side of the square base is"
+          }
+        }
+      }
+    },
+    "How long each side of the square base is; 25 mm fits one map square" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How long each side of the square base is; 25 mm fits one map square"
+          }
+        }
+      }
+    },
     "How tall an average human is on the table: at 32 mm, a 1.8 m human stands 32 mm tall" : {
       "localizations" : {
         "en" : {
@@ -2427,6 +3390,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "How tall the character would be in real life. A halfling is about 1 m; leave it blank for an average human (1.8 m)."
+          }
+        }
+      }
+    },
+    "How wide the hex base is, flat side to flat side; 25 mm fits one hex on a 1-inch hex map" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How wide the hex base is, flat side to flat side; 25 mm fits one hex on a 1-inch hex map"
+          }
+        }
+      }
+    },
+    "How wide the round base is" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How wide the round base is"
+          }
+        }
+      }
+    },
+    "How wide the round base is; 25 mm fits one map square" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How wide the round base is; 25 mm fits one map square"
           }
         }
       }
@@ -2471,6 +3464,16 @@
         }
       }
     },
+    "Import · takes %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import · takes %@"
+          }
+        }
+      }
+    },
     "Importing" : {
       "localizations" : {
         "en" : {
@@ -2507,6 +3510,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "In Draw Things' model list, search for FLUX.2 Klein and download it."
+          }
+        }
+      }
+    },
+    "In Draw Things' model list, search for FLUX.2 Klein and download it. It's big, so give it a few minutes." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In Draw Things' model list, search for FLUX.2 Klein and download it. It's big, so give it a few minutes."
           }
         }
       }
@@ -2561,6 +3574,16 @@
         }
       }
     },
+    "Install Command-Line Tool" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install Command-Line Tool"
+          }
+        }
+      }
+    },
     "Install Command-Line Tool…" : {
       "localizations" : {
         "en" : {
@@ -2587,6 +3610,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Install a slicer such as Bambu Studio, OrcaSlicer, PrusaSlicer or Cura. Until then Mimic opens minis with your Mac's default app for 3D files."
+          }
+        }
+      }
+    },
+    "Is it still in the Trash?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Is it still in the Trash?"
+          }
+        }
+      }
+    },
+    "Is its folder open in another app?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Is its folder open in another app?"
           }
         }
       }
@@ -2671,6 +3714,16 @@
         }
       }
     },
+    "It stopped before it was done." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It stopped before it was done."
+          }
+        }
+      }
+    },
     "It stopped while %@." : {
       "localizations" : {
         "en" : {
@@ -2691,12 +3744,42 @@
         }
       }
     },
+    "It works." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It works."
+          }
+        }
+      }
+    },
     "It's a cartoon" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "It's a cartoon"
+          }
+        }
+      }
+    },
+    "It's being made. Move it to the Trash once it's done." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It's being made. Move it to the Trash once it's done."
+          }
+        }
+      }
+    },
+    "It's free." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It's free."
           }
         }
       }
@@ -2727,6 +3810,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Its size with the base: height, then the footprint it stands on."
+          }
+        }
+      }
+    },
+    "Joins the queue, %lld ahead · ready in %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Joins the queue, %lld ahead · ready in %@"
           }
         }
       }
@@ -2781,6 +3874,16 @@
         }
       }
     },
+    "Keeps a copy under a new name, then asks what size to make it" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keeps a copy under a new name, then asks what size to make it"
+          }
+        }
+      }
+    },
     "Keeps its picture and makes only the 3D shape again. Type a change to redraw the picture with it first." : {
       "localizations" : {
         "en" : {
@@ -2797,6 +3900,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Keeps the queue waiting while your Mac runs on its battery"
+          }
+        }
+      }
+    },
+    "Keeps this picture, or redraws it with a change, and makes the 3D shape again" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keeps this picture, or redraws it with a change, and makes the 3D shape again"
           }
         }
       }
@@ -2981,6 +4094,16 @@
         }
       }
     },
+    "Make Mini starts it; the time it takes on this Mac is beside the button. Its progress is in the toolbar, and you can keep using Mimic meanwhile." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Make Mini starts it; the time it takes on this Mac is beside the button. Its progress is in the toolbar, and you can keep using Mimic meanwhile."
+          }
+        }
+      }
+    },
     "Make Report" : {
       "localizations" : {
         "en" : {
@@ -2997,6 +4120,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Make a new mini (⌘N)"
+          }
+        }
+      }
+    },
+    "Make it" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Make it"
           }
         }
       }
@@ -3041,6 +4174,16 @@
         }
       }
     },
+    "Make · takes %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Make · takes %@"
+          }
+        }
+      }
+    },
     "Makes a file of what happened and opens a form on GitHub to send it with" : {
       "localizations" : {
         "en" : {
@@ -3051,12 +4194,42 @@
         }
       }
     },
+    "Makes it again from the step that failed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Makes it again from the step that failed"
+          }
+        }
+      }
+    },
+    "Makes it again with a new variation number, with a change to its picture if you like" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Makes it again with a new variation number, with a change to its picture if you like"
+          }
+        }
+      }
+    },
     "Makes it again with a new variation number. Type a change to redraw its picture with it." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Makes it again with a new variation number. Type a change to redraw its picture with it."
+          }
+        }
+      }
+    },
+    "Makes the 3D shape from the picture it's waiting with" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Makes the 3D shape from the picture it's waiting with"
           }
         }
       }
@@ -3077,6 +4250,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Making"
+          }
+        }
+      }
+    },
+    "Making the print-ready file" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Making the print-ready file"
           }
         }
       }
@@ -3151,12 +4334,22 @@
         }
       }
     },
-    "Mimic asks GitHub for its latest release %@. Only public release information is read; nothing about your Mac or your minis is sent." : {
+    "Mimic asks GitHub for its latest release each time it opens. Only public release information is read; nothing about your Mac or your minis is sent." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mimic asks GitHub for its latest release %@. Only public release information is read; nothing about your Mac or your minis is sent."
+            "value" : "Mimic asks GitHub for its latest release each time it opens. Only public release information is read; nothing about your Mac or your minis is sent."
+          }
+        }
+      }
+    },
+    "Mimic asks GitHub for its latest release only when you check. Only public release information is read; nothing about your Mac or your minis is sent." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mimic asks GitHub for its latest release only when you check. Only public release information is read; nothing about your Mac or your minis is sent."
           }
         }
       }
@@ -3211,6 +4404,16 @@
         }
       }
     },
+    "Mimic can't read these pictures." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mimic can't read these pictures."
+          }
+        }
+      }
+    },
     "Mimic can't use that file: %@. It needs a 3D model saved as GLB or STL." : {
       "localizations" : {
         "en" : {
@@ -3221,12 +4424,32 @@
         }
       }
     },
+    "Mimic can't use that folder. Choose another one." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mimic can't use that folder. Choose another one."
+          }
+        }
+      }
+    },
     "Mimic couldn't reach the internet. Check your connection, then press Try Again. It carries on where it stopped." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mimic couldn't reach the internet. Check your connection, then press Try Again. It carries on where it stopped."
+          }
+        }
+      }
+    },
+    "Mimic couldn't read its list of minis waiting to be made, so it put the list aside and started a new one. Minis that were waiting didn't start: make or resize them again." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mimic couldn't read its list of minis waiting to be made, so it put the list aside and started a new one. Minis that were waiting didn't start: make or resize them again."
           }
         }
       }
@@ -3247,6 +4470,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mimic deletes it from your Keychain. To use it later, you'll need to paste it in again."
+          }
+        }
+      }
+    },
+    "Mimic does this itself, with Draw Things' command line tool: it comes with the 3D engine, and Draw Things doesn't even need to be open. Without it: in Draw Things, Settings → Advanced → API Server. Turn it on, choose HTTP, set the port to 7860." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mimic does this itself, with Draw Things' command line tool: it comes with the 3D engine, and Draw Things doesn't even need to be open. Without it: in Draw Things, Settings → Advanced → API Server. Turn it on, choose HTTP, set the port to 7860."
           }
         }
       }
@@ -3291,6 +4524,16 @@
         }
       }
     },
+    "Mimic is still downloading" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mimic is still downloading"
+          }
+        }
+      }
+    },
     "Mimic is still making %@. Wait for it to finish." : {
       "localizations" : {
         "en" : {
@@ -3301,12 +4544,32 @@
         }
       }
     },
+    "Mimic is still making “%@”" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mimic is still making “%@”"
+          }
+        }
+      }
+    },
     "Mimic is still resizing %@. Wait for it to finish." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mimic is still resizing %@. Wait for it to finish."
+          }
+        }
+      }
+    },
+    "Mimic is still resizing “%@”" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mimic is still resizing “%@”"
           }
         }
       }
@@ -3367,6 +4630,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mimic opens Draw Things when it needs it."
+          }
+        }
+      }
+    },
+    "Mimic opens it when it needs it. Its API server has to be on: in Draw Things, Settings → Advanced → API Server, HTTP, port 7860." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mimic opens it when it needs it. Its API server has to be on: in Draw Things, Settings → Advanced → API Server, HTTP, port 7860."
           }
         }
       }
@@ -3467,6 +4740,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mimic tour"
+          }
+        }
+      }
+    },
+    "Mimic turns a picture or a few words into a mini you can 3D print, right here on your Mac." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mimic turns a picture or a few words into a mini you can 3D print, right here on your Mac."
           }
         }
       }
@@ -3581,12 +4864,24 @@
         }
       }
     },
-    "Move %lld other %@ to the Trash?" : {
+    "Move %lld other versions to the Trash?" : {
       "localizations" : {
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Move %lld other %@ to the Trash?"
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Move %lld other version to the Trash?"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Move %lld other versions to the Trash?"
+                }
+              }
+            }
           }
         }
       }
@@ -3691,6 +4986,26 @@
         }
       }
     },
+    "Moves it to the Trash; Edit → Undo puts it back" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moves it to the Trash; Edit → Undo puts it back"
+          }
+        }
+      }
+    },
+    "Moves them to the Trash; Edit → Undo puts them back" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moves them to the Trash; Edit → Undo puts them back"
+          }
+        }
+      }
+    },
     "Moving your minis…" : {
       "localizations" : {
         "en" : {
@@ -3731,6 +5046,16 @@
         }
       }
     },
+    "Name the new project, then drop the pictures again." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name the new project, then drop the pictures again."
+          }
+        }
+      }
+    },
     "Names can only use lowercase letters, numbers and dashes." : {
       "localizations" : {
         "en" : {
@@ -3767,6 +5092,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Needs Setup"
+          }
+        }
+      }
+    },
+    "Needs fixing" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Needs fixing"
+          }
+        }
+      }
+    },
+    "Never" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Never"
           }
         }
       }
@@ -3951,6 +5296,16 @@
         }
       }
     },
+    "No models installed yet. In Terminal: ollama pull gemma3" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No models installed yet. In Terminal: ollama pull gemma3"
+          }
+        }
+      }
+    },
     "None" : {
       "localizations" : {
         "en" : {
@@ -3987,6 +5342,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Not done"
+          }
+        }
+      }
+    },
+    "Not finished" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not finished"
+          }
+        }
+      }
+    },
+    "Not in its colours: %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not in its colours: %@."
           }
         }
       }
@@ -4041,12 +5416,32 @@
         }
       }
     },
+    "Objects" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Objects"
+          }
+        }
+      }
+    },
     "Off" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Off"
+          }
+        }
+      }
+    },
+    "Off for a model you imported: there's no picture or description to make it again from. Resize and Duplicate work." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off for a model you imported: there's no picture or description to make it again from. Resize and Duplicate work."
           }
         }
       }
@@ -4091,12 +5486,52 @@
         }
       }
     },
+    "On battery · %lld waiting" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On battery · %lld waiting"
+          }
+        }
+      }
+    },
+    "One print file with all of them on the bed, each its own object named after it." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "One print file with all of them on the bed, each its own object named after it."
+          }
+        }
+      }
+    },
+    "One size for all of them; each waits its turn" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "One size for all of them; each waits its turn"
+          }
+        }
+      }
+    },
     "One thing before your first mini: Mimic needs its 3D engine, the part that turns a picture into a model. It runs on your Mac, so nothing you make is uploaded." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "One thing before your first mini: Mimic needs its 3D engine, the part that turns a picture into a model. It runs on your Mac, so nothing you make is uploaded."
+          }
+        }
+      }
+    },
+    "Online pictures aren't set up yet." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Online pictures aren't set up yet."
           }
         }
       }
@@ -4181,6 +5616,46 @@
         }
       }
     },
+    "Open the App Store" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open the App Store"
+          }
+        }
+      }
+    },
+    "Open the mini and try again from there." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open the mini and try again from there."
+          }
+        }
+      }
+    },
+    "Open the mini and try from there." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open the mini and try from there."
+          }
+        }
+      }
+    },
+    "Open them one at a time instead." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open them one at a time instead."
+          }
+        }
+      }
+    },
     "OpenAI-compatible service" : {
       "localizations" : {
         "en" : {
@@ -4211,6 +5686,16 @@
         }
       }
     },
+    "Opens New Mini filled in from this mini, to change what you like" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens New Mini filled in from this mini, to change what you like"
+          }
+        }
+      }
+    },
     "Opens New Mini with a sample picture of a dwarf, ready to make." : {
       "localizations" : {
         "en" : {
@@ -4221,12 +5706,32 @@
         }
       }
     },
+    "Opens the print file in %@ to slice and print" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens the print file in %@ to slice and print"
+          }
+        }
+      }
+    },
     "Optional" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Optional"
+          }
+        }
+      }
+    },
+    "Optional, not set up" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Optional, not set up"
           }
         }
       }
@@ -4291,6 +5796,16 @@
         }
       }
     },
+    "Paused · %lld waiting" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paused · %lld waiting"
+          }
+        }
+      }
+    },
     "Pick a mini on the left." : {
       "localizations" : {
         "en" : {
@@ -4341,6 +5856,36 @@
         }
       }
     },
+    "Picture added." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Picture added."
+          }
+        }
+      }
+    },
+    "Picture pasted." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Picture pasted."
+          }
+        }
+      }
+    },
+    "Picture ready to check" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Picture ready to check"
+          }
+        }
+      }
+    },
     "Pictures" : {
       "localizations" : {
         "en" : {
@@ -4387,6 +5932,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Plain, or a floor pressed into the top of the base: flagstones, planks or cobblestones"
+          }
+        }
+      }
+    },
+    "Press + (or ⌘N) to start one from a picture or a description. To learn by doing, use the sample dwarf." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Press + (or ⌘N) to start one from a picture or a description. To learn by doing, use the sample dwarf."
+          }
+        }
+      }
+    },
+    "Press Make Mini to make your dwarf; the time it takes is beside the button. Its progress opens in the toolbar, and the tour carries on when you close it." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Press Make Mini to make your dwarf; the time it takes is beside the button. Its progress opens in the toolbar, and the tour carries on when you close it."
           }
         }
       }
@@ -4491,6 +6056,56 @@
         }
       }
     },
+    "Quit" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit"
+          }
+        }
+      }
+    },
+    "Quitting stops it for now. The next time you open Mimic, it carries on from the last step it finished." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quitting stops it for now. The next time you open Mimic, it carries on from the last step it finished."
+          }
+        }
+      }
+    },
+    "Quitting stops the download. Start it again later and it picks up where it left off." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quitting stops the download. Start it again later and it picks up where it left off."
+          }
+        }
+      }
+    },
+    "Ready" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ready"
+          }
+        }
+      }
+    },
+    "Ready in %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ready in %@."
+          }
+        }
+      }
+    },
     "Ready to print." : {
       "localizations" : {
         "en" : {
@@ -4531,12 +6146,22 @@
         }
       }
     },
-    "Remakes the print file with these sizes. %@%@. The %@ itself doesn't change." : {
+    "Remakes the print file at new sizes, in about a minute" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remakes the print file with these sizes. %@%@. The %@ itself doesn't change."
+            "value" : "Remakes the print file at new sizes, in about a minute"
+          }
+        }
+      }
+    },
+    "Remakes the print file with these sizes. %@. The %@ itself doesn't change." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remakes the print file with these sizes. %@. The %@ itself doesn't change."
           }
         }
       }
@@ -4637,6 +6262,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Remove this picture"
+          }
+        }
+      }
+    },
+    "Remove “%@” from the queue?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove “%@” from the queue?"
           }
         }
       }
@@ -4881,6 +6516,16 @@
         }
       }
     },
+    "Resize · takes %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resize · takes %@"
+          }
+        }
+      }
+    },
     "Resizing" : {
       "localizations" : {
         "en" : {
@@ -5011,6 +6656,26 @@
         }
       }
     },
+    "Set by your nozzle." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set by your nozzle."
+          }
+        }
+      }
+    },
+    "Set for you by the choices above." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set for you by the choices above."
+          }
+        }
+      }
+    },
     "Set for your nozzle; type a value or drag to change it" : {
       "localizations" : {
         "en" : {
@@ -5021,12 +6686,72 @@
         }
       }
     },
+    "Set to %@. Keys are kept per address: one saved here is only sent to %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set to %@. Keys are kept per address: one saved here is only sent to %@."
+          }
+        }
+      }
+    },
     "Set up Draw Things" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Set up Draw Things"
+          }
+        }
+      }
+    },
+    "Settings" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
+          }
+        }
+      }
+    },
+    "Settings (⌘,) is where you choose your slicer and set up Draw Things. If something needs you, Needs Setup appears in the toolbar." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings (⌘,) is where you choose your slicer and set up Draw Things. If something needs you, Needs Setup appears in the toolbar."
+          }
+        }
+      }
+    },
+    "Setup stopped. Press Try Again: it carries on where it stopped." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Setup stopped. Press Try Again: it carries on where it stopped."
+          }
+        }
+      }
+    },
+    "Several of each on the plate, in one print file" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Several of each on the plate, in one print file"
+          }
+        }
+      }
+    },
+    "Several of this mini on the plate, in one print file" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Several of this mini on the plate, in one print file"
           }
         }
       }
@@ -5131,12 +6856,32 @@
         }
       }
     },
+    "Show how it went" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show how it went"
+          }
+        }
+      }
+    },
     "Show in Finder" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show in Finder"
+          }
+        }
+      }
+    },
+    "Show progress, the queue and Stop" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show progress, the queue and Stop"
           }
         }
       }
@@ -5167,6 +6912,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Showing %@ only. Click to show all or sort."
+          }
+        }
+      }
+    },
+    "Shows the print file and the previews in Finder." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shows the print file and the previews in Finder."
           }
         }
       }
@@ -5277,6 +7032,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Skip Tour"
+          }
+        }
+      }
+    },
+    "Skipped %@: Mimic can't use it." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skipped %@: Mimic can't use it."
+          }
+        }
+      }
+    },
+    "Skipped %@: Mimic can't use them." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skipped %@: Mimic can't use them."
           }
         }
       }
@@ -5401,6 +7176,16 @@
         }
       }
     },
+    "Start a new mini" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start a new mini"
+          }
+        }
+      }
+    },
     "Start from" : {
       "localizations" : {
         "en" : {
@@ -5441,6 +7226,16 @@
         }
       }
     },
+    "Starting…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starting…"
+          }
+        }
+      }
+    },
     "Starts from the picture %@ was drawn as." : {
       "localizations" : {
         "en" : {
@@ -5477,6 +7272,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Step %lld, %@"
+          }
+        }
+      }
+    },
+    "Step %lld, done" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Step %lld, done"
+          }
+        }
+      }
+    },
+    "Step %lld, not done" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Step %lld, not done"
           }
         }
       }
@@ -5561,12 +7376,22 @@
         }
       }
     },
-    "Takes %@%@; keep using your Mac meanwhile" : {
+    "Takes %@ on this Mac; keep using your Mac meanwhile" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Takes %@%@; keep using your Mac meanwhile"
+            "value" : "Takes %@ on this Mac; keep using your Mac meanwhile"
+          }
+        }
+      }
+    },
+    "Takes %@; keep using your Mac meanwhile" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Takes %@; keep using your Mac meanwhile"
           }
         }
       }
@@ -5681,6 +7506,28 @@
         }
       }
     },
+    "The %lld minis waiting in the queue will follow." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The mini waiting in the queue will follow."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The %lld minis waiting in the queue will follow."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "The 3D engine" : {
       "localizations" : {
         "en" : {
@@ -5791,12 +7638,32 @@
         }
       }
     },
+    "The grey sculpt needs %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The grey sculpt needs %@."
+          }
+        }
+      }
+    },
     "The helper answered with nothing. Try again." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "The helper answered with nothing. Try again."
+          }
+        }
+      }
+    },
+    "The helper couldn't answer." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The helper couldn't answer."
           }
         }
       }
@@ -5891,6 +7758,16 @@
         }
       }
     },
+    "The picture %@ was made from" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The picture %@ was made from"
+          }
+        }
+      }
+    },
     "The picture of %@" : {
       "localizations" : {
         "en" : {
@@ -5907,6 +7784,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The picture of %@ is ready"
+          }
+        }
+      }
+    },
+    "The queue carries on with the next one." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The queue carries on with the next one."
           }
         }
       }
@@ -5947,6 +7834,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The service's API address; leave blank for OpenAI"
+          }
+        }
+      }
+    },
+    "The test didn't work. Check the key, then try again." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The test didn't work. Check the key, then try again."
+          }
+        }
+      }
+    },
+    "The test didn't work. Check the settings above, then try again." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The test didn't work. Check the settings above, then try again."
           }
         }
       }
@@ -6181,12 +8088,52 @@
         }
       }
     },
+    "Try Show in Finder and delete it there." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try Show in Finder and delete it there."
+          }
+        }
+      }
+    },
+    "Try Show in Finder and move it to the Trash there." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try Show in Finder and move it to the Trash there."
+          }
+        }
+      }
+    },
+    "Try again, or save it somewhere else." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try again, or save it somewhere else."
+          }
+        }
+      }
+    },
     "Try again, or use a clearer, full-body picture." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Try again, or use a clearer, full-body picture."
+          }
+        }
+      }
+    },
+    "Try again." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try again."
           }
         }
       }
@@ -6221,6 +8168,26 @@
         }
       }
     },
+    "Turns a mini into instructions for your printer." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turns a mini into instructions for your printer."
+          }
+        }
+      }
+    },
+    "Turns your picture into a 3D shape, on your Mac's graphics chip." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turns your picture into a 3D shape, on your Mac's graphics chip."
+          }
+        }
+      }
+    },
     "Type a value or drag to change it. The base adds about 2 mm." : {
       "localizations" : {
         "en" : {
@@ -6237,6 +8204,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Type the model's name in Settings."
+          }
+        }
+      }
+    },
+    "Unfinished Minis" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unfinished Minis"
           }
         }
       }
@@ -6327,6 +8304,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Use Original"
+          }
+        }
+      }
+    },
+    "Use This Folder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use This Folder"
           }
         }
       }
@@ -6457,6 +8444,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "What is it?"
+          }
+        }
+      }
+    },
+    "What the 3D engine has learned, for the 3D model in use. Downloaded once." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What the 3D engine has learned, for the 3D model in use. Downloaded once."
           }
         }
       }
@@ -6691,6 +8688,16 @@
         }
       }
     },
+    "Your own description still works." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your own description still works."
+          }
+        }
+      }
+    },
     "Your printer's nozzle" : {
       "localizations" : {
         "en" : {
@@ -6751,6 +8758,28 @@
         }
       }
     },
+    "about %lld hours" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "about %lld hour"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "about %lld hours"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "about %lld minutes" : {
       "localizations" : {
         "en" : {
@@ -6761,12 +8790,32 @@
         }
       }
     },
+    "about %lld minutes left" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "about %lld minutes left"
+          }
+        }
+      }
+    },
     "about a minute" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "about a minute"
+          }
+        }
+      }
+    },
+    "about a minute left" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "about a minute left"
           }
         }
       }
@@ -6809,6 +8858,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "building the 3D shape"
+          }
+        }
+      }
+    },
+    "character" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "character"
           }
         }
       }
@@ -7036,6 +9095,16 @@
         }
       }
     },
+    "in progress" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "in progress"
+          }
+        }
+      }
+    },
     "it can't be opened" : {
       "localizations" : {
         "en" : {
@@ -7092,6 +9161,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "it's cut short or isn't a 3D model"
+          }
+        }
+      }
+    },
+    "its %lld minis" : {
+      "comment" : "In “Keep Minis moves %@ to Unsorted.”",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "its mini"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "its %lld minis"
+                }
+              }
+            }
           }
         }
       }
@@ -7177,6 +9269,16 @@
         }
       }
     },
+    "mm" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mm"
+          }
+        }
+      }
+    },
     "nearly done" : {
       "localizations" : {
         "en" : {
@@ -7223,6 +9325,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "not an STL file"
+          }
+        }
+      }
+    },
+    "not started" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "not started"
+          }
+        }
+      }
+    },
+    "object" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "object"
           }
         }
       }
@@ -7455,6 +9577,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "wooden floor"
+          }
+        }
+      }
+    },
+    "your slicer" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "your slicer"
+          }
+        }
+      }
+    },
+    "“%@” is being made, so it wasn't moved to the Trash. Move it there once it's done." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” is being made, so it wasn't moved to the Trash. Move it there once it's done."
           }
         }
       }

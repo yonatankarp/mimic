@@ -221,11 +221,11 @@ struct TourCallout: View {
 
     static func title(_ stop: TourStep) -> String {
         switch stop {
-        case .welcome: "A quick look around"
-        case .newMini: "Start a new mini"
-        case .make: "Make it"
-        case .mini: "A finished mini"
-        case .settings: "Settings"
+        case .welcome: String(localized: "A quick look around")
+        case .newMini: String(localized: "Start a new mini")
+        case .make: String(localized: "Make it")
+        case .mini: String(localized: "A finished mini")
+        case .settings: String(localized: "Settings")
         }
     }
 
@@ -233,17 +233,17 @@ struct TourCallout: View {
     private var text: String {
         switch stop {
         case .welcome:
-            "Mimic turns a picture or a few words into a mini you can 3D print, right here on your Mac."
+            String(localized: "Mimic turns a picture or a few words into a mini you can 3D print, right here on your Mac.")
         case .newMini:
-            "Press + (or ⌘N) to start one from a picture or a description. To learn by doing, use the sample dwarf."
+            String(localized: "Press + (or ⌘N) to start one from a picture or a description. To learn by doing, use the sample dwarf.")
         case .make:
             guide.usingSample
-                ? "Press Make Mini to make your dwarf; the time it takes is beside the button. Its progress opens in the toolbar, and the tour carries on when you close it."
-                : "Make Mini starts it; the time it takes on this Mac is beside the button. Its progress is in the toolbar, and you can keep using Mimic meanwhile."
+                ? String(localized: "Press Make Mini to make your dwarf; the time it takes is beside the button. Its progress opens in the toolbar, and the tour carries on when you close it.")
+                : String(localized: "Make Mini starts it; the time it takes on this Mac is beside the button. Its progress is in the toolbar, and you can keep using Mimic meanwhile.")
         case .mini:
-            "Drag it to turn it around, and Open in \(model.slicerName) sends it to your slicer. The panel on the right has its size, previews and print tips."
+            String(localized: "Drag it to turn it around, and Open in \(model.slicerName) sends it to your slicer. The panel on the right has its size, previews and print tips.")
         case .settings:
-            "Settings (⌘,) is where you choose your slicer and set up Draw Things. If something needs you, Needs Setup appears in the toolbar."
+            String(localized: "Settings (⌘,) is where you choose your slicer and set up Draw Things. If something needs you, Needs Setup appears in the toolbar.")
         }
     }
 

@@ -30,12 +30,12 @@ struct DuplicateSheet: View {
     }
 
     private func duplicate() {
-        guard let shown = Rules.shownName(text) else { problem = "Give it a name."; return }
+        guard let shown = Rules.shownName(text) else { problem = String(localized: "Give it a name."); return }
         let new = Rules.folderName(shown)
         do {
             try model.duplicate(mini, as: new, shown: shown)
         } catch {
-            problem = model.plainWords(error, else: "Couldn't make the copy. Is the disk full, or its folder open in another app?"); return
+            problem = model.plainWords(error, else: String(localized: "Couldn't make the copy. Is the disk full, or its folder open in another app?")); return
         }
         // Straight on to its size: the sheet's item changes, so this one closes as Resize opens.
         if let copy = model.minis.first(where: { $0.name == new }) { model.sheet = .resize(copy) } else { dismiss() }

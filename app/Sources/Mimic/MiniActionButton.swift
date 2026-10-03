@@ -52,7 +52,7 @@ struct MiniActionItems: View {
 /// agree. Not listed at all when it doesn't apply (Build Shape, Try Again, Report a Problem).
 struct MiniActionButton: View {
     /// Why Make Another Version, New 3D Shape and Edit & Make Again are off for an imported model (#96).
-    static let imported = "Off for a model you imported: there's no picture or description to make it again from. Resize and Duplicate work."
+    static let imported = String(localized: "Off for a model you imported: there's no picture or description to make it again from. Resize and Duplicate work.")
 
     let action: MiniAction
     let minis: [Mini]
@@ -106,7 +106,7 @@ struct MiniActionButton: View {
     private static func whereToExport(_ mini: Mini) -> URL? {
         guard mini.stl != nil else { return nil }
         let panel = NSSavePanel()
-        panel.title = "Export for Virtual Tabletop"
+        panel.title = String(localized: "Export for Virtual Tabletop")
         panel.message = Tabletop.saveMessage(mini)
         panel.nameFieldStringValue = "\(mini.displayName).glb"
         panel.allowedContentTypes = [UTType(filenameExtension: "glb") ?? .data]
@@ -145,22 +145,22 @@ struct MiniActionButton: View {
     private var help: String {
         let imported = mini?.settings.isImported == true
         return switch action {
-        case .open: "Opens the print file in \(model.slicerName) to slice and print"
-        case .openTogether: "One print file with all of them on the bed, each its own object named after it."
-        case .copies: minis.count == 1 ? "Several of this mini on the plate, in one print file" : "Several of each on the plate, in one print file"
-        case .showInFinder: "Shows the print file and the previews in Finder."
-        case .exportForTabletop: "A low-poly .glb to drag into a virtual tabletop"
-        case .resize: "Remakes the print file at new sizes, in about a minute"
-        case .resizeSeveral: "One size for all of them; each waits its turn"
-        case .buildShape: "Makes the 3D shape from the picture it's waiting with"
-        case .tryAgain: model.requiredProblem ?? "Makes it again from the step that failed"
-        case .reportProblem: "Makes a file of what happened and opens a form on GitHub to send it with"
-        case .rename: "Gives it a new name"
-        case .anotherVersion: imported ? Self.imported : "Makes it again with a new variation number, with a change to its picture if you like"
-        case .newShape: imported ? Self.imported : "Keeps this picture, or redraws it with a change, and makes the 3D shape again"
-        case .editAndMakeAgain: imported ? Self.imported : "Opens New Mini filled in from this mini, to change what you like"
-        case .duplicate: "Keeps a copy under a new name, then asks what size to make it"
-        case .moveToTrash: minis.count == 1 ? "Moves it to the Trash; Edit → Undo puts it back" : "Moves them to the Trash; Edit → Undo puts them back"
+        case .open: String(localized: "Opens the print file in \(model.slicerName) to slice and print")
+        case .openTogether: String(localized: "One print file with all of them on the bed, each its own object named after it.")
+        case .copies: minis.count == 1 ? String(localized: "Several of this mini on the plate, in one print file") : String(localized: "Several of each on the plate, in one print file")
+        case .showInFinder: String(localized: "Shows the print file and the previews in Finder.")
+        case .exportForTabletop: String(localized: "A low-poly .glb to drag into a virtual tabletop")
+        case .resize: String(localized: "Remakes the print file at new sizes, in about a minute")
+        case .resizeSeveral: String(localized: "One size for all of them; each waits its turn")
+        case .buildShape: String(localized: "Makes the 3D shape from the picture it's waiting with")
+        case .tryAgain: model.requiredProblem ?? String(localized: "Makes it again from the step that failed")
+        case .reportProblem: String(localized: "Makes a file of what happened and opens a form on GitHub to send it with")
+        case .rename: String(localized: "Gives it a new name")
+        case .anotherVersion: imported ? Self.imported : String(localized: "Makes it again with a new variation number, with a change to its picture if you like")
+        case .newShape: imported ? Self.imported : String(localized: "Keeps this picture, or redraws it with a change, and makes the 3D shape again")
+        case .editAndMakeAgain: imported ? Self.imported : String(localized: "Opens New Mini filled in from this mini, to change what you like")
+        case .duplicate: String(localized: "Keeps a copy under a new name, then asks what size to make it")
+        case .moveToTrash: minis.count == 1 ? String(localized: "Moves it to the Trash; Edit → Undo puts it back") : String(localized: "Moves them to the Trash; Edit → Undo puts them back")
         }
     }
 }

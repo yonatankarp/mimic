@@ -36,7 +36,7 @@ struct MakeStart: Equatable {
 
     init(_ form: MakeForm, again: Mini? = nil) {
         self.form = form
-        picture = form.picture.flatMap { Picture($0, caption: again.map { "The picture \($0.displayName) was made from" }) }
+        picture = form.picture.flatMap { Picture($0, caption: again.map { String(localized: "The picture \($0.displayName) was made from") }) }
         sides = form.sides.compactMapValues { Picture($0) }
     }
 

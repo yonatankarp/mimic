@@ -7,7 +7,7 @@ extension AppModel {
     /// Opens a print file in the picked slicer, or the Mac's default app for STL files.
     func openInSlicer(_ stl: URL) { Slicer.open(stl, in: Slicer.preferred()) }
 
-    var slicerName: String { Slicer.preferred()?.name ?? "your slicer" }
+    var slicerName: String { Slicer.preferred()?.name ?? String(localized: "your slicer") }
 
     /// Open Together: one 3MF with every made mini of `group` laid out on the bed, each its own
     /// object named after it, opened in the slicer; with `copies`, that many of each. Named after
@@ -24,7 +24,7 @@ extension AppModel {
                 do { try ThreeMF.pack(together.parts, copies: copies, to: together.url); return nil } catch { return error }
             }.value
             packing = false
-            if let failed { problem = Problem("Couldn't put them in one print file", plainWords(failed, else: "Open them one at a time instead.")) }
+            if let failed { problem = Problem(String(localized: "Couldn't put them in one print file"), plainWords(failed, else: String(localized: "Open them one at a time instead."))) }
             else { openInSlicer(together.url) }
         }
     }
@@ -38,11 +38,11 @@ extension AppModel {
                 Result { try Tabletop.export(mini, to: url).whyGrey }
             }.value
             switch made {
-            case .failure(let failed): problem = Problem("Couldn't export \(mini.displayName)", plainWords(failed, else: "Try again, or save it somewhere else."))
+            case .failure(let failed): problem = Problem(String(localized: "Couldn't export \(mini.displayName)"), plainWords(failed, else: String(localized: "Try again, or save it somewhere else.")))
             case .success(let whyGrey):
                 NSWorkspace.shared.activateFileViewerSelecting([url])
                 // The save window said it would be in its colours (#317).
-                if let whyGrey { problem = Problem("Exported \(mini.displayName) in grey", "Not in its colours: \(whyGrey).") }
+                if let whyGrey { problem = Problem(String(localized: "Exported \(mini.displayName) in grey"), String(localized: "Not in its colours: \(whyGrey).")) }
             }
         }
     }

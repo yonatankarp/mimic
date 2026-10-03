@@ -126,8 +126,8 @@ public struct SizeCard: Equatable, Sendable {
     public static func severalNote(without: Int, of count: Int) -> String {
         if without == 0 { return String(localized: "Each character keeps its own real height, so a halfling stays shorter than an elf.", bundle: .mimicCore) }
         if without == count { return String(localized: "Every mini gets the same height, the Character height below: none of them has its real height saved.", bundle: .mimicCore) }
-        return "Each character keeps its own real height. " + (without == 1 ? "One mini has no real height saved, so it gets"
-            : "\(without) minis have no real height saved, so they get") + " the Character height below."
+        return String(localized: "Each character keeps its own real height. \(without) minis have no real height saved, so they get the Character height below.",
+                      bundle: .mimicCore)
     }
 
     /// What print prep is asked for. The extra thickness is sent only when chosen by hand:

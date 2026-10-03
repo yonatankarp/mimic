@@ -62,7 +62,8 @@ struct ImproveBox: View {
             if Task.isCancelled { return }
             switch result {
             case .success(let better): improved = better
-            case .failure(let error): problem = said(error, else: "The helper couldn't answer.") + " Your own description still works."
+            case .failure(let error):
+                problem = said(error, else: String(localized: "The helper couldn't answer.")) + " " + String(localized: "Your own description still works.")
             }
         }
     }
@@ -90,7 +91,7 @@ struct HelperSection: View {
     private var addressNote: String? {
         guard current.isCloud, !config.isDefaultHost else { return nil }
         guard let host = config.host, config.isSecure else { return "\(HelperError.badURL)" }
-        return "Set to \(host). Keys are kept per address: one saved here is only sent to \(host)."
+        return String(localized: "Set to \(host). Keys are kept per address: one saved here is only sent to \(host).")
     }
 
     var body: some View {
@@ -160,7 +161,7 @@ struct HelperSection: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Picker("Model", selection: $model) {
-                    if !ollamaModels.contains(model) { Text(model.isEmpty ? "Choose…" : model).tag(model) }
+                    if !ollamaModels.contains(model) { Text(model.isEmpty ? String(localized: "Choose…") : model).tag(model) }
                     ForEach(ollamaModels, id: \.self) { Text($0).tag($0) }
                 }
                 Button("Refresh") { load() }
@@ -187,7 +188,7 @@ struct HelperSection: View {
             hasKey = true
             testResult = nil
         } catch {
-            testResult = (false, said(error, else: "Couldn't save the key in your Keychain. Try again."))
+            testResult = (false, said(error, else: String(localized: "Couldn't save the key in your Keychain. Try again.")))
         }
     }
 
@@ -199,11 +200,11 @@ struct HelperSection: View {
             switch result {
             case .success(let names):
                 ollamaModels = names
-                ollamaProblem = names.isEmpty ? "No models installed yet. In Terminal: ollama pull gemma3" : nil
+                ollamaProblem = names.isEmpty ? String(localized: "No models installed yet. In Terminal: ollama pull gemma3") : nil
                 if model.isEmpty, let first = names.first { model = DescriptionHelper.recommendedOllama(names) ?? first }
             case .failure(let error):
                 ollamaModels = []
-                ollamaProblem = said(error, else: "Couldn't ask Ollama which models it has. Check that it's running.")
+                ollamaProblem = said(error, else: String(localized: "Couldn't ask Ollama which models it has. Check that it's running."))
             }
         }
     }
@@ -217,8 +218,8 @@ struct HelperSection: View {
             }.value
             testing = false
             switch result {
-            case .success: testResult = (true, "It works.")
-            case .failure(let error): testResult = (false, said(error, else: "The test didn't work. Check the settings above, then try again."))
+            case .success: testResult = (true, String(localized: "It works."))
+            case .failure(let error): testResult = (false, said(error, else: String(localized: "The test didn't work. Check the settings above, then try again.")))
             }
         }
     }
@@ -301,7 +302,7 @@ struct PicturesSection: View {
             hasKey = true
             changed()
         } catch {
-            testResult = (false, said(error, else: "Couldn't save the key in your Keychain. Try again."))
+            testResult = (false, said(error, else: String(localized: "Couldn't save the key in your Keychain. Try again.")))
         }
     }
 
@@ -319,8 +320,8 @@ struct PicturesSection: View {
             // Another service chosen meanwhile: the answer is about the one before.
             guard service == asked else { return }
             switch result {
-            case .success: testResult = (true, "It works.")
-            case .failure(let error): testResult = (false, said(error, else: "The test didn't work. Check the key, then try again."))
+            case .success: testResult = (true, String(localized: "It works."))
+            case .failure(let error): testResult = (false, said(error, else: String(localized: "The test didn't work. Check the key, then try again.")))
             }
         }
     }

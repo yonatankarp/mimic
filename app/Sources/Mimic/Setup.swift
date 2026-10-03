@@ -95,7 +95,7 @@ final class SetupModel {
             } catch {
                 // Its raw text is for the log, not the setup screen (#440).
                 Log.setup.error("Setup stopped by: \(String(describing: error), privacy: .public)")
-                problem = plainWords(error) ?? "Setup stopped. Press Try Again: it carries on where it stopped."
+                problem = plainWords(error) ?? String(localized: "Setup stopped. Press Try Again: it carries on where it stopped.")
             }
             await finish(downloaded: EngineDownload.present(install, target))
         }
@@ -152,9 +152,9 @@ final class SetupModel {
 
     /// "2.1 of 9.3 GB · 24 MB/s · about 4 minutes left"
     var status: String {
-        guard let p = progress else { return "Starting…" }
+        guard let p = progress else { return String(localized: "Starting…") }
         switch p.activity {
-        case .checking where speed == nil: return "Checking the files already here…"
+        case .checking where speed == nil: return String(localized: "Checking the files already here…")
         default: break
         }
         let gb = { (b: Int64) in String(format: "%.1f", Double(b) / 1e9) }
@@ -162,7 +162,7 @@ final class SetupModel {
         if let speed {
             parts.append(ByteCountFormatter.string(fromByteCount: Int64(speed), countStyle: .file) + "/s")
             let left = Double(p.total - p.done) / speed
-            parts.append(left < 90 ? "about a minute left" : "about \(Int((left / 60).rounded())) minutes left")
+            parts.append(left < 90 ? String(localized: "about a minute left") : String(localized: "about \(Int((left / 60).rounded())) minutes left"))
         }
         return parts.joined(separator: " · ")
     }

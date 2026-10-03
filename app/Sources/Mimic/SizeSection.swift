@@ -96,14 +96,14 @@ struct SizeSection: View {
                 .font(.callout).foregroundStyle(card.warns ? .orange : .secondary)
         }
         if object {
-            slider("Longest side", \.height, { $0.setHeight($1) }, SizeCard.heightRange, unit: "mm",
-                   hint: "Height, width or depth, whichever is biggest.")
+            slider(String(localized: "Longest side"), \.height, { $0.setHeight($1) }, SizeCard.heightRange, unit: String(localized: "mm"),
+                   hint: String(localized: "Height, width or depth, whichever is biggest."))
                 .help("Set for your nozzle; type a value or drag to change it")
             Toggle(SizeCard.addBase, isOn: Binding(get: { !card.noBase }, set: { card.noBase = !$0 }))
                 .help("Off: it stands on its own flat bottom")
         } else {
-            slider("Character height", \.height, { $0.setHeight($1) }, SizeCard.heightRange, unit: "mm",
-                   hint: "Set for you by the choices above.")
+            slider(String(localized: "Character height"), \.height, { $0.setHeight($1) }, SizeCard.heightRange, unit: String(localized: "mm"),
+                   hint: String(localized: "Set for you by the choices above."))
                 .help("Type a value or drag to change it. The base adds about 2 mm.")
         }
     }
@@ -131,8 +131,8 @@ struct SizeSection: View {
                 }
                 .labelsHidden()
             }
-            slider("Base size", \.base, { $0.setBase($1) }, SizeCard.baseRange, unit: "mm",
-                   hint: card.shape == .hex ? "Across the flat sides." : nil, ticks: [25, 32, 40, 50])
+            slider(String(localized: "Base size"), \.base, { $0.setBase($1) }, SizeCard.baseRange, unit: String(localized: "mm"),
+                   hint: card.shape == .hex ? String(localized: "Across the flat sides.") : nil, ticks: [25, 32, 40, 50])
                 .help(baseHelp)
         }
     }
@@ -141,8 +141,8 @@ struct SizeSection: View {
     @ViewBuilder private var advancedRows: some View {
         // A plain button as the label, so a click or VoiceOver's press on the words opens it too.
         DisclosureGroup(isExpanded: $advanced) {
-            slider("Extra thickness for thin parts", \.inflate, { $0.setInflate($1) }, SizeCard.inflateRange, unit: "mm",
-                   hint: "Set by your nozzle.", decimals: 2)
+            slider(String(localized: "Extra thickness for thin parts"), \.inflate, { $0.setInflate($1) }, SizeCard.inflateRange, unit: String(localized: "mm"),
+                   hint: String(localized: "Set by your nozzle."), decimals: 2)
                 .help("More keeps swords and capes in one piece, but softens faces")
             if !card.noBase {
                 Picker(selection: $card.magnet) {
@@ -177,9 +177,9 @@ struct SizeSection: View {
     private var object: Bool { card.kind == .object }
     private var baseHelp: String {
         switch card.shape {
-        case .round: object ? "How wide the round base is" : "How wide the round base is; 25 mm fits one map square"
-        case .square: object ? "How long each side of the square base is" : "How long each side of the square base is; 25 mm fits one map square"
-        case .hex: "How wide the hex base is, flat side to flat side; 25 mm fits one hex on a 1-inch hex map"
+        case .round: object ? String(localized: "How wide the round base is") : String(localized: "How wide the round base is; 25 mm fits one map square")
+        case .square: object ? String(localized: "How long each side of the square base is") : String(localized: "How long each side of the square base is; 25 mm fits one map square")
+        case .hex: String(localized: "How wide the hex base is, flat side to flat side; 25 mm fits one hex on a 1-inch hex map")
         }
     }
     private var gameScale: Bool { !object && card.purpose == .game }

@@ -35,7 +35,8 @@ public enum JobProgress {
         let minutes = Int((seconds / 60).rounded())
         if minutes < 60 { return String(localized: "about \(minutes) minutes", bundle: .mimicCore) }
         let h = minutes / 60, m = minutes % 60
-        return "about \(h) hour\(h > 1 ? "s" : "")" + (m == 0 ? "" : " \(m) minute\(m > 1 ? "s" : "")")
+        let hours = String(localized: "about \(h) hours", bundle: .mimicCore)
+        return m == 0 ? hours : hours + " " + String(localized: "\(m) minutes", bundle: .mimicCore)
     }
 
     public enum Pace { case usual, slow, verySlow }

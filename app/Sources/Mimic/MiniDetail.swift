@@ -39,7 +39,7 @@ struct MiniDetail: View {
                 details(settings, versions: versions, canKeep: trashable > 0)
                     .inspectorColumnWidth(min: 240, ideal: 290, max: 420)
             }
-            .confirmationDialog("Move \(trashable) other \(trashable == 1 ? "version" : "versions") to the Trash?", isPresented: $confirmKeep) {
+            .confirmationDialog("Move \(trashable) other versions to the Trash?", isPresented: $confirmKeep) {
                 Button("Move to Trash", role: .destructive) {
                     let root = mini.settings.versionOf ?? mini.name
                     guard model.keep(mini), root != mini.name, !Gallery.nameInUse(model.install.runs, root),
@@ -376,7 +376,7 @@ struct MiniDetail: View {
     /// put the version that had the plain name back from the Trash.
     private func rename(to name: String) {
         do { try model.rename(mini, to: name) }
-        catch { model.problem = Problem("Couldn't rename it", model.plainWords(error, else: "Is its folder open in another app?")); return }
+        catch { model.problem = Problem(String(localized: "Couldn't rename it"), model.plainWords(error, else: String(localized: "Is its folder open in another app?"))); return }
         model.selection = [name]
     }
 }
