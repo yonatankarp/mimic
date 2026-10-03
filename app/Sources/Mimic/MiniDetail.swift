@@ -437,7 +437,8 @@ struct Thumbnail: View {
                 Color.secondary.opacity(0.15)
             }
         }
-        .animation(.easeOut(duration: 0.4), value: image.map(ObjectIdentifier.init))
+        // With Reduce Motion a new picture takes the old one's place at once.
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.4), value: image.map(ObjectIdentifier.init))
         // Read off the main thread: a picture can be a few megabytes.
         .task(id: "\(url?.path ?? "")\(version)") { [url] in image = await Task.detached { url.flatMap(NSImage.init(contentsOf:)) }.value }
     }
