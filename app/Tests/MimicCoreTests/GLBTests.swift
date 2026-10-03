@@ -98,6 +98,30 @@ final class GLBTests: XCTestCase {
         assertRefused(twice, reason, "a node listed twice")
     }
 
+    /// The same parts, data or corners listed over and over are read only so far (#334): a file of
+    /// a few MB could otherwise be read out to tens of GB, or walked for hours.
+    func testDataListedOverAndOverIsReadOnlySoFar() throws {
+        func refused(_ data: Data, most: Int, _ what: String, line: UInt = #line) {
+            XCTAssertThrowsError(try GLB.parse(data, painted: false, most: most), what, line: line) {
+                XCTAssertEqual(($0 as? PrepError)?.description, "the .glb is too big", what, line: line)
+            }
+        }
+        let primitive: [String: Any] = ["attributes": ["POSITION": 0], "indices": 1]
+        let thrice = PrepTests.glb(Self.triangle, translation: .zero) { json in
+            Self.set(&json, "meshes", 0, "primitives", [primitive, primitive, primitive])
+        }
+        XCTAssertEqual(try GLB.parse(thrice, painted: false, most: 9).mesh.positions.count, 9)
+        refused(thrice, most: 8, "one mesh's positions read three times")
+        let fourTimes = Mesh(positions: Self.triangle.positions, triangles: Array(repeating: [0, 1, 2], count: 4))
+        XCTAssertEqual(try GLB.parse(PrepTests.glb(fourTimes, translation: .zero), painted: false, most: 12).mesh.triangles.count, 4)
+        refused(PrepTests.glb(fourTimes, translation: .zero), most: 10, "more corners than the most")
+        let empty = PrepTests.glb(Self.triangle, translation: .zero) { json in
+            json["nodes"] = [["children": []], ["mesh": 0]] as [[String: Any]]
+            json["scenes"] = [["nodes": Array(repeating: 0, count: 20) + [1]]]
+        }
+        refused(empty, most: 20, "an empty part listed over and over")
+    }
+
     /// Parts nested 64 deep are read; any deeper are left out.
     func testPartsNestedTooDeepAreLeftOut() throws {
         func chain(_ length: Int) -> Data {

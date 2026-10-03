@@ -33,7 +33,7 @@ struct MimicApp: App {
                 Button("Install Command-Line Tool…") { CommandLineTool.show() }
             }
             CommandGroup(replacing: .newItem) {
-                Button("New Mini…") { model.showWindow(); model.sheet = .make }
+                Button("New Mini…") { model.showWindow(); model.sheet = .make(nil) }
                     .keyboardShortcut("n")
                     .disabled(!model.setup.installed || model.sheet != nil)
                 // A model made elsewhere, print prep only (#96).
@@ -257,7 +257,7 @@ struct ContentView: View {
                     } description: {
                         Text("Make your first mini from a picture or a description. It takes about \(model.setup.chosen.minutes) minutes.")
                     } actions: {
-                        Button("New Mini", systemImage: "plus") { model.sheet = .make }
+                        Button("New Mini", systemImage: "plus") { model.sheet = .make(nil) }
                             .buttonStyle(.borderedProminent)
                     }
                 } else {

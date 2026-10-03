@@ -53,18 +53,19 @@ struct MakeView: View {
     @State private var writing = false
     @State private var writingTask: Task<Void, Never>?
 
-    init(room: CGSize, form: MakeForm? = nil, again: Mini? = nil) {
+    /// `start` was read and decoded when the sheet was asked for: this runs again on every frame
+    /// of a window resize, so it reads nothing (#341).
+    init(room: CGSize, start filled: MakeStart? = nil, again: Mini? = nil) {
         self.room = room
         self.again = again
         _height = State(initialValue: min(720, room.height - 8))
         // Filled in here rather than on appear, so no onChange takes it for a choice made in the
         // sheet (a kind changed forgets the improved description; the size card's are remembered).
-        let form = form ?? TourGuide.shared.takeSample().map { MakeForm(picture: $0, name: TourGuide.sampleName, card: .remembered()) }
-        guard let form else { return }
+        guard let filled else { return }
+        let form = filled.form
         _start = State(initialValue: form.fromPicture ? .picture : .description)
-        _picture = State(initialValue: form.picture.flatMap { url in
-            Picture(url, caption: again.map { "The picture \($0.displayName) was made from" }) })
-        _sides = State(initialValue: form.sides.compactMapValues { Picture($0) })
+        _picture = State(initialValue: filled.picture)
+        _sides = State(initialValue: filled.sides)
         _restyle = State(initialValue: form.restyle)
         _cartoon = State(initialValue: form.cartoon)
         _description = State(initialValue: form.description)
