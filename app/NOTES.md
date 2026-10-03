@@ -578,9 +578,9 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   Both are proven against local fake servers only.
 - **Report a Problem makes a zip and opens a filled-in issue** (`MimicCore/Report.swift`, `Log.swift`;
   #100). A link can't attach a file, so Help → Report a Problem… (or the action on a mini that
-  didn't finish) writes `runs/_reports/mimic-report-….zip`, shows it in Finder, and opens
-  bug.yml's form with `version`, `mac`, `logs` (drag it in) and, for a mini, `what` filled in
-  through the form's field ids. The zip always has the build line, the Mac (`hw.model`, the chip,
+  didn't finish) writes `runs/_reports/mimic-report-….zip` (and deletes those over a week old
+  by modification date, #350), shows it in Finder, and opens bug.yml's form with `version`,
+  `mac`, `logs` (drag it in) and, for a mini, `what` filled in through the form's field ids. The zip always has the build line, the Mac (`hw.model`, the chip,
   memory, macOS), the app's own log and, for a mini, every `*.log` in its folder (the last 2 MB of
   each) and settings.json; the picture only when the alert's "Include the picture (the issue is
   public)" is ticked, off by default. Renders and the 3D files never. Every text file is scrubbed
@@ -601,9 +601,9 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   power, the Metal GPU, the queue and last job by kind and step (never a name), and the nozzle,
   base and grey sculpt of the mini, else the last job's, else New Mini's. Priority is fixed (nice
   10), so it's stated, not read. A picture of the main window and its sheets (not Settings) goes in
-  as window.png when "Include a picture of Mimic's window" is ticked, on by default under a preview:
-  taken as the action starts, before the alert, by drawing the views (`cacheDisplay`), which needs
-  no Screen Recording permission. What Metal draws, the 3D view, may come out empty.
+  as window.png when "Include a picture of Mimic's window" is ticked, off by default (#350: it
+  can show other minis) over a preview: taken as the action starts, before the alert, by drawing
+  the views (`cacheDisplay`), which needs no Screen Recording permission. What Metal draws, the 3D view, may come out empty.
 - **A crash is offered as a report at the next launch** (`MimicCore/CrashReport.swift`; #284). The
   app and `mimic` are one binary, so both crash as `mimic-….ips` in `~/Library/Logs/DiagnosticReports`
   (an .ips is a header line of JSON, then the report's JSON). At launch the newest one written since

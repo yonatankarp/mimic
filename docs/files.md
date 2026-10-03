@@ -9,7 +9,7 @@ lives where, what each file is, and what you can safely change by hand.
 | What | Where |
 |---|---|
 | Your minis and projects | `~/Documents/Mimic`, or the folder chosen in Settings → General |
-| Reports from Report a Problem, and of a crash | `_reports/` in the minis folder |
+| Reports from Report a Problem, and of a crash (kept for a week) | `_reports/` in the minis folder |
 | The 3D engine and its models | `~/Library/Application Support/Mimic/engine/` |
 | The queue | `~/Library/Application Support/Mimic/queues/<key>/` |
 | Time estimates | `~/Library/Application Support/Mimic/timings.jsonl` |
@@ -30,7 +30,7 @@ By default it's **Documents → Mimic** (`~/Documents/Mimic`), made when you mak
 │   ├── tiefling-2/          another version of it
 │   └── raven/
 ├── Orc Warband/             an empty project
-└── _reports/                Report a Problem's zips, crash reports' too (never shown as a project)
+└── _reports/                Report a Problem's zips, crash reports' too, for a week (never shown as a project)
 ```
 
 How Mimic reads it:
