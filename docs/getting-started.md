@@ -146,7 +146,8 @@ Version** stops Mimic showing that version when it opens, though checking yourse
 To check yourself, choose **Mimic → Check for Updates…**.
 
 Mimic never installs an update while a mini is being made or waiting in the queue. The note then
-says it installs when the queue is done, and it does.
+says it installs when the queue is done, and it does. If Mimic is asking you something then, or
+showing a window to save a file, the update waits until you've answered.
 
 To stop Mimic checking when it opens, open **Settings → General** and, under **Updates**, turn off
 **Check for updates when Mimic opens**. **Check Now** checks straight away. Only public release

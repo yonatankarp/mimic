@@ -111,7 +111,7 @@ opens (**Check Now** and **Check for Updates…** still show it), and **Remind M
 the next time you open Mimic. Until then a note stays in the toolbar ("Mimic 0.12.0 is
 available", say): click it to see the window again. Mimic never installs an update while a mini
 is being made or waiting: the note then says the new version installs when the queue is done,
-and it does.
+and it does. If Mimic is asking you something then, the update waits until you've answered.
 
 ## 3D Model
 
