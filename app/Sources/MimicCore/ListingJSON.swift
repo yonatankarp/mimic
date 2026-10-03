@@ -121,8 +121,9 @@ public enum ListingJSON {
         public var magnet: String?
 
         public init(_ s: Sizes) {
-            height = s.height.flatMap(Double.init); base = s.base.flatMap(Double.init)
-            nozzle = s.nozzle.flatMap(Double.init); inflate = s.inflate.flatMap(Double.init)
+            // JSON has no inf or nan, and JSONEncoder throws on them (#379): such a size is left out.
+            func mm(_ text: String?) -> Double? { text.flatMap(Double.init).flatMap { $0.isFinite ? $0 : nil } }
+            height = mm(s.height); base = mm(s.base); nozzle = mm(s.nozzle); inflate = mm(s.inflate)
             noBase = s.noBase; shape = s.shape.rawValue; style = s.style.rawValue; magnet = s.magnet?.rawValue
         }
     }
