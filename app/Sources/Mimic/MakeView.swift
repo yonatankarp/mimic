@@ -52,6 +52,12 @@ struct MakeView: View {
     /// The AI helper is rewriting the change, before it's made; Cancel stops it making it.
     @State private var writing = false
     @State private var writingTask: Task<Void, Never>?
+    /// Improve Description's request, stopped when the sheet closes (#346). Here, not in the
+    /// box: a row of a Form can disappear while it's scrolled out of sight.
+    @State private var improving: Task<Void, Never>?
+    /// Pictures pasted, written to the temporary folder: deleted when the sheet closes, by when
+    /// any mini made from one has its own copy (`JobRunner.make` copies it as it's asked for).
+    @State private var pasted: [URL] = []
 
     /// `start` was read and decoded when the sheet was asked for: this runs again on every frame
     /// of a window resize, so it reads nothing (#341).
@@ -129,7 +135,11 @@ struct MakeView: View {
             Divider()
             makeBar
         }
-        .onDisappear { writingTask?.cancel() }  // closed while the helper writes: nothing is made
+        .onDisappear {
+            writingTask?.cancel()  // closed while the helper writes: nothing is made
+            improving?.cancel()
+            for url in pasted { try? FileManager.default.removeItem(at: url) }
+        }
         .onAppear {
             // The project you're looking at: the one New Mini was asked from, else the selected
             // mini's. Edit & Make Again keeps the mini's own.
@@ -446,7 +456,7 @@ struct MakeView: View {
                     name = MakeAdvice.name(fromDescription: text)
                     autoName = true
                 }
-            ImproveBox(description: description, kind: card.kind.rawValue, improved: $improved)
+            ImproveBox(description: description, kind: card.kind.rawValue, improved: $improved, request: $improving)
             if !health.picturesReady { needsPictures("A description needs \(health.pictureNeed).") } else { opensWhenNeeded }
         }
     }
@@ -504,7 +514,7 @@ struct MakeView: View {
         if let image = NSImage(pasteboard: pb), let tiff = image.tiffRepresentation,
            let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
             let url = FileManager.default.temporaryDirectory.appendingPathComponent("Pasted picture \(UUID().uuidString.prefix(8)).png")
-            if (try? png.write(to: url)) != nil { return take(url, unnamed: "Picture pasted.") }
+            if (try? png.write(to: url)) != nil { pasted.append(url); return take(url, unnamed: "Picture pasted.") }
         }
         NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
     }

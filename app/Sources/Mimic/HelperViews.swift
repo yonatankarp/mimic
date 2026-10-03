@@ -10,6 +10,8 @@ struct ImproveBox: View {
     var kind = "character"
     /// The improved text; nil means the person's own description is used.
     @Binding var improved: String?
+    /// The request while it's out, for New Mini to stop when it closes (#346).
+    @Binding var request: Task<Void, Never>?
     @AppStorage(HelperConfig.providerKey) private var provider = HelperProvider.off.rawValue
     @State private var working = false
     @State private var problem: String?
@@ -48,12 +50,16 @@ struct ImproveBox: View {
         let text = description.trimmingCharacters(in: .whitespacesAndNewlines), kind = kind
         working = true
         problem = nil
-        Task {
+        request = Task {
             // Off the main thread: reading the key may wait on a Keychain prompt after an update.
-            let result = await Task.detached {
+            let ask = Task.detached {
                 Result { try (DescriptionHelper.configured(defaults: .standard) ?? { throw HelperError.off }()).improve(text, kind: kind) }
-            }.value
+            }
+            // Cancelling this one cancels the request, which then stops (`DescriptionHelper.send`).
+            let result = await withTaskCancellationHandler { await ask.value } onCancel: { ask.cancel() }
             working = false
+            request = nil
+            if Task.isCancelled { return }
             switch result {
             case .success(let better): improved = better
             case .failure(let error): problem = said(error, else: "The helper couldn't answer.") + " Your own description still works."

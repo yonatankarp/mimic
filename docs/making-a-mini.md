@@ -71,7 +71,8 @@ draw. It's off unless you choose one:
 
 Then New Mini's description has **Improve Description**. Press it, and the helper's version
 appears under **Improved description**: Make Mini draws from that one. Change anything you like,
-or press **Use Original** to go back to your own words.
+or press **Use Original** to go back to your own words. Closing New Mini before the helper answers
+stops its request.
 
 !!! note "What the helper sees"
     A cloud service receives only what you type: a description, or what to change in a picture,
