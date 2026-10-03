@@ -287,9 +287,11 @@ final class MakeRequestTests: XCTestCase {
         XCTAssertEqual([ExitCode.failed, ExitCode.usage, ExitCode.stopped], [1, 64, 130])
         for typedWrong: Error in [CommandRefusal.usage, CommandRefusal.badSeed, CommandRefusal.unknownOption("--x"),
                                   CommandRefusal.notTaken(command: "retry", option: "--height"), RequestError.badNumber("height"),
-                                  RequestError.badNozzle, RequestError.noName, RequestError.badName, RequestError.badProjectName] {
+                                  RequestError.badNozzle, RequestError.noName, RequestError.badName, RequestError.badProjectName,
+                                  CommandRefusal.noNewName("--to")] {
             XCTAssertEqual(ExitCode.of(typedWrong), 64, "\(typedWrong)")
         }
+        XCTAssertEqual("\(CommandRefusal.noNewName("--as"))", "--as needs the new name")
         // Mimic isn't ready, or the mini isn't there: nothing typed wrong.
         for failed: Error in [CommandRefusal.notSetUp, RequestError.notFound, RequestError.queued("a"), Refusal("no"),
                               RequestError.nameTaken("a"), RequestError.projectTaken("P")] {

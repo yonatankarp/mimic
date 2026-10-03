@@ -9,6 +9,8 @@ public enum CommandRefusal: Error, Equatable, CustomStringConvertible {
     case badScale, badBaseShape, badBaseStyle, badMagnet, badSeed, noProjectName, badModel, noNozzle
     case noNumber(String)
     case noPicture(String)
+    /// `--to` or `--as` followed by another option instead of the new name (#449).
+    case noNewName(String)
     case unknownOption(String)
     /// An option the command (as typed: "retry") doesn't take (#327).
     case notTaken(command: String, option: String)
@@ -30,6 +32,7 @@ public enum CommandRefusal: Error, Equatable, CustomStringConvertible {
         case .noProjectName: "--project needs a project's name"
         case .badModel: "--model needs one of: \(EngineDownload.catalogue.map(\.id).joined(separator: ", ")) (see mimic models)"
         case .noPicture(let flag): "\(flag) needs a picture"
+        case .noNewName(let flag): "\(flag) needs the new name"
         case .unknownOption(let a): "unknown option: \(a)\n\(Usage.text)"
         case .notTaken(let command, let option): "mimic \(command) doesn't take \(option) (mimic --help lists what each command takes)"
         case .projectNotHere: "--project is for mimic make, import and resize --project; mimic move moves a mini"
