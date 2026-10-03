@@ -11,7 +11,9 @@ command refuses an option it doesn't take, rather than ignoring it.
 
 1. Finish Mimic's first-launch download in the app: `make` and `retry` need the 3D engine.
 2. Choose **Mimic → Install Command-Line Tool…**, copy the command it shows, and paste it into
-   Terminal. It asks for your Mac password once.
+   Terminal. It asks for your Mac password once. If you installed Mimic with Homebrew
+   (`brew install --cask yonatankarp/mimic/mimic`), skip this step: Homebrew already added
+   `mimic`.
 3. Check it works:
 
 ```bash
