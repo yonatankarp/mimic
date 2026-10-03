@@ -337,6 +337,8 @@ public enum Prep {
     /// when Export for Virtual Tabletop places a model again for a print file made before that.
     static func place(_ mesh: inout Mesh, _ o: PrepOptions, leavingOutItsBase: Bool = false, log: (String) -> Void = { _ in }) throws
         -> (standsAlone: Bool, footprint: Double, toPrint: simd_double4x4, figureFloor: Float?) {
+        // A corner that isn't a number would make every size below one too (#319).
+        guard mesh.positions.allSatisfy({ $0.x.isFinite && $0.y.isFinite && $0.z.isFinite }) else { throw PrepError(Prep.noShape) }
         var toPrint = matrix_identity_double4x4
         if o.turn != 0 {
             // A rotation, not a mirror, so the triangles keep their winding.
@@ -393,6 +395,9 @@ public enum Prep {
         // A flat drawing can come back from the engine as a flat sheet (a cartoon gave TRELLIS.2 a
         // square 80 x 80 x 0.1 mm), which prep would otherwise size and write like any mini.
         let e = extent ?? mesh.mainBounds(), size = e.hi - e.lo
+        // Every corner in one place passes the flat check (0 < 0) and would be scaled to infinity,
+        // which crashed print prep (#319).
+        guard size.max() > 0 else { throw PrepError(Prep.noShape) }
         if size.min() < Prep.flat * size.max() { throw PrepError(Prep.flatProblem) }
         let span: Float
         if o.fitLongest, let e = extent { span = max(e.hi.x - e.lo.x, e.hi.y - e.lo.y, e.hi.z - ground0) } else { span = top - ground0 }
@@ -467,6 +472,7 @@ public enum Prep {
     static let baseFlat: Float = 1200
     /// A model whose thinnest side is under this share of its longest is a flat sheet, not a mini.
     static let flat: Float = 0.02
+    static let noShape = "The 3D model has no shape to print: all its points are in one place, or some of them aren't numbers."
     static let flatProblem = "The 3D model came out flat, like a sheet of paper. For a flat drawing, turn on \"Turn it into a grey sculpt first\" (--restyle) and make it again."
 
     static func longest(_ p: Mesh.Piece) -> Float {

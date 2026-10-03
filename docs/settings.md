@@ -91,8 +91,9 @@ Mimic then asks whether to move your minis there:
 You can change the folder once no mini is being made or waiting in the queue. Mimic won't use a
 folder inside the one your minis are in now, or one that holds it, and it won't move minis onto
 others with the same names: it names them, so you can rename yours first. If a move goes wrong,
-your minis stay where they were. For more on the folder itself, see
-[Where your files are](files.md).
+your minis stay where they were. While they're moving, making, resizing, renaming, moving or
+trashing a mini, and making a project, wait: Mimic asks you to try again once the move is done.
+For more on the folder itself, see [Where your files are](files.md).
 
 ### Updates
 

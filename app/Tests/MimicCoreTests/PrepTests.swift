@@ -699,6 +699,21 @@ final class PrepTests: XCTestCase {
         }
     }
 
+    /// A model with no size (every corner in one place) or with a corner that isn't a number
+    /// fails with a message. The first used to pass the flat check and crash print prep (#319).
+    func testAModelWithNoShapeFails() throws {
+        for corner in [SIMD3<Float>(0.5, 0.5, 0.5), SIMD3<Float>(.nan, 0, 0), SIMD3<Float>(.infinity, 0, 0)] {
+            var tetra = Mesh()
+            tetra.positions = corner.x == 0.5 ? Array(repeating: corner, count: 4) : [[0, 0, 0], [1, 0, 0], [0, 1, 0], corner]
+            tetra.triangles = [[0, 2, 1], [0, 1, 3], [1, 2, 3], [0, 3, 2]]
+            for extra in [["--no-base"], [], ["--fit", "longest", "--ground", "bottom"]] {
+                XCTAssertThrowsError(try prep(extra, mesh: tetra), "\(corner) \(extra)") {
+                    XCTAssertTrue("\($0)".contains("no shape to print"), "\(corner) \(extra): \($0)")
+                }
+            }
+        }
+    }
+
     /// Existing minis and jobs are untouched: no flags means exactly what the explicit
     /// character flags make, byte for byte.
     func testCharacterDefaultsAreTheExplicitDefaults() throws {

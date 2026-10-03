@@ -111,6 +111,29 @@ final class CrashReportTests: XCTestCase {
         XCTAssertNil(CrashReport.check(in: dir, defaults: d, now: now, home: home), "another program's report under Mimic's name")
     }
 
+    /// Print prep and the 3D step are this binary too (`mimic _prep`, `mimic _engine`), run by a
+    /// job: their crash is a failed job, not Mimic quitting (#319). A report doesn't say which
+    /// arguments it ran with, so they're told apart by what started them: Mimic, or Mimic that
+    /// has already gone. The app's own crash, older, is still offered.
+    func testAJobStepsCrashIsNotOffered() throws {
+        let dir = try folder(), d = defaults(), now = Date()
+        d.set(now.addingTimeInterval(-3600), forKey: CrashReport.seenKey)
+        let text = try String(contentsOf: fixture, encoding: .utf8)
+        func startedBy(_ parent: String) -> String {
+            text.replacingOccurrences(of: #""parentProc": "launchd""#, with: #""parentProc": "\#(parent)""#)
+        }
+        XCTAssertNotEqual(startedBy("mimic"), text, "the fixture's parent moved")
+        try crash("mimic-2026-09-30-101500.ips", in: dir, ago: 60, now: now)
+        try crash("mimic-2026-09-30-101600.ips", in: dir, ago: 30, now: now, contents: startedBy("mimic"))
+        try crash("mimic-2026-09-30-101700.ips", in: dir, ago: 10, now: now, contents: startedBy("Exited process"))
+        XCTAssertEqual(CrashReport.check(in: dir, defaults: d, now: now, home: home)?.file.lastPathComponent, "mimic-2026-09-30-101500.ips",
+                       "a job step's crash was offered as Mimic's")
+        XCTAssertNil(CrashReport.check(in: dir, defaults: d, now: now, home: home), "offered again")
+        // Run by hand in Terminal (as `mimic _prep` can be), there's no job to show it: offered.
+        let byHand = try crash("mimic-2026-09-30-101800.ips", in: dir, ago: 0, now: now, contents: startedBy("zsh"))
+        XCTAssertNotNil(CrashReport.read(byHand, home: home))
+    }
+
     func testTheZipHasTheCrashAndTheLogFromBeforeIt() throws {
         let c = try XCTUnwrap(CrashReport.read(fixture, home: home))
         let dir = try folder()
