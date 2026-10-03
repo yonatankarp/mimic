@@ -418,16 +418,18 @@ struct MiniDetail: View {
 
 /// A picture from a mini's folder, read again when the mini changes (a resize rewrites the
 /// previews under the same names, which a URL-keyed cache would miss). A new picture fades in
-/// over the old one rather than popping; the job's popover uses it too.
+/// over the old one rather than popping; the job's popover and the sidebar use it too.
 struct Thumbnail: View {
     let url: URL?
     let version: Date
+    /// Fills its frame, cropping, as the sidebar's rows do; whole otherwise.
+    var fill = false
     @State private var image: NSImage?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         ZStack {
             if let image {
-                Image(nsImage: image).resizable().scaledToFit()
+                Image(nsImage: image).resizable().aspectRatio(contentMode: fill ? .fill : .fit)
                     .id(ObjectIdentifier(image))
                     .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.94)))
             } else {

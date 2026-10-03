@@ -713,7 +713,8 @@ public final class JobRunner: @unchecked Sendable {
         Log.queue.notice("\(kind.rawValue, privacy: .public) of \(entry.name, privacy: .public) \(outcome, privacy: .public)")
         // Not one that stopped for its picture to be checked: it would count as a whole make.
         if let ended, !ending.pictureReady {
-            timings?.append([TimingRecord(ended, settings: settings, steps: ran.took, version: version, machine: .current)])
+            timings?.append([TimingRecord(ended, settings: settings, steps: ran.took, version: version, machine: .current,
+                                          service: ImageService(picturesInUse))])
         }
         Leftover.clear(queue: install.queue)
         notify()

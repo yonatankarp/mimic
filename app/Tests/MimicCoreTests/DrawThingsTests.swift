@@ -77,6 +77,24 @@ final class DrawThingsTests: XCTestCase {
         XCTAssertThrowsError(try dt.draw(description: "a dwarf", seed: 1)) { XCTAssertEqual($0 as? DrawThingsError, .notRunning) }
     }
 
+    /// A server that's on but doesn't answer in time is said to be slow or stuck, not blamed on
+    /// the API Server setting (#321).
+    func testATimeoutIsNotNotRunning() throws {
+        // Listens and never accepts: the Mac takes the connection, and no reply ever comes.
+        let fd = socket(AF_INET, SOCK_STREAM, 0)
+        defer { close(fd) }
+        var addr = sockaddr_in()
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+        var len = socklen_t(MemoryLayout<sockaddr_in>.size)
+        XCTAssertTrue(withUnsafeMutablePointer(to: &addr) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { Darwin.bind(fd, $0, len) == 0 && listen(fd, 8) == 0 && getsockname(fd, $0, &len) == 0 }
+        })
+        let dt = DrawThings(environment: ["DRAWTHINGS_URL": "http://127.0.0.1:\(UInt16(bigEndian: addr.sin_port))", "DRAWTHINGS_MODEL": "x"], cli: nil)
+        dt.requestTimeout = 1
+        XCTAssertThrowsError(try dt.draw(description: "a dwarf", seed: 1)) { XCTAssertEqual($0 as? DrawThingsError, .timedOut) }
+    }
+
     /// The CLI gets the same request, and nothing that sends it to Draw Things' cloud.
     func testCLIArguments() {
         let draw = DrawThings.cliArguments(model: "m.ckpt", prompt: "a dwarf", seed: 7, width: 1024, height: 1024, output: "/o.png")

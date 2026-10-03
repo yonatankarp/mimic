@@ -89,7 +89,11 @@ Sizes are millimetres.
 | `--faces N` | 800000 | About how many triangles the STL keeps. |
 | `--turn DEG` | 0 | Turns the model about its vertical axis first. |
 
-Anything else is refused ("unknown option"), and a number has to be 0 or more.
+Anything else is refused ("unknown option"). So is a size print prep couldn't make on a Mac:
+`--height` takes 5 to 500, `--base` 5 to 200, `--base-height` 0 to 50, `--nozzle` 0.1 to 1,
+`--inflate` 0 to 2, `--voxel` 0.01 to 5 and `--flatten` 0 to 50. That's wider than New Mini and
+Resize let you choose, to experiment with. `--faces` takes a whole number from 1000 to 5000000,
+and `--turn` a number of 0 or more.
 
 ### How the nozzle feeds in
 

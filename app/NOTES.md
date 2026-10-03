@@ -606,7 +606,8 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   user, device, boot and incident ids. The issue's title is the exception and the top frame in
   Mimic's own binary (the trap and `abort` frames above it say nothing), with the crashed version.
   The crashed launch's log comes from `log show` filtered by its pid, which works on an
-  administrator account only; on a standard one about.txt says it couldn't be read. Crashes of
+  administrator account only; on a standard one about.txt says it couldn't be read. It's run by
+  `Checks.execute` with a 60 s timeout (about 1 s is usual), so a stuck `log` can't hang the report. Crashes of
   trellis-cli and draw-things-cli aren't offered: they're failed jobs, with Report a Problem on
   the mini. Don't Ask Again is `crashDontAsk`. The setup (#283) goes in too, as it is at the
   next launch: the crashed launch's queue and last job went with it.
@@ -677,16 +678,19 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
 - **Learned time estimates** (`MimicCore/Timings.swift`). Every job a Mimic finishes on this Mac
   is a line of `~/Library/Application Support/Mimic/timings.jsonl`: date, Mimic version, the Mac
   (chip, memory, GPU cores), make or resize, character or object, model, where the picture came
-  from, sizes, each step's seconds, and finished, failed or stopped. Capped at 2,000 lines; kept
+  from and which service drew it (`pictureService`, 0.12.0), sizes, each step's seconds, and
+  finished, failed or stopped. Capped at 2,000 lines; kept
   on this Mac only, never uploaded, and not in the minis folder, so sharing that shares none of
   it. A development Mimic (`MIMIC_HOME`, `MIMIC_FAKE_HOME`) keeps its own; `MIMIC_TIMINGS` names
   a file. Each step is estimated on its own, as the median of the 15 most recent similar jobs
   that finished on this Mac (same chip and memory): the picture from jobs whose picture came the
-  same way (Draw Things takes a minute, a copy takes nothing); the 3D shape from makes with the
-  same model; the print file from makes and resizes alike at the same nozzle and a height within
+  same way (a copy takes nothing; a drawn one from the same service, #325: Draw Things about 20 s,
+  OpenAI a minute or two); the 3D shape from makes with the same model; the print file from makes and resizes alike at the same nozzle and a height within
   30%, else any. Fewer than 3 and it's the fixed figure (the model's whole-mini minutes from the
   table above, less a minute for the picture and 45 s for print prep). Failed and stopped jobs
-  never count. "Taking longer than usual" is 1.35× the estimate and "unusually slow" 2.8×, the
+  never count. A record without `pictureService` counts as Draw Things: it was the only way
+  before 0.11.0, and 0.11's online pictures can't be told apart, so they count as Draw Things
+  until newer drawn makes push them out of the 15. "Taking longer than usual" is 1.35× the estimate and "unusually slow" 2.8×, the
   old 12 and 25 minutes against 9 as proportions, with a minute's slack so a short job isn't
   called slow. Not measured: whether height and nozzle move print prep enough to matter here
   (every mini on the Mac this was built on is 32 mm), so the size match is a guess that costs

@@ -217,6 +217,22 @@ final class GalleryTests: XCTestCase {
         XCTAssertEqual(list[1].madeAt.timeIntervalSince1970, old.timeIntervalSince1970, accuracy: 2)
     }
 
+    /// Try Again on a picture waiting to be checked draws a new source.png under the same name:
+    /// the mini's time changes with it, which is what the sidebar's picture reloads by (#338).
+    func testAPictureDrawnAgainChangesTheMinisTime() throws {
+        let fx = try Fixture(), fm = FileManager.default
+        let d = try fx.mini("dwarf")
+        for f in ["dwarf.stl", "model.glb"] { try fm.removeItem(at: d.appendingPathComponent(f)) }
+        try MiniSettings.update(d) { $0.created = Date() }  // still a mini without them
+        let source = d.appendingPathComponent("source.png")
+        try fm.setAttributes([.modificationDate: Date(timeIntervalSinceNow: -3600)], ofItemAtPath: source.path)
+        let before = try XCTUnwrap(Gallery.list(fx.install.runs).first)
+        try Data("drawn again".utf8).write(to: source)
+        let after = try XCTUnwrap(Gallery.list(fx.install.runs).first)
+        XCTAssertGreaterThan(after.madeAt, before.madeAt.addingTimeInterval(60), "the sidebar would keep the old picture")
+        XCTAssertNotEqual(after, before, "a reload wouldn't pass the new time on")
+    }
+
     /// A resize makes a new print file; the list goes by when each mini was asked for, so it
     /// stays where it was (#75). A mini from before that date was saved goes by its folder's.
     func testAResizeKeepsTheMinisPlace() throws {

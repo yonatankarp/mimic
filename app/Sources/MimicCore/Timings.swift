@@ -58,10 +58,16 @@ public struct TimingRecord: Codable, Equatable, Sendable {
     public var imported: Bool?
     /// How many pictures a make started from (#66); nil is one.
     public var pictures: Int? = nil
+    /// Where a make's pictures were made (`ImageService`, #325); nil for a resize, and for a make
+    /// recorded before 0.12.0.
+    public var pictureService: String? = nil
 
     public var jobKind: JobKind { job == "resize" ? .prep : .generate }
-    /// Step 1 asked Draw Things for a picture, rather than copying one.
+    /// Step 1 drew a picture, rather than copying one.
     var drawn: Bool { source == "description" || restyled == true }
+    /// Who drew it. A record older than online pictures (0.11.0) was Draw Things; one from 0.11
+    /// can't be told apart, and is taken as Draw Things too.
+    var service: ImageService { pictureService.flatMap(ImageService.init(rawValue:)) ?? .drawThings }
 }
 
 /// What a job to be estimated is: the things its time depends on.
@@ -69,21 +75,26 @@ public struct JobShape: Equatable, Sendable {
     public var job: JobKind
     public var model: String
     public var drawn: Bool
+    /// Where a picture it draws is made: Draw Things takes about 20 s, an online service a minute
+    /// or two (#325).
+    public var service: ImageService
     public var nozzle: String?
     public var height: Double?
     /// The front picture and those of the back and sides (#66): step 1 makes each.
     public var pictures: Int
 
-    public init(job: JobKind, model: String, drawn: Bool, nozzle: String? = nil, height: Double? = nil, pictures: Int = 1) {
-        self.job = job; self.model = model; self.drawn = drawn; self.nozzle = nozzle; self.height = height; self.pictures = pictures
+    public init(job: JobKind, model: String, drawn: Bool, service: ImageService = .drawThings, nozzle: String? = nil, height: Double? = nil,
+                pictures: Int = 1) {
+        self.job = job; self.model = model; self.drawn = drawn; self.service = service; self.nozzle = nozzle; self.height = height
+        self.pictures = pictures
     }
 
-    /// The job `kind` for the mini whose settings are `settings`; `sizes` for a resize not yet
-    /// written to them.
-    public init(_ kind: JobKind, settings: MiniSettings, sizes: Sizes? = nil) {
+    /// The job `kind` for the mini whose settings are `settings`, its pictures made by `service`;
+    /// `sizes` for a resize not yet written to them.
+    public init(_ kind: JobKind, settings: MiniSettings, service: ImageService, sizes: Sizes? = nil) {
         let s = sizes ?? settings.requested
         self.init(job: kind, model: EngineDownload.model(settings.model)?.id ?? settings.model ?? EngineDownload.standard.id,
-                  drawn: settings.source == .desc || settings.restyle == true,
+                  drawn: settings.source == .desc || settings.restyle == true, service: service,
                   nozzle: s?.nozzle ?? "0.4", height: s?.height.flatMap(Double.init), pictures: settings.pictures)
     }
 }
@@ -138,7 +149,8 @@ public enum Estimator {
 
     /// Each step is the median of that step in the most recent similar jobs that finished on
     /// this Mac, or the fixed figure when there are too few:
-    /// - the picture: jobs whose picture came the same way (Draw Things or a copy);
+    /// - the picture: jobs whose picture came the same way (a copy, or drawn by the same service:
+    ///   Draw Things or which online one);
     /// - the 3D shape: makes with the same 3D model;
     /// - the print file: makes and resizes alike, for the same nozzle at a height within 30%,
     ///   else any on this Mac (print prep's time grows with the size and a finer nozzle).
@@ -157,7 +169,8 @@ public enum Estimator {
         }
         if shape.job == .generate {
             let makes = usable.filter { $0.jobKind == .generate }
-            if let m = median(.picture, makes.filter { $0.drawn == shape.drawn }, each: true) { e.steps[.picture] = m * Double(shape.pictures) }
+            let pictured = makes.filter { $0.drawn == shape.drawn && (!shape.drawn || $0.service == shape.service) }
+            if let m = median(.picture, pictured, each: true) { e.steps[.picture] = m * Double(shape.pictures) }
             // The 3D step from several pictures runs the slower way (`multiViewShape`): those
             // learn from each other, not from one-picture makes.
             if let m = median(.shape, makes.filter { $0.model == shape.model && ($0.pictures ?? 1 > 1) == (shape.pictures > 1) }) {
@@ -296,8 +309,8 @@ public struct Timings: Sendable {
 }
 
 extension TimingRecord {
-    /// The record of a job that just ended.
-    init(_ s: JobStatus, settings: MiniSettings, steps: [JobStep: TimeInterval], version: String, machine: Machine) {
+    /// The record of a job that just ended, its pictures made by `service`.
+    init(_ s: JobStatus, settings: MiniSettings, steps: [JobStep: TimeInterval], version: String, machine: Machine, service: ImageService) {
         let sizes = settings.requested
         self.init(date: Date(), version: version, machine: machine, job: s.kind == .prep ? "resize" : "make",
                   mini: settings.kind ?? .character,
@@ -308,7 +321,8 @@ extension TimingRecord {
                   steps: Dictionary(uniqueKeysWithValues: steps.map { (String($0.key.rawValue), $0.value) }),
                   total: steps.values.reduce(0, +),
                   outcome: s.canceled ? .stopped : s.exit == 0 ? .finished : .failed, imported: nil,
-                  pictures: s.kind == .prep || settings.pictures == 1 ? nil : settings.pictures)
+                  pictures: s.kind == .prep || settings.pictures == 1 ? nil : settings.pictures,
+                  pictureService: s.kind == .prep ? nil : service.rawValue)
     }
 }
 
@@ -317,13 +331,14 @@ extension JobRunner {
     /// waiting to write them. Its settings come from `minis` (the gallery as last read) when it's
     /// there, so a progress tick doesn't read its file; else from its folder. A make still
     /// `waiting` takes nothing for the steps it will skip (`Pipeline.skipped`). Not the running
-    /// one's: a make writes its picture as it goes, and its progress would jump back.
+    /// one's: a make writes its picture as it goes, and its progress would jump back. Pictures it
+    /// draws are timed as the service Settings chose (`pictureService`).
     public func estimate(_ name: String, _ kind: JobKind, sizes: Sizes? = nil, history: [TimingRecord], minis: [Mini] = [],
                          waiting: Bool = false) -> Estimate {
         let mini = minis.first { $0.name == name }
         let folder = mini?.folder ?? Gallery.folder(install.runs, name)
         let settings = mini?.settings ?? folder.map(MiniSettings.load) ?? MiniSettings()
-        var e = Estimator.estimate(JobShape(kind, settings: settings, sizes: sizes), history: history)
+        var e = Estimator.estimate(JobShape(kind, settings: settings, service: ImageService(pictureService()), sizes: sizes), history: history)
         if waiting, kind == .generate, let folder {
             for step in Pipeline.skipped(folder, sides: settings.source == .image ? settings.sides ?? [] : []) { e.steps[step] = nil }
         }

@@ -59,7 +59,8 @@ If Mimic (or `mimic` in Terminal) crashed, the next time you open Mimic it asks
 - **Don't Ask Again** stops Mimic asking about crashes at all.
 
 Each crash is asked about once, whatever you answer. Mimic's notes from before the crash can only be
-read on an administrator account; on another, the file says so. A crash of the 3D engine or of
+read on an administrator account; on another, or if your Mac takes over a minute to find them, the
+file says so. A crash of the 3D engine or of
 Draw Things' command line tool isn't asked about: it shows as a mini that didn't finish, with
 **Report a Problem…** on its page.
 
