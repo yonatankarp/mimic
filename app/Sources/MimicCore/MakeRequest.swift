@@ -46,6 +46,25 @@ public enum CommandRefusal: Error, Equatable, CustomStringConvertible {
     }
 }
 
+/// What `mimic` exits with, so a script can tell them apart (#330); docs/cli.md lists them.
+public enum ExitCode {
+    /// It didn't work: a mini that isn't there, a make that didn't finish, Mimic not set up.
+    public static let failed: Int32 = 1
+    /// Typed wrong: a command or option that isn't there, or a value it can't take (BSD's EX_USAGE).
+    public static let usage: Int32 = 64
+    /// Stopped with Ctrl-C, or taken out of the queue while waiting for it.
+    public static let stopped: Int32 = 130
+
+    public static func of(_ error: Error) -> Int32 {
+        if let r = error as? CommandRefusal { return r == .notSetUp ? failed : usage }
+        if let r = error as? RequestError {
+            if case .badNumber = r { return usage }
+            if r == .badNozzle { return usage }
+        }
+        return failed
+    }
+}
+
 /// `mimic make`, `resize`, `retry`, `make-another` and `import`, as typed. Reading it touches
 /// nothing on disk: what needs the minis folder (Resize All's project, what a resize keeps, the
 /// next version's name) is the command line's, and `checkedSizes(_:object:)` finishes the checks after it.
