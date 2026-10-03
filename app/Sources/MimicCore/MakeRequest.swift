@@ -50,7 +50,7 @@ public enum CommandRefusal: Error, Equatable, CustomStringConvertible {
 public enum ExitCode {
     /// It didn't work: a mini that isn't there, a make that didn't finish, Mimic not set up.
     public static let failed: Int32 = 1
-    /// Typed wrong: a command or option that isn't there, or a value it can't take (BSD's EX_USAGE).
+    /// Typed wrong: a command or option that isn't there, or a value or name it can't take (BSD's EX_USAGE).
     public static let usage: Int32 = 64
     /// Stopped with Ctrl-C, or taken out of the queue while waiting for it.
     public static let stopped: Int32 = 130
@@ -59,7 +59,8 @@ public enum ExitCode {
         if let r = error as? CommandRefusal { return r == .notSetUp ? failed : usage }
         if let r = error as? RequestError {
             if case .badNumber = r { return usage }
-            if r == .badNozzle { return usage }
+            // A name Mimic doesn't take, as typed (#431); one already taken is a failure.
+            if [.badNozzle, .noName, .badName, .badProjectName].contains(r) { return usage }
         }
         return failed
     }
