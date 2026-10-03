@@ -217,7 +217,7 @@ final class GalleryTests: XCTestCase {
         XCTAssertEqual(list[1].madeAt.timeIntervalSince1970, old.timeIntervalSince1970, accuracy: 2)
     }
 
-    /// Try Again on a picture waiting to be checked draws a new source.png under the same name:
+    /// Draw Again on a picture waiting to be checked draws a new source.png under the same name:
     /// the mini's time changes with it, which is what the sidebar's picture reloads by (#338).
     func testAPictureDrawnAgainChangesTheMinisTime() throws {
         let fx = try Fixture(), fm = FileManager.default

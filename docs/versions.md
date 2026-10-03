@@ -64,9 +64,9 @@ In **Make Another Version…** or **New 3D Shape…**, type it in **What to chan
 1. Mimic redraws the mini's picture with your change.
 2. Mimic stops and shows it to you: **Check the picture**.
 3. If the change came out right, press **Build Shape** to make the 3D shape from it. If not,
-   press **Try Again** to draw it again with a new variation number.
+   press **Draw Again** to draw it again with a new variation number.
 
-![A mini waiting at Check the picture: the dwarf redrawn as a grey sculpt with a horned helmet, and Try Again and Build Shape under it](images/screens/pictures-check-the-picture.png){ width="700" }
+![A mini waiting at Check the picture: the dwarf redrawn as a grey sculpt with a horned helmet, and Draw Again and Build Shape under it](images/screens/pictures-check-the-picture.png){ width="700" }
 
 The picture waits for you. The list shows the mini as **Picture ready to check**, and its
 notification has a **Build Shape** button.

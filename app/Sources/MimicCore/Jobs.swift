@@ -344,7 +344,7 @@ public final class JobRunner: @unchecked Sendable {
         }
     }
 
-    /// Try Again for a mini waiting for its picture to be checked (#156): its pictures are
+    /// Draw Again for a mini waiting for its picture to be checked (#156): its pictures are
     /// drawn again with a new number (`seed`, else a random one), since the same number draws
     /// the same picture, and it stops again once they're made. Stopped, it goes back to how it
     /// was, without them.

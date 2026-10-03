@@ -207,7 +207,7 @@ public struct MiniSettings: Codable, Equatable, Sendable {
     /// The last fix as the redraw is told it, when the AI helper rewrote it; absent is as typed.
     public var fixUsed: String?
     /// Its make stops once the picture is made, for the person to check it before the slow 3D
-    /// step (#156): Build Shape carries on, Try Again draws it again. Absent is no.
+    /// step (#156): Build Shape carries on, Draw Again draws it again. Absent is no.
     public var checkPicture: Bool?
 
     public init() {}

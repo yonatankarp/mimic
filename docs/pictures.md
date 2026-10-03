@@ -100,9 +100,9 @@ the mini's page shows the redrawn picture under **Check the picture**, and so do
 notification.
 
 - **Build Shape** carries on and makes the 3D shape from it.
-- **Try Again** draws the picture again, with a new variation number.
+- **Draw Again** draws the picture again, with a new variation number.
 
-![A mini waiting at Check the picture: the dwarf redrawn as a grey sculpt with a horned helmet, and Try Again and Build Shape under it](images/screens/pictures-check-the-picture.png){ width="700" }
+![A mini waiting at Check the picture: the dwarf redrawn as a grey sculpt with a horned helmet, and Draw Again and Build Shape under it](images/screens/pictures-check-the-picture.png){ width="700" }
 
 You can also say what to change when you make another version of a mini, or a new 3D shape (see
 [Versions](versions.md)). Each change starts from the picture the version before was drawn as, so
