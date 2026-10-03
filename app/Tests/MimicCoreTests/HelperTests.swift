@@ -405,8 +405,9 @@ final class FakeLLM: @unchecked Sendable {
     }
 
     /// Answers each request with what `reply` gives for it (its head names the method and path),
-    /// so one server can stand in for a whole API, pictures included.
-    init(reply: @escaping @Sendable (Request) -> (status: Int, body: Data)) throws {
+    /// so one server can stand in for a whole API, pictures included. `headers` (each line ending
+    /// in "\r\n") go in every answer that isn't a redirect.
+    init(headers: String = "", reply: @escaping @Sendable (Request) -> (status: Int, body: Data)) throws {
         let fd = socket(AF_INET, SOCK_STREAM, 0)
         self.fd = fd
         var addr = sockaddr_in()
@@ -442,7 +443,7 @@ final class FakeLLM: @unchecked Sendable {
                     close(c); continue
                 }
                 // As Data, not a C string: a picture has zero bytes in it.
-                var out = Data("HTTP/1.1 \(status) X\r\nContent-Type: application/json\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n".utf8)
+                var out = Data("HTTP/1.1 \(status) X\r\nContent-Type: application/json\r\nContent-Length: \(body.count)\r\n\(headers)Connection: close\r\n\r\n".utf8)
                 out.append(body)
                 _ = out.withUnsafeBytes { write(c, $0.baseAddress!, $0.count) }
                 close(c)
