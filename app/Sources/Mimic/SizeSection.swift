@@ -234,18 +234,33 @@ private struct NozzleRow: View {
     private var differs: Bool { card.nozzle != chosen && Rules.nozzles.contains(chosen) }
 }
 
-/// A slider with tick marks at common sizes (the base's 25, 32, 40 and 50 mm), numbered. The value still
-/// goes through the card's setter, so typing any size in the field beside it keeps working.
+/// A slider with numbered marks at common sizes (the base's 25, 32, 40 and 50 mm). Drawn here:
+/// the Mac's own slider ticks spread evenly whatever their values, and their labels don't line
+/// up with them. The value still goes through the card's setter, so typing any size in the field
+/// beside it keeps working.
 private struct TickedSlider: View {
     @Binding var value: Double
     let range: ClosedRange<Double>
     let ticks: [Double]
+    /// Half the knob: the track's ends are where the knob's centre stops.
+    private static let inset: CGFloat = 10
 
     var body: some View {
-        Slider(value: $value, in: range) {
-            EmptyView()
-        } ticks: {
-            SliderTickContentForEach(ticks, id: \.self) { t in SliderTick(t) { Text("\(Int(t))") } }
+        VStack(spacing: 2) {
+            Slider(value: $value, in: range)
+            GeometryReader { g in
+                ForEach(ticks, id: \.self) { t in
+                    VStack(spacing: 1) {
+                        Rectangle().frame(width: 1, height: 4)
+                        Text("\(Int(t))").font(.caption2)
+                    }
+                    .foregroundStyle(.secondary)
+                    .position(x: Self.inset + (g.size.width - 2 * Self.inset) * (t - range.lowerBound) / (range.upperBound - range.lowerBound),
+                              y: g.size.height / 2)
+                }
+            }
+            .frame(height: 18)
+            .accessibilityHidden(true)  // the field beside it says the size
         }
     }
 }

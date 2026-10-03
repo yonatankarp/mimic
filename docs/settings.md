@@ -11,7 +11,7 @@ with, choose what makes pictures and set up the AI helper, and choose where your
 
 ## General
 
-![Settings, General tab: every check green, Open Draw Things when needed on, Open minis in set to Bambu Studio, and Start minis only when plugged in](images/screens/settings-general.png){ width="540" }
+![Settings, General tab: every check green, Open Draw Things when needed on, Open minis in set to Bambu Studio, Your printer's nozzle at 0.4 mm · standard, and Start minis only when plugged in](images/screens/settings-general.png){ width="540" }
 
 ### Check that everything is set up
 
