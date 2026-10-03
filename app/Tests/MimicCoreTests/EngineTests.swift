@@ -103,12 +103,7 @@ final class EngineTests: XCTestCase {
 
     // MARK: The real `mimic _engine`
 
-    /// The `mimic` binary `swift test` built beside this test bundle.
-    var mimic: String {
-        let url = Bundle(for: Self.self).bundleURL.deletingLastPathComponent().appendingPathComponent("mimic")
-        XCTAssertTrue(FileManager.default.isExecutableFile(atPath: url.path), "run swift build first: no \(url.path)")
-        return url.path
-    }
+    var mimic: String { Fixture.mimic }
 
     /// Runs `mimic _engine` on a cut-out picture with `body` as trellis-cli, in a session of its
     /// own like a job step. Returns the process and its log.

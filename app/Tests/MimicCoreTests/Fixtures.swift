@@ -18,6 +18,13 @@ struct Fixture {
         try FileManager.default.createDirectory(at: install.queue, withIntermediateDirectories: true)
     }
 
+    /// The `mimic` binary `swift test` built beside this test bundle.
+    static var mimic: String {
+        let url = Bundle(for: FixtureFolders.self).bundleURL.deletingLastPathComponent().appendingPathComponent("mimic")
+        XCTAssertTrue(FileManager.default.isExecutableFile(atPath: url.path), "run swift build first: no \(url.path)")
+        return url.path
+    }
+
     /// A shell script to stand in for print prep or the 3D engine.
     func script(_ name: String, _ body: String) throws -> String {
         let url = root.appendingPathComponent(name)
