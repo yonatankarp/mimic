@@ -4,7 +4,8 @@ Everything Mimic does in its window, it also does as a `mimic` command in Termin
 engine and the same minis. It's handy for making a batch of minis from a script, resizing a whole
 project in one go, or reading your minis as JSON.
 
-Each section below shows the commands for one job, then every option those commands take.
+Each section below shows the commands for one job, then every option those commands take. A
+command refuses an option it doesn't take, rather than ignoring it.
 
 ## Install it
 
