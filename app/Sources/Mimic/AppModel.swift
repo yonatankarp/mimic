@@ -123,10 +123,7 @@ final class AppModel {
     /// The job in the toolbar, which the job's popover hangs from; nil hides both.
     var toolbarJob: JobStatus? { JobProgress.inToolbar(job, keptShown: presentation.keptShown, elsewhere: elsewhere) }
     /// This Mimic's job can be stopped: "Stop Making…" or "Stop Resizing…" in the menus, else nil.
-    var stopCommand: String? {
-        guard let job, job.running else { return nil }
-        return job.kind == .prep ? "Stop Resizing…" : "Stop Making…"
-    }
+    var stopCommand: String? { JobProgress.stopCommand(job) }
     /// View → Face Front: bumped for the mini's 3D view to turn back to face you.
     var faceFrontRequests = 0
     /// Edit → Find: bumped for the sidebar to put the cursor in its search field.
@@ -374,7 +371,7 @@ final class AppModel {
     }
 
     /// Pause After This One, Pause Queue or Resume Queue, in the job's popover and the Mini menu.
-    var pauseCommand: String { paused ? "Resume Queue" : current != nil ? "Pause After This One" : "Pause Queue" }
+    var pauseCommand: String { JobProgress.pauseCommand(paused: paused, making: current != nil) }
 
     /// Pausing lets the mini being made finish; resuming starts the next one if none is.
     func togglePause() {
@@ -717,11 +714,7 @@ final class AppModel {
     /// An error in words for people. Mimic's own refusals already are; anything else (a Cocoa
     /// error, a failed launch) gets `fallback`, and its raw text goes only in the tooltip.
     func plainWords(_ error: Error, else fallback: String = "Couldn't start. Check that Mimic's folder is still there, then try again.") -> String {
-        switch error {
-        // Gallery doesn't know what the job is doing; the running job does.
-        case RequestError.busy(let n, _) where n == current?.name: RequestError.busy(n, current?.kind ?? .generate).description
-        default: MimicCore.plainWords(error) ?? fallback
-        }
+        MimicCore.plainWords(error, making: current, else: fallback)
     }
 
     /// The job's popover is showing: note whether it's showing how the job ended, with Mimic in front.
@@ -858,12 +851,8 @@ final class AppModel {
         guard !made.isEmpty, !packing else { return }
         // One of one mini is its own print file.
         if made.count == 1 && copies == 1 { openInSlicer(made[0].stl!); return }
-        let projects = Set(made.map(\.project))
-        var name = made.count == 1 ? made[0].displayName
-            : projects.count == 1 ? (projects.first! ?? "Unsorted") : "\(made.count) Minis"
-        if copies > 1 { name += " ×\(copies)" }
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("Open Together")
-        let url = dir.appendingPathComponent(Rules.printFileName(name))
+        let url = dir.appendingPathComponent(Rules.printFileName(ThreeMF.name(made, copies: copies)))
         let parts = made.map { ($0.displayName, $0.stl!) }
         packing = true
         Task {
@@ -886,13 +875,7 @@ final class AppModel {
         guard mini.stl != nil else { return }
         let panel = NSSavePanel()
         panel.title = "Export for Virtual Tabletop"
-        // Said before saving, so a grey one isn't a surprise (#256).
-        let grey = "A low-poly model of \(mini.displayName) in grey, for a virtual tabletop."
-        panel.message = Tabletop.inColour(mini.settings)
-            ? "A low-poly model of \(mini.displayName) in its colours, for a virtual tabletop."
-            : mini.settings.change != nil
-            ? grey + " A version with a change to its picture is redrawn as a grey sculpt, so it can't keep the picture's colours."
-            : grey + " A mini comes out in colour when it's made from a colour picture with “Turn it into a grey sculpt first” off."
+        panel.message = Tabletop.saveMessage(mini)
         panel.nameFieldStringValue = "\(mini.displayName).glb"
         panel.allowedContentTypes = [UTType(filenameExtension: "glb") ?? .data]
         guard panel.runModal() == .OK, let url = panel.url else { return }

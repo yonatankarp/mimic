@@ -58,6 +58,17 @@ public struct SizeCard: Equatable, Sendable {
         suggest()
     }
 
+    /// The kind, purpose, nozzle and base last chosen (`SettingsKey`): most people keep one printer.
+    public static func remembered(defaults d: UserDefaults = .standard) -> SizeCard {
+        var card = SizeCard(purpose: Purpose(rawValue: d.string(forKey: SettingsKey.purpose) ?? "") ?? .game,
+                            nozzle: d.string(forKey: SettingsKey.nozzle) ?? "0.4",
+                            kind: MiniKind(rawValue: d.string(forKey: SettingsKey.kind) ?? "") ?? .character)
+        card.shape = BaseShape(rawValue: d.string(forKey: SettingsKey.baseShape) ?? "") ?? .round  // a hex-map player wants hex every time
+        card.style = BaseStyle(rawValue: d.string(forKey: SettingsKey.baseStyle) ?? "") ?? .plain
+        card.magnet = Magnet(rawValue: d.string(forKey: SettingsKey.magnet) ?? "")  // a player who magnetises does it every time
+        return card
+    }
+
     public mutating func setPurpose(_ p: Purpose) { purpose = p; resuggest() }
     public mutating func setKind(_ k: MiniKind) { kind = k; noBase = k == .object; resuggest() }
     public mutating func setScale(_ s: Int) { scale = s; resuggest() }
@@ -228,6 +239,32 @@ public enum MakeAdvice {
     /// is being typed in and there's text to paste too (a copied web page carries both).
     public static func pastesPicture(typing: Bool, hasText: Bool, hasPicture: Bool) -> Bool {
         hasPicture && !(typing && hasText)
+    }
+
+    /// What Make Mini is waiting for, said in the footer while the button is off, or nil. From a
+    /// picture (`hasPicture`) or a typed `description`; `folder` is the name's (`Rules.folderName`),
+    /// `newProject` the name typed for New Project… (nil for an existing one), `fix` the change
+    /// typed for the picture, and `pictureNeed` what pictures still need, nil once they're ready.
+    public static func missing(fromPicture: Bool, hasPicture: Bool, description: String, kind: MiniKind,
+                               folder: String, newProject: String?, fix: String, pictureNeed: String?) -> String? {
+        if fromPicture && !hasPicture { return "Add a picture to start" }
+        if !fromPicture && description.isEmpty { return "Describe your \(kind == .object ? "object" : "character") to start" }
+        if folder.isEmpty { return "Give your mini a name" }
+        if let newProject, Rules.projectName(newProject) == nil { return "Name the new project" }
+        guard let pictureNeed else { return nil }
+        if !fromPicture { return "A description needs \(pictureNeed) first" }
+        if !fix.isEmpty { return "A change needs \(pictureNeed) first" }
+        return nil
+    }
+
+    /// The changes asked for in a new mini's picture (#156): the `earlier` ones of the mini it
+    /// was filled in from, then `fix`, typed now (empty for none). From the picture it was given
+    /// instead of the one it was drawn as (not `drawn`), the new change takes the place of the
+    /// last. A description has none.
+    public static func fixes(fromPicture: Bool, earlier: [String], fix: String, drawn: Bool) -> [String] {
+        guard fromPicture else { return [] }
+        guard !fix.isEmpty else { return earlier }
+        return (drawn ? earlier : Array(earlier.dropLast())) + [fix]
     }
 
     /// Pixel sizes, not points: a 144 dpi picture is twice as big as it looks.

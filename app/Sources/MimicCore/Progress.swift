@@ -4,6 +4,18 @@ import Foundation
 /// `Estimate`: this Mac's own history when it has one, else Mimic's fixed figures. A job running
 /// well past it is told so plainly.
 public enum JobProgress {
+    /// This Mimic's `job` can be stopped: "Stop Making…" or "Stop Resizing…" in the menus, else nil.
+    public static func stopCommand(_ job: JobStatus?) -> String? {
+        guard let job, job.running else { return nil }
+        return job.kind == .prep ? "Stop Resizing…" : "Stop Making…"
+    }
+
+    /// Pause After This One, Pause Queue or Resume Queue, in the job's popover and the Mini menu.
+    /// `making`: a mini is being made, here or in another Mimic.
+    public static func pauseCommand(paused: Bool, making: Bool) -> String {
+        paused ? "Resume Queue" : making ? "Pause After This One" : "Pause Queue"
+    }
+
     /// The bar never claims to be done before it is.
     public static func fraction(_ s: JobStatus, estimate: Estimate, now: Date = Date()) -> Double {
         if s.running { return min(0.95, estimate.fraction(s, now: now)) }

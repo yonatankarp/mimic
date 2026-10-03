@@ -132,6 +132,15 @@ public func plainWords(_ error: Error) -> String? {
     }
 }
 
+/// `plainWords` as the app says it, with `fallback` for an error that isn't in words: the
+/// gallery doesn't know what the job is doing, but `making`, the job running, does.
+public func plainWords(_ error: Error, making: JobStatus?, else fallback: String) -> String {
+    switch error {
+    case RequestError.busy(let n, _) where n == making?.name: RequestError.busy(n, making?.kind ?? .generate).description
+    default: plainWords(error) ?? fallback
+    }
+}
+
 /// A refusal of the app's or the command line's own, already in words for people: a job
 /// refused before it started, a project that isn't there.
 public struct Refusal: Error, Equatable, CustomStringConvertible {

@@ -21,6 +21,40 @@ public struct CheckResult: Sendable, Equatable {
     public let fix: String
 }
 
+/// What the latest checks mean for making a mini: whether Make, Resize and Try Again are
+/// blocked, and whether pictures can be made. The app's `Health` runs the checks; this decides.
+public struct Readiness: Sendable {
+    /// The checks of the latest run, in order, and the results come back so far.
+    public var checks: [Check]
+    public var results: [String: CheckResult]
+
+    public init(checks: [Check], results: [String: CheckResult]) { self.checks = checks; self.results = results }
+
+    public func ok(_ id: String) -> Bool { results[id]?.ok == true }
+
+    /// Pictures are made online (Settings → Pictures), so Draw Things isn't needed.
+    public var online: Bool { checks.contains { $0.id == Checks.onlineID } }
+
+    /// False until whatever makes the pictures has come back green: the online service's key, or
+    /// every Draw Things check. Closed counts as green when Mimic opens it (Settings → Open Draw
+    /// Things when needed).
+    public var picturesReady: Bool { online ? ok(Checks.onlineID) : Checks.drawThingsIDs.allSatisfy(ok) }
+    /// What a picture needs, as "A description needs …" says it, with `service` chosen in Settings.
+    public func pictureNeed(_ service: ImageService) -> String { online ? "a working \(service.online?.name ?? "online") key" : "Draw Things" }
+    /// Ready, and closed: Mimic opens it when a mini needs it.
+    public var drawThingsOpensWhenNeeded: Bool { results["drawthings-api"]?.label == Checks.opensWhenNeeded }
+    /// Its API has answered in this check, so its connection is known to be on.
+    public var drawThingsConnected: Bool { ok("drawthings-api") && !drawThingsOpensWhenNeeded }
+
+    /// Why a mini can't be made right now, or nil. Only known failures count: a check still
+    /// running doesn't block.
+    public var blocking: String? {
+        let missing = checks.compactMap { c in results[c.id].flatMap { $0.required && !$0.ok ? $0.label : nil } }
+        if missing.isEmpty { return nil }
+        return "Mimic isn't fully set up yet: \(missing.joined(separator: ", "))."
+    }
+}
+
 /// The Settings health checks, ported from the web version. Every dependency is an input so
 /// tests can build a Mac where each check is red, and one where it's green.
 public struct Checks: Sendable {
