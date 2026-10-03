@@ -499,9 +499,7 @@ final class AppModel {
     // MARK: Projects
 
     /// Why `mini` can't be moved to another project right now, or nil.
-    func whyCantMove(_ mini: Mini) -> String? {
-        waiting(mini.name) != nil || current?.name == mini.name ? RequestError.cantMove(mini.name).description : nil
-    }
+    func whyCantMove(_ mini: Mini) -> String? { miniMenu.whyCantMove(mini) }
 
     @discardableResult
     func createProject(_ text: String) throws -> String {
