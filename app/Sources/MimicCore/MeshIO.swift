@@ -49,7 +49,8 @@ public enum GLB {
 
     /// `most` positions, corners and steps through the parts: a file of a few MB can list the same
     /// parts, meshes or data over and over, and be read out to tens of GB or for hours (#334).
-    static func parse(_ data: Data, painted: Bool, most: Int = 50_000_000) throws -> (mesh: Mesh, paint: Paint?) {
+    static let most = 50_000_000
+    static func parse(_ data: Data, painted: Bool, most: Int = GLB.most) throws -> (mesh: Mesh, paint: Paint?) {
         func u32(_ at: Int) -> UInt32 { data.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: at, as: UInt32.self) } }
         guard data.count >= 20, u32(0) == 0x4654_6C67 else { throw PrepError("not a .glb file") }
         var json: [String: Any]?, bin: Range<Int>?
