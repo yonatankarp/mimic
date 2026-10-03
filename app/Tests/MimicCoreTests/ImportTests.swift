@@ -58,7 +58,16 @@ final class ImportTests: XCTestCase {
         XCTAssertThrowsError(try ModelImport.read(file, most: 10)) { error in
             guard case .unreadableModel(let why) = error as? RequestError else { return XCTFail("\(error)") }
             XCTAssertEqual(why, "the .glb is too big")
+            // A sentence of its own: "It needs a GLB or STL" makes no sense of a GLB (#453).
+            XCTAssertEqual("\(error)", "That model is too big for Mimic to read. Try a simpler one, with fewer triangles.")
         }
+    }
+
+    /// `mimic export` says export's own reason, or Mimic's plain words, never a file's raw text (#453).
+    func testCouldntExportIsInPlainWords() {
+        XCTAssertEqual(Tabletop.couldntExport("Ogre", PrepError("it isn't made yet")), "Couldn't export Ogre: it isn't made yet.")
+        XCTAssertEqual(Tabletop.couldntExport("Ogre", CocoaError(.fileWriteNoPermission)),
+                       "Couldn't export Ogre. Check that Mimic can save files in this folder, then try again.")
     }
 
     func testTheModelWrittenIsReadBackTheSame() throws {

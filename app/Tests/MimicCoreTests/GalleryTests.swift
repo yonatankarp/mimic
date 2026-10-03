@@ -525,4 +525,12 @@ final class SlicerTests: XCTestCase {
         }
         XCTAssertTrue(failed.value, "a slicer that's gone opened the file")
     }
+
+    /// `mimic open` says why in plain words, never macOS's raw text (#453).
+    func testCouldntOpenIsInPlainWords() {
+        let orca = Slicer(id: "orca", name: "OrcaSlicer", app: URL(fileURLWithPath: "/Applications/OrcaSlicer.app"))
+        XCTAssertEqual(Slicer.couldntOpen(in: orca, CocoaError(.fileNoSuchFile)),
+                       "Couldn't open it in OrcaSlicer. Check that it's still on your Mac, then try again.")
+        XCTAssertEqual(Slicer.couldntOpen(in: nil, RequestError.notFound), "Couldn't open it in your slicer. \(RequestError.notFound)")
+    }
 }

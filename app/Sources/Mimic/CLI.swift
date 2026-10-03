@@ -298,7 +298,7 @@ enum CLI {
         if done.wait(timeout: .now() + 30) == .timedOut {
             return fail("Couldn't open it in \(slicer?.name ?? "your slicer"): your Mac didn't answer in 30 seconds.")
         }
-        if let failed { return fail("Couldn't open it in \(slicer?.name ?? "your slicer"): \(failed.localizedDescription)") }
+        if let failed { return fail(Slicer.couldntOpen(in: slicer, failed)) }
         print("Opened \(m.displayName) in \(slicer?.name ?? "your Mac's app for print files").")
         return 0
     }
@@ -323,7 +323,7 @@ enum CLI {
             let size = ByteCountFormatter.string(fromByteCount: Int64(made.bytes), countStyle: .file)
             print("Exported \(m.displayName) for a virtual tabletop: \(out.path), \(made.triangles) triangles, \(made.colour ? "in colour" : "grey"), \(size).")
             if let why = made.whyGrey { FileHandle.standardError.write(Data("It's grey, not in its colours: \(why).\n".utf8)) }
-        } catch { return fail("Couldn't export \(m.displayName): \(error)") }
+        } catch { return fail(Tabletop.couldntExport(m.displayName, error)) }
         return 0
     }
 
@@ -494,7 +494,7 @@ enum CLI {
             print("✨ Improved description: \(better)")
             return .description(better, original: description)
         } catch {
-            print("Couldn't improve it: \(error) Using your description as it is.")
+            print("Couldn't improve it: \(plainWords(error) ?? "The helper couldn't answer.") Using your description as it is.")
             return .description(description)
         }
     }
@@ -509,7 +509,7 @@ enum CLI {
             print("✨ Change: \(used)")
             return used
         } catch {
-            print("Couldn't word it: \(error) Using your change as it is.")
+            print("Couldn't word it: \(plainWords(error) ?? "The helper couldn't answer.") Using your change as it is.")
             return nil
         }
     }
