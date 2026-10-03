@@ -202,6 +202,19 @@ final class MiniActionsTests: XCTestCase {
         XCTAssertEqual(same.nothingAdded(nil), "They're all already that size.")
     }
 
+    /// A size out of range is refused for them all, not counted as a mini skipped for not being
+    /// made yet (#432).
+    func testResizeAllRefusesASizeOutOfRangeBeforeSkippingAny() throws {
+        let fx = try Fixture()
+        _ = try fx.mini("a")
+        let jobs = JobRunner(install: fx.install, tools: fx.tools())
+        let done = jobs.resizeAll(Gallery.list(fx.install.runs), to: Sizes(height: "500"))
+        XCTAssertEqual(done.added, [])
+        XCTAssertEqual(done.skipped, 0)
+        XCTAssertEqual(done.failure as? RequestError, .badNumber("height"))
+        XCTAssertEqual(done.nothingAdded("Too tall."), "Too tall.")
+    }
+
     /// Several dropped pictures: a mini each, named after its file, and those that can't be used
     /// skipped and named; the last refusal not about the picture is kept to say why (#219).
     func testMakeEachNamesAMiniAfterEachPicture() throws {
