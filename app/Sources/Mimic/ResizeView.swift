@@ -28,6 +28,7 @@ struct ResizeView: View {
         let saved = mini.settings
         c.setKind(saved.kind ?? .character)  // before the sizes: choosing a kind suggests sizes afresh
         if let sizes = saved.made ?? saved.requested { c.load(sizes.asMade) }
+        if group != nil { c.forSeveral() }
         _card = State(initialValue: c)
     }
 
@@ -43,7 +44,7 @@ struct ResizeView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding([.horizontal, .top], 20)
-            Form { SizeSection(card: $card, seed: nil) }
+            Form { SizeSection(card: $card, seed: nil, several: several) }
                 .formStyle(.grouped)
                 .reportsHeight(0, into: $forms)
             Divider()
@@ -58,7 +59,7 @@ struct ResizeView: View {
                 Button("Cancel") { model.sheet = nil }.keyboardShortcut(.cancelAction)
                 Button(project == nil ? "Resize" : "Resize All") {
                     if let group {
-                        if let why = model.resizeAll(group, sizes: card.sizes) { problem = (why, why) }
+                        if let why = model.resizeAll(group, sizes: card.sizes, scale: card.chosenScale) { problem = (why, why) }
                     } else {
                         do { try model.resize(mini, sizes: card.sizes) } catch { problem = (model.plainWords(error), "\(error)") }
                     }
@@ -71,6 +72,11 @@ struct ResizeView: View {
         }
         .frame(width: 580, height: height)
         .fitsForms($height, $forms, room: room.height)
+    }
+
+    /// What Resize All sizes each character from, said in place of its real height.
+    private var several: String? {
+        group.map { g in SizeCard.severalNote(without: g.filter { $0.settings.realHeight == nil }.count, of: g.count) }
     }
 
     private var takes: String { JobProgress.about(model.estimate(mini.name, .prep, sizes: card.sizes).total) }

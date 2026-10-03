@@ -96,20 +96,54 @@ public struct SizeCard: Equatable, Sendable {
         inflate = madeInflate.map { Self.clamp($0, Self.inflateRange, step: 0.01) } ?? Self.inflateFor(nozzle)
         noBase = made.noBase
         if !made.noBase { shape = made.shape; style = made.style; magnet = made.magnet }  // no base keeps the last ones chosen, for if one is added
-        // The choice shown is the one these sizes match, not the last New Mini's.
+        // Its own real height, even when it isn't at a scale now: choosing Game Scale starts from it.
+        if kind != .object { realHeight = made.realHeight ?? "" }
+        // The choice shown is the one these sizes match, not the last New Mini's: Game Scale when
+        // its real height (an average human without one) is this tall at a scale (#479).
         // An object's one choice is its suggested size.
         if kind == .object { purpose = height == Self.objectSize[nozzle] ? .display : nil }
         else if height == Self.bestPrint[nozzle] { purpose = .display }
-        else if let s = Self.scales.first(where: { Double($0) == height }) { purpose = .game; scale = s; realHeight = "" }
+        else if let s = Self.scales.first(where: { Self.gameHeight(real: realHeight, scale: $0) == height }) { purpose = .game; scale = s }
         else { purpose = nil }
         suggest()  // refreshes the note; touched values stay
+    }
+
+    /// Resize All: each character is sized from its own real height (`Gallery.toResize`), so the
+    /// card's is left blank, not the first mini's, and at Game Scale its height, which minis
+    /// without one get, is an average human's. The base loaded stays.
+    public mutating func forSeveral() {
+        guard kind != .object else { return }
+        realHeight = ""
+        if purpose == .game { heightTouched = false; suggest() }
+    }
+
+    /// The scale chosen, when it's a character at Game Scale: what Resize All sizes each
+    /// character for from its own real height.
+    public var chosenScale: Int? { kind != .object && purpose == .game ? scale : nil }
+
+    /// Resize All at Game Scale, which doesn't ask the real height: what the minis are sized
+    /// from, when `without` of `count` have none kept (made before it was, or not at a scale).
+    public static func severalNote(without: Int, of count: Int) -> String {
+        if without == 0 { return "Each character keeps its own real height, so a halfling stays shorter than an elf." }
+        if without == count { return "Every mini gets the same height, the Character height below: none of them has its real height saved." }
+        return "Each character keeps its own real height. " + (without == 1 ? "One mini has no real height saved, so it gets"
+            : "\(without) minis have no real height saved, so they get") + " the Character height below."
     }
 
     /// What print prep is asked for. The extra thickness is sent only when chosen by hand:
     /// otherwise print prep picks it from the nozzle itself.
     public var sizes: Sizes {
         Sizes(height: Self.text(height), base: Self.text(base), nozzle: nozzle,
-              inflate: inflateTouched ? Self.text(inflate) : nil, noBase: noBase, shape: shape, style: style, magnet: magnet)
+              inflate: inflateTouched ? Self.text(inflate) : nil, noBase: noBase, shape: shape, style: style, magnet: magnet,
+              realHeight: realHeightKept)
+    }
+
+    /// The real height kept with the sizes, in metres: what's typed, or at Game Scale the 1.8 m
+    /// it counts as. None for an object, or over 20 m, which the field would read back as
+    /// centimetres (no height that tall fits the slider anyway).
+    private var realHeightKept: String? {
+        guard kind != .object, let m = Self.metres(realHeight) ?? (purpose == .game ? 1.8 : nil), m <= 20 else { return nil }
+        return Self.text((m * 1000).rounded() / 1000)
     }
 
     private mutating func resuggest() { heightTouched = false; baseTouched = false; suggest() }
@@ -155,16 +189,19 @@ public struct SizeCard: Equatable, Sendable {
         scales.dropLast().map(String.init).joined(separator: ", ") + " or \(scales.last!)"
     }
 
-    /// `--scale` in Terminal: Game scale's height (an average 1.8 m human) and base, for what
-    /// wasn't typed, so Terminal sizes a mini as the app does. Nil for a scale not in `scales`.
+    /// `--scale` in Terminal: Game scale's height and base, for what wasn't typed, so Terminal
+    /// sizes a mini as the app does. The height is the real height's in `sizes` (a resize keeps
+    /// the mini's own), else an average 1.8 m human's. Nil for a scale not in `scales`.
     public static func gameSizes(scale: Int, filling sizes: Sizes) -> Sizes? {
         guard scales.contains(scale) else { return nil }
         var card = SizeCard(purpose: .game, nozzle: sizes.nozzle ?? "0.4")
         card.setScale(scale)
+        card.setRealHeight(sizes.realHeight ?? "")
         if let h = sizes.height.flatMap(Double.init) { card.setHeight(h) }  // the base suits the height typed
         var out = sizes
         if out.height == nil { out.height = card.sizes.height }
         if out.base == nil && !out.noBase { out.base = card.sizes.base }
+        out.realHeight = card.sizes.realHeight
         return out
     }
 

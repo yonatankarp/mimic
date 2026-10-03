@@ -17,10 +17,15 @@ public struct Sizes: Equatable, Sendable {
     public var style = BaseStyle.plain
     /// None unless chosen, and always none with no base, like the shape.
     public var magnet: Magnet?
+    /// How tall the character is in real life, in metres (#479): what Game Scale sized it from,
+    /// so Resize can size it again at another scale. None for an object, and for minis made
+    /// before it was kept.
+    public var realHeight: String?
 
     public init(height: String? = nil, base: String? = nil, nozzle: String? = nil, inflate: String? = nil, noBase: Bool = false,
-                shape: BaseShape = .round, style: BaseStyle = .plain, magnet: Magnet? = nil) {
+                shape: BaseShape = .round, style: BaseStyle = .plain, magnet: Magnet? = nil, realHeight: String? = nil) {
         self.height = height; self.base = base; self.nozzle = nozzle; self.inflate = inflate; self.noBase = noBase
+        self.realHeight = realHeight
         self.shape = noBase ? .round : shape
         self.style = noBase ? .plain : style
         self.magnet = noBase ? nil : magnet
@@ -67,18 +72,20 @@ public struct Sizes: Equatable, Sendable {
     /// A resize's sizes: what wasn't given is kept from the sizes the mini was made with, as the
     /// app's Resize does. A hex mini on a stone floor with a magnet, made for a 0.2 mm nozzle,
     /// stays that. The magnet is given even as none, so it says so; a nozzle is given when set.
+    /// The character's real height is kept: it's what it is, not a size.
     public func resizing(_ was: Sizes?, shapeGiven: Bool, styleGiven: Bool, magnetGiven: Bool) -> Sizes {
         var out = self
         if !shapeGiven, let s = was?.shape { out.shape = s }
         if !styleGiven, let s = was?.style { out.style = s }
         if !magnetGiven { out.magnet = was?.magnet }
         if out.nozzle == nil { out.nozzle = was?.nozzle }
+        if out.realHeight == nil { out.realHeight = was?.realHeight }
         return out
     }
 }
 
 extension Sizes: Codable {
-    enum K: String, CodingKey, CaseIterable { case height, base, nozzle, inflate, nobase, shape, style, magnet }
+    enum K: String, CodingKey, CaseIterable { case height, base, nozzle, inflate, nobase, shape, style, magnet, realHeight }
     public init(from d: Decoder) throws {
         let c = try d.container(keyedBy: K.self)
         func text(_ k: K) -> String? {
@@ -91,6 +98,7 @@ extension Sizes: Codable {
         shape = noBase ? .round : text(.shape).flatMap(BaseShape.init) ?? .round
         style = noBase ? .plain : text(.style).flatMap(BaseStyle.init) ?? .plain
         magnet = noBase ? nil : text(.magnet).flatMap(Magnet.init)
+        realHeight = text(.realHeight)
     }
     public func encode(to e: Encoder) throws {
         var c = e.container(keyedBy: K.self)
@@ -102,6 +110,7 @@ extension Sizes: Codable {
         if !noBase && shape != .round { try c.encode(shape.rawValue, forKey: .shape) }
         if !noBase && style != .plain { try c.encode(style.rawValue, forKey: .style) }
         if !noBase, let magnet { try c.encode(magnet.rawValue, forKey: .magnet) }
+        try c.encodeIfPresent(realHeight, forKey: .realHeight)
     }
 }
 
@@ -228,6 +237,8 @@ public struct MiniSettings: Codable, Equatable, Sendable {
     }
 
     public var isObject: Bool { kind == .object }
+    /// How tall the character is in real life, kept with its sizes (`Sizes.realHeight`).
+    public var realHeight: String? { (made ?? requested)?.realHeight }
     /// How many pictures it's made from: the front, and those of the back and sides (#66).
     public var pictures: Int { source == .image ? 1 + (sides?.count ?? 0) : 1 }
     public var isImported: Bool { imported != nil }

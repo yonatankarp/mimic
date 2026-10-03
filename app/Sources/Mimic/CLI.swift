@@ -213,6 +213,7 @@ enum CLI {
             object = saved.isObject
             sizes = sizes.resizing(saved.made ?? saved.requested, shapeGiven: request.shapeGiven, styleGiven: request.styleGiven,
                                    magnetGiven: request.magnetGiven)
+            if all { sizes.realHeight = nil }  // each keeps its own (`Gallery.toResize`), not the first's
         }
         do { sizes = try request.checkedSizes(sizes, object: object) } catch { return fail(error) }
         timings.seedIfNeeded(runs: install.runs)  // before the first record marks it done
@@ -228,7 +229,7 @@ enum CLI {
             // This terminal runs the queue until the last of them is made, and follows that one.
             let resized = Names()
             jobs.keepGoing = { $0.contains { resized.has($0.name) } }
-            let done = jobs.resizeAll(group, to: sizes) { m, s in
+            let done = jobs.resizeAll(group, to: sizes, scale: request.scale) { m, s in
                 try jobs.resize(name: m.name, sizes: s)
                 resized.add(m.name)
                 mine.name = m.name

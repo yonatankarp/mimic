@@ -92,7 +92,7 @@ look at:
 | `restyle`, `cartoon`, `kind` | The grey sculpt, a cartoon, and `object` for anything that isn't a character. |
 | `seed`, `shapeSeed` | The variation number, and the 3D shape's own number after New 3D Shape. |
 | `model` | The 3D model it was made with (`trellis2-q8` or `pixal3d-sv`). Try Again uses it. |
-| `requested`, `made` | The sizes asked for and the sizes the last finished run made: `height`, `base`, `nozzle`, `inflate`, `nobase`, `shape`, `style`, `magnet`, as text. |
+| `requested`, `made` | The sizes asked for and the sizes the last finished run made: `height`, `base`, `nozzle`, `inflate`, `nobase`, `shape`, `style`, `magnet`, as text. A character also has `realHeight`, how tall it is in real life in metres, which Resize sizes it from at another scale (none on minis made with Mimic 0.13 or older). |
 | `sides`, `fixes`, `imported`, `versionOf` | Pictures of the back and sides, what was changed in the picture, the file a model was imported from, and the first of its versions. |
 | `failed`, `failedStep`, `notes`, `fragile` | Why the last run didn't finish, and what the last finished run wants you to know. |
 | `created` | When it was asked for: the list's order. |

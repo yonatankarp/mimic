@@ -52,6 +52,10 @@ over 20, such as `180`, is taken as centimetres, so a giant can still be `8` met
 blank for an average human. If Mimic can't read what you typed, it says so under the field and
 uses 1.8 m.
 
+Mimic keeps the real height with the mini. **Resize This Mini…** opens at its scale with the real
+height filled in, so you only pick a new **Scale**, and [Resize All](#change-the-size-of-a-mini-youve-made) sizes each
+character from its own.
+
 A tall character gets a bigger base: about 40% of its height, rounded to 5 mm, and never smaller
 than the scale's own base.
 
@@ -157,15 +161,21 @@ again, in about a minute. The mini itself doesn't change: the same shape, at the
 mini is being made, the resize waits its turn in [the queue](queue.md). A mini that's waiting or
 being made itself can be resized once it's made.
 
-![Resize All in Adventuring Party, with the same size choices as New Mini](images/screens/sizes-and-bases-resize-all.png){ width="290" }
+![Resize All in Adventuring Party at Game Scale: no real height to type, a line saying each character keeps its own and that one mini without one gets the Character height](images/screens/sizes-and-bases-resize-all.png){ width="290" }
 
 To resize several at once:
 
 - Select several minis (++cmd++-click or ++shift++-click), then right-click → **Resize N Minis…**.
 - Or right-click a project → **Resize All…**.
 
-Choose one size and base for all of them, and each mini waits its turn. Each keeps its own
-kind of base: an object without a base stays without one. Minis already that size are left out.
+Choose the sizes for all of them, and each mini waits its turn. At **Game Scale** you don't type
+a real height: each character keeps its own, so a halfling stays shorter than an elf at the new
+scale. A mini without a real height saved (one made with Mimic 0.13 or older, or one never sized at
+Game Scale) gets the **Character height**, the same for every one of them, and the sheet says how
+many there are. With **Best Print**, every mini gets the same height.
+
+Each keeps its own kind of base: an object without a base stays without one. Minis already that
+size are left out.
 
 !!! tip "The same mini at two sizes"
     Resize replaces the mini's print file. To keep one for the table and one for the shelf,

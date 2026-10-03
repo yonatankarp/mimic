@@ -201,6 +201,69 @@ final class SizeAdviceTests: XCTestCase {
         XCTAssertTrue(o.note.contains("about 80 mm on its longest side"), o.note)
     }
 
+    /// A mini made at Game Scale reopens at it with its real height filled in (#479): a 1 m
+    /// halfling at 32 mm is 18 mm, which matches no scale on its own, so you had to type 1 m again.
+    func testResizeReopensAtGameScaleWithTheRealHeight() {
+        var made = SizeCard(purpose: .game, nozzle: "0.4")
+        made.setScale(32); made.setRealHeight("1")
+        XCTAssertEqual(made.sizes, Sizes(height: "18", base: "25", nozzle: "0.4", realHeight: "1"))
+        var c = SizeCard(purpose: .display, nozzle: "0.4")
+        c.load(made.sizes)
+        XCTAssertEqual(c.purpose, .game)
+        XCTAssertEqual(c.scale, 32)
+        XCTAssertEqual(c.realHeight, "1")
+        c.setScale(54)
+        XCTAssertEqual(c.height, 30, "another scale, from its own real height")
+        // At a height of its own it's at no scale, but choosing Game Scale starts from its real height.
+        c.load(Sizes(height: "40", base: "25", nozzle: "0.4", realHeight: "1"))
+        XCTAssertNil(c.purpose)
+        c.setPurpose(.game)
+        XCTAssertEqual(c.height, 30)
+        // One made before real heights were kept is an average human, and forgets the last one's.
+        c.load(Sizes(height: "32", base: "25", nozzle: "0.4"))
+        XCTAssertEqual(c.purpose, .game); XCTAssertEqual(c.realHeight, "")
+        XCTAssertEqual(c.sizes.realHeight, "1.8", "blank at Game Scale is kept as the 1.8 m it counts as")
+    }
+
+    /// What's kept: metres, as typed or worked out from feet; none for an object, none at Best
+    /// Print unless typed, and none past 20 m, which the field would read back as centimetres.
+    func testTheRealHeightKept() {
+        var c = SizeCard(purpose: .game, nozzle: "0.4")
+        for (typed, kept) in [("6'2\"", "1.88"), ("175", "1.75"), ("1,5", "1.5"), ("tall", "1.8"), ("8", "8"), ("70 ft", nil)] {
+            c.setRealHeight(typed); XCTAssertEqual(c.sizes.realHeight, kept, typed)
+        }
+        c.setRealHeight(""); c.setPurpose(.display)
+        XCTAssertNil(c.sizes.realHeight)
+        c.setRealHeight("1"); XCTAssertEqual(c.sizes.realHeight, "1")
+        c.setKind(.object); XCTAssertNil(c.sizes.realHeight)
+    }
+
+    /// Resize All doesn't ask the real height: the card's is blank, so minis without their own
+    /// get an average human's height at the scale, and the first mini's base stays.
+    func testResizeAllsCard() {
+        var c = SizeCard(purpose: .display, nozzle: "0.4")
+        c.load(Sizes(height: "18", base: "30", nozzle: "0.4", realHeight: "1"))
+        c.forSeveral()
+        XCTAssertEqual([c.height, c.base], [32, 30])
+        XCTAssertEqual(c.realHeight, "")
+        XCTAssertEqual(c.chosenScale, 32)
+        c.setPurpose(.display); XCTAssertNil(c.chosenScale)
+        XCTAssertEqual(SizeCard.severalNote(without: 0, of: 3), "Each character keeps its own real height, so a halfling stays shorter than an elf.")
+        XCTAssertEqual(SizeCard.severalNote(without: 1, of: 3), "Each character keeps its own real height. One mini has no real height saved, so it gets the Character height below.")
+        XCTAssertEqual(SizeCard.severalNote(without: 2, of: 3), "Each character keeps its own real height. 2 minis have no real height saved, so they get the Character height below.")
+        XCTAssertEqual(SizeCard.severalNote(without: 3, of: 3), "Every mini gets the same height, the Character height below: none of them has its real height saved.")
+    }
+
+    /// settings.json's real height is added only: a mini made before has none, and it reads back.
+    func testTheRealHeightInSettings() throws {
+        XCTAssertNil(try JSONDecoder().decode(Sizes.self, from: Data(#"{"height": "32"}"#.utf8)).realHeight)
+        let sizes = Sizes(height: "18", realHeight: "1")
+        XCTAssertEqual(try JSONDecoder().decode(Sizes.self, from: JSONEncoder().encode(sizes)), sizes)
+        XCTAssertEqual(try sizes.flags(), ["--height", "18.0"], "print prep isn't told it")
+        XCTAssertEqual(Sizes(height: "40").resizing(sizes, shapeGiven: false, styleGiven: false, magnetGiven: false).realHeight, "1",
+                       "Terminal's resize keeps it")
+    }
+
     /// 35 mm (heroic) and 75 mm too. The bigger scales get the bases their minis come on; the
     /// smaller ones keep 25 mm, one map square. A tall character's base still grows with it.
     func testEveryScaleAndItsBase() {
@@ -226,12 +289,14 @@ final class SizeAdviceTests: XCTestCase {
 
     /// `--scale` in Terminal: the height and base the app's Game scale gives, for what wasn't typed.
     func testScaleInTerminal() {
-        XCTAssertEqual(SizeCard.gameSizes(scale: 75, filling: Sizes()), Sizes(height: "75", base: "50"))
-        XCTAssertEqual(SizeCard.gameSizes(scale: 35, filling: Sizes(nozzle: "0.2")), Sizes(height: "35", base: "25", nozzle: "0.2"))
-        XCTAssertEqual(SizeCard.gameSizes(scale: 54, filling: Sizes(height: "120")), Sizes(height: "120", base: "50"),
+        XCTAssertEqual(SizeCard.gameSizes(scale: 75, filling: Sizes()), Sizes(height: "75", base: "50", realHeight: "1.8"))
+        XCTAssertEqual(SizeCard.gameSizes(scale: 35, filling: Sizes(nozzle: "0.2")), Sizes(height: "35", base: "25", nozzle: "0.2", realHeight: "1.8"))
+        XCTAssertEqual(SizeCard.gameSizes(scale: 54, filling: Sizes(height: "120")), Sizes(height: "120", base: "50", realHeight: "1.8"),
                        "a typed height wins; the base suits it")
-        XCTAssertEqual(SizeCard.gameSizes(scale: 54, filling: Sizes(base: "30")), Sizes(height: "54", base: "30"))
-        XCTAssertEqual(SizeCard.gameSizes(scale: 54, filling: Sizes(noBase: true)), Sizes(height: "54", noBase: true))
+        XCTAssertEqual(SizeCard.gameSizes(scale: 54, filling: Sizes(base: "30")), Sizes(height: "54", base: "30", realHeight: "1.8"))
+        XCTAssertEqual(SizeCard.gameSizes(scale: 54, filling: Sizes(noBase: true)), Sizes(height: "54", noBase: true, realHeight: "1.8"))
+        XCTAssertEqual(SizeCard.gameSizes(scale: 54, filling: Sizes(realHeight: "1")), Sizes(height: "30", base: "40", realHeight: "1"),
+                       "a resize's own real height (#479)")
         XCTAssertNil(SizeCard.gameSizes(scale: 40, filling: Sizes()))
         XCTAssertEqual(SizeCard.scaleChoices, "28, 32, 35, 54 or 75")
     }

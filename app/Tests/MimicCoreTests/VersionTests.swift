@@ -211,7 +211,7 @@ final class VersionTests: XCTestCase {
         try jobs.make(name: "elf", picture: .description("an elf ranger with a bow", original: "elf archer"), restyle: false, seed: 9,
                       sizes: full, model: EngineDownload.standard, project: "Tiefling Party")
         try jobs.make(name: "dwarf", picture: .description("a dwarf"), restyle: false, seed: 42,
-                      sizes: Sizes(height: "32", base: "25", nozzle: "0.4", noBase: true), model: EngineDownload.standard)
+                      sizes: Sizes(height: "32", base: "25", nozzle: "0.4", noBase: true, realHeight: "1.8"), model: EngineDownload.standard)
 
         let minis = Gallery.list(runs)
         for name in ["elodie", "toon", "plain", "turnaround", "elf", "dwarf"] {
@@ -290,10 +290,10 @@ final class VersionTests: XCTestCase {
         let minis = Gallery.list(fx.install.runs)
         let mini = try XCTUnwrap(minis.first { $0.name == "cartoon-wizard" })
         let f = try XCTUnwrap(MakeForm.again(mini, install: fx.install, card: bestPrint))
-        XCTAssertEqual(f.card.sizes, Sizes(height: "32", base: "25", nozzle: "0.4"))
+        XCTAssertEqual(f.card.sizes, Sizes(height: "32", base: "25", nozzle: "0.4", realHeight: "1.8"))
         XCTAssertEqual(PrintTips.shortLine(f.card.sizes), PrintTips.shortLine(try XCTUnwrap(mini.settings.made)), "the form says what the row says")
         let e = try XCTUnwrap(MakeForm.again(minis.first { $0.name == "elf" }!, install: fx.install, card: bestPrint))
-        XCTAssertEqual(e.card.sizes, Sizes(height: "32", base: "25", nozzle: "0.2"))
+        XCTAssertEqual(e.card.sizes, Sizes(height: "32", base: "25", nozzle: "0.2", realHeight: "1.8"))
         // Resize fills its card the same way; a base that wasn't made is left to the card.
         XCTAssertEqual(Sizes().asMade, Sizes(height: "32", base: "25", nozzle: "0.4"))
         XCTAssertEqual(Sizes(height: "70", noBase: true).asMade, Sizes(height: "70", nozzle: "0.4", noBase: true))

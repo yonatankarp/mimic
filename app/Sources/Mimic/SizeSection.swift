@@ -8,6 +8,8 @@ struct SizeSection: View {
     @Binding var card: SizeCard
     /// The variation number; nil for a resize, which doesn't draw anything.
     var seed: Binding<Int>?
+    /// Resize All's: what each character is sized from, said instead of asking its real height.
+    var several: String?
     @State private var advanced = false
 
     var body: some View {
@@ -49,24 +51,28 @@ struct SizeSection: View {
     /// At game scale: the character's real height and the table's scale.
     @ViewBuilder private var gameScaleRows: some View {
         if gameScale {
-            LabeledContent {
-                HStack(spacing: 4) {
-                    TextField("", text: bind(\.realHeight, { $0.setRealHeight($1) }), prompt: Text("1.80"))
-                        .labelsHidden().accessibilityLabel("How tall is the character?")
-                        .frame(width: 64).multilineTextAlignment(.trailing)
-                    Text("m")
+            if let several {  // Resize All: each character has its own (#479)
+                Label(several, systemImage: "person.2").font(.callout).foregroundStyle(.secondary)
+            } else {
+                LabeledContent {
+                    HStack(spacing: 4) {
+                        TextField("", text: bind(\.realHeight, { $0.setRealHeight($1) }), prompt: Text("1.80"))
+                            .labelsHidden().accessibilityLabel("How tall is the character?")
+                            .frame(width: 64).multilineTextAlignment(.trailing)
+                        Text("m")
+                    }
+                    .fixedSize()  // the label's long hint wraps instead of squeezing "1.80" (#167)
+                } label: {
+                    Text("How tall is the character?")
+                    // SizeCard.gameHeight: blank, or what can't be read, counts as 1.8 m; the problem says so.
+                    if let problem = card.realHeightProblem {
+                        Text(problem).foregroundStyle(.orange)
+                    } else {
+                        Text("In metres or feet, like 1.75 or 5'9\".")
+                    }
                 }
-                .fixedSize()  // the label's long hint wraps instead of squeezing "1.80" (#167)
-            } label: {
-                Text("How tall is the character?")
-                // SizeCard.gameHeight: blank, or what can't be read, counts as 1.8 m; the problem says so.
-                if let problem = card.realHeightProblem {
-                    Text(problem).foregroundStyle(.orange)
-                } else {
-                    Text("In metres or feet, like 1.75 or 5'9\".")
-                }
+                .help("How tall the character would be in real life. A halfling is about 1 m; leave it blank for an average human (1.8 m).")
             }
-            .help("How tall the character would be in real life. A halfling is about 1 m; leave it blank for an average human (1.8 m).")
             Picker(selection: bind(\.scale, { $0.setScale($1) })) {
                 Text("28 mm").tag(28)
                 Text("32 mm · most common").tag(32)
