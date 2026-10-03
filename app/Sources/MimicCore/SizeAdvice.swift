@@ -1,5 +1,6 @@
 import Foundation
 import simd
+import Synchronization
 
 /// The size card of the Make and Resize sheets: what the mini is for, the nozzle, and the
 /// sizes those suggest. Ported number for number from the web page's size card.
@@ -162,10 +163,12 @@ public struct SizeCard: Equatable, Sendable {
     }
 
     /// A typed real height in metres: "1.8", "1,80", or feet and inches: 6'2", 6 ft 2, 5 feet 9 in.
-    /// Curly quotes too, which a Mac may type for ' and ". Nil when it can't be read, or isn't above 0.
+    /// Curly quotes too, which a Mac may type for ' and ". A plain number over 20 is centimetres
+    /// (#335): no height over 13 m fits the slider even at 28 mm, while a giant of 8 m does.
+    /// Nil when it can't be read, or isn't above 0.
     public static func metres(_ text: String) -> Double? {
         let t = text.trimmingCharacters(in: .whitespaces).lowercased().replacingOccurrences(of: ",", with: ".")
-        var m = Double(t)
+        var m = Double(t).map { $0 > 20 ? $0 / 100 : $0 }
         if m == nil, let f = t.wholeMatch(of: #/(\d+(?:\.\d+)?)\s*(?:'|’|′|ft|feet|foot)\s*(?:(\d+(?:\.\d+)?)\s*(?:"|”|″|''|’’|in|inch|inches)?)?/#) {
             m = ((Double(f.1) ?? 0) * 12 + (f.2.flatMap { Double($0) } ?? 0)) * 0.0254
         }
@@ -323,7 +326,17 @@ public enum Filament {
         return abs(six) / 6
     }
 
-    public static func volume(stl: URL) -> Double? { (try? STL.read(stl)).map(volume) }
+    /// A print file's volume, read again only when its time changes: a project's total is added
+    /// up whenever any of its minis changes, and each print file is tens of megabytes (#340).
+    public static func volume(stl: URL) -> Double? {
+        let time = (try? FileManager.default.attributesOfItem(atPath: stl.path))?[.modificationDate] as? Date
+        if let time, let kept = known.withLock({ $0[stl.path] }), kept.time == time { return kept.volume }
+        guard let v = (try? STL.read(stl)).map(volume) else { return nil }
+        if let time { known.withLock { $0[stl.path] = (time, v) } }
+        return v
+    }
+    /// Never emptied: one entry per print file looked at, a few bytes each.
+    private static let known = Mutex<[String: (time: Date, volume: Double)]>([:])
 
     public static func grams(_ mm3: Double) -> Double { mm3 / 1000 * density }
 

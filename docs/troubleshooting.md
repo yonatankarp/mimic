@@ -138,7 +138,8 @@ and press **Try Again**:
   press **Remove**, paste it and press **Save**. **Test** says whether it works.
 - **Out of credits, or a spending limit reached:** add credits, or raise your limit, in your account
   with that service.
-- **Busy, or you've reached your account's limit:** wait a minute and try again.
+- **Busy, or you've reached your account's limit:** Mimic has already asked twice more by itself,
+  waiting as long as the service said to. Wait a minute and try again.
 - **It wouldn't make this picture:** the service's moderation turned the description or the
   picture down. Try different words or another picture.
 - **It took too long, or couldn't be reached:** check your internet connection and try again.
@@ -179,6 +180,12 @@ it, and its page says it can't stand on its own. Resize it with **Add a base** t
 A flat drawing can come out of the 3D model as a flat sheet. Turn on
 **Turn it into a grey sculpt first** in New Mini and make it again. For a cartoon, also turn on
 **It's a cartoon**.
+
+### The 3D model has no shape to print
+
+The 3D model came out broken: all its points in one place, or some that aren't numbers. Make its
+shape again with **New 3D Shape…**. For a model you imported, the file itself is broken: export it
+again from the program that made it.
 
 ### Another Mimic is making a mini
 

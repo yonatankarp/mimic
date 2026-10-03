@@ -219,7 +219,7 @@ struct Sidebar: View {
     }
 
     @ViewBuilder private func projectMenu(_ project: String) -> some View {
-        Button("New Mini in This Project…", systemImage: "plus") { model.makeInProject = project; model.sheet = .make }
+        Button("New Mini in This Project…", systemImage: "plus") { model.makeInProject = project; model.sheet = .make(nil) }
             .disabled(!model.setup.installed)
         Button("Open Together in \(model.slicerName)", systemImage: "printer") { model.openTogether(model.minis.filter { $0.project == project }) }
             .disabled(model.minis.filter { $0.project == project && $0.stl != nil }.count < 2 || model.packing)
@@ -355,16 +355,12 @@ struct RenameSheet: View {
     }
 
     private func rename() {
-        let new: String
+        guard let shown = Rules.shownName(text) else { problem = RequestError.noName.description; return }
         do {
-            new = try model.jobs.rename(mini.name, typed: text)
+            try model.rename(mini, to: Rules.folderName(shown), shown: shown)
         } catch {
             problem = model.plainWords(error, else: "Couldn't rename it. Is its folder open in another app?"); return
         }
-        let wasSelected = model.selection.contains(mini.id)
-        // Both in one go, so the window never shows another mini in between.
-        if wasSelected { model.selection.remove(mini.id); model.selection.insert(new) }
-        model.reload()
         dismiss()
     }
 }
@@ -486,7 +482,7 @@ struct EditAndMakeAgainButton: View {
     var showsIcon = true
     @Environment(AppModel.self) private var model
     var body: some View {
-        Button { model.sheet = .makeAgain(mini) } label: {
+        Button { model.sheet = .makeAgain(mini, MakeStart.again(mini, install: model.install)) } label: {
             if showsIcon { Label("Edit & Make Again…", systemImage: "slider.horizontal.3") } else { Text("Edit & Make Again…") }
         }
             .help(mini.settings.isImported ? AnotherVersionButton.imported
@@ -571,18 +567,22 @@ struct ProjectNameSheet: View {
 }
 
 /// "up to 23 g" beside a project's name: its minis' filament added up. Read from their print
-/// files off the main thread, again whenever one is made or resized.
+/// files off the main thread, again whenever one is made or resized; only the print files that
+/// changed are read again (`Filament.volume(stl:)`).
 private struct ProjectFilament: View {
     let minis: [Mini]
 
     @State private var total: Double?
 
+    /// As the gallery found them: `Mini.stl` would look on disk on every redraw.
+    private var stls: [URL] { minis.filter(\.finished).map { $0.folder.appendingPathComponent("\($0.name).stl") } }
+
     var body: some View {
         Text(total.map(Filament.short) ?? "")
             .font(.caption).foregroundStyle(.secondary).monospacedDigit()
             .help("Roughly the filament for every mini in it, printed solid")
-            .task(id: minis.map { "\($0.stl?.path ?? "")@\($0.madeAt.timeIntervalSince1970)" }) {
-                let stls = minis.compactMap(\.stl)
+            .task(id: minis.filter(\.finished).map { "\($0.folder.path)@\($0.madeAt.timeIntervalSince1970)" }) {
+                let stls = stls
                 total = stls.isEmpty ? nil : await Task.detached { stls.compactMap(Filament.volume(stl:)).reduce(0, +) }.value
             }
     }

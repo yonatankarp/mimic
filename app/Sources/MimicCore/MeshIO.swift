@@ -47,7 +47,9 @@ public enum GLB {
         try parse(Data(contentsOf: url), painted: true)
     }
 
-    static func parse(_ data: Data, painted: Bool) throws -> (mesh: Mesh, paint: Paint?) {
+    /// `most` positions, corners and steps through the parts: a file of a few MB can list the same
+    /// parts, meshes or data over and over, and be read out to tens of GB or for hours (#334).
+    static func parse(_ data: Data, painted: Bool, most: Int = 50_000_000) throws -> (mesh: Mesh, paint: Paint?) {
         func u32(_ at: Int) -> UInt32 { data.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: at, as: UInt32.self) } }
         guard data.count >= 20, u32(0) == 0x4654_6C67 else { throw PrepError("not a .glb file") }
         var json: [String: Any]?, bin: Range<Int>?
@@ -111,6 +113,12 @@ public enum GLB {
         // nil once a primitive has no place on a picture, or a different material.
         var uv: [SIMD2<Float>]? = painted ? [] : nil
         var material: Int?
+        let tooBig = PrepError("the .glb is too big")
+        var steps = 0
+        func step() throws {
+            steps += 1
+            guard steps <= most else { throw tooBig }
+        }
 
         func local(_ n: [String: Any]) throws -> simd_double4x4 {
             if let m = n["matrix"] as? [NSNumber], m.count == 16 {
@@ -132,11 +140,12 @@ public enum GLB {
         func add(mesh index: Int, _ world: simd_double4x4) throws {
             guard index < meshes.count else { return }
             for prim in meshes[index]["primitives"] as? [[String: Any]] ?? [] {
+                try step()
                 guard (try int(prim, "mode") ?? 4) == 4 else { continue }  // points and lines have no volume
                 guard let attrs = prim["attributes"] as? [String: Any], let pos = try int(attrs, "POSITION") else { continue }
                 let p = try reader(pos)
                 guard p.width == 3 else { throw PrepError("the .glb's positions aren't 3D") }
-                guard out.positions.count + p.count <= Int(UInt32.max) else { throw PrepError("the .glb is too big") }
+                guard out.positions.count + p.count <= most else { throw tooBig }
                 let base = UInt32(out.positions.count)
                 out.positions.reserveCapacity(out.positions.count + p.count)
                 for i in 0..<p.count {
@@ -157,6 +166,7 @@ public enum GLB {
                 var idx: [UInt32]
                 if let ii = try int(prim, "indices") {
                     let r = try reader(ii)
+                    guard 3 * out.triangles.count + r.count <= most else { throw tooBig }
                     let kind = try int(accessors[ii], "componentType")
                     guard r.width == 1, [5121, 5123, 5125].contains(kind) else { throw unreadable }  // unsigned whole numbers only
                     idx = try (0..<r.count).map {
@@ -178,6 +188,7 @@ public enum GLB {
         /// children, would be walked over and over.
         func walk(_ n: Int, _ parent: simd_double4x4, depth: Int, seen: inout Set<Int>) throws {
             guard n < nodes.count, depth < 64 else { return }
+            try step()
             guard seen.insert(n).inserted else { throw PrepError("the .glb's parts loop back on themselves") }
             let world = try parent * local(nodes[n])
             if let m = try int(nodes[n], "mesh") { try add(mesh: m, world) }
@@ -281,18 +292,29 @@ public enum Tabletop {
     /// (always redrawn as one, #156), and a description is drawn grey.
     public static func inColour(_ s: MiniSettings) -> Bool { s.source == .image && s.restyle != true && s.change == nil && !s.isImported }
 
-    /// Writes `mini`'s .glb to `url`, and says how many triangles and bytes it came to, and
-    /// whether it's in colour.
+    /// Writes `mini`'s .glb to `url`, and says how many triangles and bytes it came to, whether
+    /// it's in colour, and why it's grey when it was meant to be in colour (`inColour`), in words
+    /// for the person: the save window had already said it would be in colour (#317).
     @discardableResult
-    public static func export(_ mini: Mini, to url: URL, triangles: Int = triangles) throws -> (triangles: Int, bytes: Int, colour: Bool) {
+    public static func export(_ mini: Mini, to url: URL, triangles: Int = triangles)
+        throws -> (triangles: Int, bytes: Int, colour: Bool, whyGrey: String?) {
         guard let stl = mini.stl else { throw PrepError("it isn't made yet") }
         // Grey whenever the colours can't be had: the shape is what a tabletop can't do without.
         // `facesAway` and a `Placement` never meet: a record is only ever beside the print file
         // it was written with, and a print file written since 0.10.0 faces front (`Mini.facesAway`
         // goes by its date). A turned print file's colours come from its model placed again.
-        let colours = try? EngineColours.of(mini)
+        var colours: EngineColours?, whyGrey: String?
+        do {
+            colours = try EngineColours.of(mini)
+            if colours == nil, inColour(mini.settings) { whyGrey = "its 3D model has no colours saved with it" }
+        } catch RequestError.unknownModel(let id) {  // placing it again needs its model's settings
+            whyGrey = "this Mimic doesn't know the 3D model it was made with, \(id)"
+        } catch {
+            whyGrey = FileManager.default.fileExists(atPath: mini.folder.appendingPathComponent(Mini.modelFile).path)
+                ? "Mimic couldn't read the colours from its 3D model" : "its 3D model is missing from its folder"
+        }
         let made = try export(stl, to: url, triangles: triangles, colours: colours, facesAway: mini.facesAway)
-        return (made.triangles, made.bytes, colours != nil)
+        return (made.triangles, made.bytes, colours != nil, whyGrey)
     }
 
     /// Writes the .glb of `stl` to `url`, painted with `colours` when given: the trim can stop
@@ -301,7 +323,7 @@ public enum Tabletop {
     @discardableResult
     static func export(_ stl: URL, to url: URL, triangles: Int = triangles, colours: EngineColours? = nil,
                        facesAway: Bool = false) throws -> (triangles: Int, bytes: Int) {
-        var solid = ModelImport.weld(try STL.read(stl))
+        var solid = try ModelImport.weld(STL.read(stl))
         // Half a turn about the vertical: both axes, as one alone would mirror it.
         if facesAway { solid.positions = solid.positions.map { SIMD3(-$0.x, -$0.y, $0.z) } }
         guard !solid.triangles.isEmpty else { throw PrepError("the print file has no triangles") }
@@ -361,13 +383,18 @@ public enum Tabletop {
         }
 
         // Each corner's normal, its triangles' weighted by their area, for a smooth one across a triangle.
-        var normals = [SIMD3<Float>](repeating: .zero, count: low.positions.count)
-        for t in low.triangles {
-            let n = simd_cross(low.positions[Int(t.y)] - low.positions[Int(t.x)], low.positions[Int(t.z)] - low.positions[Int(t.x)])
-            normals[Int(t.x)] += n; normals[Int(t.y)] += n; normals[Int(t.z)] += n
-        }
+        let normals = {
+            var sums = [SIMD3<Float>](repeating: .zero, count: low.positions.count)
+            for t in low.triangles {
+                let n = simd_cross(low.positions[Int(t.y)] - low.positions[Int(t.x)], low.positions[Int(t.z)] - low.positions[Int(t.x)])
+                sums[Int(t.x)] += n; sums[Int(t.y)] += n; sums[Int(t.z)] += n
+            }
+            return sums
+        }()
         var pixels = [UInt8](repeating: 255, count: size * size * 4)
-        pixels.withUnsafeMutableBufferPointer { out in
+        pixels.withUnsafeMutableBufferPointer { buffer in
+            // Each triangle writes only its own cell's pixels.
+            nonisolated(unsafe) let out = buffer
             DispatchQueue.concurrentPerform(iterations: low.triangles.count) { k in
                 let t = low.triangles[k]
                 let a = low.positions[Int(t.x)], b = low.positions[Int(t.y)], c = low.positions[Int(t.z)]

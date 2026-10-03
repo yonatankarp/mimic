@@ -443,8 +443,12 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   install without it goes back to setup for it). PATH is never searched. With it, a picture
   is a subprocess (`generate`; the pinned release only generates locally and refuses `--local`,
   while newer builds may use Draw Things' cloud without it, so check that when re-pinning), the app
-  never opens, and the API server doesn't matter: the API check is green. Stop terminates it.
-  The API is only the fallback when the tool isn't installed, not a retry when it fails.
+  never opens, and the API server doesn't matter: the API check is green. It runs like a job's
+  other programs (#323): a `GroupProcess` under `nice`, with `Tools.childEnvironment()` (from
+  `mimic` in Terminal it used to get the shell's every token), and on record in `job.pid` while it
+  runs, so a crashed Mimic's is stopped at the next launch. Stop ends its group, SIGKILL after 5 s.
+  The picture is read from the `--output` it was given (checked with the pinned release: it
+  writes exactly there), not from its "Wrote:" line. The API is only the fallback when the tool isn't installed, not a retry when it fails.
 - **Without it, Mimic opens Draw Things when a picture needs it** (`DrawThings.openIfNeeded`, called by
   the job runner around step 1, so the app and `mimic` both do it). Only when its API isn't
   answering and it isn't running at all: one that's open with its API server off isn't Mimic's
@@ -503,7 +507,12 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   and no other). `OnlineClient` is what the clients share: the key (read only as a request goes
   out), Stop, and `fetch`, which sends the key only to the address it was set up with (scheme, host
   and port) or the entry's hosts over https, follows a redirect anywhere else without the key's
-  header (`KeepKey`), and cuts the key out of error text before it's shortened. Errors are
+  header (`KeepKey`), and cuts the key out of error text before it's shortened. `submit` sends the
+  request that asks for a picture again, twice at most, when it's turned away as busy (429 that
+  isn't billing, or 5xx; #320): a request turned away isn't charged, and a queued mini shouldn't
+  fail on a busy moment. It waits as long as `Retry-After` says (seconds only; the date form falls
+  back), at most 60 s, else 5 s then 15 s, and Stop ends the wait. Nothing after the submit goes
+  through it: from then on the picture is paid for (BFL's polling has its own retries). Errors are
   `OnlineImagesError(problem, service: name)`, in the same plain words for every service.
   `PictureMaker` is the one seam: `DrawThings` and each online client are one, and the job runner
   picks one as each job starts (`JobRunner.pictureService`), so Stop cancels the one in use, and a
@@ -609,7 +618,15 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   administrator account only; on a standard one about.txt says it couldn't be read. It's run by
   `Checks.execute` with a 60 s timeout (about 1 s is usual), so a stuck `log` can't hang the report. Crashes of
   trellis-cli and draw-things-cli aren't offered: they're failed jobs, with Report a Problem on
-  the mini. Don't Ask Again is `crashDontAsk`. The setup (#283) goes in too, as it is at the
+  the mini. Nor are those of print prep and the 3D step (#319), which are `mimic _prep` and
+  `mimic _engine`, the same binary: a report keeps no arguments, so they're told apart by
+  `parentProc`, which is `mimic` for a step (the app's is `launchd`, Terminal's the shell), or
+  `Exited process` when the parent exits between the crash and the report (seen on trellis-cli's
+  reports, with the parent's real pid). The ceiling: a step left running after its parent had
+  gone (the app crashed, or `mimic make` was killed with SIGKILL; Ctrl-C stops the step) belongs
+  to launchd, so its crash is still offered; and a `mimic` command whose shell exits as it
+  crashes isn't. `mimic _prep` run by hand in Terminal is offered, which is right, as there's no
+  job to show it. Don't Ask Again is `crashDontAsk`. The setup (#283) goes in too, as it is at the
   next launch: the crashed launch's queue and last job went with it.
 - **One job at a time, and a queue shared by every Mimic** (`MimicCore/Queue.swift`, `Jobs.swift`;
   0.5.0). A job asked for while one runs, in this Mimic or another (the installed app, a dev
@@ -627,9 +644,12 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   own mini is made, then leaves the rest; quitting the app stops carrying on (the queue waits
   for the next launch, which starts it without asking). A job stopped by quitting goes back to
   the front of the queue while its runner still holds the job lock, instead of to the Trash
-  (#82): the step it was on loses its half-written file (the picture, or
-  model.glb, which trellis-cli writes in place), and the plan skips every step whose file is
-  there, so it carries on from the last step it finished. A log-out, restart or shutdown (the
+  (#82): the step it was on loses its half-written file (the picture), and the plan skips
+  every step whose file is there, so it carries on from the last step it finished. trellis-cli
+  writes its model in place, so it builds it in `model.building/` beside model.glb and `mimic
+  _engine` moves it up only once it exits 0 with the file written (#316): model.glb is there
+  only when it's whole, even after a crash or a leftover stopped at launch, which skip that
+  clean-up. Each run empties `model.building/` first, and removes it when it ends. A log-out, restart or shutdown (the
   quit event's reason) doesn't ask first: the question would hold the Mac up, and quitting
   loses nothing but the step in progress. A crash lets go of the job lock outside
   that rule, so the app looks every 3 seconds and at launch. `job.json` names the running

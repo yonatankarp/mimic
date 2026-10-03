@@ -35,9 +35,7 @@ public struct MadeFrom: Equatable, Sendable {
         // New 3D Shape keeps the picture's number and gives the shape its own (#141), so without
         // this two versions read the same.
         add("3D shape number", s.shapeSeed.map(String.init))
-        // No model recorded is Pixal3D, the only one before 0.4.0, but only for a mini that has
-        // settings at all: one without says nothing about how it was made.
-        if !s.isImported && (s.source != nil || s.requested != nil) { add("3D model", EngineDownload.model(s.model)?.name) }
+        add("3D model", s.madeWith?.name)
         // A description is always drawn, never sculpted, so the switch only means something for a picture.
         if s.source == .image { add("Grey sculpt", s.restyle.map { $0 ? "On" : "Off" }) }
         if s.cartoon == true { add("Cartoon", "Yes") }

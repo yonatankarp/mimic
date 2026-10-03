@@ -28,6 +28,16 @@ extension Gallery {
 }
 
 extension JobRunner {
+    /// New Project (`Gallery.createProject`). Refused while the minis are moving (#331): it would
+    /// be made in the folder they're leaving, and left behind there.
+    @discardableResult
+    public func createProject(_ text: String) throws -> String {
+        try queue.locked { _ in
+            try refuseWhileMoving()
+            return try Gallery.createProject(install.runs, text)
+        }
+    }
+
     /// Moves a mini, with every file in its folder, into `project` (nil: Unsorted). Refused while
     /// it's being made or waiting: its job would write into a folder that has gone. Under the
     /// queue's lock, where a job resolves its folder as it starts, so the two can't cross.
@@ -75,10 +85,7 @@ extension JobRunner {
             }
             let from = runs.appendingPathComponent(old), to = runs.appendingPathComponent(new)
             if old.lowercased() == new.lowercased() {
-                // Only the capitals change: the disk sees one name, so it goes through a third.
-                let step = runs.appendingPathComponent("_rename-\(UUID().uuidString)")
-                try FileManager.default.moveItem(at: from, to: step)
-                try FileManager.default.moveItem(at: step, to: to)
+                try Gallery.moveChangingCase(from, to: to)
             } else {
                 try FileManager.default.moveItem(at: from, to: to)
             }

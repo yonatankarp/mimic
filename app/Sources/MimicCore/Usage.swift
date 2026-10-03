@@ -5,8 +5,8 @@ import Foundation
 public enum Usage {
     public static let text = """
     usage:
-      mimic make "<name>" "<description>" [--improve] [--wait] [options]
-      mimic make "<name>" --image <picture> [--back <picture>] [--left <picture>] [--right <picture>] [--restyle] [--change "<change>"] [--wait] [options]
+      mimic make "<name>" "<description>" [--improve] [--seed N] [--model ID] [--wait] [options]
+      mimic make "<name>" --image <picture> [--back <picture>] [--left <picture>] [--right <picture>] [--restyle] [--change "<change>"] [--seed N] [--model ID] [--wait] [options]
       mimic make-another <name> [--new-shape] [--change "<change>"] [--seed N] [--wait]
       mimic duplicate <name> --as "<new name>"
       mimic resize <name> [--wait] [options]
@@ -36,7 +36,7 @@ public enum Usage {
       mimic --help                   this list (also -h)
     --json: list, projects, queue, models and info as JSON for scripts (yonatankarp.com/mimic/cli/ describes it)
     <name>: a mini's name as mimic list shows it, or as you'd type it in Mimic ("Élodie" is elodie)
-    options: --height MM (15-200)  --scale 28|32|35|54|75  --base MM (20-80)  --nozzle 0.2|0.4|0.6  --inflate MM (0-0.4)  --no-base  --base-shape round|square|hex  --base-style plain|stone|wood|cobble  --magnet 5x2|6x2|8x3|none  --seed N  --model ID
+    options: --height MM (15-200)  --scale 28|32|35|54|75  --base MM (20-80)  --nozzle 0.2|0.4|0.6  --inflate MM (0-0.4)  --no-base  --base-shape round|square|hex  --base-style plain|stone|wood|cobble  --magnet 5x2|6x2|8x3|none
     anything that isn't a character: make … --object  [--size MM (longest side, 15-200)]  [--add-base]
     make … --project "<project>": into that project (made if it's new); a project is a folder in the minis folder
     make … --image front.png --back b.png --left l.png --right r.png: pictures of the same character from other sides too, any of them (TRELLIS.2 only)
@@ -48,6 +48,7 @@ public enum Usage {
     --change: redraws the picture with this change ("close the cape so both arms show"), with the grey sculpt;
               make-another starts from its picture, so changes add up. The AI helper, when set up, words it first.
               The app stops to show you the picture before the 3D shape; here it carries straight on
+    exit codes: 0 worked, 1 didn't work, 64 typed wrong, 130 stopped (yonatankarp.com/mimic/cli/ says more)
     --wait: while another mini is being made, make, make-another, import, resize and retry join the queue and return;
             --wait stays until this one is made
     """

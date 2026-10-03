@@ -266,12 +266,13 @@ private struct CheckRow: View {
 private struct ModelsSection: View {
     @Environment(AppModel.self) private var model
     @State private var removing: EngineModel?
+    /// What of each model is on disk, by id. Its files are looked at off the main thread, not
+    /// on every redraw (a download's progress redraws it many times a second), #340.
+    @State private var onDisk: [String: OnDisk] = [:]
+    struct OnDisk: Equatable { let complete: Bool, any: Bool }
 
     var body: some View {
         let setup = model.setup
-        // Look at the disk again after a removal, and with every health check (opening
-        // Settings, Check Again), which catches files that changed behind Mimic's back.
-        let _ = (setup.removals, Health.shared.lastChecked)
         Section {
             ForEach(EngineDownload.catalogue) { row($0, setup) }
         } footer: {
@@ -284,10 +285,18 @@ private struct ModelsSection: View {
         } message: { m in
             Text("This frees about \(Checks.gigabytes(EngineDownload.freed(by: m, in: model.install))) GB. Minis you made with it stay. You can download it again any time.")
         }
+        // Looked at again after a download or removal, and with every health check (opening
+        // Settings, Check Again), which catches files that changed behind Mimic's back.
+        .task(id: "\(setup.removals) \(setup.running) \(Health.shared.lastChecked?.timeIntervalSince1970 ?? 0)") {
+            let install = model.install
+            let found = await Task.detached {
+                Dictionary(uniqueKeysWithValues: EngineDownload.catalogue.map { ($0.id, OnDisk(complete: $0.complete(in: install), any: $0.anyOnDisk(in: install))) })
+            }.value
+            if !Task.isCancelled && found != onDisk { onDisk = found }
+        }
     }
 
     private func row(_ m: EngineModel, _ setup: SetupModel) -> some View {
-        let complete = m.complete(in: model.install)
         let downloading = setup.running && setup.target == m
         return HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
@@ -303,14 +312,14 @@ private struct ModelsSection: View {
             Spacer()
             if m == setup.chosen {
                 Label("In use", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
-            } else {
-                if complete {
+            } else if let found = onDisk[m.id] {  // no buttons for the moment before it's looked at
+                if found.complete {
                     Button("Use") { setup.use(m) }
                 } else if !downloading {
-                    Button(m.anyOnDisk(in: model.install) ? "Resume Download" : "Download") { setup.start(m) }
+                    Button(found.any ? "Resume Download" : "Download") { setup.start(m) }
                         .disabled(setup.running)
                 }
-                if m.anyOnDisk(in: model.install) {
+                if found.any {
                     Button("Remove…") { removing = m }
                         .disabled(model.running || downloading)
                         .help(model.running ? "Wait for the mini being made to finish." : "")

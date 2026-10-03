@@ -20,8 +20,6 @@ final class TourGuide {
     private(set) var visible = false
     /// Main-window stops whose control is on screen right now; the others are skipped.
     private(set) var onScreen: Set<TourStep> = []
-    /// The sample picture, handed to New Mini once when "Use the Sample" is pressed.
-    private var sample: URL?
     /// "Use the Sample" was pressed and New Mini is still open with it.
     private(set) var usingSample = false
 
@@ -47,12 +45,14 @@ final class TourGuide {
             // The next stops are inside New Mini. The callout closes first and New Mini opens a
             // moment later: both at once left an empty glass panel of the callout on screen.
             visible = false
+            // "Use the Sample" opens it with the sample picture, read once here (#341).
+            let start = usingSample ? Self.samplePicture.map { MakeStart(MakeForm(picture: $0, name: Self.sampleName, card: .remembered())) } : nil
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(0.3))
-                model.sheet = .make
+                model.sheet = .make(start)
             }
         }
-        if step == .make, model.sheet == .make { model.sheet = nil; usingSample = false }
+        if step == .make, model.sheet?.isNewMini == true { model.sheet = nil; usingSample = false }
         after.map { go(to: $0, wait: step == .newMini ? 0.8 : step == .make ? 0.5 : 0.2) } ?? leave()
     }
 
@@ -60,21 +60,17 @@ final class TourGuide {
     func newMiniCancelled() { if step?.inNewMini == true { leave() } }
 
     func useSample(_ model: AppModel) {
-        sample = Self.samplePicture
         usingSample = true
         next(model)
     }
-
-    /// New Mini asks once when it opens.
-    func takeSample() -> URL? { defer { sample = nil }; return sample }
 
     /// New Mini opened or closed by hand: from New Mini's stop, pressing + goes inside. Inside,
     /// Make Mini closes it and carries on in the main window once the job's popover is closed
     /// (it opens a moment later, so the wait is longer than that). Cancel leaves the tour first.
     func sheetChanged(_ model: AppModel) {
         guard let step else { return }
-        if step == .newMini, model.sheet == .make { go(to: .make, wait: 0.5) }
-        if step.inNewMini, model.sheet != .make {
+        if step == .newMini, model.sheet?.isNewMini == true { go(to: .make, wait: 0.5) }
+        if step.inNewMini, model.sheet?.isNewMini != true {
             usingSample = false
             Tour.next(after: .make, onScreen: onScreen).map { go(to: $0, wait: 1) } ?? leave()
         }
@@ -135,7 +131,7 @@ private struct TourStopModifier: ViewModifier {
     /// Only while its window is the one in front: New Mini's stops with New Mini open, the
     /// main window's with no sheet over it and the job's popover closed.
     private var shown: Bool {
-        guide.step == stop && guide.visible && (stop.inNewMini ? model.sheet == .make : model.sheet == nil && !model.jobPopover)
+        guide.step == stop && guide.visible && (stop.inNewMini ? model.sheet?.isNewMini == true : model.sheet == nil && !model.jobPopover)
     }
 
     func body(content: Content) -> some View {
@@ -189,8 +185,7 @@ struct TourCallout: View {
 
     /// Only on New Mini's stop, and not if a Sample Dwarf is already in the gallery.
     private var offersSample: Bool {
-        stop == .newMini && TourGuide.samplePicture != nil
-            && !Gallery.nameInUse(model.install.runs, Rules.folderName(TourGuide.sampleName))
+        stop == .newMini && TourGuide.samplePicture != nil && !model.nameInUse(Rules.folderName(TourGuide.sampleName))
     }
 
     private var title: String { Self.title(stop) }
@@ -242,7 +237,7 @@ struct TourHost: ViewModifier {
                         .transition(.opacity)
                 }
             }
-            .animation(.easeInOut(duration: 0.25), value: card)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: card)
             .onChange(of: model.sheet) { guide.sheetChanged(model) }
             // Esc leaves the tour when the main window, not a popover, has the keyboard (a card
             // has its own Esc).

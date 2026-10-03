@@ -82,8 +82,8 @@ Your choice stays for every mini. It's also in **View → Size Reference**.
 
 ## Export for a virtual tabletop
 
-Playing online? Right-click a mini → **Export for Virtual Tabletop…**, choose where to save it,
-and Mimic shows it in Finder. It's a small, low-poly `.glb` (about 5,000 triangles) at the mini's
+Playing online? Right-click a mini → **Export for Virtual Tabletop…** (or **Mini → Export for
+Virtual Tabletop…**, ++shift+cmd+e++), choose where to save it, and Mimic shows it in Finder. It's a small, low-poly `.glb` (about 5,000 triangles) at the mini's
 real size, to drag into a virtual tabletop.
 
 It comes out in colour or in grey:
@@ -95,7 +95,9 @@ It comes out in colour or in grey:
 - *In grey* (under 100 KB) otherwise: a mini made from a description, with the grey sculpt on, a
   cartoon (which gets the grey sculpt), one imported as a 3D model, or a version made [with a change to its picture](versions.md).
 
-The save window says which you'll get before you save.
+The save window says which you'll get before you save. If a mini that should be in colour can't
+be, for example because its 3D model is missing from its folder, Mimic exports it in grey anyway
+and tells you why.
 
 !!! tip
     The grey sculpt usually gives the cleaner shape to print. Turn it off only for the minis you

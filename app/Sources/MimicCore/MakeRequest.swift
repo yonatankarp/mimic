@@ -10,6 +10,8 @@ public enum CommandRefusal: Error, Equatable, CustomStringConvertible {
     case noNumber(String)
     case noPicture(String)
     case unknownOption(String)
+    /// An option the command (as typed: "retry") doesn't take (#327).
+    case notTaken(command: String, option: String)
     case projectNotHere, importAsItIs, newShapeNotHere, sidesNeedImage, scaleForObject, improveImage, noChange, changeNotHere
     case queueMoveUsage, queueRemoveUsage
 
@@ -29,6 +31,7 @@ public enum CommandRefusal: Error, Equatable, CustomStringConvertible {
         case .badModel: "--model needs one of: \(EngineDownload.catalogue.map(\.id).joined(separator: ", ")) (see mimic models)"
         case .noPicture(let flag): "\(flag) needs a picture"
         case .unknownOption(let a): "unknown option: \(a)\n\(Usage.text)"
+        case .notTaken(let command, let option): "mimic \(command) doesn't take \(option) (mimic --help lists what each command takes)"
         case .projectNotHere: "--project is for mimic make, import and resize --project; mimic move moves a mini"
         case .importAsItIs: "mimic import takes the model as it is: only size options, --object, --add-base and --project"
         case .newShapeNotHere: "--new-shape is for mimic make-another"
@@ -40,6 +43,25 @@ public enum CommandRefusal: Error, Equatable, CustomStringConvertible {
         case .queueMoveUsage: "usage: mimic queue move <name> --to front|end|<place> | --up | --down"
         case .queueRemoveUsage: "usage: mimic queue remove <name>"
         }
+    }
+}
+
+/// What `mimic` exits with, so a script can tell them apart (#330); docs/cli.md lists them.
+public enum ExitCode {
+    /// It didn't work: a mini that isn't there, a make that didn't finish, Mimic not set up.
+    public static let failed: Int32 = 1
+    /// Typed wrong: a command or option that isn't there, or a value it can't take (BSD's EX_USAGE).
+    public static let usage: Int32 = 64
+    /// Stopped with Ctrl-C, or taken out of the queue while waiting for it.
+    public static let stopped: Int32 = 130
+
+    public static func of(_ error: Error) -> Int32 {
+        if let r = error as? CommandRefusal { return r == .notSetUp ? failed : usage }
+        if let r = error as? RequestError {
+            if case .badNumber = r { return usage }
+            if r == .badNozzle { return usage }
+        }
+        return failed
     }
 }
 
@@ -75,6 +97,8 @@ public struct MakeRequest: Equatable, Sendable {
     public var model: EngineModel?
     /// Make and import's project, as typed.
     public var project: String?
+    /// Every option typed, in order, so one the command doesn't take is refused (#327).
+    public var options: [String] = []
 
     public init(_ command: Command) { self.command = command }
 
@@ -110,6 +134,7 @@ public struct MakeRequest: Equatable, Sendable {
         if !all { rest.removeFirst() }
         while let a = rest.first {
             rest.removeFirst()
+            if a.hasPrefix("-") { r.options.append(a) }
             func value() -> String? { rest.isEmpty ? nil : rest.removeFirst() }
             switch a {
             case "--height", "--size": guard let v = value() else { throw CommandRefusal.noNumber(a) }; r.sizes.height = v
@@ -175,6 +200,20 @@ public struct MakeRequest: Equatable, Sendable {
         }
         if object { sizes = SizeCard.objectSizes(sizes, addBase: addBase) }
         if command == .make && improve && image != nil { throw CommandRefusal.improveImage }
+        // What the rest take, as the user guide lists them; make and import are covered above.
+        let takes: (String, Set<String>)?
+        switch command {
+        case .retry: takes = ("retry", ["--wait"])
+        case .makeAnother: takes = ("make-another", ["--new-shape", "--change", "--seed", "--wait"])
+        case .resize, .resizeAll:
+            takes = ("resize", ["--height", "--size", "--scale", "--base", "--base-shape", "--base-style", "--magnet", "--nozzle",
+                                "--inflate", "--no-base", "--add-base", "--project", "--wait"])
+        case .make, .import: takes = nil
+        }
+        if let (verb, allowed) = takes {
+            if let o = options.first(where: { !allowed.contains($0) }) { throw CommandRefusal.notTaken(command: verb, option: o) }
+            if let description { throw CommandRefusal.unknownOption(description) }
+        }
         return sizes
     }
 }

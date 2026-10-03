@@ -103,12 +103,7 @@ final class EngineTests: XCTestCase {
 
     // MARK: The real `mimic _engine`
 
-    /// The `mimic` binary `swift test` built beside this test bundle.
-    var mimic: String {
-        let url = Bundle(for: Self.self).bundleURL.deletingLastPathComponent().appendingPathComponent("mimic")
-        XCTAssertTrue(FileManager.default.isExecutableFile(atPath: url.path), "run swift build first: no \(url.path)")
-        return url.path
-    }
+    var mimic: String { Fixture.mimic }
 
     /// Runs `mimic _engine` on a cut-out picture with `body` as trellis-cli, in a session of its
     /// own like a job step. Returns the process and its log.
@@ -148,11 +143,13 @@ final class EngineTests: XCTestCase {
             echo glb > "${@: -1}"
             """)
         XCTAssertEqual(p.wait(), 0, text(log))
+        XCTAssertEqual(text(glb), "glb\n", "the finished shape isn't model.glb")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: Engine.building(glb).deletingLastPathComponent().path), "the work folder was left")
         let args = text(URL(fileURLWithPath: seen)).split(separator: "\n").map(String.init)
         XCTAssertEqual(args.first.map { URL(fileURLWithPath: $0).resolvingSymlinksInPath() }, f.install.engine.resolvingSymlinksInPath(), "not run from the engine's folder")
         XCTAssertEqual(args[1], "steps=8")
         XCTAssertEqual(Array(args.dropFirst(2)), Engine.arguments(model: EngineDownload.standard, image: f.root.appendingPathComponent("source.png"),
-                                                                  output: glb, models: EngineDownload.standard.folder(in: f.install), seed: 5),
+                                                                  output: Engine.building(glb), models: EngineDownload.standard.folder(in: f.install), seed: 5),
                        "no --model is the standard model")
         let out = text(log)
         XCTAssertFalse(out.contains("ggml_metal"), "Metal noise reached the log")
@@ -183,7 +180,7 @@ final class EngineTests: XCTestCase {
             """, model: m)
         XCTAssertEqual(p.wait(), 0, text(log))
         XCTAssertEqual(text(URL(fileURLWithPath: seen)).split(separator: "\n").map(String.init),
-                       Engine.arguments(model: m, image: f.root.appendingPathComponent("source.png"), output: glb,
+                       Engine.arguments(model: m, image: f.root.appendingPathComponent("source.png"), output: Engine.building(glb),
                                         models: m.folder(in: f.install), seed: 5))
         XCTAssertTrue(text(log).contains("model=\(m.id)"), "the log doesn't say which model made it")
     }
@@ -203,7 +200,7 @@ final class EngineTests: XCTestCase {
             echo glb > "${@: -1}"
             """, model: m, extra: ["--back", back.path, "--left", left.path])
         XCTAssertEqual(p.wait(), 0, text(log))
-        let want = Engine.arguments(model: m, image: f.root.appendingPathComponent("source.png"), output: glb,
+        let want = Engine.arguments(model: m, image: f.root.appendingPathComponent("source.png"), output: Engine.building(glb),
                                     models: m.folder(in: f.install), seed: 5, views: Engine.views(glb))
         let lines = text(URL(fileURLWithPath: seen)).split(separator: "\n").map(String.init)
         XCTAssertEqual(Array(lines.prefix(want.count)), want)
@@ -261,6 +258,28 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(q.wait(), 1)
         XCTAssertEqual(PrepReport.read(mini)?.failure,
                        "The 3D engine is missing (\(missing.appendingPathComponent("trellis-cli").path)). Open Mimic's Settings and press Repair next to the 3D engine.")
+    }
+
+    /// A shape cut short, by a crash or a Stop, is never left as model.glb (#316): Try Again
+    /// would skip building it and fail in print prep every time. Nor does a run that writes
+    /// nothing pass off the half-built one an earlier crash left.
+    func testAHalfBuiltShapeIsNeverTakenForTheModel() throws {
+        let pidFile = f.root.appendingPathComponent("cli.pid").path
+        var (p, glb, _) = try engine("""
+            echo '[flow] PIXAL3D_STEPS=8 overrides 12 steps'
+            echo half > "${@: -1}"; echo $$ > \(pidFile); exec sleep 60
+            """)
+        XCTAssertNotNil(waitForFile(pidFile))
+        p.terminateGroup()
+        XCTAssertEqual(p.wait(), -15)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: glb.path), "a half-built shape was left as model.glb")
+
+        let log: URL
+        (p, glb, log) = try engine("echo '[flow] PIXAL3D_STEPS=8 overrides 12 steps'")
+        XCTAssertEqual(p.wait(), 1)
+        XCTAssertTrue(text(log).contains("without writing"), text(log))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: glb.path), "an earlier half-built shape became model.glb")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: Engine.building(glb).deletingLastPathComponent().path), "the work folder was left")
     }
 
     /// Stop ends the job's group; trellis-cli has to be in it, not in a group of its own.

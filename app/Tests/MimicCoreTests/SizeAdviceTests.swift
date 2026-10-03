@@ -17,8 +17,13 @@ final class SizeAdviceTests: XCTestCase {
                             ("6ft 2in", 33), ("5 feet 9 inches", 31), ("5'", 27), ("5 ft", 27), ("-1", 32)] {
             XCTAssertEqual(SizeCard.gameHeight(real: typed, scale: 32), mm, typed)
         }
+        // A plain number too tall to be metres is centimetres (#335): "180" was 180 m, clamped to
+        // the slider's top. A giant in metres stays metres.
+        for (typed, mm) in [("180", 32.0), ("90", 16), ("175,5", 31), ("8", 142), ("12", 213)] {
+            XCTAssertEqual(SizeCard.gameHeight(real: typed, scale: 32), mm, typed)
+        }
         var c = SizeCard(purpose: .game)
-        for fine in ["", "  ", "1,5", "6'2\""] { c.setRealHeight(fine); XCTAssertNil(c.realHeightProblem, fine) }
+        for fine in ["", "  ", "1,5", "6'2\"", "180"] { c.setRealHeight(fine); XCTAssertNil(c.realHeightProblem, fine) }
         for bad in ["tall", "0", "6'2\"x", "1.8.2"] {
             c.setRealHeight(bad)
             XCTAssertEqual(c.realHeightProblem, "Couldn't read that, so it's using 1.8 m. Try 1.75 or 5'9\".", bad)
@@ -324,6 +329,25 @@ final class SizeAdviceTests: XCTestCase {
         XCTAssertEqual(Filament.volume(inside.triangles.flatMap { [inside.positions[Int($0.x)], inside.positions[Int($0.y)], inside.positions[Int($0.z)]] }), 8000, accuracy: 1)
         XCTAssertEqual(Filament.words(volume), "Up to 10 g · 3.3 m")
         XCTAssertEqual(Filament.short(200), "up to 1 g", "never 0 g")
+    }
+
+    /// A project's filament is added up again whenever one of its minis changes; only print
+    /// files whose time changed are read again (#340), each being tens of megabytes.
+    func testFilamentReadsAgainOnlyAPrintFileThatChanged() throws {
+        let fm = FileManager.default
+        let url = fm.temporaryDirectory.appendingPathComponent("cube-\(UUID().uuidString).stl")
+        defer { try? fm.removeItem(at: url) }
+        try STL.write(PrepTests.box(half: [10, 10, 10]), to: url)
+        // A whole second, which setting it again gives back exactly.
+        let made = Date(timeIntervalSince1970: Date().timeIntervalSince1970.rounded(.down) - 60)
+        try fm.setAttributes([.modificationDate: made], ofItemAtPath: url.path)
+        XCTAssertEqual(try XCTUnwrap(Filament.volume(stl: url)), 8000, accuracy: 1)
+        // Twice the size, but with the old time: as if it hadn't changed.
+        try STL.write(PrepTests.box(half: [20, 10, 10]), to: url)
+        try fm.setAttributes([.modificationDate: made], ofItemAtPath: url.path)
+        XCTAssertEqual(try XCTUnwrap(Filament.volume(stl: url)), 8000, accuracy: 1, "an unchanged print file was read again")
+        try fm.setAttributes([.modificationDate: made.addingTimeInterval(60)], ofItemAtPath: url.path)
+        XCTAssertEqual(try XCTUnwrap(Filament.volume(stl: url)), 16000, accuracy: 1, "a resized print file kept its old figure")
     }
 
     /// The extra thickness a nozzle gets when it isn't chosen by hand: 40% of the nozzle, to the

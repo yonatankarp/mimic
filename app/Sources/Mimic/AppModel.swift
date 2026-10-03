@@ -7,9 +7,12 @@ import UniformTypeIdentifiers
 
 /// The sheet over the main window, one at a time.
 enum AppSheet: Identifiable, Equatable {
-    case make, resize(Mini), rename(Mini)
-    /// New Mini filled in from a mini: Edit & Make Again.
-    case makeAgain(Mini)
+    /// New Mini: empty, or filled in with the tour's sample.
+    case make(MakeStart?)
+    case resize(Mini), rename(Mini)
+    /// New Mini filled in from a mini: Edit & Make Again. Nil when it has nothing to make it
+    /// again from, which opens it empty.
+    case makeAgain(Mini, MakeStart?)
     /// Resize All on a project.
     case resizeAll(String)
     /// Resize on several minis selected together.
@@ -27,10 +30,12 @@ enum AppSheet: Identifiable, Equatable {
     case compare(String, String)
     /// Make Another Version, or New 3D Shape: what to change in its picture, if anything (#156).
     case version(Mini, newShape: Bool)
+    /// New Mini, empty or with the sample, as the tour follows it; not Edit & Make Again.
+    var isNewMini: Bool { if case .make = self { true } else { false } }
     var id: String {
         switch self {
         case .make: "make"
-        case .makeAgain(let m): "make-again-\(m.name)"
+        case .makeAgain(let m, _): "make-again-\(m.name)"
         case .resize(let m): "resize-\(m.name)"
         case .resizeAll(let p): "resize-all-\(p)"
         case .resizeSeveral(let m): "resize-several-\(Gallery.dragged(m.map(\.name)))"
@@ -65,6 +70,11 @@ final class AppModel {
     func displayName(_ s: JobStatus) -> String { s.shown ?? displayName(s.name) }
     /// The projects (folders of minis), alphabetical, empty ones included.
     var projects: [String] = []
+    /// A mini or a project already has `name`, as `Gallery.nameInUse` finds it, from the list:
+    /// no folder is read, so a sheet can ask on every redraw (#340).
+    func nameInUse(_ name: String) -> Bool {
+        minis.contains { $0.name == name } || projects.contains { $0.lowercased() == name.lowercased() }
+    }
     /// The project New Mini starts in when asked from a project's own menu; else the selected
     /// mini's. Taken (and cleared) by New Mini.
     var makeInProject: String?
@@ -494,7 +504,7 @@ final class AppModel {
 
     @discardableResult
     func createProject(_ text: String) throws -> String {
-        let name = try Gallery.createProject(install.runs, text)
+        let name = try jobs.createProject(text)
         reload()
         return name
     }
@@ -507,6 +517,41 @@ final class AppModel {
             catch { problem = plainWords(error, else: "Couldn't move it. Is its folder open in another app?") }
         }
         reload()
+    }
+
+    /// Rename… and Keep This One's "Call it …?": renames `mini`'s folder to `new`, `shown` being
+    /// the name as typed (nil carries its own over, see `Gallery.rename`). It stays selected if it
+    /// was. Edit → Undo gives it back the name it was shown as, and Redo this one again (#343).
+    func rename(_ mini: Mini, to new: String, shown: String? = nil) throws {
+        try jobs.rename(mini.name, to: new, shown: shown)
+        // Both in one go, so the window never shows another mini in between.
+        if selection.remove(mini.id) != nil { selection.insert(new) }
+        reload()
+        let old = mini.name, oldShown = mini.displayName
+        undo?.registerUndo(withTarget: self) { model in
+            guard let renamed = model.minis.first(where: { $0.name == new }) else { return }
+            do { try model.rename(renamed, to: old, shown: oldShown) }
+            catch { model.problem = model.plainWords(error, else: "Couldn't rename it back. Is its folder open in another app?"); return }
+            model.selection = [old]
+        }
+        undo?.setActionName("Rename")
+    }
+
+    /// Duplicate…: copies `mini` as `new`. Edit → Undo moves the copy to the Trash, as Move to
+    /// Trash would (its Redo puts it back), so cancelling the Resize that follows doesn't leave
+    /// an unwanted copy behind.
+    func duplicate(_ mini: Mini, as new: String, shown: String) throws {
+        try jobs.duplicate(mini.name, as: new, shown: shown)
+        reload()
+        let original = mini.name
+        undo?.registerUndo(withTarget: self) { model in
+            guard let copy = model.minis.first(where: { $0.name == new }) else { return }
+            model.trash(copy)
+            if model.minis.contains(where: { $0.name == original }) { model.selection = [original] }
+            model.undo?.setActionName("Duplicate")
+        }
+        undo?.setActionName("Duplicate")
+        selection = [new]
     }
 
     func renameProject(_ old: String, to text: String) throws {
@@ -671,11 +716,7 @@ final class AppModel {
         switch error {
         // Gallery doesn't know what the job is doing; the running job does.
         case RequestError.busy(let n, _) where n == current?.name: RequestError.busy(n, current?.kind ?? .generate).description
-        case let e as RequestError: e.description
-        case let e as Refusal: e.description
-        case let e as DrawThingsError: e.description
-        case let e as OnlineImagesError: e.description
-        default: fallback
+        default: MimicCore.plainWords(error) ?? fallback
         }
     }
 
@@ -847,11 +888,16 @@ final class AppModel {
         panel.allowedContentTypes = [UTType(filenameExtension: "glb") ?? .data]
         guard panel.runModal() == .OK, let url = panel.url else { return }
         Task {
-            let failed: Error? = await Task.detached {
-                do { try Tabletop.export(mini, to: url); return nil } catch { return error }
+            let made: Result<String?, Error> = await Task.detached {
+                Result { try Tabletop.export(mini, to: url).whyGrey }
             }.value
-            if let failed { problem = plainWords(failed, else: "Couldn't export \(mini.displayName).") }
-            else { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+            switch made {
+            case .failure(let failed): problem = plainWords(failed, else: "Couldn't export \(mini.displayName).")
+            case .success(let whyGrey):
+                NSWorkspace.shared.activateFileViewerSelecting([url])
+                // The save window said it would be in its colours (#317).
+                if let whyGrey { problem = "Exported \(mini.displayName) in grey, not in its colours: \(whyGrey)." }
+            }
         }
     }
 

@@ -144,7 +144,7 @@ public final class JobRunner: @unchecked Sendable {
         self.install = install
         self.queue = JobQueue(folder: install.queue)
         self.tools = tools ?? Tools.resolve(install)
-        self.drawThings = drawThings ?? self.tools.drawThings ?? DrawThings()
+        self.drawThings = drawThings ?? self.tools.drawThings ?? DrawThings(queue: install.queue)
         self.trash = trash
         self.timings = timings
         self.version = version
@@ -369,12 +369,15 @@ public final class JobRunner: @unchecked Sendable {
     /// the same name (from another Mimic, say) can't take the folder over first.
     @discardableResult
     public func remove(_ name: String) throws -> Bool {
-        try queue.locked { entries in
-            guard let i = entries.firstIndex(where: { $0.name == name }) else { return false }
-            let removed = entries.remove(at: i)
-            if let folder = Gallery.folder(install.runs, name), removed.again != true, removed.job == .generate || Self.importing(folder) { try? trash(folder) }
-            return true
-        }
+        try queue.locked { entries in takeOut(name, &entries) != nil }
+    }
+
+    /// `remove`, holding the queue's lock: the entry taken out, or nil when it wasn't waiting.
+    func takeOut(_ name: String, _ entries: inout [QueueEntry]) -> QueueEntry? {
+        guard let i = entries.firstIndex(where: { $0.name == name }) else { return nil }
+        let removed = entries.remove(at: i)
+        if let folder = Gallery.folder(install.runs, name), removed.again != true, removed.job == .generate || Self.importing(folder) { try? trash(folder) }
+        return removed
     }
 
     /// `remove`, for `mimic queue remove`: what it says, by the mini's name as shown. That's read
@@ -522,7 +525,8 @@ public final class JobRunner: @unchecked Sendable {
                 // Checked when it was queued, so rare: its folder went, or its model was removed.
                 var s = JobStatus(name: entry.name, kind: entry.job, step: entry.job == .prep ? .print : .picture, started: Date())
                 s.running = false; s.exit = 1
-                s.problem = (error as? RequestError)?.description ?? String(describing: error)
+                s.problem = plainWords(error) ?? "Couldn't start it. Check that its folder is still there, then try again."
+                Log.queue.error("\(entry.name, privacy: .public) couldn't start: \(String(describing: error), privacy: .public)")
                 lock.withLock { current = s }
                 notify()
             }
@@ -631,7 +635,9 @@ public final class JobRunner: @unchecked Sendable {
                 ran.code = try run(step)
             } catch {
                 ran.code = 1
-                ran.problem = String(describing: error)
+                // In plain words (#324): the raw text, a Cocoa error's say, is for the log.
+                ran.problem = plainWords(error) ?? "It stopped while \(number.during)."
+                append(log, "\(error)\n")
             }
             ran.took[number, default: 0] += Date().timeIntervalSince(began)  // step 1 is one run per picture
             if ran.code != 0 { break }

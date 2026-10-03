@@ -4,7 +4,8 @@ Everything Mimic does in its window, it also does as a `mimic` command in Termin
 engine and the same minis. It's handy for making a batch of minis from a script, resizing a whole
 project in one go, or reading your minis as JSON.
 
-Each section below shows the commands for one job, then every option those commands take.
+Each section below shows the commands for one job, then every option those commands take. A
+command refuses an option it doesn't take, rather than ignoring it.
 
 ## Install it
 
@@ -126,7 +127,8 @@ mimic export tiefling --vtt   # a low-poly .glb for a virtual tabletop
 
 `open` uses the slicer chosen in Settings and takes no options. `export` saves `<name>.glb` (the
 name `mimic list` shows) in the folder you're in, replacing a file of that name already there; see
-[Printing and exporting](printing.md) for when it comes out in colour.
+[Printing and exporting](printing.md) for when it comes out in colour. If it should have been in
+colour but comes out grey, it says why.
 
 | `export` option | What it does |
 |---|---|
@@ -189,12 +191,23 @@ mimic models   # the 3D models, which are downloaded, and which one Mimic uses
 `--json` prints it as JSON. Change the model in **Settings → 3D Model**, or for one mini with
 `make --model`.
 
+## Exit codes
+
+For scripts, `mimic` says how it went in its exit code, and why on stderr:
+
+| Code | Means |
+|---|---|
+| 0 | It worked: done, or added to the queue |
+| 1 | It didn't work: a mini that isn't there, a mini that didn't finish, or Mimic not set up yet |
+| 64 | Typed wrong: a command or option that isn't there, an option the command doesn't take, or a value it can't take |
+| 130 | Stopped with Ctrl-C, or taken out of the queue while `--wait` waited for it |
+
 ## JSON for scripts
 
 `mimic list --json`, `projects --json`, `queue --json`, `models --json` and `info <name> --json` print JSON. These
 field names stay as they are: new ones may be added, but none is renamed or removed. Dates are
 ISO 8601 (`2026-09-21T14:13:20Z`), sizes are millimetres and times are seconds. A field with no
-value is left out.
+value is left out, and so is a size that isn't a number (one edited by hand to `inf`, say).
 
 - `list`: an array of minis, every project's, newest first. Each has `name` (what `mimic`
   commands take), `shown` (the name it's shown as), `project` (left out when unsorted), `state`
@@ -210,7 +223,7 @@ value is left out.
 - `info`: `mini` (as in `list`), `made` (`height`, `base`, `nozzle`, `inflate`, `noBase`, `shape`,
   `style`, `magnet`), `measured` (`height` with its base, `width`, `depth`, `filamentGrams`,
   `filamentMetres`), `madeFrom` (`source` of `picture` or `description`, `description`, `typed`,
-  `seed`, `shapeSeed`, `model`, `greySculpt`, `cartoon`, `fixes`: the changes asked for in its picture
+  `seed`, `shapeSeed`, `model` (left out for one you imported), `greySculpt`, `cartoon`, `fixes`: the changes asked for in its picture
   with `--change` or in the app, as typed, oldest first), `versions` (names, itself included) and
   `failed` (why its last run didn't finish).
 

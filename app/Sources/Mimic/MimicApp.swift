@@ -33,7 +33,7 @@ struct MimicApp: App {
                 Button("Install Command-Line Tool…") { CommandLineTool.show() }
             }
             CommandGroup(replacing: .newItem) {
-                Button("New Mini…") { model.showWindow(); model.sheet = .make }
+                Button("New Mini…") { model.showWindow(); model.sheet = .make(nil) }
                     .keyboardShortcut("n")
                     .disabled(!model.setup.installed || model.sheet != nil)
                 // A model made elsewhere, print prep only (#96).
@@ -114,6 +114,10 @@ struct MiniCommands: Commands {
             Button("Show in Finder") { model.showInFinder(chosen) }
                 .keyboardShortcut("r", modifiers: [.command, .option])
                 .disabled(chosen.isEmpty)
+            // As in the right-click menu (#345), which no open sheet leaves within reach.
+            Button("Export for Virtual Tabletop…") { if let mini { model.exportForTabletop(mini) } }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+                .disabled(mini?.stl == nil || !free)
             Divider()
             if several {
                 Button("Resize \(chosen.count) Minis…") { model.sheet = .resizeSeveral(chosen) }
@@ -257,7 +261,7 @@ struct ContentView: View {
                     } description: {
                         Text("Make your first mini from a picture or a description. It takes about \(model.setup.chosen.minutes) minutes.")
                     } actions: {
-                        Button("New Mini", systemImage: "plus") { model.sheet = .make }
+                        Button("New Mini", systemImage: "plus") { model.sheet = .make(nil) }
                             .buttonStyle(.borderedProminent)
                     }
                 } else {

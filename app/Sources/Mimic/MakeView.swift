@@ -53,18 +53,19 @@ struct MakeView: View {
     @State private var writing = false
     @State private var writingTask: Task<Void, Never>?
 
-    init(room: CGSize, form: MakeForm? = nil, again: Mini? = nil) {
+    /// `start` was read and decoded when the sheet was asked for: this runs again on every frame
+    /// of a window resize, so it reads nothing (#341).
+    init(room: CGSize, start filled: MakeStart? = nil, again: Mini? = nil) {
         self.room = room
         self.again = again
         _height = State(initialValue: min(720, room.height - 8))
         // Filled in here rather than on appear, so no onChange takes it for a choice made in the
         // sheet (a kind changed forgets the improved description; the size card's are remembered).
-        let form = form ?? TourGuide.shared.takeSample().map { MakeForm(picture: $0, name: TourGuide.sampleName, card: .remembered()) }
-        guard let form else { return }
+        guard let filled else { return }
+        let form = filled.form
         _start = State(initialValue: form.fromPicture ? .picture : .description)
-        _picture = State(initialValue: form.picture.flatMap { url in
-            Picture(url, caption: again.map { "The picture \($0.displayName) was made from" }) })
-        _sides = State(initialValue: form.sides.compactMapValues { Picture($0) })
+        _picture = State(initialValue: filled.picture)
+        _sides = State(initialValue: filled.sides)
         _restyle = State(initialValue: form.restyle)
         _cartoon = State(initialValue: form.cartoon)
         _description = State(initialValue: form.description)
@@ -144,6 +145,12 @@ struct MakeView: View {
             improved = nil  // written for the other kind
         }
         .onChange(of: seed) { shapeSeed = nil }  // a new variation number is a new shape too
+        .task(id: nameLookup) { await lookUpName() }
+        .task(id: "\(model.setup.removals) \(model.setup.running)") {
+            let install = model.install
+            let here = await Task.detached { EngineDownload.cartoon.complete(in: install) }.value
+            if !Task.isCancelled { pixal3dHere = here }
+        }
         .task {
             // A description and the grey sculpt need Draw Things, and Make needs every required
             // part: check them once if nothing has yet, then keep watching Draw Things.
@@ -272,9 +279,12 @@ struct MakeView: View {
 
     @State private var autoName = false
     private var object: Bool { card.kind == .object }
-    private var pixal3dHere: Bool { EngineDownload.cartoon.complete(in: model.install) }
+    /// Pixal3D is downloaded: looked up off the main thread when the sheet opens and after a
+    /// download or removal (#340), as it checks the size of every file. Nil until then, taken
+    /// as here: Make Mini refuses a model that isn't, and the sheet doesn't flicker.
+    @State private var pixal3dHere: Bool?
     /// A cartoon character from a picture, and everything it needs is here.
-    private var cartoonOn: Bool { cartoon && !object && start == .picture && health.picturesReady && pixal3dHere }
+    private var cartoonOn: Bool { cartoon && !object && start == .picture && health.picturesReady && pixal3dHere != false }
     /// The grey sculpt, which a cartoon always gets.
     private var sculpt: Bool { (restyle || cartoonOn) && health.picturesReady }
     private var thing: String { object ? "object" : "character" }
@@ -313,9 +323,9 @@ struct MakeView: View {
                     Text("It's a cartoon")
                     Text("For flat drawings with outlines and flat colours. Made from the grey sculpt with Pixal3D, which keeps cartoon shapes smooth.")
                 }
-                .disabled(!health.picturesReady || !pixal3dHere)
+                .disabled(!health.picturesReady || pixal3dHere == false)
                 .help("Flat 2D cartoon art comes out smoother this way")
-                if health.picturesReady && !pixal3dHere {
+                if health.picturesReady && pixal3dHere == false {
                     HStack(alignment: .firstTextBaseline) {
                         Text("Cartoons need the Pixal3D model.").foregroundStyle(.secondary)
                         Spacer()
@@ -506,11 +516,26 @@ struct MakeView: View {
 
     private var takenName: String? {
         // As Make Mini refuses it: a failed attempt's folder in the same place is made again.
-        guard !slug.isEmpty,
-              Gallery.nameTaken(model.install.runs, slug, project: project.name)
-                || model.waiting(slug) != nil || model.current?.name == slug
+        guard !slug.isEmpty, takenOnDisk == nameLookup || model.waiting(slug) != nil || model.current?.name == slug
         else { return nil }
         return model.displayName(slug)
+    }
+
+    /// The name and project `Gallery.nameTaken` was asked about, and the gallery then: it reads
+    /// the minis folder, so it's asked off the main thread when one of these changes, not on
+    /// every redraw (every key typed in Name), #340.
+    private struct NameLookup: Equatable {
+        let slug: String, project: String?, minis: [Mini]
+    }
+    private var nameLookup: NameLookup { NameLookup(slug: slug, project: project.name, minis: model.minis) }
+    /// The last lookup that found the name taken.
+    @State private var takenOnDisk: NameLookup?
+
+    private func lookUpName() async {
+        let lookup = nameLookup, runs = model.install.runs
+        guard !lookup.slug.isEmpty else { takenOnDisk = nil; return }
+        let taken = await Task.detached { Gallery.nameTaken(runs, lookup.slug, project: lookup.project) }.value
+        if !Task.isCancelled { takenOnDisk = taken ? lookup : nil }
     }
 
     private var estimate: Estimate {

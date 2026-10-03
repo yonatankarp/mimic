@@ -91,8 +91,9 @@ Mimic then asks whether to move your minis there:
 You can change the folder once no mini is being made or waiting in the queue. Mimic won't use a
 folder inside the one your minis are in now, or one that holds it, and it won't move minis onto
 others with the same names: it names them, so you can rename yours first. If a move goes wrong,
-your minis stay where they were. For more on the folder itself, see
-[Where your files are](files.md).
+your minis stay where they were. While they're moving, making, resizing, renaming, moving or
+trashing a mini, and making a project, wait: Mimic asks you to try again once the move is done.
+For more on the folder itself, see [Where your files are](files.md).
 
 ### Updates
 
@@ -180,8 +181,10 @@ when needed**.
     side picture it redraws. A picture used as it is costs nothing. A new version with a new
     picture costs the same again; a picture that's already made is never asked for twice.
 
-If the service turns a picture down (its moderation does that now and then), is busy, or takes
-too long, the mini stops with a message saying so, and nothing else about it changes. Press
+If the service is busy, Mimic waits and asks again, twice at most; a request the service turns
+away isn't charged. If the service turns a picture down (its moderation does that now and then),
+is still busy, or takes too long, the mini stops with a message saying so, and nothing else about
+it changes. Press
 **Try Again**, or change the description. If your account is out of credits or has reached its
 spending limit, the message says so: add credits or raise your limit on the service's website
 first.

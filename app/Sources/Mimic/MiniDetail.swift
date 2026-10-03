@@ -130,8 +130,9 @@ struct MiniDetail: View {
     /// Its picture, redrawn with a change, for you to check before the 3D shape is built (#156).
     private func checkPage(_ source: URL) -> some View {
         VStack(spacing: 16) {
-            // By the picture's own time: Try Again draws a new one in its place.
-            Thumbnail(url: source, version: (try? FileManager.default.attributesOfItem(atPath: source.path))?[.modificationDate] as? Date ?? mini.madeAt)
+            // By the picture's own time, which is the mini's while it has no print file: Try
+            // Again draws a new one in its place.
+            Thumbnail(url: source, version: mini.madeAt)
                 .frame(maxWidth: 480, maxHeight: 480)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .accessibilityLabel("The picture of \(mini.displayName)")
@@ -401,18 +402,9 @@ struct MiniDetail: View {
     /// The kept version takes the plain name. Undo gives it back its own, so a second Undo can
     /// put the version that had the plain name back from the Trash.
     private func rename(to name: String) {
-        let old = mini.name
-        do { try model.jobs.rename(old, to: name) }
+        do { try model.rename(mini, to: name) }
         catch { model.problem = model.plainWords(error, else: "Couldn't rename it. Is its folder open in another app?"); return }
-        model.reload()
         model.selection = [name]
-        model.undo?.registerUndo(withTarget: model) { model in
-            do { try model.jobs.rename(name, to: old) }
-            catch { model.problem = model.plainWords(error, else: "Couldn't rename it back. Is its folder open in another app?"); return }
-            model.reload()
-            model.selection = [old]
-        }
-        model.undo?.setActionName("Rename")
     }
 }
 
@@ -436,7 +428,8 @@ struct Thumbnail: View {
                 Color.secondary.opacity(0.15)
             }
         }
-        .animation(.easeOut(duration: 0.4), value: image.map(ObjectIdentifier.init))
+        // With Reduce Motion a new picture takes the old one's place at once.
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.4), value: image.map(ObjectIdentifier.init))
         // Read off the main thread: a picture can be a few megabytes.
         .task(id: "\(url?.path ?? "")\(version)") { [url] in image = await Task.detached { url.flatMap(NSImage.init(contentsOf:)) }.value }
     }

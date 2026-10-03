@@ -395,6 +395,35 @@ final class JobTests: XCTestCase {
         XCTAssertEqual(quietSaved.failed, "It stopped while building the 3D shape.")
     }
 
+    /// A step that fails inside Mimic says so in plain words (#324), not as Swift's raw error
+    /// text: here its picture went before it could be copied, a Cocoa error. The raw text goes
+    /// in the job's log, for a bug report.
+    func testAFailureInsideMimicIsSaidPlainly() throws {
+        let fx = try Fixture()
+        try fx.modelFiles()
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(), trash: { _ in })
+        try jobs.setPaused(true)
+        try jobs.make(name: "gone", picture: .image(try fx.picture()), restyle: false, seed: 1, sizes: sizes, model: EngineDownload.standard)
+        let d = fx.install.runs.appendingPathComponent("gone")
+        try FileManager.default.removeItem(at: d.appendingPathComponent("upload.img"))
+        try jobs.setPaused(false)
+        jobs.waitUntilDone()
+        let said = "It stopped while getting the picture ready."
+        XCTAssertEqual(jobs.status?.problem, said)
+        XCTAssertEqual(MiniSettings.load(d).failed, said)
+        let log = (try? String(contentsOf: d.appendingPathComponent("generate.job.log"), encoding: .utf8)) ?? ""
+        XCTAssertTrue(log.contains("NSCocoaErrorDomain"), "the raw error isn't in the log: \(log)")
+    }
+
+    /// Mimic's own errors are already in plain words; anything else has none, for the caller's own.
+    func testOnlyMimicsOwnErrorsAreInPlainWords() {
+        XCTAssertEqual(plainWords(RequestError.noPicture), RequestError.noPicture.description)
+        XCTAssertEqual(plainWords(HelperError.busy), HelperError.busy.description)
+        XCTAssertEqual(plainWords(Refusal("No.")), "No.")
+        XCTAssertNil(plainWords(CocoaError(.fileNoSuchFile)))
+        XCTAssertNil(plainWords(URLError(.badServerResponse)))
+    }
+
     /// Stop during the 3D step: the job and its child end, it reads as stopped, and the
     /// half-made mini goes to the Trash.
     func testStopEndsTheJobAndTrashesAHalfMadeMini() throws {

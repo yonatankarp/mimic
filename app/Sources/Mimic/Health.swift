@@ -42,9 +42,15 @@ final class Health {
     /// While the window that calls this is open: re-checks Draw Things every few seconds while
     /// any of its checks fails, so the setup steps tick off as they're done. Once ready it keeps
     /// asking, less often: Draw Things can be quit at any moment, and the web page once stopped
-    /// asking after it had seen it ready.
+    /// asking after it had seen it ready. However many windows call it, one loop asks (#347).
     func watchDrawThings(_ install: Install?) async {
         guard let install else { return }
+        await drawThingsWatch.join { await self.watch(install) }
+    }
+
+    @ObservationIgnored private let drawThingsWatch = SharedLoop()
+
+    private func watch(_ install: Install) async {
         while !Task.isCancelled {
             try? await Task.sleep(for: .seconds(picturesReady ? 15 : 4))
             guard !running else { continue }

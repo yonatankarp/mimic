@@ -63,16 +63,19 @@ Everything about one mini is in its folder. For a mini called `tiefling`:
 | `model.glb` | The 3D shape the 3D engine made, before print prep, with the engine's colours. Resize, Duplicate and Export for Virtual Tabletop start from it. |
 | `placement.json` | Where print prep put `model.glb` to make the print file: see [below](#placementjson). Made again with the print file. |
 | `settings.json` | How the mini was made and what it was asked for: see below. |
-| `generate.job.log` | The steps of the last make or Try Again: `[1/3] Getting the picture ready`, `[2/3] Building the 3D shape`, `[3/3] Making the print-ready file`. |
+| `generate.job.log` | The steps of the last make or Try Again: `[1/3] Getting the picture ready`, `[2/3] Building the 3D shape`, `[3/3] Making the print-ready file`. When a step fails inside Mimic itself, the full error is here too; the mini's page says it in plain words. |
 | `prep.job.log` | The same for the last job that only ran print prep: a resize, an import, or a Try Again that only needed print prep. |
 | `pixal3d.log` | What the 3D engine said, for either 3D model. Where a failure in step 2 shows. |
 | `prep.log` | What print prep did, with sizes, how many loose pieces it dropped and any warnings. See [Tuning print prep](print-prep.md#what-it-says). |
-| `model.ply`, `model_base.png`, `model.svviews/` | Left by the 3D engine as it works. Mimic doesn't use them afterwards. |
+| `model.ply`, `model_base.png`, `model.svviews/` | Older minis only: left by the 3D engine as it worked. Mimic doesn't use them, and you can delete them. |
 | `model.mvviews/` | The cut-out pictures handed to TRELLIS.2 when a mini has pictures of its back and sides (`1-front.png`, `2-back.png`, …). |
 
 You may also see, briefly:
 
 - `tiefling.part.stl` while print prep writes the print file; it replaces `tiefling.stl` in one go.
+- `model.building/` while the 3D engine builds the shape. `model.glb` appears only once the shape is
+  whole, so a mini cut short never keeps half of one. If Mimic closes unexpectedly, the folder may
+  stay until the mini is made again.
 - `prep-result.json`, which print prep writes for the job to read (and building the 3D shape too,
   when it fails, to say why), and which goes as soon as the job has read it.
 
@@ -93,6 +96,9 @@ look at:
 | `sides`, `fixes`, `imported`, `versionOf` | Pictures of the back and sides, what was changed in the picture, the file a model was imported from, and the first of its versions. |
 | `failed`, `failedStep`, `notes`, `fragile` | Why the last run didn't finish, and what the last finished run wants you to know. |
 | `created` | When it was asked for: the list's order. |
+
+A field Mimic doesn't know, such as one a newer Mimic on another Mac wrote, is kept as it is when
+Mimic changes the file.
 
 For scripts, `mimic info <name> --json` gives the same in a form that won't change: see
 [JSON for scripts](cli.md#json-for-scripts).
