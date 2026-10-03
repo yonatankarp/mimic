@@ -21,8 +21,8 @@ public struct Crash: Equatable, Sendable {
 }
 
 /// Finds crashes in `~/Library/Logs/DiagnosticReports` at launch and offers each once. Crashes of
-/// the programs Mimic runs (trellis-cli, draw-things-cli) aren't offered: they show as failed jobs,
-/// with their logs, and Report a Problem on the mini has those.
+/// the programs Mimic runs (trellis-cli, draw-things-cli, and its own `_prep` and `_engine`) aren't
+/// offered: they show as failed jobs, with their logs, and Report a Problem on the mini has those.
 public enum CrashReport {
     public static var folder: URL {
         FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/DiagnosticReports")
@@ -64,6 +64,7 @@ public enum CrashReport {
               let header = (try? JSONSerialization.jsonObject(with: Data(text[..<split].utf8))) as? [String: Any],
               let body = (try? JSONSerialization.jsonObject(with: Data(text[split...].utf8))) as? [String: Any],
               (header["name"] as? String ?? header["app_name"] as? String)?.lowercased() == "mimic",
+              !startedByAJob(body),
               let exception = body["exception"] as? [String: Any],
               let threads = body["threads"] as? [[String: Any]],
               let faulting = body["faultingThread"] as? Int, threads.indices.contains(faulting)
@@ -113,6 +114,14 @@ public enum CrashReport {
         return Crash(file: url, date: date, what: Report.scrub(what, home: home), version: version,
                      trimmed: Report.scrub(String(decoding: json, as: UTF8.self), home: home) + "\n",
                      pid: body["pid"] as? Int, launched: time(body["procLaunch"]), crashed: time(body["captureTime"]))
+    }
+
+    /// Print prep and the 3D step (`mimic _prep`, `mimic _engine`) are this binary too, and their
+    /// crash shows as a failed job (#319). A report doesn't keep the arguments, so they're told
+    /// apart by what started them: Mimic, or "Exited process" when it exited before the report.
+    /// The app's parent is launchd, and `mimic` in Terminal's is the shell.
+    static func startedByAJob(_ body: [String: Any]) -> Bool {
+        ["mimic", "exited process"].contains((body["parentProc"] as? String)?.lowercased())
     }
 
     /// "2026-09-30 10:15:00.1234 +0200", as the report writes its times.
