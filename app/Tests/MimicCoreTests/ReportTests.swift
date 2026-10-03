@@ -78,6 +78,29 @@ final class ReportTests: XCTestCase {
         XCTAssertTrue(String(decoding: try XCTUnwrap(with["about.txt"]), as: UTF8.self).contains("The app's own log couldn't be read."))
     }
 
+    /// Reports older than a week go when the next is made (#350): the folder may sync to iCloud.
+    /// Anything else in it stays.
+    func testMakingAReportClearsOutOnesOlderThanAWeek() throws {
+        let fx = try Fixture()
+        let folder = fx.root.appendingPathComponent("reports")
+        try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+        let now = Date()
+        func plant(_ name: String, daysOld: Double) throws -> URL {
+            let url = folder.appendingPathComponent(name)
+            try Data("x".utf8).write(to: url)
+            try fm.setAttributes([.modificationDate: now.addingTimeInterval(-daysOld * 86_400)], ofItemAtPath: url.path)
+            return url
+        }
+        let old = try plant("mimic-report-2026-01-01-120000.zip", daysOld: 8)
+        let recent = try plant("mimic-report-raven-2026-01-09-120000.zip", daysOld: 6)
+        let notOurs = try plant("my notes.zip", daysOld: 30)
+        let made = try Report.write(to: folder, mini: nil, picture: false, build: "b", mac: "m", appLog: nil, now: now, home: home)
+        XCTAssertFalse(fm.fileExists(atPath: old.path), "a report older than a week stayed")
+        XCTAssertTrue(fm.fileExists(atPath: recent.path))
+        XCTAssertTrue(fm.fileExists(atPath: notOurs.path), "only Mimic's reports are cleared out")
+        XCTAssertTrue(fm.fileExists(atPath: made.path))
+    }
+
     func testWithoutAMiniItHasTheBuildTheMacAndTheAppLog() throws {
         let fx = try Fixture()
         let (_, files) = try unzip(try Report.write(to: fx.root, mini: nil, picture: true, build: "b", mac: "m", appLog: "line\n", home: home))

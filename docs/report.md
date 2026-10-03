@@ -16,7 +16,7 @@ on GitHub for you to attach it to.
   **Mini** menu or by right-clicking the mini.
 - For anything else: choose **Help → Report a Problem…**.
 
-![Report a problem with “Snow Ghost”?: what goes in the file, Include the picture unticked, Include a picture of Mimic's window ticked with its preview, and Cancel and Make Report](images/screens/troubleshooting-report-a-problem.png){ width="384" }
+![Report a problem with “Elf Scout”?: what goes in the file, Include the picture unticked, Include a picture of Mimic's window unticked with its preview, and Cancel and Make Report](images/screens/troubleshooting-report-a-problem.png){ width="392" }
 
 Mimic first says what goes in the file. Press **Make Report**. The file has:
 
@@ -37,8 +37,8 @@ since the issue is public:
   it was built from. It starts unticked.
 - **Include a picture of Mimic's window (the issue is public)**, when the main window is open: the
   window as it was when you chose Report a Problem, with any sheet open on it, but not Settings.
-  It starts ticked, with a preview of the picture underneath, so you can see what it shows, minis'
-  names and pictures included. Untick it to leave it out.
+  It starts unticked, since the window can show your other minis' names and pictures. The preview
+  underneath shows what it would include; tick it to put it in.
 
 The 3D files and previews themselves are never included.
 
@@ -66,7 +66,9 @@ command line tool) isn't asked about: it shows as a mini that didn't finish, wit
 
 !!! tip
     The reports stay in your minis folder, in a folder called `_reports`, which Mimic doesn't show
-    as a project. You can delete them once they're sent.
+    as a project. Mimic deletes them a week after they're made, when it makes the next one, so send
+    a report within a week, or keep a copy somewhere else. You can delete them yourself once
+    they're sent.
 
 ## Report a problem yourself
 
