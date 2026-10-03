@@ -372,6 +372,32 @@ final class QueueTests: XCTestCase {
         XCTAssertEqual(next.status?.succeeded, true)
     }
 
+    /// A mini a crashed Mimic was making says why it stopped (#436), with Try Again, or Resize for
+    /// an imported model, which has no Try Again. Whether a program was still running or not.
+    func testAMiniLeftByACrashSaysWhy() throws {
+        let fx = try Fixture()
+        let made = try fx.mini("a"), imported = try fx.mini("b")
+        try MiniSettings.update(imported) { $0.imported = "b.stl" }
+        for (name, step) in [("a", JobStep.shape), ("b", .print)] {
+            // Written by a Mimic that has gone: its pid's start time doesn't match.
+            let left = SharedJob(name: name, kind: name == "a" ? .generate : .prep, step: step, started: Date(), stepStarted: Date(),
+                                 pid: getpid(), pidStart: 1)
+            try JobQueue.encoder.encode(left).write(to: SharedJob.file(queue: fx.install.queue))
+            XCTAssertNotNil(SharedJob.orphaned(queue: fx.install.queue), "the app wouldn't look")
+            JobRunner(install: fx.install, tools: fx.tools()).cleanUpLeftovers()
+            XCTAssertNil(SharedJob.orphaned(queue: fx.install.queue))
+        }
+        XCTAssertEqual(MiniSettings.load(made).failed, "Mimic stopped while making it. Try Again.")
+        XCTAssertEqual(MiniSettings.load(made).failedStep, JobStep.shape.rawValue)
+        XCTAssertEqual(MiniSettings.load(imported).failed, "Mimic stopped while making it. Resize it to try again.")
+        XCTAssertEqual(MiniSettings.load(imported).failedStep, JobStep.print.rawValue)
+
+        // A live Mimic's job is never taken for one.
+        SharedJob.write(JobStatus(name: "a", kind: .generate, step: .shape, started: Date()), queue: fx.install.queue)
+        XCTAssertNil(SharedJob.orphaned(queue: fx.install.queue))
+        SharedJob.clear(queue: fx.install.queue)
+    }
+
     /// With nothing waiting, a crash's leftover is still stopped by the next Mimic to look.
     func testALeftoverIsStoppedWithAnEmptyQueue() throws {
         let fx = try Fixture()

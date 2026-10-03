@@ -294,8 +294,9 @@ final class AppModel {
         let idle = !running, canStart = !running && requiredProblem == nil && setup.installed
         await Task.detached {
             // A crashed Mimic's job may still be running with nothing watching it: stopped as soon
-            // as no live Mimic holds the job lock, queue or no queue.
-            if idle && Leftover.recorded(queue: queueFolder) { jobs.cleanUpLeftovers() }
+            // as no live Mimic holds the job lock, queue or no queue. One that crashed between
+            // programs left none running, but its mini still needs saying why it stopped (#436).
+            if idle && (Leftover.recorded(queue: queueFolder) || SharedJob.orphaned(queue: queueFolder) != nil) { jobs.cleanUpLeftovers() }
             // Not while a required part is broken (the engine needs Repair): each job would fail in
             // turn, so the queue waits until it's fixed.
             if canStart && !jobs.queue.entries().isEmpty { jobs.pump() }

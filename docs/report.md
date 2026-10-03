@@ -64,6 +64,10 @@ file says so. A crash while a mini is being made (in the 3D engine, print prep o
 command line tool) isn't asked about: it shows as a mini that didn't finish, with
 **Report a Problem…** on its page.
 
+If Mimic itself crashed while it was making a mini, that mini's page says "Mimic stopped while
+making it. Try Again." the next time you open Mimic. **Try Again** carries on from the step it was
+on.
+
 !!! tip
     The reports stay in your minis folder, in a folder called `_reports`, which Mimic doesn't show
     as a project. Mimic deletes them a week after they're made, when it makes the next one, so send

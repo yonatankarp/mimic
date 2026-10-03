@@ -586,6 +586,28 @@ final class JobTests: XCTestCase {
         XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: MiniSettings.load(d), tools: fx.tools()).map(\.number), [.shape, .print],
                        "the picture is kept")
         XCTAssertNil(MiniSettings.load(d).failed, "quitting isn't a failure")
+        JobRunner(install: fx.install, tools: fx.tools()).cleanUpLeftovers()
+        XCTAssertNil(MiniSettings.load(d).failed, "quitting was taken for a crash at the next launch (#436)")
+    }
+
+    /// A 3D shape cut short by a crash before #403 failed print prep on every Try Again (#436):
+    /// Try Again builds it again. A whole one is kept, and only print prep runs again.
+    func testTryAgainBuildsAShapeCutShortAgain() throws {
+        let fx = try Fixture()
+        try fx.modelFiles()
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(mimic: "/usr/bin/false"), trash: { _ in })
+        try jobs.setPaused(true)
+        let whole = GLB.encode(GLBTests.triangle)
+        for (name, glb, job) in [("cut", whole.prefix(whole.count - 10), JobKind.generate), ("whole", whole, .prep)] {
+            let d = try fx.mini(name)
+            try glb.write(to: d.appendingPathComponent(Mini.modelFile))
+            try MiniSettings.update(d) { s in
+                s.source = .image; s.seed = 7; s.requested = sizes; s.model = EngineDownload.standard.id; s.failed = "the .glb is cut short"
+            }
+            try jobs.retry(name: name)
+            XCTAssertEqual(jobs.queue.entries().last?.job, job, name)
+            XCTAssertEqual(FileManager.default.fileExists(atPath: d.appendingPathComponent(Mini.modelFile).path), job == .prep, name)
+        }
     }
 
     /// Quitting in the last step keeps the 3D shape, so it isn't built again (minutes).

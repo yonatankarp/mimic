@@ -151,7 +151,8 @@ ready and you haven't looked at yet. Right-click it for **New Mini…**, **Show 
 
 Quit Mimic while a mini is being made and it asks first. If you quit, the mini goes back to the
 front of the queue, and the next time you open Mimic it carries on from the last step it finished.
-Minis waiting in the queue follow.
+Minis waiting in the queue follow. If Mimic quits unexpectedly instead, the mini says "Mimic stopped
+while making it. Try Again." and **Try Again** carries on from the step it was on.
 
 Your Mac doesn't go to sleep on its own while minis are being made or waiting. The screen can still
 turn off, and closing the lid still sleeps it.
