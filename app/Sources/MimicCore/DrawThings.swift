@@ -369,7 +369,7 @@ public struct DrawThingsApp: Sendable {
 
 public enum DrawThingsError: Error, CustomStringConvertible, Equatable {
     case notRunning, timedOut, noModel, cancelled, badPicture, refused(String), apiOff, closedWhileOpening
-    /// What the setup steps in Settings → Draw Things & AI fix: it isn't running or isn't set up.
+    /// What the setup steps in Settings → Pictures fix: it isn't running or isn't set up.
     public static let setup: [DrawThingsError] = [.notRunning, .noModel, .apiOff]
     public var description: String {
         switch self {

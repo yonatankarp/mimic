@@ -79,6 +79,7 @@ struct HelperSection: View {
     @State private var ollamaProblem: String?
     @State private var testing = false
     @State private var testResult: (ok: Bool, text: String)?
+    @State private var removing = false
 
     private var current: HelperProvider { HelperProvider(rawValue: provider) ?? .off }
     /// What Improve reads, so the key is saved under the account it looks for.
@@ -114,7 +115,8 @@ struct HelperSection: View {
             }
             if current != .off {
                 HStack(alignment: .firstTextBaseline) {
-                    Button("Test") { test() }.disabled(testing)
+                    // A cloud helper can't answer without its key; Ollama needs none.
+                    Button("Test") { test() }.disabled(testing || (current.isCloud && !hasKey))
                     if testing { ProgressView().controlSize(.small) }
                     if let testResult {
                         Label(testResult.text, systemImage: testResult.ok ? "checkmark.circle.fill" : "xmark.octagon.fill")
@@ -140,11 +142,12 @@ struct HelperSection: View {
             if hasKey {
                 Label("API key saved in your Keychain", systemImage: "key.fill")
                 Spacer()
-                Button("Remove") {
-                    if let account = config.keyAccount { Keychain.delete(account: account) }
-                    hasKey = false
-                    testResult = nil
-                }
+                Button("Remove…") { removing = true }
+                    .removeKeyDialog(isPresented: $removing) {
+                        if let account = config.keyAccount { Keychain.delete(account: account) }
+                        hasKey = false
+                        testResult = nil
+                    }
             } else {
                 SecureField("API key", text: $keyText, prompt: Text("Paste your key"))
                     .onSubmit(saveKey)
@@ -231,6 +234,7 @@ struct PicturesSection: View {
     @State private var hasKey = false
     @State private var testing = false
     @State private var testResult: (ok: Bool, text: String)?
+    @State private var removing = false
 
     private var online: OnlineService? { ImageService(rawValue: service)?.online }
 
@@ -247,11 +251,12 @@ struct PicturesSection: View {
                     if hasKey {
                         Label("API key saved in your Keychain", systemImage: "key.fill")
                         Spacer()
-                        Button("Remove") {
-                            Keychain.delete(account: online.keyAccount)
-                            hasKey = false
-                            changed()
-                        }
+                        Button("Remove…") { removing = true }
+                            .removeKeyDialog(isPresented: $removing) {
+                                Keychain.delete(account: online.keyAccount)
+                                hasKey = false
+                                changed()
+                            }
                     } else {
                         SecureField("API key", text: $keyText, prompt: Text("Paste your key"))
                             .onSubmit(saveKey)
@@ -317,6 +322,18 @@ struct PicturesSection: View {
             case .success: testResult = (true, "It works.")
             case .failure(let error): testResult = (false, said(error, else: "The test didn't work. Check the key, then try again."))
             }
+        }
+    }
+}
+
+extension View {
+    /// Asks before a saved key is deleted from the Keychain: there's no Undo (#481).
+    func removeKeyDialog(isPresented: Binding<Bool>, remove: @escaping () -> Void) -> some View {
+        confirmationDialog("Remove the saved key?", isPresented: isPresented) {
+            Button("Remove Key", role: .destructive, action: remove)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Mimic deletes it from your Keychain. To use it later, you'll need to paste it in again.")
         }
     }
 }

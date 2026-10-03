@@ -3,7 +3,7 @@
 Settings is where you check that Mimic has everything it needs, pick the 3D model it makes minis
 with, choose what makes pictures and set up the AI helper, and choose where your minis are kept. Open it from
 **Mimic → Settings…** (++cmd+comma++). It has four tabs: **General**, **3D Model**,
-**Draw Things & AI** and **Advanced**.
+**Pictures** and **Advanced**.
 
 !!! tip
     You rarely need to go looking. If something stops Mimic making minis, **Needs Setup** appears
@@ -11,7 +11,7 @@ with, choose what makes pictures and set up the AI helper, and choose where your
 
 ## General
 
-![Settings, General tab: every check green, Open Draw Things when needed on, Open minis in set to Bambu Studio, Your printer's nozzle at 0.4 mm · standard, and Start minis only when plugged in](images/screens/settings-general.png){ width="540" }
+![Settings, General tab: every check green, Pictures made with Draw Things, on this Mac, Open Draw Things when needed on, Open minis in set to Bambu Studio, Your printer's nozzle at 0.4 mm · standard, and Start minis only when plugged in](images/screens/settings-general.png){ width="540" }
 
 ### Check that everything is set up
 
@@ -32,10 +32,7 @@ Hold the pointer over a name to see what that part is for.
 
 | Check | What it is | If it isn't ready |
 |---|---|---|
-| **Draw Things app** | A free app that draws characters from a description and turns pictures into grey sculpts. | Install Draw Things from the Mac App Store. |
-| **Draw Things is open and connected** | Lets Mimic ask Draw Things for pictures. It usually reads **Draw Things connected through its command line tool**, which means nothing more is needed. | See [Draw Things & AI](#draw-things-ai). |
-| **FLUX.2 Klein model in Draw Things** | The picture model Mimic asks Draw Things to use. | In Draw Things' model list, search for FLUX.2 Klein and download it. |
-| **Black Forest Labs key works** or **OpenAI key works** | Shows instead of the three Draw Things checks when [pictures are made online](#choose-what-makes-the-pictures), named after the service you chose. Mimic asks the service whether the key works, which costs nothing. | Save your key on the [Draw Things & AI](#draw-things-ai) tab, or copy it again from your account. |
+| **Pictures** | What draws a character from a description and turns a picture into a grey sculpt: **Draw Things, on this Mac**, or the [online service](#choose-what-makes-the-pictures) you chose. For Draw Things, Mimic checks the app, its connection and its picture model; for an online service, it asks the service whether your key works, which costs nothing. **Change** takes you to the [Pictures](#pictures) tab. | It says **Draw Things isn't set up yet**, or what's wrong with the key, and **Set Up** takes you to the [Pictures](#pictures) tab, which has the steps. |
 | **A slicer to print with** | Turns a mini into instructions for your printer. | Install a slicer such as Bambu Studio, OrcaSlicer, PrusaSlicer or Cura. Mimic links to OrcaSlicer, a free one. |
 
 Without the optional parts you can still make minis from your own pictures. Draw Things (or an
@@ -53,11 +50,6 @@ opens it in the background, and quits it afterwards if Mimic was the one that op
 Most of the time this doesn't come into play: Mimic draws pictures through Draw Things' command
 line tool, which it downloads with its 3D engine, so Draw Things doesn't need to be open at all.
 The setting matters only when that tool is missing. It isn't shown while pictures are made online.
-
-If a Draw Things check fails, **Draw Things isn't set up yet** appears here with a
-**Set Up Draw Things…** button, which takes you to the steps on the
-[Draw Things & AI](#draw-things-ai) tab. With pictures made online, a key that doesn't work shows
-**Online pictures aren't set up yet** and **Set Up Pictures…** instead.
 
 ### Choose the slicer minis open in
 
@@ -154,9 +146,9 @@ how long a mini takes. Once you've made a few minis, the time is the one measure
 
 For how the models compare in more detail, see [How it works](how-it-works.md#the-3d-models).
 
-## Draw Things & AI
+## Pictures
 
-![Settings, Draw Things & AI tab: Pictures made with Draw Things, on this Mac, Draw Things is set up, and the AI helper set to Claude (Anthropic) with fields for an API key and model](images/screens/settings-draw-things-ai.png){ width="540" }
+![Settings, Pictures tab: Pictures made with Draw Things, on this Mac, Draw Things is set up, and the AI helper set to Claude (Anthropic) with fields for an API key and model](images/screens/settings-pictures.png){ width="540" }
 
 ### Choose what makes the pictures
 
@@ -173,13 +165,13 @@ picture model. Under **Pictures**, **Make pictures with** chooses where that mod
 
 With either online service, Draw Things isn't needed. Paste your API key from that service and
 press **Save**: Mimic keeps it in your Mac's Keychain and shows **API key saved in your Keychain**,
-with **Remove** to delete it. Each service has its own key, so switching between them keeps both.
-**Get a key** opens the service's website, where you make one. **Test** asks the service whether
-the key works and says **It works.**, or what went wrong. While an online service is chosen, this
+with **Remove…** to delete it, after asking (**Remove Key**). Each service has its own key, so switching between them keeps both.
+**Get a key** opens the service's website, where you make one. Once a key is saved, **Test** asks
+the service whether the key works and says **It works.**, or what went wrong. While an online service is chosen, this
 tab doesn't show the Draw Things steps below, and the General tab doesn't show **Open Draw Things
 when needed**.
 
-![Settings, Draw Things & AI tab: Make pictures with set to OpenAI, online, an empty API key field with Save, Test dimmed, Get a key, and what each picture costs](images/screens/settings-pictures-online.png){ width="540" }
+![Settings, Pictures tab: Make pictures with set to OpenAI, online, an empty API key field with Save, Test dimmed, Get a key, and what each picture costs](images/screens/settings-pictures-online.png){ width="540" }
 
 !!! note "What the online service sees, and what it costs"
     With **Black Forest Labs, online** or **OpenAI, online**, your description, or the picture to
@@ -228,12 +220,14 @@ Pick one under **Helper**:
 | **Ollama, on this Mac** | Pick a model from the ones installed. **Refresh** looks again. If none are installed, Mimic says how to get one (`ollama pull gemma3` in Terminal). If a bigger model that follows instructions better is installed, Mimic suggests it with **Use It**. |
 
 For a cloud service, paste your key under **API key** and press **Save**. Mimic keeps it in your
-Mac's Keychain and shows **API key saved in your Keychain**, with **Remove** to delete it. A key is
+Mac's Keychain and shows **API key saved in your Keychain**, with **Remove…** to delete it, after
+asking (**Remove Key**). A key is
 only ever sent to the address it was saved for: change the address and you'll need to save a key
 for the new one. The address has to start with `https://`, unless the service runs on your own Mac
 (`localhost` or `127.0.0.1`), where `http://` works too.
 
-**Test** sends a tiny request and says **It works.**, or what went wrong.
+**Test** sends a tiny request and says **It works.**, or what went wrong. For a cloud service it
+works once a key is saved.
 
 !!! note "What the helper sees"
     A cloud service receives only what you type: a description, or what to change in a picture,
@@ -288,11 +282,11 @@ problem (Help → **Report a Problem…** adds it for you).
 | Setting | Tab | Starts as |
 |---|---|---|
 | Open Draw Things when needed | General | On |
-| Make pictures with | Draw Things & AI | Draw Things, on this Mac |
+| Make pictures with | Pictures | Draw Things, on this Mac |
 | Open minis in | General | The first slicer Mimic finds, else the Mac's default app for 3D files |
 | Your printer's nozzle | General | 0.4 mm · standard |
 | Start minis only when plugged in | General | Off (MacBooks only) |
 | Your minis are saved in | General | Documents → Mimic |
 | Check for updates when Mimic opens | General | On |
 | 3D model in use | 3D Model | TRELLIS.2 |
-| AI helper for descriptions | Draw Things & AI | Off |
+| AI helper for descriptions | Pictures | Off |

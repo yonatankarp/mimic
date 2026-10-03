@@ -27,7 +27,7 @@ A few things to know:
   Mimic says so: download it again in [Settings → 3D Model](settings.md#3d-model), or make a new
   version instead.
 - **When Draw Things isn't running or isn't set up**, the popover also shows **Open Setup**, which
-  opens [Settings → Draw Things & AI](settings.md#draw-things-ai) on the steps to fix it.
+  opens [Settings → Pictures](settings.md#pictures) on the steps to fix it.
 - **A model you imported** has no picture to make again, so it shows **Resize This Mini…** instead,
   which makes its print-ready file again.
 - **Stopping isn't failing.** A new mini you stop goes to the Trash. A resize you stop keeps the
@@ -132,8 +132,8 @@ that couldn't get its picture stops at its first step and says why, naming the s
 and press **Try Again**:
 
 - **No key, or the key was turned down:** copy your API key again from your account with that
-  service, then in [Settings → Draw Things & AI](settings.md#choose-what-makes-the-pictures)
-  press **Remove**, paste it and press **Save**. **Test** says whether it works.
+  service, then in [Settings → Pictures](settings.md#choose-what-makes-the-pictures)
+  press **Remove…** and **Remove Key**, paste it and press **Save**. **Test** says whether it works.
 - **Out of credits, or a spending limit reached:** add credits, or raise your limit, in your account
   with that service.
 - **Busy, or you've reached your account's limit:** Mimic has already asked twice more by itself,

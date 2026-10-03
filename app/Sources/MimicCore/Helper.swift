@@ -438,8 +438,8 @@ public enum HelperError: Error, CustomStringConvertible, Equatable {
 
     public var description: String {
         switch self {
-        case .off: "No AI helper is set up. Choose one in Settings → Draw Things & AI."
-        case .noKey: "No API key saved for this address. Paste yours in Settings → Draw Things & AI."
+        case .off: "No AI helper is set up. Choose one in Settings → Pictures."
+        case .noKey: "No API key saved for this address. Paste yours in Settings → Pictures."
         case .noModel(.ollama): "Pick one of your Ollama models in Settings."
         case .noModel: "Type the model's name in Settings."
         case .badURL: "That service address doesn't look right. It should start with https://."
