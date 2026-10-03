@@ -56,6 +56,16 @@ final class CrashReportTests: XCTestCase {
         XCTAssertEqual(frames.compactMap { $0["image"] as? String }, ["libswiftCore.dylib", "mimic", "mimic", "libdispatch.dylib"])
     }
 
+    /// An uncaught exception (an NSToolbar one, in a layout pass) crashes in AppKit's
+    /// `_crashOnException`; only `asiBacktraces` says which call threw it.
+    func testAnUncaughtExceptionKeepsWhereItWasThrown() throws {
+        let thrown = "3   AppKit   0x18d848e08 -[NSToolbar _insertNewItemWithItemIdentifier:atIndex:propertyListRepresentation:notifyFlags:] + 232"
+        let text = try String(contentsOf: fixture, encoding: .utf8)
+            .replacingOccurrences(of: #"  "asi": {"#, with: #"  "asiBacktraces": ["\#(thrown)"],"# + "\n" + #"  "asi": {"#)
+        let url = try crash("mimic-2026-09-30-101500.ips", in: try folder(), ago: 0, now: Date(), contents: text)
+        XCTAssertTrue(try XCTUnwrap(CrashReport.read(url, home: home)).trimmed.contains("NSToolbar _insertNewItemWithItemIdentifier"))
+    }
+
     func testAFrameWithoutASymbolIsNamedByItsPlace() throws {
         let text = try String(contentsOf: fixture, encoding: .utf8)
             .replacingOccurrences(of: #""symbol": "closure #1 in JobRunner.run(_:)","#, with: "")
