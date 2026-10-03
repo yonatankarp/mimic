@@ -126,6 +126,24 @@ final class MiniActionsTests: XCTestCase {
         XCTAssertNotNil(Gallery.folder(fx.install.runs, "a"))
     }
 
+    /// Edit → Undo after Rename… (#343) renames it back to its folder with the name it was shown
+    /// as, which is what the app's undo passes. Planted: without that name, undoing a change of
+    /// capitals only left the new capitals, and a numbered name lost its accent.
+    func testARenameIsUndoneWithTheNameItWasShownAs() throws {
+        let fx = try Fixture(), runs = fx.install.runs
+        try MiniSettings.update(try fx.mini("mcgregor")) { $0.name("Mcgregor", folder: "mcgregor") }
+        try MiniSettings.update(try fx.mini("elodie-2")) { $0.name("Élodie 2", folder: "elodie-2") }
+        _ = try fx.mini("orc-2")  // an older mini, with no name of its own
+        let jobs = JobRunner(install: fx.install, tools: fx.tools())
+        for (old, typed) in [("mcgregor", "McGregor"), ("elodie-2", "Druid"), ("orc-2", "Élodie")] {
+            let before = try XCTUnwrap(Gallery.list(runs).first { $0.name == old })
+            let new = try jobs.rename(old, typed: typed)
+            XCTAssertEqual(Mini.displayName(new, runs: runs), typed)
+            try jobs.rename(new, to: before.name, shown: before.displayName)
+            XCTAssertEqual(Mini.displayName(old, runs: runs), before.displayName, "undoing \(typed)")
+        }
+    }
+
     func testTrashTakesAWaitingMiniOutOfTheQueueFirst() throws {
         let fx = try Fixture(); _ = try fx.mini("a")
         try fx.modelFiles()
