@@ -6,7 +6,8 @@ public enum CommandRefusal: Error, Equatable, CustomStringConvertible {
     case usage
     case noName, notSetUp
     /// A flag given without the value it needs, or with one it can't take.
-    case badScale, badBaseShape, badBaseStyle, badMagnet, badSeed, noProjectName, badModel
+    case badScale, badBaseShape, badBaseStyle, badMagnet, badSeed, noProjectName, badModel, noNozzle
+    case noNumber(String)
     case noPicture(String)
     case unknownOption(String)
     case projectNotHere, importAsItIs, newShapeNotHere, sidesNeedImage, scaleForObject, improveImage, noChange, changeNotHere
@@ -22,6 +23,8 @@ public enum CommandRefusal: Error, Equatable, CustomStringConvertible {
         case .badBaseStyle: "--base-style needs plain, stone, wood or cobble"
         case .badMagnet: "--magnet needs 5x2, 6x2, 8x3 or none"
         case .badSeed: "--seed needs a number"
+        case .noNumber(let flag): "\(flag) needs a number"
+        case .noNozzle: "--nozzle needs 0.2, 0.4 or 0.6"
         case .noProjectName: "--project needs a project's name"
         case .badModel: "--model needs one of: \(EngineDownload.catalogue.map(\.id).joined(separator: ", ")) (see mimic models)"
         case .noPicture(let flag): "\(flag) needs a picture"
@@ -109,15 +112,15 @@ public struct MakeRequest: Equatable, Sendable {
             rest.removeFirst()
             func value() -> String? { rest.isEmpty ? nil : rest.removeFirst() }
             switch a {
-            case "--height", "--size": r.sizes.height = value()
+            case "--height", "--size": guard let v = value() else { throw CommandRefusal.noNumber(a) }; r.sizes.height = v
             case "--scale":
                 guard let v = value().flatMap(Int.init), SizeCard.scales.contains(v) else { throw CommandRefusal.badScale }
                 r.scale = v
             case "--object": r.object = true
             case "--add-base": r.addBase = true
-            case "--base": r.sizes.base = value()
-            case "--nozzle": r.sizes.nozzle = value()
-            case "--inflate": r.sizes.inflate = value()
+            case "--base": guard let v = value() else { throw CommandRefusal.noNumber(a) }; r.sizes.base = v
+            case "--nozzle": guard let v = value() else { throw CommandRefusal.noNozzle }; r.sizes.nozzle = v
+            case "--inflate": guard let v = value() else { throw CommandRefusal.noNumber(a) }; r.sizes.inflate = v
             case "--no-base": r.sizes.noBase = true
             case "--base-shape":
                 guard let v = value().flatMap(BaseShape.init) else { throw CommandRefusal.badBaseShape }
@@ -129,7 +132,7 @@ public struct MakeRequest: Equatable, Sendable {
                 let v = value()
                 guard v == "none" || v.flatMap(Magnet.init) != nil else { throw CommandRefusal.badMagnet }
                 r.sizes.magnet = v.flatMap(Magnet.init); r.magnetGiven = true
-            case "--image": r.image = value()
+            case "--image": guard let v = value() else { throw CommandRefusal.noPicture(a) }; r.image = v
             case "--back", "--left", "--right":
                 guard let v = value() else { throw CommandRefusal.noPicture(a) }
                 r.sides[PictureSide(rawValue: String(a.dropFirst(2)))!] = URL(fileURLWithPath: v)

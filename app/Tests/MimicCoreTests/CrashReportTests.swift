@@ -172,6 +172,43 @@ final class CrashReportTests: XCTestCase {
         XCTAssertEqual(q["title"], c.title, "the crash's own fields stay")
     }
 
+    /// The crashed launch's log is asked of `log show` by its pid, from its launch (at most an
+    /// hour before the crash) to just after the crash. Nothing back, a failure or no answer in
+    /// time is no log, not a hang.
+    func testTheCrashedLaunchsLogIsAskedForByPid() throws {
+        let c = try XCTUnwrap(CrashReport.read(fixture, home: home))
+        let crashed = try XCTUnwrap(c.crashed)
+        let asked = Asked()
+        let line = #"{"timestamp":"2026-09-30 10:14:58.123456+0200","category":"queue","eventMessage":"Started raven"}"#
+        let answers: [(status: Int32, output: String)?] = [(0, line), (0, ""), (1, line), nil]
+        for (i, answer) in answers.enumerated() {
+            let log = CrashReport.appLog(c, subsystem: "com.example") { tool, args, timeout in
+                asked.add(tool, args, timeout)
+                return answer
+            }
+            XCTAssertEqual(log, i == 0 ? "10:14:58 [queue] Started raven\n" : nil, "answer \(i)")
+        }
+        let (tool, args, timeout) = try XCTUnwrap(asked.first)
+        XCTAssertEqual(tool, "/usr/bin/log")
+        XCTAssertTrue((1...120).contains(timeout), "a stuck log would hang the report: \(timeout) s")
+        XCTAssertEqual(args.first, "show")
+        func value(_ flag: String) -> String? { args.firstIndex(of: flag).map { args[$0 + 1] } }
+        XCTAssertEqual(value("--style"), "ndjson")
+        XCTAssertEqual(value("--predicate"), #"processID == 4242 AND subsystem == "com.example""#)
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd HH:mm:ssZ"
+        let start = try XCTUnwrap(value("--start").flatMap(f.date(from:))), end = try XCTUnwrap(value("--end").flatMap(f.date(from:)))
+        XCTAssertEqual(end.timeIntervalSince1970, (crashed.timeIntervalSince1970 + 1).rounded(.down), accuracy: 1)
+        let launched = try XCTUnwrap(c.launched)
+        XCTAssertEqual(start.timeIntervalSince1970, max(launched, crashed.addingTimeInterval(-3600)).timeIntervalSince1970.rounded(.down), accuracy: 1)
+
+        let noPid = Crash(file: c.file, date: c.date, what: c.what, version: c.version, trimmed: c.trimmed, pid: nil,
+                          launched: c.launched, crashed: c.crashed)
+        XCTAssertNil(CrashReport.appLog(noPid) { _, _, _ in XCTFail("asked without a pid"); return nil })
+        XCTAssertEqual(CrashReport.folder.path, fm.homeDirectoryForCurrentUser.path + "/Library/Logs/DiagnosticReports")
+    }
+
     func testTheMacsLogReadsLikeTheAppLog() {
         let ndjson = """
         {"timestamp":"2026-09-30 10:14:58.123456+0200","category":"queue","eventMessage":"Started raven","processID":4242}
@@ -180,4 +217,12 @@ final class CrashReportTests: XCTestCase {
         """
         XCTAssertEqual(CrashReport.lines(ndjson: ndjson), "10:14:58 [queue] Started raven\n10:14:59 [shown] Couldn't reach Draw Things\n")
     }
+}
+
+/// What a runner was asked to run.
+final class Asked: @unchecked Sendable {
+    private let lock = NSLock()
+    private var all: [(String, [String], TimeInterval)] = []
+    func add(_ tool: String, _ args: [String], _ timeout: TimeInterval) { lock.withLock { all.append((tool, args, timeout)) } }
+    var first: (String, [String], TimeInterval)? { lock.withLock { all.first } }
 }
