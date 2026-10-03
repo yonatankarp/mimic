@@ -62,7 +62,8 @@ uploaded.
 The download is the model, plus the 3D engine and Draw Things' command line tool: 9.3 GB in all with
 TRELLIS.2, or 8.3 GB with Pixal3D, as **The 3D engine** says above the choice. The window shows
 how much is done, the speed and the time left. You can keep using your Mac meanwhile, and close the
-window: Mimic carries on. If the download stops, press **Try Again**: it picks up where it left off.
+window: Mimic carries on. Quitting Mimic asks first, as it stops the download. If the download
+stops, press **Try Again**: it picks up where it left off.
 
 Not sure which model? Take TRELLIS.2. You can download the other, or switch, any time in
 **Settings → 3D Model**. [Choose a 3D model](pictures.md#choose-a-3d-model) compares them.

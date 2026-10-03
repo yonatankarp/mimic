@@ -136,6 +136,28 @@ final class HelperTests: XCTestCase {
         XCTAssertThrowsError(try helper(.openai, base: "http://127.0.0.1:9", model: "m").improve("x")) { XCTAssertEqual($0 as? HelperError, .unreachable) }
     }
 
+    /// Closing New Mini while the helper writes stops its request, rather than leaving a paid one
+    /// to finish for an answer nobody sees (#346). Planted: it waited for the answer anyway.
+    func testACancelledRequestStopsWaiting() async throws {
+        let asked = DispatchSemaphore(value: 0), answer = DispatchSemaphore(value: 0)
+        let server = try FakeLLM { _ in
+            asked.signal()
+            _ = answer.wait(timeout: .now() + 10)
+            return (200, Data(#"{"message":{"content":"stout dwarf"}}"#.utf8))
+        }
+        defer { answer.signal(); server.stop() }
+        let base = "http://127.0.0.1:\(server.port)"
+        let request = Task.detached {
+            try DescriptionHelper(config: HelperConfig(provider: .ollama, model: "m", baseURL: base), key: nil).improve("a dwarf")
+        }
+        XCTAssertEqual(asked.wait(timeout: .now() + 10), .success, "the request never arrived")
+        let cancelled = Date()
+        request.cancel()
+        do { _ = try await request.value; XCTFail("it waited for the answer") }
+        catch { XCTAssertTrue(error is CancellationError, "\(error)") }
+        XCTAssertLessThan(Date().timeIntervalSince(cancelled), 5)
+    }
+
     /// A redirect to another port is another address: it's followed without the key (#376), for
     /// each provider's header. One to the same address keeps it.
     func testARedirectElsewhereDoesNotTakeTheKey() throws {

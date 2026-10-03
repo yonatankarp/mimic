@@ -3,7 +3,7 @@ import MimicCore
 import SwiftUI
 import TipKit
 
-/// Quitting during a job asks first; a confirmed quit stops the job before leaving and puts it
+/// Quitting during a job, or while the 3D engine downloads, asks first; a confirmed quit stops the job before leaving and puts it
 /// back at the front of the queue, to carry on from its last finished step at the next launch.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -19,6 +19,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        // Downloading the 3D engine (#344): asked as for a mini, unless one is being made too,
+        // whose question comes next.
+        if model.setup.running, model.job?.running != true, !Self.systemQuit {
+            let alert = NSAlert()
+            alert.messageText = "Mimic is still downloading"
+            alert.informativeText = "Quitting stops the download. Start it again later and it picks up where it left off."
+            // First, so Esc presses it.
+            alert.addButton(withTitle: "Cancel")
+            alert.addButton(withTitle: "Quit")
+            guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }
+        }
         guard let s = model.job, s.running else { return .terminateNow }
         let jobs = model.jobs
         // Logging out, restarting or shutting down: a question would hold the Mac up, and
