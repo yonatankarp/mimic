@@ -2,20 +2,6 @@ import MimicCore
 import SwiftUI
 import TipKit
 
-extension SizeCard {
-    /// The kind, purpose, nozzle and base last chosen: most people keep one printer.
-    static func remembered() -> SizeCard {
-        let d = UserDefaults.standard
-        var card = SizeCard(purpose: Purpose(rawValue: d.string(forKey: "purpose") ?? "") ?? .game,
-                            nozzle: d.string(forKey: "nozzle") ?? "0.4",
-                            kind: MiniKind(rawValue: d.string(forKey: "kind") ?? "") ?? .character)
-        card.shape = BaseShape(rawValue: d.string(forKey: "baseShape") ?? "") ?? .round  // a hex-map player wants hex every time
-        card.style = BaseStyle(rawValue: d.string(forKey: "baseStyle") ?? "") ?? .plain
-        card.magnet = Magnet(rawValue: d.string(forKey: "magnet") ?? "")  // a player who magnetises does it every time
-        return card
-    }
-}
-
 /// The size card, shared by Make and Resize. Sliders and typed values both go through the
 /// card's setters, which keep them in range.
 struct SizeSection: View {
@@ -34,11 +20,11 @@ struct SizeSection: View {
         } header: {
             Label("Size & printer", systemImage: "ruler")
         }
-        .onChange(of: card.purpose) { _, p in if let p { UserDefaults.standard.set(p.rawValue, forKey: "purpose") } }
-        .onChange(of: card.nozzle) { _, n in UserDefaults.standard.set(n, forKey: "nozzle") }
-        .onChange(of: card.shape) { _, s in UserDefaults.standard.set(s.rawValue, forKey: "baseShape") }
-        .onChange(of: card.style) { _, s in UserDefaults.standard.set(s.rawValue, forKey: "baseStyle") }
-        .onChange(of: card.magnet) { _, m in UserDefaults.standard.set(m?.rawValue ?? "", forKey: "magnet") }
+        .onChange(of: card.purpose) { _, p in if let p { UserDefaults.standard.set(p.rawValue, forKey: SettingsKey.purpose) } }
+        .onChange(of: card.nozzle) { _, n in UserDefaults.standard.set(n, forKey: SettingsKey.nozzle) }
+        .onChange(of: card.shape) { _, s in UserDefaults.standard.set(s.rawValue, forKey: SettingsKey.baseShape) }
+        .onChange(of: card.style) { _, s in UserDefaults.standard.set(s.rawValue, forKey: SettingsKey.baseStyle) }
+        .onChange(of: card.magnet) { _, m in UserDefaults.standard.set(m?.rawValue ?? "", forKey: SettingsKey.magnet) }
     }
 
     /// What the size is for, and the nozzle it prints with.
