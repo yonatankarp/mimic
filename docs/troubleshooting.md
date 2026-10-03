@@ -26,8 +26,8 @@ A few things to know:
 - **Try Again uses the 3D model the mini was first made with.** If you've removed that model,
   Mimic says so: download it again in [Settings → 3D Model](settings.md#3d-model), or make a new
   version instead.
-- **When Draw Things was the problem**, the popover also shows **Open Setup**, which opens
-  [Settings → Draw Things & AI](settings.md#draw-things-ai) on the steps to fix it.
+- **When Draw Things isn't running or isn't set up**, the popover also shows **Open Setup**, which
+  opens [Settings → Draw Things & AI](settings.md#draw-things-ai) on the steps to fix it.
 - **A model you imported** has no picture to make again, so it shows **Resize This Mini…** instead,
   which makes its print-ready file again.
 - **Stopping isn't failing.** A new mini you stop goes to the Trash. A resize you stop keeps the
