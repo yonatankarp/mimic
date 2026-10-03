@@ -462,7 +462,7 @@ private struct ResetSection: View {
 
     private func reset(removeEngine: Bool) {
         do {
-            try Reset.run(install: model.install, domain: Bundle.main.bundleIdentifier ?? "com.mimic.app", removeEngine: removeEngine)
+            try Reset.run(install: model.install, domain: Reset.ownDomain(), removeEngine: removeEngine)
         } catch {
             problem = "Couldn't remove the 3D engine. \(model.plainWords(error, else: "Check that Mimic can write to its folder, then try again."))"
             return
