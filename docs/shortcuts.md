@@ -118,6 +118,8 @@ Click a preview in the details panel first.
 ### Mini
 
 What you can do to the selected mini, or minis. The same items are in a mini's right-click menu.
+While New Mini or another sheet is open, everything here except **Pause After This One** (or
+**Pause Queue**, **Resume Queue**) waits until you close it.
 
 | Item | What it does |
 |---|---|
@@ -133,7 +135,7 @@ What you can do to the selected mini, or minis. The same items are in a mini's r
 | **Make Another Version…** | Makes it again with a new variation number (see [Versions](versions.md)) |
 | **New 3D Shape…** | Keeps its picture and makes only the 3D shape again |
 | **Edit & Make Again…** | Opens New Mini filled in from this mini |
-| **Duplicate…** | A copy of the same shape, to make at another size |
+| **Duplicate…** | A copy of the same shape, to make at another size *(when it isn't waiting or being made)* |
 | **Move to Project** ▸ | **Unsorted**, any project, or **New Project…** |
 | **Show Progress** | Opens the progress popover *(while a mini is being made)* |
 | **Stop Making…** | Stops the mini being made. **Stop Resizing…** for a resize |
