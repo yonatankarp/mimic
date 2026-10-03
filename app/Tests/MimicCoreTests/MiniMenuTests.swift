@@ -127,4 +127,13 @@ final class MiniMenuTests: XCTestCase {
         XCTAssertTrue(MiniMenu(needsSetup: true).enabled(.editAndMakeAgain, for: [a]))
         XCTAssertFalse(MiniMenu(installed: false).enabled(.editAndMakeAgain, for: [a]))
     }
+
+    /// Move to Project says why it can't, as the queue would refuse it: waiting or being made.
+    func testAMiniWaitingOrBeingMadeCantMove() throws {
+        let fx = try Fixture()
+        let m = try mini(fx, "dwarf")
+        XCTAssertEqual(MiniMenu(making: "dwarf").whyCantMove(m), RequestError.cantMove("dwarf").description)
+        XCTAssertEqual(MiniMenu(waiting: ["dwarf"]).whyCantMove(m), RequestError.cantMove("dwarf").description)
+        XCTAssertNil(MiniMenu(waiting: ["elf"], making: "orc").whyCantMove(m), "another mini being busy doesn't stop it")
+    }
 }

@@ -32,6 +32,9 @@ public struct MiniMenu: Sendable {
     /// queue would refuse it.
     public func busy(_ mini: Mini) -> Bool { waiting.contains(mini.name) || making == mini.name }
 
+    /// Why it can't be moved to another project right now, or nil: the queue would refuse it too.
+    public func whyCantMove(_ mini: Mini) -> String? { busy(mini) ? RequestError.cantMove(mini.name).description : nil }
+
     /// Its picture waits to be checked (#156), and it isn't waiting or being made.
     public func pictureToCheck(_ mini: Mini) -> Bool { !busy(mini) && mini.pictureToCheck }
 
