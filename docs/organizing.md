@@ -77,9 +77,8 @@ A project is a folder of minis, for a party, a warband or a set of chess pieces.
 a real folder in your minis folder, so Finder shows the same grouping. Projects don't go inside
 other projects.
 
-*Make a project:* press **New Project** at the bottom of the list (or the folder button beside
-a section's name), or choose **File → New Project…** (++shift+cmd+n++). Name it and press
-**Create**.
+*Make a project:* press **New Project** at the bottom of the list, or choose **File → New
+Project…** (++shift+cmd+n++). Name it and press **Create**.
 
 *Put minis in it:*
 
@@ -94,7 +93,7 @@ a section's name), or choose **File → New Project…** (++shift+cmd+n++). Name
 another. Right-click a project → **New Mini in This Project…** starts one there.
 
 Click the arrow beside a project's name to fold it away. Beside its name is roughly how much
-filament all its minis need, like *up to 23 g*.
+filament all its minis need, like *≈ 23 g filament*.
 
 Right-click a project's name for the rest:
 

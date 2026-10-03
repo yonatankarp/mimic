@@ -605,7 +605,7 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   base and grey sculpt of the mini, else the last job's, else New Mini's. Priority is fixed (nice
   10), so it's stated, not read. A picture of the main window and its sheets (not Settings) goes in
   as window.png when "Include a picture of Mimic's window" is ticked, off by default (#350: it
-  can show other minis) over a preview: taken as the action starts, before the alert, by drawing
+  can show other minis), with no preview (#484: it came out mostly blank): taken as the action starts, before the alert, by drawing
   the views (`cacheDisplay`), which needs no Screen Recording permission. What Metal draws, the 3D view, may come out empty.
 - **A crash is offered as a report at the next launch** (`MimicCore/CrashReport.swift`; #284). The
   app and `mimic` are one binary, so both crash as `mimic-….ips` in `~/Library/Logs/DiagnosticReports`

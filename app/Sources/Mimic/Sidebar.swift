@@ -77,7 +77,7 @@ struct Sidebar: View {
         let narrowed = Gallery.narrowed(model.minis, query: query, show: show)
         return List(selection: $model.selection) {
             if model.projects.isEmpty {
-                Section { rows(shown, project: nil) } header: { header("Minis") }
+                Section { rows(shown, project: nil) } header: { Text("Minis") }
             } else {
                 ForEach(model.projects, id: \.self) { project in
                     let inside = shown.filter { $0.project == project }
@@ -104,7 +104,7 @@ struct Sidebar: View {
                 Section {
                     rows(shown.filter { $0.project == nil }, project: nil)
                 } header: {
-                    header("Unsorted")
+                    Text("Unsorted")
                         .dropDestination(for: String.self) { names, _ in model.move(names, to: nil); return true }
                         .help("Minis in no project. Drag minis here to take them out of theirs.")
                 }
@@ -154,23 +154,9 @@ struct Sidebar: View {
                 .contextMenu {
                     if model.selection.count > 1 && model.selection.contains(mini.id) { SeveralMenu(minis: model.chosen) } else { menu(for: mini) }
                 }
-                .help("Space to preview; drag onto a project, or out for its print file; ⌘-click to select several")
                 .draggable(drag(mini))
                 // Dropped on a mini: into that mini's project.
                 .dropDestination(for: String.self) { names, _ in model.move(names, to: project); return true }
-        }
-    }
-
-    /// A section's title with a New Project button, so there's one in the list from the start.
-    /// A folder, as at the bottom: + is New Mini, in the toolbar.
-    private func header(_ title: String) -> some View {
-        HStack {
-            Text(title)
-            Spacer()
-            Button { model.sheet = .newProject(moving: []) } label: { Image(systemName: "folder.badge.plus") }
-                .buttonStyle(.borderless)
-                .help("New Project (⇧⌘N): a folder to group minis in.")
-                .accessibilityLabel("New Project")
         }
     }
 
@@ -485,7 +471,7 @@ struct ProjectNameSheet: View {
     }
 }
 
-/// "up to 23 g" beside a project's name: its minis' filament added up. Read from their print
+/// "≈ 23 g filament" beside a project's name: its minis' filament added up. Read from their print
 /// files off the main thread, again whenever one is made or resized; only the print files that
 /// changed are read again (`Filament.volume(stl:)`).
 private struct ProjectFilament: View {

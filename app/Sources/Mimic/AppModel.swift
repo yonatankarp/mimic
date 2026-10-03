@@ -50,6 +50,14 @@ enum AppSheet: Identifiable, Equatable {
     }
 }
 
+/// Something that didn't happen, as the window's alert says it: a short title saying what,
+/// and why (or what to do) as its message.
+struct Problem: Equatable {
+    let title: String
+    let message: String
+    init(_ title: String, _ message: String) { self.title = title; self.message = message }
+}
+
 /// The state every window shares: the Mimic folder, the gallery, the selection and the one job.
 /// Views read it from the environment (`@Environment(AppModel.self)`).
 @MainActor @Observable
@@ -131,7 +139,7 @@ final class AppModel {
     /// gone (`keepWhenClosed`), then on its page (`askToKeep`), whose dialog does the keeping.
     var keepWhenClosed: String?
     var askToKeep: String?
-    /// The waiting job on "Take it out of the queue?", asked from the job's popover.
+    /// The waiting job on "Remove it from the queue?", asked from the job's popover.
     var unqueueing: QueueEntry?
     /// Minis on "Move to Trash?", when one of them waits in the queue: Undo can't put it back
     /// in the queue, so it's asked first (see `askToTrash`).
@@ -139,8 +147,8 @@ final class AppModel {
     /// The main window's, for Undo Move to Trash; set by the window.
     @ObservationIgnored weak var undo: UndoManager?
     /// A rename or trash that was refused, shown as an alert.
-    var problem: String? {
-        didSet { if let problem, problem != oldValue { Log.shown.error("\(problem, privacy: .public)") } }
+    var problem: Problem? {
+        didSet { if let problem, problem != oldValue { Log.shown.error("\(problem.title, privacy: .public): \(problem.message, privacy: .public)") } }
     }
 
     /// Every job this Mac has finished, which the time estimates come from. On this Mac only.
@@ -390,7 +398,7 @@ final class AppModel {
             try start(new) {
                 try $0.makeAnotherVersion(of: mini.name, as: new, change: change, changeUsed: changeUsed, checkPicture: !change.isEmpty).ahead
             }
-        } catch { problem = plainWords(error, else: "Couldn't make another version. Try again.") }
+        } catch { problem = Problem("Couldn't make another version", plainWords(error, else: "Try again.")) }
     }
 
     /// A sibling of `mini` from the picture it already has, with only a new 3D shape; with a
@@ -401,7 +409,7 @@ final class AppModel {
             try start(new) {
                 try $0.makeNewShape(of: mini.name, as: new, change: change, changeUsed: changeUsed, checkPicture: !change.isEmpty).ahead
             }
-        } catch { problem = plainWords(error, else: "Couldn't make a new 3D shape. Try again.") }
+        } catch { problem = Problem("Couldn't make a new 3D shape", plainWords(error, else: "Try again.")) }
     }
 
     /// Import Model: a new mini from a 3D model file, print prep only.
@@ -454,7 +462,7 @@ final class AppModel {
 
     /// Build Shape from a menu; a refusal is said as an alert.
     func buildShape(_ mini: Mini) {
-        do { try buildShape(mini.name) } catch { problem = plainWords(error) }
+        do { try buildShape(mini.name) } catch { problem = Problem("Couldn't build the shape", plainWords(error, else: "Check that Mimic's folder is still there, then try again.")) }
     }
 
     /// Try Again on a picture ready to check (#156): draws it again with a new variation number.
@@ -470,7 +478,7 @@ final class AppModel {
 
     /// Try Again from a failed mini's page or menus; a refusal is said as an alert.
     func tryAgain(_ mini: Mini) {
-        do { try retry(mini.name) } catch { problem = plainWords(error) }
+        do { try retry(mini.name) } catch { problem = Problem("Couldn't try again", plainWords(error, else: "Check that Mimic's folder is still there, then try again.")) }
     }
 
     func stop() { jobs.cancel() }

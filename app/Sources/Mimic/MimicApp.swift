@@ -167,7 +167,7 @@ struct MoveInQueueMenu: View {
                 .disabled(place == nil || place == model.queue.count)
             Divider()
             // Asks first, as the queue row's button does; a waiting resize keeps its size.
-            Button(entry.map { $0.job == .prep && !model.importing($0.name) } == true ? "Don't Resize…" : "Take Out of Queue…") {
+            Button(entry.map(model.isResize) == true ? "Cancel Resize…" : "Remove from Queue…") {
                 model.showWindow(); model.unqueueing = entry
             }
             .disabled(entry == nil)

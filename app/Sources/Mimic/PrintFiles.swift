@@ -24,7 +24,7 @@ extension AppModel {
                 do { try ThreeMF.pack(together.parts, copies: copies, to: together.url); return nil } catch { return error }
             }.value
             packing = false
-            if let failed { problem = plainWords(failed, else: "Couldn't put them in one print file. Open them one at a time instead.") }
+            if let failed { problem = Problem("Couldn't put them in one print file", plainWords(failed, else: "Open them one at a time instead.")) }
             else { openInSlicer(together.url) }
         }
     }
@@ -38,11 +38,11 @@ extension AppModel {
                 Result { try Tabletop.export(mini, to: url).whyGrey }
             }.value
             switch made {
-            case .failure(let failed): problem = plainWords(failed, else: "Couldn't export \(mini.displayName).")
+            case .failure(let failed): problem = Problem("Couldn't export \(mini.displayName)", plainWords(failed, else: "Try again, or save it somewhere else."))
             case .success(let whyGrey):
                 NSWorkspace.shared.activateFileViewerSelecting([url])
                 // The save window said it would be in its colours (#317).
-                if let whyGrey { problem = "Exported \(mini.displayName) in grey, not in its colours: \(whyGrey)." }
+                if let whyGrey { problem = Problem("Exported \(mini.displayName) in grey", "Not in its colours: \(whyGrey).") }
             }
         }
     }

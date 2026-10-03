@@ -58,14 +58,15 @@ The same choices are in **Mini → Move in Queue** for the selected mini, with +
 
 ## Take a mini out of the queue
 
-Press the remove button beside it, or right-click it → **Take Out of Queue…**, and confirm with
-**Take Out**. Mimic says what happens to it:
+Press the remove button beside it, or right-click it → **Remove from Queue…**, and confirm with
+**Remove from Queue**. Mimic says what happens to it:
 
 - A new mini: "It hasn't been made yet, so its picture and settings go to the Trash, where you can
   get them back."
 - A model you're importing: "It hasn't been made yet, so it goes to the Trash, where you can get it
   back."
-- A resize is cancelled with **Don't Resize**: "It keeps its current size."
+- A resize is cancelled with **Cancel Resize** (it's **Cancel Resize…** in the menus): "It keeps its
+  current size." **Keep in Queue** leaves it waiting.
 - A mini waiting for Try Again: "It stays, so you can try again later."
 
 ## Pause the queue

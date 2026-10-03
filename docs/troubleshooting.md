@@ -185,6 +185,12 @@ The 3D model came out broken: all its points in one place, or some that aren't n
 shape again with **New 3D Shape…**. For a model you imported, the file itself is broken: export it
 again from the program that made it.
 
+### Couldn't show this mini
+
+The 3D view couldn't read the mini's print file. Press **Show in Finder** to find the file and
+try opening it in your slicer. If that doesn't work either, resize the mini to make its print file
+again, or [report it](#report-a-problem).
+
 ### Another Mimic is making a mini
 
 Mimic makes one mini at a time, whichever Mimic asked for it: this app, another copy of Mimic, or

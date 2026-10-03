@@ -295,8 +295,8 @@ private struct QueueRow: View {
             Button { unqueue() } label: { Image(systemName: "xmark.circle.fill") }
                 .buttonStyle(.borderless)
                 .foregroundStyle(.secondary)
-                .help("Take it out of the queue")
-                .accessibilityLabel("Take \(who) out of the queue")
+                .help("Remove it from the queue")
+                .accessibilityLabel("Remove \(who) from the queue")
         }
         .contentShape(Rectangle())
         .background(target == entry.name ? Color.accentColor.opacity(0.15) : .clear, in: RoundedRectangle(cornerRadius: 6))
@@ -314,7 +314,7 @@ private struct QueueRow: View {
             Button("Move Down") { model.moveInQueue(entry.name, by: 1) }.disabled(index == count - 1)
             Button("Move to End") { model.moveInQueue(entry.name, to: .end) }.disabled(index == count - 1)
             Divider()
-            Button("Take Out of Queue…") { unqueue() }
+            Button(model.isResize(entry) ? "Cancel Resize…" : "Remove from Queue…") { unqueue() }
         }
     }
 
@@ -341,10 +341,11 @@ struct JobQuestions: ViewModifier {
             } message: {
                 Text((model.job?.stopAsks ?? "") + (model.queue.isEmpty ? "" : " The queue carries on with the next one."))
             }
-            .confirmationDialog(model.unqueueing.map { "Take “\(model.displayName($0.name))” out of the queue?" } ?? "",
+            .confirmationDialog(model.unqueueing.map(unqueueTitle) ?? "",
                                 isPresented: unqueueing, presenting: model.unqueueing) { e in
-                Button(e.job == .prep && !model.importing(e.name) ? "Don't Resize" : "Take Out", role: .destructive) { model.removeFromQueue(e.name) }
-                Button("Cancel", role: .cancel) {}
+                Button(model.isResize(e) ? "Cancel Resize" : "Remove from Queue", role: .destructive) { model.removeFromQueue(e.name) }
+                // Not "Cancel" beside Cancel Resize, which would read as the same thing.
+                Button(model.isResize(e) ? "Keep in Queue" : "Cancel", role: .cancel) {}
             } message: { e in
                 Text(e.takeOutSays(importing: model.importing(e.name)))
             }
@@ -352,6 +353,10 @@ struct JobQuestions: ViewModifier {
 
     private var unqueueing: Binding<Bool> {
         Binding(get: { model.unqueueing != nil }, set: { if !$0 { model.unqueueing = nil } })
+    }
+
+    private func unqueueTitle(_ e: QueueEntry) -> String {
+        model.isResize(e) ? "Cancel resizing “\(model.displayName(e.name))”?" : "Remove “\(model.displayName(e.name))” from the queue?"
     }
 
     private func stopTitle(_ s: JobStatus) -> String {

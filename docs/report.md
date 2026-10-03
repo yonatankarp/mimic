@@ -16,7 +16,7 @@ on GitHub for you to attach it to.
   **Mini** menu or by right-clicking the mini.
 - For anything else: choose **Help → Report a Problem…**.
 
-![Report a problem with “Elf Scout”?: what goes in the file, Include the picture unticked, Include a picture of Mimic's window unticked with its preview, and Cancel and Make Report](images/screens/troubleshooting-report-a-problem.png){ width="392" }
+![Report a problem with “Elf Scout”?: what goes in the file, Include the picture unticked, Include a picture of Mimic's window unticked, and Cancel and Make Report](images/screens/troubleshooting-report-a-problem.png){ width="392" }
 
 Mimic first says what goes in the file. Press **Make Report**. The file has:
 
@@ -38,8 +38,8 @@ say which pictures go in, since the issue is public:
   it was built from. It starts unticked.
 - **Include a picture of Mimic's window (the issue is public)**, when the main window is open: the
   window as it was when you chose Report a Problem, with any sheet open on it, but not Settings.
-  It starts unticked, since the window can show your other minis' names and pictures. The preview
-  underneath shows what it would include; tick it to put it in.
+  It starts unticked, since the window can show your other minis' names and pictures; tick it to
+  put it in.
 
 The 3D files and previews themselves are never included.
 

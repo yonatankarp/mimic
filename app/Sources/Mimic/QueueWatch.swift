@@ -77,7 +77,7 @@ extension AppModel {
         let read = queueWatch.read(jobs, running: running)
         // A queue that wouldn't read was put aside (#306), by this Mimic or another: said once.
         if read.setAside {
-            problem = "Mimic couldn't read its list of minis waiting to be made, so it put the list aside and started a new one. Minis that were waiting didn't start: make or resize them again."
+            problem = Problem("Couldn't read the queue", "Mimic couldn't read its list of minis waiting to be made, so it put the list aside and started a new one. Minis that were waiting didn't start: make or resize them again.")
         }
         if read.listChanged { reload() }
         updateBadge()
@@ -93,8 +93,11 @@ extension AppModel {
         return f.string(from: n as NSNumber) ?? "\(n)"
     }
 
+    /// A waiting resize, which leaving the queue cancels: the mini keeps the size it has.
+    func isResize(_ e: QueueEntry) -> Bool { e.job == .prep && !importing(e.name) }
+
     func removeFromQueue(_ name: String) {
-        do { try jobs.remove(name) } catch { problem = plainWords(error, else: "Couldn't take it out of the queue. Try again.") }
+        do { try jobs.remove(name) } catch { problem = Problem("Couldn't remove it from the queue", plainWords(error, else: "Try again.")) }
         if !refreshQueue() { reload() }
     }
 
@@ -103,7 +106,7 @@ extension AppModel {
 
     /// Pausing lets the mini being made finish; resuming starts the next one if none is.
     func togglePause() {
-        do { try jobs.setPaused(!paused) } catch { problem = paused ? "Couldn't resume the queue. Try again." : "Couldn't pause the queue. Try again." }
+        do { try jobs.setPaused(!paused) } catch { problem = Problem(paused ? "Couldn't resume the queue" : "Couldn't pause the queue", "Try again.") }
         refreshQueue()
     }
 
