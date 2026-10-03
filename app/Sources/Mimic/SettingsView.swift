@@ -152,7 +152,9 @@ struct SettingsView: View {
         } else if health.picturesReady {
             Section {
                 SetupStep(done: true, title: "Draw Things is set up.",
-                          detail: health.drawThingsOpensWhenNeeded ? "Mimic opens it when it needs it." : nil)
+                          detail: health.drawThingsOpensWhenNeeded
+                              ? "Mimic opens it when it needs it. Its API server has to be on: in Draw Things, Settings → Advanced → API Server, HTTP, port 7860."
+                              : nil)
             } header: {
                 Text("Draw Things")
             }

@@ -202,7 +202,8 @@ steps that tick themselves off as you do them:
 3. **Download FLUX.2 Klein.** In Draw Things' model list, search for FLUX.2 Klein and download it.
    It's big, so give it a few minutes.
 
-Once everything is ready, the tab says **Draw Things is set up.**
+Once everything is ready, the tab says **Draw Things is set up.** When Mimic opens Draw Things
+itself (without the command line tool), it adds that Draw Things' API server has to stay on.
 
 ### Choose an AI helper for descriptions
 

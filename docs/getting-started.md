@@ -117,7 +117,7 @@ The welcome window only says it's optional. Set it up whenever you like in
 ## Take the tour
 
 Once the download is done, a short tour shows you around, in five stops on the real buttons:
-welcome, starting a new mini, making it, a finished mini, and Settings.
+a quick look around, starting a new mini, making it, a finished mini, and Settings.
 
 To learn by doing, press **Use the Sample** at the second stop: New Mini opens with a sample
 picture of a dwarf, ready to make. Press **Make Mini**: its progress opens in the toolbar, and the
