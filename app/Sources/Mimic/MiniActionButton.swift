@@ -1,5 +1,7 @@
+import AppKit
 import MimicCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 extension AppModel {
     /// What the mini actions' rules go by, right now (`MiniMenu`).
@@ -49,7 +51,7 @@ struct MiniActionButton: View {
         case (.resizeSeveral, _): model.sheet = .resizeSeveral(minis)
         case (.moveToTrash, _): model.askToTrash(minis)
         case (.open, let mini?): if let stl = mini.stl { model.openInSlicer(stl) }
-        case (.exportForTabletop, let mini?): model.exportForTabletop(mini)
+        case (.exportForTabletop, let mini?): if let url = Self.whereToExport(mini) { model.exportForTabletop(mini, to: url) }
         case (.resize, let mini?): model.sheet = .resize(mini)
         case (.buildShape, let mini?): model.buildShape(mini)
         case (.tryAgain, let mini?): model.tryAgain(mini)
@@ -61,6 +63,18 @@ struct MiniActionButton: View {
         case (.duplicate, let mini?): model.sheet = .duplicate(mini)
         case (_, nil): break  // the rest are for one mini
         }
+    }
+
+    /// Export for Virtual Tabletop's save window (#158): where to write the mini's .glb, or nil
+    /// when it's cancelled or the mini has no print file to export.
+    private static func whereToExport(_ mini: Mini) -> URL? {
+        guard mini.stl != nil else { return nil }
+        let panel = NSSavePanel()
+        panel.title = "Export for Virtual Tabletop"
+        panel.message = Tabletop.saveMessage(mini)
+        panel.nameFieldStringValue = "\(mini.displayName).glb"
+        panel.allowedContentTypes = [UTType(filenameExtension: "glb") ?? .data]
+        return panel.runModal() == .OK ? panel.url : nil
     }
 
     private var shortcut: KeyboardShortcut? {

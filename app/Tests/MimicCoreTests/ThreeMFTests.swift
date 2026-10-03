@@ -115,4 +115,33 @@ final class ThreeMFTests: XCTestCase {
         XCTAssertNil(ThreeMF.copies(typed: "two"))
         XCTAssertNil(ThreeMF.copies(typed: ""))
     }
+
+    /// Open Together: only made minis go in; one copy of one made mini opens its own print file,
+    /// with nothing to write; more are written to one 3MF named after them, its folder made.
+    func testOpenTogetherPacksTheMadeOnes() throws {
+        let fx = try Fixture()
+        func mini(_ name: String, made: Bool) throws -> Mini {
+            let folder = fx.install.runs.appendingPathComponent(name)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            if made { try STL.write(PrepTests.box(half: [5, 5, 5]), to: folder.appendingPathComponent("\(name).stl")) }
+            return Mini(name: name, folder: folder, madeAt: Date(), project: "Party")
+        }
+        let goblin = try mini("goblin", made: true), orc = try mini("orc", made: true), elf = try mini("elf", made: false)
+        let folder = fx.root.appendingPathComponent("Open Together")
+
+        XCTAssertNil(ThreeMF.together([elf], in: folder), "nothing made, nothing to open")
+        let one = try XCTUnwrap(ThreeMF.together([goblin, elf], in: folder))
+        XCTAssertEqual(one.url, goblin.stl, "one of one mini is its own print file")
+        XCTAssertTrue(one.parts.isEmpty)
+
+        let three = try XCTUnwrap(ThreeMF.together([goblin], copies: 3, in: folder))
+        XCTAssertEqual(three.url.lastPathComponent, "\(goblin.displayName) ×3.3mf")
+        XCTAssertEqual(three.parts.map(\.name), [goblin.displayName], "copies of one are written")
+
+        let party = try XCTUnwrap(ThreeMF.together([goblin, elf, orc], in: folder))
+        XCTAssertEqual(party.url, folder.appendingPathComponent("Party.3mf"))
+        XCTAssertEqual(party.parts.map(\.stl), [goblin.stl, orc.stl], "the made ones")
+        try ThreeMF.pack(party.parts, copies: 1, to: party.url)
+        XCTAssertGreaterThan(try Data(contentsOf: party.url).count, 0, "written, its folder made")
+    }
 }

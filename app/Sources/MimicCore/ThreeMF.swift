@@ -22,6 +22,23 @@ public enum ThreeMF {
         return copies > 1 ? name + " ×\(copies)" : name
     }
 
+    /// What Open Together opens in the slicer for `group`, with `copies` of each: nil when none
+    /// of them is made; a made mini's own print file when it's one copy of one (no `parts`); else
+    /// a 3MF in `folder` named after them (`name`), to write from `parts` first (`pack`).
+    public static func together(_ group: [Mini], copies: Int = 1, in folder: URL) -> (url: URL, parts: [(name: String, stl: URL)])? {
+        let made = group.filter { $0.stl != nil }
+        guard let first = made.first else { return nil }
+        if made.count == 1 && copies == 1 { return (first.stl!, []) }
+        return (folder.appendingPathComponent(Rules.printFileName(name(made, copies: copies))), made.map { ($0.displayName, $0.stl!) })
+    }
+
+    /// Writes Open Together's 3MF of `parts` (a name and a print file each) to `url`, making its
+    /// folder. A party's is tens of MB: off the main thread.
+    public static func pack(_ parts: [(name: String, stl: URL)], copies: Int, to url: URL) throws {
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try write(try parts.map { ($0.name, try STL.read($0.stl)) }, copies: copies, to: url)
+    }
+
     /// What's typed in Copies' number field, kept within `copies`; nil when it isn't a number.
     public static func copies(typed: String) -> Int? {
         Int(typed.trimmingCharacters(in: .whitespaces)).map { min(max($0, Self.copies.lowerBound), Self.copies.upperBound) }
