@@ -146,6 +146,7 @@ final class QueueTests: XCTestCase {
         XCTAssertEqual(ran(fx), ["a"], "the one running finishes, and nothing after it starts")
         XCTAssertEqual(a.queue.entries().map(\.name), ["b"])
         XCTAssertEqual(b.hold(), .paused, "another Mimic sees the pause")
+        XCTAssertEqual(b.hold()?.sentence, "The queue is paused. Resume it to carry on.")
         b.pump()
         XCTAssertNil(b.status, "another Mimic started the paused queue")
         XCTAssertEqual(try b.resize(name: "c", sizes: sizes), 1, "one ahead of it, and nothing running")
@@ -167,6 +168,7 @@ final class QueueTests: XCTestCase {
         XCTAssertEqual(try jobs.resize(name: "a", sizes: sizes), 0, "nothing ahead of it")
         XCTAssertNil(jobs.status, "it started on battery")
         XCTAssertEqual(jobs.hold(), .battery)
+        XCTAssertEqual(jobs.hold()?.sentence, "Your Mac is on battery, so the queue carries on when it's plugged in.")
         jobs.pump()
         XCTAssertNil(jobs.status)
         battery.value = false  // plugged in

@@ -60,6 +60,7 @@ final class ListingJSONTests: XCTestCase {
         XCTAssertEqual(waiting.first?["job"] as? String, "make")
         XCTAssertEqual(waiting.first?["seconds"] as? Int, 480)
         XCTAssertEqual(o["held"] as? String, "paused")
+        XCTAssertEqual(try object(ListingJSON.Queue(running: nil, left: 0, held: .battery, waiting: []))["held"] as? String, "battery")
     }
 
     func testModelFields() throws {
@@ -89,6 +90,16 @@ final class ListingJSONTests: XCTestCase {
         let minis = Gallery.list(fx.install.runs); let mini = try XCTUnwrap(minis.first)
         let o = try object(ListingJSON.Info(MiniInfo(mini, in: minis, waiting: []), waiting: []))
         XCTAssertNil((o["madeFrom"] as? [String: Any])?["model"])
+    }
+
+    /// `measured` from a real print file, 20.6 wide, 24.2 deep and 32.8 tall: whole millimetres
+    /// (rounded, not cut off) and the filament its 16,351 mm³ takes, to 0.1 g and 0.01 m.
+    func testMeasuredIsRoundedFromThePrintFile() throws {
+        let fx = try Fixture(); let d = try fx.mini("ogre")
+        try STL.write(PrepTests.box(half: [10.3, 12.1, 16.4]), to: d.appendingPathComponent("ogre.stl"))
+        let minis = Gallery.list(fx.install.runs); let mini = try XCTUnwrap(minis.first)
+        let info = ListingJSON.Info(MiniInfo(mini, in: minis, waiting: []), waiting: [])
+        XCTAssertEqual(info.measured, .init(height: 33, width: 21, depth: 24, filamentGrams: 20.3, filamentMetres: 6.8))
     }
 
     /// JSONEncoder refuses inf and nan, so one size edited by hand to either broke `info --json`
