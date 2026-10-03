@@ -34,7 +34,7 @@ far. Click it to see:
   finish
 
 The list of minis shows a waiting mini as **Waiting (2nd)** and the one being made as
-**Being made…**. **Mini → Show Progress** opens the same popover from the keyboard.
+**Being made…**. **Queue → Show Progress** opens the same popover from the keyboard.
 
 !!! tip
     Want to keep an eye on it? Drag the popover away from the toolbar and it stays open in a small
@@ -73,7 +73,7 @@ Press the remove button beside it, or right-click it → **Remove from Queue…*
 
 Choose **Pause After This One**. The mini being made finishes, and no new one starts until you
 choose **Resume Queue**. With nothing being made, the choice is **Pause Queue**. They're in the
-progress popover, in the **Mini** menu, and in the Dock icon's menu.
+progress popover, in the **Queue** menu, and in the Dock icon's menu.
 
 Once the mini being made is done, the toolbar says **Paused · 2 waiting** (or however many). The
 pause holds for every Mimic on your Mac and for Terminal. In Terminal, `mimic queue pause` pauses
@@ -88,7 +88,7 @@ made carries on either way.
 
 ## Stop a mini
 
-Click the progress in the toolbar and press **Stop…**, or choose **Mini → Stop Making…**
+Click the progress in the toolbar and press **Stop…**, or choose **Queue → Stop Making…**
 (**Stop Resizing…** for a resize). It's also in the Dock icon's menu. Mimic asks first, and says
 what happens to the mini:
 

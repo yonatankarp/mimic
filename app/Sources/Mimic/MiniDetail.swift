@@ -35,7 +35,7 @@ struct MiniDetail: View {
         let trashable = versions.filter { $0.name != mini.name && $0.name != model.current?.name }.count
         page
             .navigationTitle(mini.displayName)
-            .toolbar { toolbar(kind: settings.kind ?? .character) }
+            .toolbar(id: "mini") { toolbar(kind: settings.kind ?? .character) }
             .inspector(isPresented: $model.showDetails) {
                 details(settings, versions: versions, canKeep: trashable > 0)
                     .inspectorColumnWidth(min: 240, ideal: 290, max: 420)
@@ -178,9 +178,10 @@ struct MiniDetail: View {
         }
     }
 
-    /// One group: More (Copies first), Open in the slicer, and the details panel's toggle.
-    @ToolbarContentBuilder private func toolbar(kind: MiniKind) -> some ToolbarContent {
-        ToolbarItemGroup(placement: .primaryAction) {
+    /// More (Copies first), Open in the slicer, and the details panel's toggle: one item each,
+    /// so each can be moved or taken out in Customize Toolbar… (#482).
+    @ToolbarContentBuilder private func toolbar(kind: MiniKind) -> some CustomizableToolbarContent {
+        ToolbarItem(id: "more", placement: .primaryAction) {
             Menu {
                 MiniActionButton(action: .copies, minis: [mini])
                 MiniActionButton(action: .resize, minis: [mini])
@@ -191,6 +192,8 @@ struct MiniDetail: View {
                 Label("More", systemImage: "ellipsis")
             }
             .help("Print copies, resize, make it again with changes, export it for a virtual tabletop, or show it in Finder")
+        }
+        ToolbarItem(id: "open", placement: .primaryAction) {
             // Prominent only once it works: until then the page's own button (Try Again, Build
             // Shape) is the one to press, and a pale disabled one here shouldn't outshine it.
             if mini.finished {
@@ -201,6 +204,8 @@ struct MiniDetail: View {
                 MiniActionButton(action: .open, minis: [mini], showsIcon: false)
                     .tourCallout(.mini)
             }
+        }
+        ToolbarItem(id: "details", placement: .primaryAction) {
             Button { model.showDetails.toggle() } label: {
                 Label(showDetails ? "Hide Details" : "Show Details", systemImage: "sidebar.trailing")
             }
