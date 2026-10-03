@@ -494,16 +494,16 @@ final class SlicerTests: XCTestCase {
     }
 
     /// Open in reports back when the slicer can't open the file (here, it's been deleted), so the
-    /// app can say so. Nothing is opened.
+    /// app can say so. A stand-in answers for macOS, which would also show Finder's alert.
     func testOpeningInASlicerThatsGoneReportsAnError() {
         let gone = Slicer(id: "orca", name: "OrcaSlicer", app: URL(fileURLWithPath: "/nonexistent-\(UUID().uuidString)/OrcaSlicer.app"))
-        let answered = expectation(description: "macOS answered")
+        let stl = URL(fileURLWithPath: "/nonexistent/mini.stl")
         let failed = Flag(false)
-        Slicer.open(URL(fileURLWithPath: "/nonexistent/mini.stl"), in: gone) { error in
-            failed.value = error != nil
-            answered.fulfill()
+        Slicer.open(stl, in: gone, done: { failed.value = $0 != nil }) { file, app, done in
+            XCTAssertEqual(file, stl)
+            XCTAssertEqual(app, gone.app, "asked another app")
+            done(CocoaError(.fileNoSuchFile))
         }
-        wait(for: [answered], timeout: 30)
         XCTAssertTrue(failed.value, "a slicer that's gone opened the file")
     }
 }
