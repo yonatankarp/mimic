@@ -292,18 +292,29 @@ public enum Tabletop {
     /// (always redrawn as one, #156), and a description is drawn grey.
     public static func inColour(_ s: MiniSettings) -> Bool { s.source == .image && s.restyle != true && s.change == nil && !s.isImported }
 
-    /// Writes `mini`'s .glb to `url`, and says how many triangles and bytes it came to, and
-    /// whether it's in colour.
+    /// Writes `mini`'s .glb to `url`, and says how many triangles and bytes it came to, whether
+    /// it's in colour, and why it's grey when it was meant to be in colour (`inColour`), in words
+    /// for the person: the save window had already said it would be in colour (#317).
     @discardableResult
-    public static func export(_ mini: Mini, to url: URL, triangles: Int = triangles) throws -> (triangles: Int, bytes: Int, colour: Bool) {
+    public static func export(_ mini: Mini, to url: URL, triangles: Int = triangles)
+        throws -> (triangles: Int, bytes: Int, colour: Bool, whyGrey: String?) {
         guard let stl = mini.stl else { throw PrepError("it isn't made yet") }
         // Grey whenever the colours can't be had: the shape is what a tabletop can't do without.
         // `facesAway` and a `Placement` never meet: a record is only ever beside the print file
         // it was written with, and a print file written since 0.10.0 faces front (`Mini.facesAway`
         // goes by its date). A turned print file's colours come from its model placed again.
-        let colours = try? EngineColours.of(mini)
+        var colours: EngineColours?, whyGrey: String?
+        do {
+            colours = try EngineColours.of(mini)
+            if colours == nil, inColour(mini.settings) { whyGrey = "its 3D model has no colours saved with it" }
+        } catch RequestError.unknownModel(let id) {  // placing it again needs its model's settings
+            whyGrey = "this Mimic doesn't know the 3D model it was made with, \(id)"
+        } catch {
+            whyGrey = FileManager.default.fileExists(atPath: mini.folder.appendingPathComponent(Mini.modelFile).path)
+                ? "Mimic couldn't read the colours from its 3D model" : "its 3D model is missing from its folder"
+        }
         let made = try export(stl, to: url, triangles: triangles, colours: colours, facesAway: mini.facesAway)
-        return (made.triangles, made.bytes, colours != nil)
+        return (made.triangles, made.bytes, colours != nil, whyGrey)
     }
 
     /// Writes the .glb of `stl` to `url`, painted with `colours` when given: the trim can stop

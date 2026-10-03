@@ -888,11 +888,16 @@ final class AppModel {
         panel.allowedContentTypes = [UTType(filenameExtension: "glb") ?? .data]
         guard panel.runModal() == .OK, let url = panel.url else { return }
         Task {
-            let failed: Error? = await Task.detached {
-                do { try Tabletop.export(mini, to: url); return nil } catch { return error }
+            let made: Result<String?, Error> = await Task.detached {
+                Result { try Tabletop.export(mini, to: url).whyGrey }
             }.value
-            if let failed { problem = plainWords(failed, else: "Couldn't export \(mini.displayName).") }
-            else { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+            switch made {
+            case .failure(let failed): problem = plainWords(failed, else: "Couldn't export \(mini.displayName).")
+            case .success(let whyGrey):
+                NSWorkspace.shared.activateFileViewerSelecting([url])
+                // The save window said it would be in its colours (#317).
+                if let whyGrey { problem = "Exported \(mini.displayName) in grey, not in its colours: \(whyGrey)." }
+            }
         }
     }
 
