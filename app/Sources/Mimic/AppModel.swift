@@ -681,11 +681,7 @@ final class AppModel {
         switch error {
         // Gallery doesn't know what the job is doing; the running job does.
         case RequestError.busy(let n, _) where n == current?.name: RequestError.busy(n, current?.kind ?? .generate).description
-        case let e as RequestError: e.description
-        case let e as Refusal: e.description
-        case let e as DrawThingsError: e.description
-        case let e as OnlineImagesError: e.description
-        default: fallback
+        default: MimicCore.plainWords(error) ?? fallback
         }
     }
 

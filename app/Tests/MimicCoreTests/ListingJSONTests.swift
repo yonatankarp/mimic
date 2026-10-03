@@ -81,6 +81,16 @@ final class ListingJSONTests: XCTestCase {
         XCTAssertEqual((o["made"] as? [String: Any])?["shape"] as? String, "hex")
     }
 
+    /// An imported mini wasn't made by a 3D model, so `info --json` names none, as the text doesn't
+    /// (#328). It has `requested` sizes, which is what made it read as Pixal3D.
+    func testAnImportedMiniNamesNoModel() throws {
+        let fx = try Fixture(); let d = try fx.mini("ogre")
+        try MiniSettings.update(d) { $0.imported = "ogre.stl"; $0.requested = Sizes(height: "32") }
+        let minis = Gallery.list(fx.install.runs); let mini = try XCTUnwrap(minis.first)
+        let o = try object(ListingJSON.Info(MiniInfo(mini, in: minis, waiting: []), waiting: []))
+        XCTAssertNil((o["madeFrom"] as? [String: Any])?["model"])
+    }
+
     /// JSONEncoder refuses inf and nan, so one size edited by hand to either broke `info --json`
     /// (#379). It's left out, as a size with no value is.
     func testASizeThatIsntANumberIsLeftOut() throws {
