@@ -67,12 +67,15 @@ Everything about one mini is in its folder. For a mini called `tiefling`:
 | `prep.job.log` | The same for the last job that only ran print prep: a resize, an import, or a Try Again that only needed print prep. |
 | `pixal3d.log` | What the 3D engine said, for either 3D model. Where a failure in step 2 shows. |
 | `prep.log` | What print prep did, with sizes, how many loose pieces it dropped and any warnings. See [Tuning print prep](print-prep.md#what-it-says). |
-| `model.ply`, `model_base.png`, `model.svviews/` | Left by the 3D engine as it works. Mimic doesn't use them afterwards. |
+| `model.ply`, `model_base.png`, `model.svviews/` | Older minis only: left by the 3D engine as it worked. Mimic doesn't use them, and you can delete them. |
 | `model.mvviews/` | The cut-out pictures handed to TRELLIS.2 when a mini has pictures of its back and sides (`1-front.png`, `2-back.png`, …). |
 
 You may also see, briefly:
 
 - `tiefling.part.stl` while print prep writes the print file; it replaces `tiefling.stl` in one go.
+- `model.building/` while the 3D engine builds the shape. `model.glb` appears only once the shape is
+  whole, so a mini cut short never keeps half of one. If Mimic closes unexpectedly, the folder may
+  stay until the mini is made again.
 - `prep-result.json`, which print prep writes for the job to read (and building the 3D shape too,
   when it fails, to say why), and which goes as soon as the job has read it.
 

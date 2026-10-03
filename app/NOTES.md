@@ -443,8 +443,12 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   install without it goes back to setup for it). PATH is never searched. With it, a picture
   is a subprocess (`generate`; the pinned release only generates locally and refuses `--local`,
   while newer builds may use Draw Things' cloud without it, so check that when re-pinning), the app
-  never opens, and the API server doesn't matter: the API check is green. Stop terminates it.
-  The API is only the fallback when the tool isn't installed, not a retry when it fails.
+  never opens, and the API server doesn't matter: the API check is green. It runs like a job's
+  other programs (#323): a `GroupProcess` under `nice`, with `Tools.childEnvironment()` (from
+  `mimic` in Terminal it used to get the shell's every token), and on record in `job.pid` while it
+  runs, so a crashed Mimic's is stopped at the next launch. Stop ends its group, SIGKILL after 5 s.
+  The picture is read from the `--output` it was given (checked with the pinned release: it
+  writes exactly there), not from its "Wrote:" line. The API is only the fallback when the tool isn't installed, not a retry when it fails.
 - **Without it, Mimic opens Draw Things when a picture needs it** (`DrawThings.openIfNeeded`, called by
   the job runner around step 1, so the app and `mimic` both do it). Only when its API isn't
   answering and it isn't running at all: one that's open with its API server off isn't Mimic's
@@ -635,9 +639,12 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   own mini is made, then leaves the rest; quitting the app stops carrying on (the queue waits
   for the next launch, which starts it without asking). A job stopped by quitting goes back to
   the front of the queue while its runner still holds the job lock, instead of to the Trash
-  (#82): the step it was on loses its half-written file (the picture, or
-  model.glb, which trellis-cli writes in place), and the plan skips every step whose file is
-  there, so it carries on from the last step it finished. A log-out, restart or shutdown (the
+  (#82): the step it was on loses its half-written file (the picture), and the plan skips
+  every step whose file is there, so it carries on from the last step it finished. trellis-cli
+  writes its model in place, so it builds it in `model.building/` beside model.glb and `mimic
+  _engine` moves it up only once it exits 0 with the file written (#316): model.glb is there
+  only when it's whole, even after a crash or a leftover stopped at launch, which skip that
+  clean-up. Each run empties `model.building/` first, and removes it when it ends. A log-out, restart or shutdown (the
   quit event's reason) doesn't ask first: the question would hold the Mac up, and quitting
   loses nothing but the step in progress. A crash lets go of the job lock outside
   that rule, so the app looks every 3 seconds and at launch. `job.json` names the running
