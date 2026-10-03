@@ -7,9 +7,12 @@ import UniformTypeIdentifiers
 
 /// The sheet over the main window, one at a time.
 enum AppSheet: Identifiable, Equatable {
-    case make, resize(Mini), rename(Mini)
-    /// New Mini filled in from a mini: Edit & Make Again.
-    case makeAgain(Mini)
+    /// New Mini: empty, or filled in with the tour's sample.
+    case make(MakeStart?)
+    case resize(Mini), rename(Mini)
+    /// New Mini filled in from a mini: Edit & Make Again. Nil when it has nothing to make it
+    /// again from, which opens it empty.
+    case makeAgain(Mini, MakeStart?)
     /// Resize All on a project.
     case resizeAll(String)
     /// Resize on several minis selected together.
@@ -27,10 +30,12 @@ enum AppSheet: Identifiable, Equatable {
     case compare(String, String)
     /// Make Another Version, or New 3D Shape: what to change in its picture, if anything (#156).
     case version(Mini, newShape: Bool)
+    /// New Mini, empty or with the sample, as the tour follows it; not Edit & Make Again.
+    var isNewMini: Bool { if case .make = self { true } else { false } }
     var id: String {
         switch self {
         case .make: "make"
-        case .makeAgain(let m): "make-again-\(m.name)"
+        case .makeAgain(let m, _): "make-again-\(m.name)"
         case .resize(let m): "resize-\(m.name)"
         case .resizeAll(let p): "resize-all-\(p)"
         case .resizeSeveral(let m): "resize-several-\(Gallery.dragged(m.map(\.name)))"

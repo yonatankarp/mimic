@@ -267,6 +267,20 @@ final class MakeRequestTests: XCTestCase {
         XCTAssertNoThrow(try checked("resize", "--project", "P", "--height", "40", "--wait"))
     }
 
+    /// A script can tell typing it wrong (64) from something that didn't work (1) (#330).
+    func testExitCodes() {
+        XCTAssertEqual([ExitCode.failed, ExitCode.usage, ExitCode.stopped], [1, 64, 130])
+        for typedWrong: Error in [CommandRefusal.usage, CommandRefusal.badSeed, CommandRefusal.unknownOption("--x"),
+                                  CommandRefusal.notTaken(command: "retry", option: "--height"), RequestError.badNumber("height"),
+                                  RequestError.badNozzle] {
+            XCTAssertEqual(ExitCode.of(typedWrong), 64, "\(typedWrong)")
+        }
+        // Mimic isn't ready, or the mini isn't there: nothing typed wrong.
+        for failed: Error in [CommandRefusal.notSetUp, RequestError.notFound, RequestError.queued("a"), Refusal("no")] {
+            XCTAssertEqual(ExitCode.of(failed), 1, "\(failed)")
+        }
+    }
+
     func testWhichRefusalComesFirst() {
         XCTAssertEqual(refusal { try self.checked("retry", "a", "--project", "P", "--new-shape") },
                        "--project is for mimic make, import and resize --project; mimic move moves a mini")

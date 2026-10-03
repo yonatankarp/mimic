@@ -190,6 +190,17 @@ mimic models   # the 3D models, which are downloaded, and which one Mimic uses
 `--json` prints it as JSON. Change the model in **Settings → 3D Model**, or for one mini with
 `make --model`.
 
+## Exit codes
+
+For scripts, `mimic` says how it went in its exit code, and why on stderr:
+
+| Code | Means |
+|---|---|
+| 0 | It worked: done, or added to the queue |
+| 1 | It didn't work: a mini that isn't there, a mini that didn't finish, or Mimic not set up yet |
+| 64 | Typed wrong: a command or option that isn't there, an option the command doesn't take, or a value it can't take |
+| 130 | Stopped with Ctrl-C, or taken out of the queue while `--wait` waited for it |
+
 ## JSON for scripts
 
 `mimic list --json`, `projects --json`, `queue --json`, `models --json` and `info <name> --json` print JSON. These

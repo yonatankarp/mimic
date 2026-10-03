@@ -47,7 +47,9 @@ public enum GLB {
         try parse(Data(contentsOf: url), painted: true)
     }
 
-    static func parse(_ data: Data, painted: Bool) throws -> (mesh: Mesh, paint: Paint?) {
+    /// `most` positions, corners and steps through the parts: a file of a few MB can list the same
+    /// parts, meshes or data over and over, and be read out to tens of GB or for hours (#334).
+    static func parse(_ data: Data, painted: Bool, most: Int = 50_000_000) throws -> (mesh: Mesh, paint: Paint?) {
         func u32(_ at: Int) -> UInt32 { data.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: at, as: UInt32.self) } }
         guard data.count >= 20, u32(0) == 0x4654_6C67 else { throw PrepError("not a .glb file") }
         var json: [String: Any]?, bin: Range<Int>?
@@ -111,6 +113,12 @@ public enum GLB {
         // nil once a primitive has no place on a picture, or a different material.
         var uv: [SIMD2<Float>]? = painted ? [] : nil
         var material: Int?
+        let tooBig = PrepError("the .glb is too big")
+        var steps = 0
+        func step() throws {
+            steps += 1
+            guard steps <= most else { throw tooBig }
+        }
 
         func local(_ n: [String: Any]) throws -> simd_double4x4 {
             if let m = n["matrix"] as? [NSNumber], m.count == 16 {
@@ -132,11 +140,12 @@ public enum GLB {
         func add(mesh index: Int, _ world: simd_double4x4) throws {
             guard index < meshes.count else { return }
             for prim in meshes[index]["primitives"] as? [[String: Any]] ?? [] {
+                try step()
                 guard (try int(prim, "mode") ?? 4) == 4 else { continue }  // points and lines have no volume
                 guard let attrs = prim["attributes"] as? [String: Any], let pos = try int(attrs, "POSITION") else { continue }
                 let p = try reader(pos)
                 guard p.width == 3 else { throw PrepError("the .glb's positions aren't 3D") }
-                guard out.positions.count + p.count <= Int(UInt32.max) else { throw PrepError("the .glb is too big") }
+                guard out.positions.count + p.count <= most else { throw tooBig }
                 let base = UInt32(out.positions.count)
                 out.positions.reserveCapacity(out.positions.count + p.count)
                 for i in 0..<p.count {
@@ -157,6 +166,7 @@ public enum GLB {
                 var idx: [UInt32]
                 if let ii = try int(prim, "indices") {
                     let r = try reader(ii)
+                    guard 3 * out.triangles.count + r.count <= most else { throw tooBig }
                     let kind = try int(accessors[ii], "componentType")
                     guard r.width == 1, [5121, 5123, 5125].contains(kind) else { throw unreadable }  // unsigned whole numbers only
                     idx = try (0..<r.count).map {
@@ -178,6 +188,7 @@ public enum GLB {
         /// children, would be walked over and over.
         func walk(_ n: Int, _ parent: simd_double4x4, depth: Int, seen: inout Set<Int>) throws {
             guard n < nodes.count, depth < 64 else { return }
+            try step()
             guard seen.insert(n).inserted else { throw PrepError("the .glb's parts loop back on themselves") }
             let world = try parent * local(nodes[n])
             if let m = try int(nodes[n], "mesh") { try add(mesh: m, world) }
@@ -301,7 +312,7 @@ public enum Tabletop {
     @discardableResult
     static func export(_ stl: URL, to url: URL, triangles: Int = triangles, colours: EngineColours? = nil,
                        facesAway: Bool = false) throws -> (triangles: Int, bytes: Int) {
-        var solid = ModelImport.weld(try STL.read(stl))
+        var solid = try ModelImport.weld(STL.read(stl))
         // Half a turn about the vertical: both axes, as one alone would mirror it.
         if facesAway { solid.positions = solid.positions.map { SIMD3(-$0.x, -$0.y, $0.z) } }
         guard !solid.triangles.isEmpty else { throw PrepError("the print file has no triangles") }
