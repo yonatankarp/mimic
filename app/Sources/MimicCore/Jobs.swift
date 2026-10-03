@@ -144,7 +144,7 @@ public final class JobRunner: @unchecked Sendable {
         self.install = install
         self.queue = JobQueue(folder: install.queue)
         self.tools = tools ?? Tools.resolve(install)
-        self.drawThings = drawThings ?? self.tools.drawThings ?? DrawThings()
+        self.drawThings = drawThings ?? self.tools.drawThings ?? DrawThings(queue: install.queue)
         self.trash = trash
         self.timings = timings
         self.version = version
