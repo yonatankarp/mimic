@@ -171,7 +171,8 @@ folder, by Finder, by `mimic` in Terminal or by another Mimic, the list changes 
 refreshes whenever you come back to Mimic.
 
 You can rename or copy a mini's folder in Finder. Mimic takes it over under the new name, so it
-can still be renamed, moved and moved to the Trash like any other.
+can still be renamed, moved and moved to the Trash like any other. A print file you drop into a
+mini's folder is left as it is: Mimic only takes over print files it made.
 
 ## A mini's two names
 
