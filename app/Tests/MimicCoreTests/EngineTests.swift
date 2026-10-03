@@ -259,8 +259,11 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(p.wait(), 1)
         XCTAssertLessThan(Date().timeIntervalSince(started), 20)
         XCTAssertTrue(text(log).contains("ignores PIXAL3D_STEPS"), text(log))
+        // kill(pid, 0) is right here (#457): `_engine` collected trellis-cli's exit itself before
+        // it ended, so an ended one can't still answer. Its start time can't be read beforehand:
+        // it's stopped the moment it starts.
         let cli = pid_t(waitForFile(pidFile) ?? "") ?? 0
-        usleep(100_000)
+        XCTAssertGreaterThan(cli, 0)
         XCTAssertNotEqual(kill(cli, 0), 0, "the engine kept running")
     }
 
@@ -327,10 +330,11 @@ final class EngineTests: XCTestCase {
         let pidFile = f.root.appendingPathComponent("cli.pid").path
         let (p, _, _) = try engine("echo $$ > \(pidFile); echo '[flow] PIXAL3D_STEPS=8 overrides 12 steps'; exec sleep 60")
         let cli = pid_t(try XCTUnwrap(waitForFile(pidFile)))!
-        XCTAssertEqual(kill(cli, 0), 0)
+        // Asked by its start time, not kill(pid, 0) (#457): that one also answers for a program
+        // that has ended but whose exit nobody has collected yet (#439).
+        let started = try XCTUnwrap(Leftover.startTime(cli))
         p.terminateGroup()
         XCTAssertEqual(p.wait(), -15)
-        usleep(200_000)
-        XCTAssertNotEqual(kill(cli, 0), 0, "Stop left trellis-cli running")
+        XCTAssertNotEqual(Leftover.startTime(cli), started, "Stop left trellis-cli running")
     }
 }
