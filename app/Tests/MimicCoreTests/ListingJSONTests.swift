@@ -173,6 +173,16 @@ final class ListingJSONTests: XCTestCase {
         XCTAssertEqual(try mimic(fx, ["info", "nobody", "--json"]).code, ExitCode.failed)
         XCTAssertEqual(try mimic(fx, ["info", "--json"]).code, ExitCode.usage)
         XCTAssertEqual(try mimic(fx, ["list", "everything"]).code, ExitCode.usage)
+        // A name Mimic doesn't take is typed wrong; one already taken, or a mini that isn't there, isn't (#431).
+        _ = try fx.mini("orc"); _ = try fx.mini("elf")
+        try FileManager.default.createDirectory(at: fx.install.runs.appendingPathComponent("Warband"), withIntermediateDirectories: true)
+        for args in [["rename", "orc", "--to", "  "], ["rename", "orc", "--to", ""], ["project", "create", "a/b"],
+                     ["project", "rename", "Warband", "--to", "a/b"]] {
+            XCTAssertEqual(try mimic(fx, args).code, ExitCode.usage, "\(args)")
+        }
+        for args in [["rename", "nobody", "--to", "x"], ["rename", "orc", "--to", "elf"], ["project", "create", "orc"]] {
+            XCTAssertEqual(try mimic(fx, args).code, ExitCode.failed, "\(args)")
+        }
     }
 
     /// Runs the built `mimic` with `MIMIC_HOME` on the fixture: its exit code and what it printed.
