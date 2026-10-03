@@ -244,6 +244,29 @@ final class MakeRequestTests: XCTestCase {
         XCTAssertNoThrow(try checked("make", "a", "a dwarf", "--improve"))
     }
 
+    /// An option a command doesn't take is refused, not ignored: retrying with --height made the
+    /// mini at its old size, with no warning (#327).
+    func testOptionsACommandDoesNotTakeAreRefused() throws {
+        for (args, option) in [(["retry", "a", "--height", "40", "--seed", "7"], "--height"), (["retry", "a", "--model", "trellis2-q8"], "--model"),
+                               (["make-another", "a", "--height", "40"], "--height"), (["make-another", "a", "--model", "trellis2-q8"], "--model"),
+                               (["make-another", "a", "--object"], "--object"), (["make-another", "a", "--restyle"], "--restyle"),
+                               (["resize", "a", "--seed", "5"], "--seed"), (["resize", "a", "--image", "a.png"], "--image"),
+                               (["resize", "a", "--object"], "--object"), (["resize", "--project", "P", "--model", "pixal3d-sv"], "--model")] {
+            let verb = args[0]
+            XCTAssertEqual(refusal { try self.checkedArray(args) }, "mimic \(verb) doesn't take \(option) (mimic --help lists what each command takes)", "\(args)")
+        }
+        // A word that isn't an option, as make refuses a second description.
+        for args in [["retry", "a", "foo"], ["resize", "a", "desc"], ["make-another", "a", "desc"]] {
+            XCTAssertEqual(refusal { try self.checkedArray(args) }, "unknown option: \(args[2])\n" + Usage.text, "\(args)")
+        }
+        XCTAssertNoThrow(try checked("retry", "a", "--wait"))
+        XCTAssertNoThrow(try checked("make-another", "a", "--new-shape", "--seed", "3", "--change", "x", "--wait"))
+        XCTAssertNoThrow(try checked("resize", "a", "--height", "40", "--size", "40", "--scale", "32", "--base", "30", "--base-shape", "hex",
+                                     "--base-style", "stone", "--magnet", "5x2", "--nozzle", "0.2", "--inflate", "0.1", "--no-base",
+                                     "--add-base", "--wait"))
+        XCTAssertNoThrow(try checked("resize", "--project", "P", "--height", "40", "--wait"))
+    }
+
     func testWhichRefusalComesFirst() {
         XCTAssertEqual(refusal { try self.checked("retry", "a", "--project", "P", "--new-shape") },
                        "--project is for mimic make, import and resize --project; mimic move moves a mini")

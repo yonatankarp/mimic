@@ -10,6 +10,8 @@ public enum CommandRefusal: Error, Equatable, CustomStringConvertible {
     case noNumber(String)
     case noPicture(String)
     case unknownOption(String)
+    /// An option the command (as typed: "retry") doesn't take (#327).
+    case notTaken(command: String, option: String)
     case projectNotHere, importAsItIs, newShapeNotHere, sidesNeedImage, scaleForObject, improveImage, noChange, changeNotHere
     case queueMoveUsage, queueRemoveUsage
 
@@ -29,6 +31,7 @@ public enum CommandRefusal: Error, Equatable, CustomStringConvertible {
         case .badModel: "--model needs one of: \(EngineDownload.catalogue.map(\.id).joined(separator: ", ")) (see mimic models)"
         case .noPicture(let flag): "\(flag) needs a picture"
         case .unknownOption(let a): "unknown option: \(a)\n\(Usage.text)"
+        case .notTaken(let command, let option): "mimic \(command) doesn't take \(option) (mimic --help lists what each command takes)"
         case .projectNotHere: "--project is for mimic make, import and resize --project; mimic move moves a mini"
         case .importAsItIs: "mimic import takes the model as it is: only size options, --object, --add-base and --project"
         case .newShapeNotHere: "--new-shape is for mimic make-another"
@@ -75,6 +78,8 @@ public struct MakeRequest: Equatable, Sendable {
     public var model: EngineModel?
     /// Make and import's project, as typed.
     public var project: String?
+    /// Every option typed, in order, so one the command doesn't take is refused (#327).
+    public var options: [String] = []
 
     public init(_ command: Command) { self.command = command }
 
@@ -110,6 +115,7 @@ public struct MakeRequest: Equatable, Sendable {
         if !all { rest.removeFirst() }
         while let a = rest.first {
             rest.removeFirst()
+            if a.hasPrefix("-") { r.options.append(a) }
             func value() -> String? { rest.isEmpty ? nil : rest.removeFirst() }
             switch a {
             case "--height", "--size": guard let v = value() else { throw CommandRefusal.noNumber(a) }; r.sizes.height = v
@@ -175,6 +181,20 @@ public struct MakeRequest: Equatable, Sendable {
         }
         if object { sizes = SizeCard.objectSizes(sizes, addBase: addBase) }
         if command == .make && improve && image != nil { throw CommandRefusal.improveImage }
+        // What the rest take, as the user guide lists them; make and import are covered above.
+        let takes: (String, Set<String>)?
+        switch command {
+        case .retry: takes = ("retry", ["--wait"])
+        case .makeAnother: takes = ("make-another", ["--new-shape", "--change", "--seed", "--wait"])
+        case .resize, .resizeAll:
+            takes = ("resize", ["--height", "--size", "--scale", "--base", "--base-shape", "--base-style", "--magnet", "--nozzle",
+                                "--inflate", "--no-base", "--add-base", "--project", "--wait"])
+        case .make, .import: takes = nil
+        }
+        if let (verb, allowed) = takes {
+            if let o = options.first(where: { !allowed.contains($0) }) { throw CommandRefusal.notTaken(command: verb, option: o) }
+            if let description { throw CommandRefusal.unknownOption(description) }
+        }
         return sizes
     }
 }
