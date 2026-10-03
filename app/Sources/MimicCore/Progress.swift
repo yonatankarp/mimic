@@ -59,10 +59,11 @@ public enum JobProgress {
         return left < 15 ? "nearly done" : "\(about(left)) left"
     }
 
-    /// The web version's test: a failure whose reason names Draw Things is fixed in Setup. Not a
-    /// timeout: Draw Things was on, just slow or stuck (#321).
+    /// A failure fixed in Setup: Draw Things isn't running or isn't set up. Decided by what went
+    /// wrong, not by its words (#434): a refusal or a timeout means Draw Things answered, or was
+    /// on but slow or stuck (#321). A job keeps only the reason's words, so it's matched whole.
     public static func drawThingsCaused(_ s: JobStatus) -> Bool {
-        s.problem?.contains("Draw Things") == true && s.problem != DrawThingsError.timedOut.description
+        DrawThingsError.setup.contains { $0.description == s.problem }
     }
 
     /// Whether closing the job's popover means how the job ended was seen, so it can leave the
