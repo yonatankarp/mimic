@@ -297,6 +297,25 @@ final class GalleryTests: XCTestCase {
         XCTAssertEqual(Gallery.adopt(runs, busy: []), [], "took over a mini that was fine")
     }
 
+    /// A print file dropped into an unfinished mini's folder isn't taken for its own (#336): one
+    /// Mimic made has its previews beside it. The folder is still taken over; the file stays.
+    func testAPrintFileDroppedInIsNotTakenOver() throws {
+        let fx = try Fixture(), fm = FileManager.default, runs = fx.install.runs
+        for folder in ["raven", "Raven Wing"] {
+            let d = runs.appendingPathComponent(folder)
+            try fm.createDirectory(at: d, withIntermediateDirectories: true)
+            try MiniSettings.update(d) { $0.source = .image }
+            fm.createFile(atPath: d.appendingPathComponent("source.png").path, contents: Data())
+            fm.createFile(atPath: d.appendingPathComponent("crow.stl").path, contents: Data("crow".utf8))
+        }
+        XCTAssertEqual(Gallery.adopt(runs, busy: []), ["raven-wing"])
+        for folder in ["raven", "raven-wing"] {
+            XCTAssertTrue(fm.fileExists(atPath: runs.appendingPathComponent("\(folder)/crow.stl").path), folder)
+            XCTAssertFalse(fm.fileExists(atPath: runs.appendingPathComponent("\(folder)/\(folder).stl").path), folder)
+        }
+        XCTAssertTrue(Gallery.list(runs).allSatisfy { !$0.finished })
+    }
+
     /// A rename of only the capitals goes through a `_` folder, which the gallery never lists.
     /// When its second step fails, the folder goes back where it was, not hidden there (#332).
     func testACaseOnlyRenameThatFailsPutsTheFolderBack() throws {
