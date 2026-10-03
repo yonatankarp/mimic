@@ -232,8 +232,6 @@ final class KeepKey: NSObject, URLSessionTaskDelegate, Sendable {
 }
 
 /// In plain words, naming the service, since a job keeps `String(describing:)` as why it failed.
-/// None names Draw Things: a failure that does is taken for a Draw Things setup problem
-/// (JobProgress.drawThingsCaused).
 public struct OnlineImagesError: Error, CustomStringConvertible, Equatable {
     public enum Problem: Equatable, Sendable {
         case noKey, badKey, noCredits, busy, refused([String]), timedOut, noInternet, unreachable, failed(String), cancelled
