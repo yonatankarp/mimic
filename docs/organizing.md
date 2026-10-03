@@ -136,7 +136,8 @@ hides, so nothing out of sight is moved or deleted with the rest.
 
 ## Rename a mini
 
-Right-click it → **Rename…**, type the new name and press **Rename**. A mini waiting in the queue
+Right-click it → **Rename…** (or **Mini → Rename…**), type the new name and press **Rename**.
+**Edit → Undo** gives it back its old name. A mini waiting in the queue
 can be renamed once it's made.
 
 Names can have capitals, accents, spaces and other alphabets: "Élodie", "D&D Bard", "Дракон".
