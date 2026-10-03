@@ -71,4 +71,10 @@ public struct Slicer: Hashable, Sendable, Identifiable {
     public static func open(_ file: URL, in slicer: Slicer?, done: (@Sendable (Error?) -> Void)? = nil, opener: Opener = workspace) {
         opener(file, slicer?.app) { done?($0) }
     }
+
+    /// What `mimic open` says when `slicer` didn't open the print file: why in plain words, when
+    /// Mimic has them, never macOS's raw text (#453).
+    public static func couldntOpen(in slicer: Slicer?, _ error: Error) -> String {
+        "Couldn't open it in \(slicer?.name ?? "your slicer"). " + (plainWords(error) ?? "Check that it's still on your Mac, then try again.")
+    }
 }

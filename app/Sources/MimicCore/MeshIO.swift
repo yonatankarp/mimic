@@ -50,6 +50,8 @@ public enum GLB {
     /// `most` positions, corners and steps through the parts: a file of a few MB can list the same
     /// parts, meshes or data over and over, and be read out to tens of GB or for hours (#334).
     static let most = 50_000_000
+    /// Why a file past `most` isn't read; Import says it in a sentence of its own (#453).
+    static let tooBig = "the .glb is too big"
     static func parse(_ data: Data, painted: Bool, most: Int = GLB.most) throws -> (mesh: Mesh, paint: Paint?) {
         func u32(_ at: Int) -> UInt32 { data.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: at, as: UInt32.self) } }
         guard data.count >= 20, u32(0) == 0x4654_6C67 else { throw PrepError("not a .glb file") }
@@ -114,7 +116,7 @@ public enum GLB {
         // nil once a primitive has no place on a picture, or a different material.
         var uv: [SIMD2<Float>]? = painted ? [] : nil
         var material: Int?
-        let tooBig = PrepError("the .glb is too big")
+        let tooBig = PrepError(Self.tooBig)
         var steps = 0
         func step() throws {
             steps += 1
@@ -285,6 +287,13 @@ public enum GLB {
 public enum Tabletop {
     /// ponytail: one budget, a guess at "low poly"; Low / Medium choices once tabletops say what they take.
     public static let triangles = 5_000
+
+    /// What `mimic export` says when exporting `name` failed: export's own reason, or Mimic's
+    /// plain words, never a file's raw text (#453).
+    public static func couldntExport(_ name: String, _ error: Error) -> String {
+        if let e = error as? PrepError { return "Couldn't export \(name): \(e.description)." }
+        return "Couldn't export \(name). " + (plainWords(error) ?? "Check that Mimic can save files in this folder, then try again.")
+    }
     /// The colours' picture, square: a cell for each triangle, 28 pixels wide at 5,000.
     static let size = 2048
 
