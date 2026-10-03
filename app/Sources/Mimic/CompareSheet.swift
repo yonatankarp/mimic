@@ -16,7 +16,7 @@ struct CompareSheet: View {
     /// The versions with a print file, of whichever picked one is still there.
     private var finished: [Mini] {
         guard let any = model.minis.first(where: { names.contains($0.name) }) else { return [] }
-        return Gallery.versions(of: any, in: model.minis).filter { $0.stl != nil }
+        return Gallery.versions(of: any, in: model.minis).filter { $0.finished }
     }
 
     var body: some View {
@@ -45,7 +45,7 @@ struct CompareSheet: View {
     }
 
     @ViewBuilder private func side(_ i: Int, _ finished: [Mini]) -> some View {
-        if let v = finished.first(where: { $0.name == names[i] }), let stl = v.stl {
+        if let v = finished.first(where: { $0.name == names[i] }), let stl = v.printFile {
             VStack(spacing: 12) {
                 Picker("Version", selection: $names[i]) {
                     ForEach(finished.filter { $0.name != names[1 - i] }) { Text($0.displayName).tag($0.name) }
