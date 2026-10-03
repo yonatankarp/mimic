@@ -130,8 +130,9 @@ struct MiniDetail: View {
     /// Its picture, redrawn with a change, for you to check before the 3D shape is built (#156).
     private func checkPage(_ source: URL) -> some View {
         VStack(spacing: 16) {
-            // By the picture's own time: Try Again draws a new one in its place.
-            Thumbnail(url: source, version: (try? FileManager.default.attributesOfItem(atPath: source.path))?[.modificationDate] as? Date ?? mini.madeAt)
+            // By the picture's own time, which is the mini's while it has no print file: Try
+            // Again draws a new one in its place.
+            Thumbnail(url: source, version: mini.madeAt)
                 .frame(maxWidth: 480, maxHeight: 480)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .accessibilityLabel("The picture of \(mini.displayName)")
