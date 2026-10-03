@@ -592,8 +592,8 @@ final class JobTests: XCTestCase {
         XCTAssertEqual(try Pipeline.plan(.generate, folder: d, settings: MiniSettings.load(d), tools: fx.tools()).map(\.number), [.shape, .print],
                        "the picture is kept")
         XCTAssertNil(MiniSettings.load(d).failed, "quitting isn't a failure")
-        JobRunner(install: fx.install, tools: fx.tools()).cleanUpLeftovers()
-        XCTAssertNil(MiniSettings.load(d).failed, "quitting was taken for a crash at the next launch (#436)")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: SharedJob.file(queue: fx.install.queue).path),
+                       "quitting left the job's record, so the next launch takes it for a crash (#436)")
     }
 
     /// A 3D shape cut short by a crash before #403 failed print prep on every Try Again (#436):
