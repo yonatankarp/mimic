@@ -82,7 +82,7 @@ public final class OpenAIImages: OnlineClient, OnlineImages, @unchecked Sendable
         req.httpBody = body
         // A picture can take two minutes or more, with nothing sent meanwhile.
         req.timeoutInterval = timeout
-        let reply = try json(req)
+        let reply = try submit { try json(req) }
         guard let b64 = ((reply["data"] as? [[String: Any]])?.first?["b64_json"] as? String), let picture = Data(base64Encoded: b64) else {
             throw fail(.failed("no picture in the reply"))
         }

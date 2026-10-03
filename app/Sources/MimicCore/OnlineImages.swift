@@ -90,10 +90,15 @@ public class OnlineClient: @unchecked Sendable {
     private let key: @Sendable () -> String?
     /// How long a picture may take.
     var timeout: TimeInterval = 300
+    /// How long to wait before each new try of a request the service turned away as busy, when it
+    /// doesn't say: one try, then one more after each.
+    var retryWaits: [TimeInterval] = [5, 15]
 
     private let lock = NSLock()
     private var task: URLSessionDataTask?
     private var canceled = false
+    /// The last reply's Retry-After, in seconds.
+    private var retryAfter: TimeInterval?
 
     init(service: OnlineService, base: URL, key: @escaping @Sendable () -> String?) {
         self.service = service; self.base = base; self.key = key
@@ -102,6 +107,26 @@ public class OnlineClient: @unchecked Sendable {
     public func cancel() { lock.withLock { canceled = true; task?.cancel() } }
     public func reset() { lock.withLock { canceled = false } }
     var isCanceled: Bool { lock.withLock { canceled } }
+
+    /// Sends a new picture's request, and sends it again, twice at most, when the service turns it
+    /// away as busy (429, 5xx): a request turned away isn't charged, and a busy moment shouldn't
+    /// fail a queued mini nobody is watching (#320). Only the request that asks for the picture: once
+    /// it's taken, the picture is paid for. Waits as long as the reply's Retry-After says (a number of
+    /// seconds; the date form isn't read), up to a minute, else `retryWaits`. Stop ends the wait.
+    func submit<T>(_ send: () throws -> T) throws -> T {
+        for wait in retryWaits {
+            do { return try send() } catch let e as OnlineImagesError where e.problem == .busy {
+                pause(min(lock.withLock { retryAfter } ?? wait, 60))
+            }
+        }
+        return try send()
+    }
+
+    /// Waits `seconds`, or until Stop.
+    func pause(_ seconds: TimeInterval) {
+        let until = Date().addingTimeInterval(seconds)
+        while Date() < until, !isCanceled { usleep(20_000) }
+    }
 
     /// An error naming this service.
     func fail(_ problem: OnlineImagesError.Problem) -> OnlineImagesError { OnlineImagesError(problem, service: service.name) }
@@ -154,6 +179,7 @@ public class OnlineClient: @unchecked Sendable {
             defer { done.signal() }
             if let err = err as? URLError { result = .failure(OnlineImagesError(.from(err), service: name)); return }
             guard let data, let http = resp as? HTTPURLResponse else { return }
+            self.lock.withLock { self.retryAfter = http.value(forHTTPHeaderField: "Retry-After").flatMap { TimeInterval($0) } }
             result = .success((http.statusCode, data))
         }
         t.delegate = KeepKey(header: service.keyHeader) { [self] url in self.sendsKey(to: url) }
