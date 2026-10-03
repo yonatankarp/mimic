@@ -397,5 +397,14 @@ final class JobProgressTests: XCTestCase {
         XCTAssertTrue(JobProgress.drawThingsCaused(s))
         s.problem = DrawThingsError.timedOut.description
         XCTAssertFalse(JobProgress.drawThingsCaused(s), "on but slow or stuck: setup isn't the cause")
+        // By what went wrong, not by the words (#434): Draw Things answered a refusal.
+        s.problem = DrawThingsError.refused("model not found").description
+        XCTAssertFalse(JobProgress.drawThingsCaused(s), "Draw Things answered: setup isn't the cause")
+        for e in [DrawThingsError.noModel, .apiOff] {
+            s.problem = e.description
+            XCTAssertTrue(JobProgress.drawThingsCaused(s), "\(e)")
+        }
+        s.problem = DrawThingsError.closedWhileOpening.description
+        XCTAssertFalse(JobProgress.drawThingsCaused(s))
     }
 }

@@ -53,6 +53,8 @@ extension JobRunner {
     /// Resize All on a project, or Resize on several minis: each one `Gallery.toResize` picks is
     /// asked for with `resize` (the app's shows its progress), and waits its turn.
     public func resizeAll(_ group: [Mini], to sizes: Sizes, resize: (Mini, Sizes) throws -> Void) -> ResizeAll {
+        // A size out of range is refused for them all, not counted as skipped (#432).
+        do { _ = try sizes.flags() } catch { return ResizeAll(failure: error) }
         let picked = Gallery.toResize(group, to: sizes, busy: busyNames())
         var result = ResizeAll(same: picked.same, skipped: picked.skipped)
         for (mini, sizes) in picked.resize {
@@ -161,6 +163,7 @@ public enum StopRequest: Equatable, Sendable {
 
 /// How Resize All went: the minis added to the queue, those already at those sizes, and those
 /// skipped (not made yet, waiting, being made, or refused, the last refusal kept as `failure`).
+/// A size out of range is `failure` alone: none is skipped for it.
 public struct ResizeAll {
     public var added: [String] = []
     public var same = 0
