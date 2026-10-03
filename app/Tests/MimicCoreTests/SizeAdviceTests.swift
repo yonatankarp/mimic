@@ -407,4 +407,26 @@ final class JobProgressTests: XCTestCase {
         s.problem = DrawThingsError.closedWhileOpening.description
         XCTAssertFalse(JobProgress.drawThingsCaused(s))
     }
+
+    /// The popover's first line says what to do about what went wrong (#435): "a clearer
+    /// picture" only when the 3D steps failed, not when the picture couldn't be made.
+    func testTheFailedHeadlineFitsWhatWentWrong() {
+        let clearer = "Try again, or use a clearer, full-body picture."
+        var s = JobStatus(name: "a", kind: .generate, step: .picture, started: Date(), running: false, exit: 1)
+        for why in [DrawThingsError.timedOut.description, OnlineImagesError(.busy, service: "OpenAI").description, DrawThingsError.badPicture.description] {
+            s.problem = why
+            XCTAssertEqual(JobProgress.failedHeadline(s, imported: false), why, "the reason says what to do")
+        }
+        s.problem = DrawThingsError.notRunning.description
+        XCTAssertEqual(JobProgress.failedHeadline(s, imported: false), "Draw Things isn't ready. Check the setup steps, then try again.")
+        s.step = .shape
+        s.problem = "It stopped while building the 3D shape."
+        XCTAssertEqual(JobProgress.failedHeadline(s, imported: false), clearer)
+        s.problem = JobStep.shape.outOfMemory
+        XCTAssertEqual(JobProgress.failedHeadline(s, imported: false), JobStep.shape.outOfMemory, "a clearer picture won't free memory")
+        s.problem = nil
+        XCTAssertEqual(JobProgress.failedHeadline(s, imported: false), clearer)
+        s = JobStatus(name: "a", kind: .prep, step: .print, started: Date(), running: false, exit: 1)
+        XCTAssertEqual(JobProgress.failedHeadline(s, imported: true), "Try Resize This Mini with other sizes, or check the model in the app it came from.")
+    }
 }
