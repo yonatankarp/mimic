@@ -119,7 +119,8 @@ struct MiniViewer: View {
             let read = await Task.detached(priority: .userInitiated) { [stl, facesAway] in Result { try Self.read(stl, facesAway: facesAway) } }.value
             // Another mini was picked meanwhile: its own load shows it, not this one.
             guard !Task.isCancelled else { return }
-            guard let (entity, mm) = try? Self.entity(read.get()) else { failed = true; return }
+            guard let (entity, mm) = try? await Self.entity(read.get()) else { failed = true; return }
+            guard !Task.isCancelled else { return }  // the mesh took a while: the same again
             if !reduceMotion {
                 entity.scale = SIMD3(repeating: 0.94)
                 glide = 0.5  // the stage adds it and grows it into place
@@ -370,22 +371,26 @@ struct MiniViewer: View {
             let n = simd_normalize(simd_cross(points[t + 1] - points[t], points[t + 2] - points[t]))
             normals[t] = n; normals[t + 1] = n; normals[t + 2] = n
         }
-        return Read(points: points, normals: normals, measured: size)
+        // Every corner its own vertex, in order: millions for a big print file, so made here too.
+        return Read(points: points, normals: normals, indices: Array(0..<UInt32(points.count)), measured: size)
     }
 
     struct Read: Sendable {
-        let points: [SIMD3<Float>], normals: [SIMD3<Float>]
+        let points: [SIMD3<Float>], normals: [SIMD3<Float>], indices: [UInt32]
         let measured: Measured
     }
 
-    /// The mini's entity, from what `read` got out of its print file.
-    static func entity(_ r: Read) throws -> (Entity, Measured) {
+    /// The mini's entity, from what `read` got out of its print file. The mesh is built off the
+    /// main actor (the async `MeshResource(from:)`), so a big print file doesn't freeze the
+    /// window (#342).
+    static func entity(_ r: Read) async throws -> (Entity, Measured) {
         var d = MeshDescriptor(name: "mini")
         d.positions = MeshBuffers.Positions(r.points)
         d.normals = MeshBuffers.Normals(r.normals)
-        d.primitives = .triangles((0..<UInt32(r.points.count)).map { $0 })
+        d.primitives = .triangles(r.indices)
+        let mesh = try await MeshResource(from: [d])
         let material = SimpleMaterial(color: .init(white: 0.66, alpha: 1), roughness: 0.75, isMetallic: false)
-        let entity = ModelEntity(mesh: try MeshResource.generate(from: [d]), materials: [material])
+        let entity = ModelEntity(mesh: mesh, materials: [material])
         entity.name = "mini"
         return (entity, r.measured)
     }
