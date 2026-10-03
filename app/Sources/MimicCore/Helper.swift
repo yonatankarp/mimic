@@ -127,6 +127,19 @@ public enum Keychain {
         SecItemDelete(query(account, service) as CFDictionary)
     }
 
+    /// Every key saved under the service, for any provider and address: what a report takes out
+    /// (#352). Accounts first, then each key: the Mac's Keychain won't return every key's data in
+    /// one go. Anything shorter than a key is left out, so it can't cut up the report.
+    public static func all(service: String = service) -> [String] {
+        let q = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
+                 kSecReturnAttributes as String: true, kSecMatchLimit as String: kSecMatchLimitAll] as CFDictionary
+        var out: AnyObject?
+        guard SecItemCopyMatching(q, &out) == errSecSuccess, let items = out as? [[String: Any]] else { return [] }
+        let keys = items.compactMap { $0[kSecAttrAccount as String] as? String }
+            .compactMap { read(account: $0, service: service)?.trimmingCharacters(in: .whitespacesAndNewlines) }
+        return Array(Set(keys.filter { $0.count >= 8 }))
+    }
+
     /// Every key saved under the service, for any provider and address. One at a time, since
     /// the Mac's Keychain may delete only the first match; capped so it can't spin.
     public static func deleteAll(service: String) {

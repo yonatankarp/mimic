@@ -586,8 +586,11 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   public)" is ticked, off by default. Renders and the 3D files never. Every text file is scrubbed
   before it's zipped: API key and token patterns (`sk-ant-`, `sk-`, `hf_`, `gsk_`, GitHub, Slack,
   AWS, `Bearer …`, `api_key=…`-style values) and the home folder as `~`, also as JSON writes it
-  (`\/Users\/…`). The saved helper key itself isn't read to scrub by: no job log contains it (it's
-  only ever sent in a request header), and reading it may show a Keychain prompt. Reports go in
+  (`\/Users\/…`). Every key saved in the Keychain (`Keychain.all`: the helper's, Black Forest
+  Labs', OpenAI's) is read when the report is made and taken out too, in any case and without its
+  dashes (#352): a Black Forest Labs key is a bare UUID, which no pattern can tell from the UUIDs
+  a crash report needs. It's read off the main thread, since it may show a Keychain prompt after
+  an update; a key that can't be read is left to the patterns. Reports go in
   the minis folder because Mimic can already write there; Downloads or the Desktop would ask for
   permission first. The app's own log is `Logger` (subsystem the bundle id; categories setup,
   download, queue, shown) at notice and up with `.public` values, since a default-private value

@@ -50,17 +50,20 @@ final class Reporter {
         let failure = mini.map { $0.settings.failed ?? "It stopped before it was done." }
         let install = model.install, known = setupKnown(mini)
         Task {
-            let made: (URL, ReportSetup)? = await Task.detached {
+            let made: (URL, ReportSetup, [String])? = await Task.detached {
                 var setup = ReportSetup.current(install: install)
                 known(&setup)
                 let log = Log.recent(since: Date().addingTimeInterval(-3600))
+                // The keys saved in Settings, to take out wherever they are (#352). Off the main
+                // thread: reading them may wait on a Keychain prompt after an update.
+                let saved = Keychain.all()
                 guard let zip = try? Report.write(to: folder, mini: mini, picture: picture, build: build, mac: mac, appLog: log,
-                                                  setup: setup, window: shot) else { return nil }
-                return (zip, setup)
+                                                  setup: setup, window: shot, saved: saved) else { return nil }
+                return (zip, setup, saved)
             }.value
             guard let made else { model.problem = "Couldn't make the report. Check that Mimic's folder is still there, then try again."; return }
             NSWorkspace.shared.activateFileViewerSelecting([made.0])
-            NSWorkspace.shared.open(Report.issueURL(build: build, mac: mac, failure: failure, setup: made.1))
+            NSWorkspace.shared.open(Report.issueURL(build: build, mac: mac, failure: failure, setup: made.1, saved: made.2))
         }
     }
 
@@ -82,16 +85,17 @@ final class Reporter {
         // The setup as it is now: the crashed launch's queue and last job went with it.
         let install = model.install, known = setupKnown(nil)
         Task {
-            let made: (URL, ReportSetup)? = await Task.detached {
+            let made: (URL, ReportSetup, [String])? = await Task.detached {
                 var setup = ReportSetup.current(install: install)
                 known(&setup)
+                let saved = Keychain.all()
                 guard let zip = try? CrashReport.write(crash, to: folder, build: build, mac: mac, appLog: CrashReport.appLog(crash),
-                                                       setup: setup) else { return nil }
-                return (zip, setup)
+                                                       setup: setup, saved: saved) else { return nil }
+                return (zip, setup, saved)
             }.value
             guard let made else { model.problem = "Couldn't make the report. Check that Mimic's folder is still there, then try again."; return }
             NSWorkspace.shared.activateFileViewerSelecting([made.0])
-            NSWorkspace.shared.open(CrashReport.issueURL(crash, build: build, mac: mac, setup: made.1))
+            NSWorkspace.shared.open(CrashReport.issueURL(crash, build: build, mac: mac, setup: made.1, saved: made.2))
         }
     }
 

@@ -29,6 +29,13 @@ final class Updater: NSObject, SPUUpdaterDelegate {
     /// Sparkle's go-ahead to install and relaunch, held while the queue is busy.
     @ObservationIgnored private var relaunch: (() -> Void)?
 
+    /// Seconds after Mimic opens before the update check, so its window doesn't land on a mini
+    /// being started.
+    private static let checkAfterLaunch = 5.0
+    /// Seconds for the sheets, alerts and questions closed before an update to go, so the
+    /// window will quit; then it looks again before relaunching (#428).
+    private static let closeBeforeRelaunch = 0.5
+
     override init() {
         super.init()
         guard Bundle.main.bundleIdentifier == "com.mimic.app" else { return }
@@ -40,10 +47,10 @@ final class Updater: NSObject, SPUUpdaterDelegate {
             MainActor.assumeIsolated { self?.canCheck = updater.canCheckForUpdates }
         }
         guard automatic else { return }
-        // A few seconds after the window opens, so the window doesn't land on a mini being started.
-        // Nothing shows when there's nothing new or Mimic is offline.
+        // A few seconds after the window opens (`checkAfterLaunch`). Nothing shows when there's
+        // nothing new or Mimic is offline.
         Task { @MainActor in
-            try? await Task.sleep(for: .seconds(5))
+            try? await Task.sleep(for: .seconds(Self.checkAfterLaunch))
             if !controller.updater.sessionInProgress { controller.updater.checkForUpdatesInBackground() }
         }
     }
@@ -80,7 +87,7 @@ final class Updater: NSObject, SPUUpdaterDelegate {
         self.relaunch = nil
         model.sheet = nil; model.problem = nil; model.trashing = []; model.deletingProject = nil
         Task { @MainActor in
-            try? await Task.sleep(for: .seconds(0.5))
+            try? await Task.sleep(for: .seconds(Self.closeBeforeRelaunch))
             // A mini started meanwhile, maybe in another Mimic, or a dialog is still up: kept
             // for a later tick, never dropped.
             if busy || Self.dialogUp { self.relaunch = relaunch; return }

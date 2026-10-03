@@ -230,6 +230,10 @@ final class HelperTests: XCTestCase {
         try Keychain.save("second", account: "anthropic", service: service)
         XCTAssertEqual(Keychain.read(account: "anthropic", service: service), "second", "saving again replaces")
         XCTAssertTrue(Keychain.has(account: "anthropic", service: service))
+        try Keychain.save(" a-saved-bfl-key\n", account: "bfl", service: service)
+        defer { Keychain.delete(account: "bfl", service: service) }
+        XCTAssertEqual(Keychain.all(service: service), ["a-saved-bfl-key"],
+                       "every saved key, for a report to take out (#352), but not \"second\": too short to be one")
         let suite = "mimic-test-\(UUID().uuidString)", d = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { d.removePersistentDomain(forName: suite) }
         d.set("anthropic", forKey: HelperConfig.providerKey)

@@ -64,6 +64,38 @@ final class ReportTests: XCTestCase {
         XCTAssertTrue(about.contains("Picture: left out"))
     }
 
+    /// A key saved in Settings goes wherever it is, in any of the forms its service takes (#352):
+    /// a Black Forest Labs key is a bare UUID, so only knowing the saved one tells it apart.
+    /// Any other UUID stays, and with no keys saved the report is as before.
+    func testTheSavedKeysAreTakenOutWhereverTheyAre() throws {
+        let fx = try Fixture()
+        let saved = "0f1e2d3c-4b5a-4987-8a6b-5c4d3e2f1a0b", other = "1f2e3d4c-5b6a-4789-9abc-def012345678"
+        let forms = [saved, saved.uppercased(), saved.replacingOccurrences(of: "-", with: "")]
+        let d = try fx.mini("raven")
+        try "bfl request with \(forms[0])\nretry {\(forms[1])}\nbinary \(other)\n"
+            .write(to: d.appendingPathComponent("generate.job.log"), atomically: true, encoding: .utf8)
+        try MiniSettings.update(d) { s in s.desc = "a raven"; s.failed = "Black Forest Labs said no to \(forms[2])" }
+        let raven = try XCTUnwrap(Gallery.list(fx.install.runs).first { $0.name == "raven" })
+        func report(_ keys: [String], _ second: Double) throws -> String {
+            let zip = try Report.write(to: fx.root.appendingPathComponent("reports"), mini: raven, picture: false, build: "b", mac: "m",
+                                       appLog: "12:00:00 [jobs] key \(forms[1])\n", saved: keys,
+                                       now: Date().addingTimeInterval(second), home: home)
+            return try unzip(zip).1.values.map { String(decoding: $0, as: UTF8.self) }.joined(separator: "\n").lowercased()
+        }
+        let scrubbed = try report(["sk-ant-another-saved-key", saved], 0)
+        XCTAssertFalse(scrubbed.contains(saved) || scrubbed.contains(forms[2]), "the saved key is in the report")
+        XCTAssertTrue(scrubbed.contains("bfl request with [key removed]"))
+        XCTAssertTrue(scrubbed.contains("retry {[key removed]}"))
+        XCTAssertTrue(scrubbed.contains("said no to [key removed]"), "settings.json still has the key")
+        XCTAssertTrue(scrubbed.contains("binary \(other)"), "a UUID that isn't a saved key went")
+        let unsaved = try report([], 1)
+        XCTAssertTrue(unsaved.contains(saved) && unsaved.contains(forms[2]), "with no keys saved, the report changed")
+
+        let url = Report.issueURL(build: "b", mac: "m", failure: "Step 1 failed: \(forms[1])", saved: [saved], home: home)
+        XCTAssertFalse(url.absoluteString.lowercased().contains(saved), "the saved key is in the issue")
+        XCTAssertEqual(Report.scrub("binary \(other)", home: home, saved: []), "binary \(other)")
+    }
+
     func testThePictureIsOnlyIncludedWhenAskedFor() throws {
         let fx = try Fixture()
         let raven = try failedRaven(fx)

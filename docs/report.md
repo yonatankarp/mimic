@@ -30,8 +30,9 @@ Mimic first says what goes in the file. Press **Make Report**. The file has:
 - for a mini, its notes on how it was made and its settings, which include the description you
   typed and its name
 
-Keys, passwords and your Mac's user name are taken out first. Two boxes say which pictures go in,
-since the issue is public:
+Keys, passwords and your Mac's user name are taken out first, including the keys you saved in
+**Settings** (for the AI helper, Black Forest Labs and OpenAI) wherever they appear. Two boxes
+say which pictures go in, since the issue is public:
 
 - **Include the picture (the issue is public)**, when reporting a mini that has one: the picture
   it was built from. It starts unticked.
