@@ -297,6 +297,22 @@ final class GalleryTests: XCTestCase {
         XCTAssertEqual(Gallery.adopt(runs, busy: []), [], "took over a mini that was fine")
     }
 
+    /// A rename of only the capitals goes through a `_` folder, which the gallery never lists.
+    /// When its second step fails, the folder goes back where it was, not hidden there (#332).
+    func testACaseOnlyRenameThatFailsPutsTheFolderBack() throws {
+        let fx = try Fixture(), fm = FileManager.default, runs = fx.install.runs
+        let from = runs.appendingPathComponent("Elf")
+        try fm.moveItem(at: try fx.mini("elf"), to: from)
+        var moves = 0
+        XCTAssertThrowsError(try Gallery.moveChangingCase(from, to: runs.appendingPathComponent("elf")) { a, b in
+            moves += 1
+            if moves == 2 { throw CocoaError(.fileWriteNoPermission) }
+            try fm.moveItem(at: a, to: b)
+        })
+        XCTAssertEqual(try fm.contentsOfDirectory(atPath: runs.path), ["Elf"])
+        XCTAssertEqual(Gallery.list(runs).map(\.name), ["Elf"])
+    }
+
     /// Taking over never moves anything over a mini or folder already there: the name taken
     /// anywhere (here in another project), or by a folder that isn't a mini, gets the next one.
     func testTakingOverNeverOverwrites() throws {
