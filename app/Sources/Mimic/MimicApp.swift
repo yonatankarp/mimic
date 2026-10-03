@@ -91,12 +91,12 @@ struct MiniCommands: Commands {
                 .disabled(model.selected == nil)
             Button("Face Front") { model.faceFrontRequests += 1 }
                 .keyboardShortcut("0")
-                .disabled(model.selected?.stl == nil || model.sheet != nil)
+                .disabled(model.selected?.finished != true || model.sheet != nil)
             // The 3D view's ruler, one choice for the whole app.
             Picker("Size Reference", selection: $reference) {
                 ForEach(SizeReference.allCases, id: \.self) { Text($0.title).tag($0) }
             }
-            .disabled(model.selected?.stl == nil || model.sheet != nil)
+            .disabled(model.selected?.finished != true || model.sheet != nil)
         }
         CommandMenu("Mini") {
             let mini = model.selected, chosen = model.chosen, several = chosen.count > 1
@@ -104,11 +104,11 @@ struct MiniCommands: Commands {
             if several {
                 Button("Open Together in \(model.slicerName)") { model.openTogether(chosen) }
                     .keyboardShortcut("o")
-                    .disabled(chosen.filter { $0.stl != nil }.count < 2 || model.packing)
+                    .disabled(chosen.filter { $0.finished }.count < 2 || model.packing)
             } else {
                 Button("Open in \(model.slicerName)") { if let stl = mini?.stl { model.openInSlicer(stl) } }
                     .keyboardShortcut("o")
-                    .disabled(mini?.stl == nil)
+                    .disabled(mini?.finished != true)
             }
             CopiesButton(minis: chosen, showsIcon: false).environment(model)
             Button("Show in Finder") { model.showInFinder(chosen) }
@@ -117,7 +117,7 @@ struct MiniCommands: Commands {
             // As in the right-click menu (#345), which no open sheet leaves within reach.
             Button("Export for Virtual Tabletop…") { if let mini { model.exportForTabletop(mini) } }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
-                .disabled(mini?.stl == nil || !free)
+                .disabled(mini?.finished != true || !free)
             Divider()
             if several {
                 Button("Resize \(chosen.count) Minis…") { model.sheet = .resizeSeveral(chosen) }

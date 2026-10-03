@@ -68,7 +68,7 @@ struct Sidebar: View {
 
     /// Named, not inline: an optional tip chosen in the modifier chain is slow to type-check.
     private var galleryTip: (any Tip)? {
-        guard picked, model.selected?.stl != nil else { return nil }
+        guard picked, model.selected?.finished == true else { return nil }
         return Tips.unlessTouring(GalleryTip())
     }
 
@@ -222,7 +222,7 @@ struct Sidebar: View {
         Button("New Mini in This Project…", systemImage: "plus") { model.makeInProject = project; model.sheet = .make(nil) }
             .disabled(!model.setup.installed)
         Button("Open Together in \(model.slicerName)", systemImage: "printer") { model.openTogether(model.minis.filter { $0.project == project }) }
-            .disabled(model.minis.filter { $0.project == project && $0.stl != nil }.count < 2 || model.packing)
+            .disabled(model.minis.filter { $0.project == project && $0.finished }.count < 2 || model.packing)
         Button("Show in Finder", systemImage: "folder") { model.showInFinder(project: project) }
         Button("Resize All…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resizeAll(project) }
             .disabled(!model.minis.contains { $0.project == project && $0.hasModel } || model.requiredProblem != nil)
@@ -249,11 +249,11 @@ struct Sidebar: View {
         Button("Open in \(model.slicerName)", systemImage: "printer") {
             if let stl = mini.stl { model.openInSlicer(stl) }
         }
-        .disabled(mini.stl == nil)  // not made yet: nothing to print
+        .disabled(!mini.finished)  // not made yet: nothing to print
         CopiesButton(minis: [mini])
         Button("Show in Finder", systemImage: "folder") { model.showInFinder([mini]) }
         Button("Export for Virtual Tabletop…", systemImage: "square.and.arrow.up") { model.exportForTabletop(mini) }
-            .disabled(mini.stl == nil)
+            .disabled(!mini.finished)
             .help("A low-poly .glb to drag into a virtual tabletop")
         Button("Resize This Mini…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resize(mini) }
             .disabled(!mini.hasModel || model.requiredProblem != nil || model.waiting(mini.name) != nil)
@@ -288,7 +288,7 @@ struct SeveralMenu: View {
     @Environment(AppModel.self) private var model
     var body: some View {
         Button("Open Together in \(model.slicerName)", systemImage: "printer") { model.openTogether(minis) }
-            .disabled(minis.filter { $0.stl != nil }.count < 2 || model.packing)
+            .disabled(minis.filter { $0.finished }.count < 2 || model.packing)
             .help("One print file with all of them on the bed, each its own object named after it.")
         CopiesButton(minis: minis)
         Button("Show in Finder", systemImage: "folder") { model.showInFinder(minis) }
@@ -310,7 +310,7 @@ struct CopiesButton: View {
             if showsIcon { Label("Copies…", systemImage: "square.grid.2x2") } else { Text("Copies…") }
         }
         .help(minis.count == 1 ? "Several of this mini on the plate, in one print file" : "Several of each on the plate, in one print file")
-        .disabled(!minis.contains { $0.stl != nil } || model.packing || model.sheet != nil)
+        .disabled(!minis.contains { $0.finished } || model.packing || model.sheet != nil)
     }
 }
 
@@ -377,7 +377,7 @@ struct CopiesSheet: View {
     @State private var typed = "2"
 
     var body: some View {
-        let made = minis.filter { $0.stl != nil }
+        let made = minis.filter { $0.finished }
         VStack(alignment: .leading, spacing: 12) {
             Text(made.count == 1 ? "Copies of “\(made[0].displayName)”" : "Copies of \(made.count) minis").font(.headline)
             HStack(spacing: 6) {
@@ -575,7 +575,7 @@ private struct ProjectFilament: View {
     @State private var total: Double?
 
     /// As the gallery found them: `Mini.stl` would look on disk on every redraw.
-    private var stls: [URL] { minis.filter(\.finished).map { $0.folder.appendingPathComponent("\($0.name).stl") } }
+    private var stls: [URL] { minis.compactMap(\.printFile) }
 
     var body: some View {
         Text(total.map(Filament.short) ?? "")

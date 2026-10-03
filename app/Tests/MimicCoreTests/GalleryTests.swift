@@ -252,6 +252,19 @@ final class GalleryTests: XCTestCase {
         XCTAssertTrue(toCheck.pictureToCheck, "looked on disk again")
     }
 
+    /// What a view draws goes by the print file as the gallery found it, not a look on disk on
+    /// every redraw (#459); an action still looks (`stl`).
+    func testAViewsPrintFileIsFoundOnceWhenListed() throws {
+        let fx = try Fixture()
+        let d = try fx.mini("dwarf")
+        let listed = try XCTUnwrap(Gallery.list(fx.install.runs).first)
+        XCTAssertEqual(listed.printFile, d.appendingPathComponent("dwarf.stl"))
+        try FileManager.default.removeItem(at: d.appendingPathComponent("dwarf.stl"))
+        XCTAssertEqual(listed.printFile, d.appendingPathComponent("dwarf.stl"), "looked on disk again")
+        XCTAssertNil(listed.stl)
+        XCTAssertNil(try XCTUnwrap(Gallery.list(fx.install.runs).first).printFile, "the next reload sees it's gone")
+    }
+
     /// A resize makes a new print file; the list goes by when each mini was asked for, so it
     /// stays where it was (#75). A mini from before that date was saved goes by its folder's.
     func testAResizeKeepsTheMinisPlace() throws {
