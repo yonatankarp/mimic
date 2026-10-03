@@ -13,6 +13,15 @@ public enum ThreeMF {
     /// How many copies of each mini one file can hold.
     public static let copies = 1...20
 
+    /// What Open Together calls the print file of the made minis `made`: the mini's name, or
+    /// their project's when they share one, else how many; with " ×3" for copies.
+    public static func name(_ made: [Mini], copies: Int = 1) -> String {
+        let projects = Set(made.map(\.project))
+        let name = made.count == 1 ? made[0].displayName
+            : projects.count == 1 ? (projects.first! ?? "Unsorted") : "\(made.count) Minis"
+        return copies > 1 ? name + " ×\(copies)" : name
+    }
+
     /// What's typed in Copies' number field, kept within `copies`; nil when it isn't a number.
     public static func copies(typed: String) -> Int? {
         Int(typed.trimmingCharacters(in: .whitespaces)).map { min(max($0, Self.copies.lowerBound), Self.copies.upperBound) }

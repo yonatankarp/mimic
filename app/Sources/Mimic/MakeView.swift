@@ -64,7 +64,7 @@ struct MakeView: View {
     init(room: CGSize, start filled: MakeStart? = nil, again: Mini? = nil) {
         self.room = room
         self.again = again
-        _height = State(initialValue: min(720, room.height - 8))
+        _height = State(initialValue: room.sheetHeight)
         // Filled in here rather than on appear, so no onChange takes it for a choice made in the
         // sheet (a kind changed forgets the improved description; the size card's are remembered).
         guard let filled else { return }
@@ -148,10 +148,10 @@ struct MakeView: View {
         }
         // Two equal columns: 540 each from the default window up (the size column's hints mostly
         // on one line, so Game scale fits unscrolled), 460 each in the smallest.
-        .frame(width: min(1080, room.width - 40), height: height)
+        .frame(width: room.sheetWidth, height: height)
         .fitsForms($height, $forms, room: room.height)
         .onChange(of: card.kind) { _, k in
-            UserDefaults.standard.set(k.rawValue, forKey: "kind")
+            UserDefaults.standard.set(k.rawValue, forKey: SettingsKey.kind)
             improved = nil  // written for the other kind
         }
         .onChange(of: seed) { shapeSeed = nil }  // a new variation number is a new shape too
@@ -570,16 +570,9 @@ struct MakeView: View {
 
     /// What Make Mini is waiting for, said in the footer while the button is off.
     private var missing: String? {
-        switch start {
-        case .picture where picture == nil: return "Add a picture to start"
-        case .description where trimmedDescription.isEmpty: return "Describe your \(thing) to start"
-        default: break
-        }
-        if slug.isEmpty { return "Give your mini a name" }
-        if project == .new && Rules.projectName(newProjectName) == nil { return "Name the new project" }
-        if start == .description && !health.picturesReady { return "A description needs \(health.pictureNeed) first" }
-        if changing && !health.picturesReady { return "A change needs \(health.pictureNeed) first" }
-        return nil
+        MakeAdvice.missing(fromPicture: start == .picture, hasPicture: picture != nil, description: trimmedDescription, kind: card.kind,
+                           folder: slug, newProject: project == .new ? newProjectName : nil, fix: trimmedFix,
+                           pictureNeed: health.picturesReady ? nil : health.pictureNeed)
     }
 
     /// Make Mini: with a change and the AI helper set up, once the helper has rewritten it.
@@ -612,10 +605,7 @@ struct MakeView: View {
             let better = improved?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             source = better.isEmpty ? .description(trimmedDescription) : .description(better, original: trimmedDescription)
         }
-        // A new change comes after the earlier ones its picture has; from the picture it was
-        // given instead (one that wasn't drawn yet), it takes the place of the last.
-        let fixes = start == .description ? [] : !changing ? earlierFixes
-            : (drawn != nil ? earlierFixes : Array(earlierFixes.dropLast())) + [trimmedFix]
+        let fixes = MakeAdvice.fixes(fromPicture: start == .picture, earlier: earlierFixes, fix: trimmedFix, drawn: drawn != nil)
         do {
             if project == .new { project = .existing(try model.createProject(newProjectName)) }
             try model.make(name: slug, picture: source, restyle: start == .picture && sculpt,

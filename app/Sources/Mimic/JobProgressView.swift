@@ -88,7 +88,7 @@ struct JobProgressView: View {
                         if JobProgress.drawThingsCaused(s) {
                             Button("Open Setup") { model.jobPopover = false; SettingsTab.drawThings.select(); openSettings() }
                         }
-                        Button("Try Again") { tryAgain(s.name) }
+                        Button("Try Again") { start { try model.retry(s.name) } }
                             .buttonStyle(.glassProminent)
                             .keyboardShortcut(.defaultAction)
                             .disabled(model.requiredProblem != nil || model.waiting(s.name) != nil || model.isImported(s.name))
@@ -104,10 +104,10 @@ struct JobProgressView: View {
     /// For a make that stopped once its picture was made (#156): draw it again, or carry on.
     @ViewBuilder private func checkButtons(_ name: String) -> some View {
         let off = model.requiredProblem != nil || model.waiting(name) != nil || model.current?.name == name
-        Button("Try Again") { redraw(name) }
+        Button("Try Again") { start { try model.redrawPicture(name) } }
             .disabled(off)
             .help("Draws the picture again with a new variation number")
-        Button("Build Shape") { buildShape(name) }
+        Button("Build Shape") { start { try model.buildShape(name) } }
             .buttonStyle(.glassProminent)
             .keyboardShortcut(.defaultAction)
             .disabled(off)
@@ -141,7 +141,7 @@ struct JobProgressView: View {
                     if s.outcome == .pictureReady {
                         Button("Show Picture") { model.jobPopover = false; model.go(to: s.name) }
                     } else if s.outcome == .failed {
-                        Button("Try Again") { tryAgain(s.name) }
+                        Button("Try Again") { start { try model.retry(s.name) } }
                             .disabled(model.requiredProblem != nil || model.waiting(s.name) != nil || model.isImported(s.name))
                             .help(model.isImported(s.name) ? RequestError.imported(s.name).description : s.problem ?? "")
                     }
@@ -187,19 +187,10 @@ struct JobProgressView: View {
         .fixedSize(horizontal: false, vertical: true)
     }
 
-    private func tryAgain(_ name: String) {
+    /// Try Again, Build Shape or a new picture, from the popover: a refusal is said in it.
+    private func start(_ action: () throws -> Void) {
         retryProblem = nil
-        do { try model.retry(name) } catch { retryProblem = model.plainWords(error); retryDetail = "\(error)" }
-    }
-
-    private func buildShape(_ name: String) {
-        retryProblem = nil
-        do { try model.buildShape(name) } catch { retryProblem = model.plainWords(error); retryDetail = "\(error)" }
-    }
-
-    private func redraw(_ name: String) {
-        retryProblem = nil
-        do { try model.redrawPicture(name) } catch { retryProblem = model.plainWords(error); retryDetail = "\(error)" }
+        do { try action() } catch { retryProblem = model.plainWords(error); retryDetail = "\(error)" }
     }
 
     @ViewBuilder private func title(_ s: JobStatus, who: String) -> some View {

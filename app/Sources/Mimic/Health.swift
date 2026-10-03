@@ -63,28 +63,15 @@ final class Health {
         }
     }
 
-    func ok(_ id: String) -> Bool { results[id]?.ok == true }
-
-    /// Pictures are made online (Settings → Pictures), so Draw Things isn't needed. Its key is
-    /// checked with the others, never by the Draw Things watch: that would ask every few seconds.
-    var online: Bool { checks.contains { $0.id == Checks.onlineID } }
-
-    /// False until whatever makes the pictures has come back green: the online service's key, or
-    /// every Draw Things check. Closed counts as green when Mimic opens it (Settings → Open Draw
-    /// Things when needed).
-    var picturesReady: Bool { online ? ok(Checks.onlineID) : Checks.drawThingsIDs.allSatisfy(ok) }
-    /// What a picture needs, as "A description needs …" says it.
-    var pictureNeed: String { online ? "a working \(ImageService.load(.standard).online?.name ?? "online") key" : "Draw Things" }
-    /// Ready, and closed: Mimic opens it when a mini needs it.
-    var drawThingsOpensWhenNeeded: Bool { results["drawthings-api"]?.label == Checks.opensWhenNeeded }
-    /// Its API has answered in this check, so its connection is known to be on.
-    var drawThingsConnected: Bool { ok("drawthings-api") && !drawThingsOpensWhenNeeded }
-
-    /// Why a mini can't be made right now, or nil. Only known failures count: a check still
-    /// running doesn't block.
-    var blocking: String? {
-        let missing = checks.compactMap { c in results[c.id].flatMap { $0.required && !$0.ok ? $0.label : nil } }
-        if missing.isEmpty { return nil }
-        return "Mimic isn't fully set up yet: \(missing.joined(separator: ", "))."
-    }
+    /// What the checks so far decide (`Readiness`); the app's views read it through these.
+    var readiness: Readiness { Readiness(checks: checks, results: results) }
+    func ok(_ id: String) -> Bool { readiness.ok(id) }
+    /// Pictures are made online, so Draw Things isn't needed. Its key is checked with the others,
+    /// never by the Draw Things watch: that would ask every few seconds.
+    var online: Bool { readiness.online }
+    var picturesReady: Bool { readiness.picturesReady }
+    var pictureNeed: String { readiness.pictureNeed(ImageService.load(.standard)) }
+    var drawThingsOpensWhenNeeded: Bool { readiness.drawThingsOpensWhenNeeded }
+    var drawThingsConnected: Bool { readiness.drawThingsConnected }
+    var blocking: String? { readiness.blocking }
 }

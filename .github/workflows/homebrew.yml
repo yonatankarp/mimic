@@ -1,0 +1,52 @@
+# Moves the Homebrew cask (github.com/yonatankarp/homebrew-mimic) to a release once the maintainer
+# publishes it. A release this missed (one published before this file was at its tag, say) can be
+# done by hand:
+#   gh workflow run homebrew.yml -f tag=v0.3.0
+name: Homebrew
+
+on:
+  release:
+    types: [released]  # published, not a draft or a pre-release
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release's tag, like v1.2.3
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  cask:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check the deploy key
+        env:
+          KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+        run: '[ -n "$KEY" ] || { echo "No HOMEBREW_TAP_DEPLOY_KEY: the tap can''t be pushed to (CONTRIBUTING.md, Releasing)."; exit 1; }'
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: yonatankarp/homebrew-mimic
+          ssh-key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+          persist-credentials: true  # the push below uses the deploy key
+      - name: Update the cask
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "A version tag looks like v1.2.3, not $TAG."; exit 1; }
+          # A hotfix for an older line, published after a newer release, mustn't roll the cask back.
+          latest="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)"
+          [ "$TAG" = "$latest" ] || { echo "$TAG isn't the latest release ($latest), so the cask stays."; exit 0; }
+          version="${TAG#v}"
+          sha="$(gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern SHA256SUMS --output - \
+            | awk -v dmg="Mimic-$version.dmg" '$2 == dmg { print $1 }')"
+          [ -n "$sha" ] || { echo "$TAG's SHA256SUMS has no Mimic-$version.dmg."; exit 1; }
+          sed -i -E "s/^  version \".*\"$/  version \"$version\"/; s/^  sha256 \".*\"$/  sha256 \"$sha\"/" Casks/mimic.rb
+          git diff --quiet && { echo "The cask is already on $version."; exit 0; }
+          git diff
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Mimic $version"
+          git push

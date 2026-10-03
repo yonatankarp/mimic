@@ -23,7 +23,7 @@ struct ResizeView: View {
         self.group = group
         self.project = project
         self.room = room
-        _height = State(initialValue: min(720, room.height - 8))
+        _height = State(initialValue: room.sheetHeight)
         var c = SizeCard.remembered()
         let saved = mini.settings
         c.setKind(saved.kind ?? .character)  // before the sizes: choosing a kind suggests sizes afresh
