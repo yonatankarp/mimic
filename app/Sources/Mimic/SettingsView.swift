@@ -269,7 +269,8 @@ private struct ModelsSection: View {
     /// What of each model is on disk, by id. Its files are looked at off the main thread, not
     /// on every redraw (a download's progress redraws it many times a second), #340.
     @State private var onDisk: [String: OnDisk] = [:]
-    struct OnDisk: Equatable { let complete: Bool, any: Bool }
+    /// `freed`: what removing it frees, for Remove's question (#437).
+    struct OnDisk: Equatable { let complete: Bool, any: Bool, freed: Int64 }
 
     var body: some View {
         let setup = model.setup
@@ -283,14 +284,17 @@ private struct ModelsSection: View {
                             presenting: removing) { m in
             Button("Remove \(m.name)", role: .destructive) { setup.remove(m) }
         } message: { m in
-            Text("This frees about \(Checks.gigabytes(EngineDownload.freed(by: m, in: model.install))) GB. Minis you made with it stay. You can download it again any time.")
+            Text("This frees about \(Checks.gigabytes(onDisk[m.id]?.freed ?? 0)) GB. Minis you made with it stay. You can download it again any time.")
         }
         // Looked at again after a download or removal, and with every health check (opening
         // Settings, Check Again), which catches files that changed behind Mimic's back.
         .task(id: "\(setup.removals) \(setup.running) \(Health.shared.lastChecked?.timeIntervalSince1970 ?? 0)") {
             let install = model.install
             let found = await Task.detached {
-                Dictionary(uniqueKeysWithValues: EngineDownload.catalogue.map { ($0.id, OnDisk(complete: $0.complete(in: install), any: $0.anyOnDisk(in: install))) })
+                Dictionary(uniqueKeysWithValues: EngineDownload.catalogue.map {
+                    ($0.id, OnDisk(complete: $0.complete(in: install), any: $0.anyOnDisk(in: install),
+                                   freed: EngineDownload.freed(by: $0, in: install)))
+                })
             }.value
             if !Task.isCancelled && found != onDisk { onDisk = found }
         }

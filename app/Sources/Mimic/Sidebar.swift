@@ -420,7 +420,7 @@ struct GalleryRow: View {
     /// made only for a mini from before its sizes were kept.
     private var line: String {
         if let status { return status }
-        if !mini.finished { return Pipeline.pictureToCheck(mini.folder, settings: mini.settings) ? "Picture ready to check" : "Not finished" }
+        if !mini.finished { return mini.pictureToCheck ? "Picture ready to check" : "Not finished" }
         return mini.settings.made.map(PrintTips.shortLine) ?? mini.madeAt.formatted(.relative(presentation: .named))
     }
 
@@ -429,7 +429,7 @@ struct GalleryRow: View {
         HStack(spacing: 10) {
             // A mini waiting in the queue has only the picture it was given. By its time, not
             // only its file: Try Again on a picture to check draws a new one under the same name.
-            Thumbnail(url: mini.renders.first?.url ?? mini.source ?? mini.upload, version: mini.madeAt, fill: true)
+            Thumbnail(url: mini.thumbnail, version: mini.madeAt, fill: true)
             .frame(width: 44, height: 44)
             .clipShape(RoundedRectangle(cornerRadius: 6))
             VStack(alignment: .leading, spacing: 2) {
