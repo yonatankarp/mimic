@@ -319,6 +319,7 @@ enum CLI {
             let made = try Tabletop.export(m, to: out, triangles: triangles)
             let size = ByteCountFormatter.string(fromByteCount: Int64(made.bytes), countStyle: .file)
             print("Exported \(m.displayName) for a virtual tabletop: \(out.path), \(made.triangles) triangles, \(made.colour ? "in colour" : "grey"), \(size).")
+            if let why = made.whyGrey { FileHandle.standardError.write(Data("It's grey, not in its colours: \(why).\n".utf8)) }
         } catch { return fail("Couldn't export \(m.displayName): \(error)") }
         return 0
     }

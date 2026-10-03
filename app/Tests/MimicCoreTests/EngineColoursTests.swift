@@ -266,5 +266,23 @@ final class EngineColoursTests: XCTestCase {
         XCTAssertNil(try front { $0.restyle = true }, "the grey sculpt")
         XCTAssertNil(try front { $0.fixes = ["give her a hat"] }, "a fix is always redrawn as a sculpt")
         XCTAssertNil(try front { $0.source = .desc }, "drawn from a description")
+
+        // Grey when it should have been in colour says why, instead of passing for in colour (#317).
+        func whyGrey(_ change: (inout MiniSettings) -> Void = { _ in }) throws -> String? {
+            var s = settings
+            change(&s)
+            let made = try Tabletop.export(Mini(name: "lorelei", folder: folder, madeAt: Date(), settings: s),
+                                           to: folder.appendingPathComponent("tabletop.glb"), triangles: 200)
+            XCTAssertEqual(made.colour, made.whyGrey == nil && Tabletop.inColour(s), "grey with a reason, or not expected in colour")
+            return made.whyGrey
+        }
+        XCTAssertNil(try whyGrey(), "in colour")
+        XCTAssertNil(try whyGrey { $0.restyle = true }, "grey, as the save window said")
+        try GLB.encode(PrepTests.box(half: [4, 3, 10])).write(to: glb)
+        XCTAssertEqual(try whyGrey(), "its 3D model has no colours saved with it")
+        try Data("not a model".utf8).write(to: glb)
+        XCTAssertEqual(try whyGrey(), "Mimic couldn't read the colours from its 3D model")
+        try FileManager.default.removeItem(at: glb)
+        XCTAssertEqual(try whyGrey(), "its 3D model is missing from its folder")
     }
 }

@@ -127,7 +127,8 @@ mimic export tiefling --vtt   # a low-poly .glb for a virtual tabletop
 
 `open` uses the slicer chosen in Settings and takes no options. `export` saves `<name>.glb` (the
 name `mimic list` shows) in the folder you're in, replacing a file of that name already there; see
-[Printing and exporting](printing.md) for when it comes out in colour.
+[Printing and exporting](printing.md) for when it comes out in colour. If it should have been in
+colour but comes out grey, it says why.
 
 | `export` option | What it does |
 |---|---|
