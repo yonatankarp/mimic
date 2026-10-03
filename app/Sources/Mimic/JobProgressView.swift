@@ -104,7 +104,7 @@ struct JobProgressView: View {
     /// For a make that stopped once its picture was made (#156): draw it again, or carry on.
     @ViewBuilder private func checkButtons(_ name: String) -> some View {
         let off = model.requiredProblem != nil || model.waiting(name) != nil || model.current?.name == name
-        Button("Try Again") { start { try model.redrawPicture(name) } }
+        Button("Draw Again") { start { try model.redrawPicture(name) } }
             .disabled(off)
             .help("Draws the picture again with a new variation number")
         Button("Build Shape") { start { try model.buildShape(name) } }
@@ -168,7 +168,7 @@ struct JobProgressView: View {
                 }
             case .pictureReady:
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Check it before the 3D shape is built. Try Again draws it again.")
+                    Text("Check it before the 3D shape is built, or press Draw Again for a new one.")
                         .foregroundStyle(.secondary)
                     if let why = retryProblem { Text(why).font(.callout).foregroundStyle(.secondary).textSelection(.enabled) }
                 }
@@ -187,7 +187,7 @@ struct JobProgressView: View {
         .fixedSize(horizontal: false, vertical: true)
     }
 
-    /// Try Again, Build Shape or a new picture, from the popover: a refusal is said in it.
+    /// Try Again, Build Shape or Draw Again, from the popover: a refusal is said in it.
     private func start(_ action: () throws -> Void) {
         retryProblem = nil
         do { try action() } catch { retryProblem = model.plainWords(error); retryDetail = "\(error)" }

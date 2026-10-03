@@ -22,7 +22,7 @@ struct MiniDetail: View {
     @State private var offerName: String?
     /// What the viewer measured in the print file.
     @State private var measured: Measured?
-    /// Why Build Shape or Try Again on its picture couldn't start.
+    /// Why Build Shape or Draw Again on its picture couldn't start.
     @State private var checkProblem: String?
     /// On the model, so View → Show/Hide Details always names what it will do.
     private var showDetails: Bool { model.showDetails }
@@ -130,7 +130,7 @@ struct MiniDetail: View {
     /// Its picture, redrawn with a change, for you to check before the 3D shape is built (#156).
     private func checkPage(_ source: URL) -> some View {
         VStack(spacing: 16) {
-            // By the picture's own time, which is the mini's while it has no print file: Try
+            // By the picture's own time, which is the mini's while it has no print file: Draw
             // Again draws a new one in its place.
             Thumbnail(url: source, version: mini.madeAt)
                 .frame(maxWidth: 480, maxHeight: 480)
@@ -141,7 +141,7 @@ struct MiniDetail: View {
                 .foregroundStyle(.secondary).multilineTextAlignment(.center)
             if let checkProblem { Text(checkProblem).font(.callout).foregroundStyle(.red) }
             HStack {
-                Button("Try Again") { check { try model.redrawPicture(mini.name) } }
+                Button("Draw Again") { check { try model.redrawPicture(mini.name) } }
                     .help("Draws the picture again with a new variation number")
                 Button("Build Shape") { check { try model.buildShape(mini.name) } }
                     .buttonStyle(.borderedProminent)
@@ -191,9 +191,16 @@ struct MiniDetail: View {
                 Label("More", systemImage: "ellipsis")
             }
             .help("Print copies, resize, make it again with changes, export it for a virtual tabletop, or show it in Finder")
-            MiniActionButton(action: .open, minis: [mini], showsIcon: false)
-                .buttonStyle(.glassProminent)
-                .tourCallout(.mini)
+            // Prominent only once it works: until then the page's own button (Try Again, Build
+            // Shape) is the one to press, and a pale disabled one here shouldn't outshine it.
+            if mini.finished {
+                MiniActionButton(action: .open, minis: [mini], showsIcon: false)
+                    .buttonStyle(.glassProminent)
+                    .tourCallout(.mini)
+            } else {
+                MiniActionButton(action: .open, minis: [mini], showsIcon: false)
+                    .tourCallout(.mini)
+            }
             Button { model.showDetails.toggle() } label: {
                 Label(showDetails ? "Hide Details" : "Show Details", systemImage: "sidebar.trailing")
             }

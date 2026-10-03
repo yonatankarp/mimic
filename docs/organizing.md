@@ -41,7 +41,8 @@ The toolbar has:
 - **More**: **Copies…**, **Resize This Mini…**, **Edit & Make Again…**, **Export for Virtual
   Tabletop…** and **Show in Finder**.
 - **Open in …**: opens the mini in your slicer. The button names it, like **Open in Bambu
-  Studio**. See [Printing and exporting](printing.md).
+  Studio**. It stands out once the mini is finished, and is greyed out until then. See
+  [Printing and exporting](printing.md).
 - **Show Details** / **Hide Details** (++ctrl+cmd+i++): the details panel on the right.
 
 The details panel has:
@@ -67,7 +68,7 @@ A mini that isn't ready has a different page:
 - **Being made**: which step it's on and how long it has left, with **Show Progress**.
 - **Waiting to be made**: its place in the queue and when it should be ready.
 - **This mini didn't finish**: why, with **Try Again** and **Report a Problem…**.
-- **Check the picture**: a picture redrawn with your change, with **Try Again** and
+- **Check the picture**: a picture redrawn with your change, with **Draw Again** and
   **Build Shape**. See [Versions](versions.md).
 
 ## Group minis into projects
