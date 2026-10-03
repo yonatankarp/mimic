@@ -222,7 +222,7 @@ value is left out, and so is a size that isn't a number (one edited by hand to `
 - `info`: `mini` (as in `list`), `made` (`height`, `base`, `nozzle`, `inflate`, `noBase`, `shape`,
   `style`, `magnet`), `measured` (`height` with its base, `width`, `depth`, `filamentGrams`,
   `filamentMetres`), `madeFrom` (`source` of `picture` or `description`, `description`, `typed`,
-  `seed`, `shapeSeed`, `model`, `greySculpt`, `cartoon`, `fixes`: the changes asked for in its picture
+  `seed`, `shapeSeed`, `model` (left out for one you imported), `greySculpt`, `cartoon`, `fixes`: the changes asked for in its picture
   with `--change` or in the app, as typed, oldest first), `versions` (names, itself included) and
   `failed` (why its last run didn't finish).
 
