@@ -101,57 +101,21 @@ struct MiniCommands: Commands {
         CommandMenu("Mini") {
             let mini = model.selected, chosen = model.chosen, several = chosen.count > 1
             let free = model.sheet == nil
-            if several {
-                Button("Open Together in \(model.slicerName)") { model.openTogether(chosen) }
-                    .keyboardShortcut("o")
-                    .disabled(chosen.filter { $0.finished }.count < 2 || model.packing)
-            } else {
-                Button("Open in \(model.slicerName)") { if let stl = mini?.stl { model.openInSlicer(stl) } }
-                    .keyboardShortcut("o")
-                    .disabled(mini?.finished != true)
-            }
-            CopiesButton(minis: chosen, showsIcon: false).environment(model)
-            Button("Show in Finder") { model.showInFinder(chosen) }
-                .keyboardShortcut("r", modifiers: [.command, .option])
-                .disabled(chosen.isEmpty)
-            // As in the right-click menu (#345), which no open sheet leaves within reach.
-            Button("Export for Virtual Tabletop…") { if let mini { model.exportForTabletop(mini) } }
-                .keyboardShortcut("e", modifiers: [.command, .shift])
-                .disabled(mini?.finished != true || !free)
+            item(several ? .openTogether : .open)
+            item(.copies)
+            item(.showInFinder)
+            item(.exportForTabletop)
             Divider()
-            if several {
-                Button("Resize \(chosen.count) Minis…") { model.sheet = .resizeSeveral(chosen) }
-                    .keyboardShortcut("r")
-                    .disabled(!chosen.contains(where: \.hasModel) || model.requiredProblem != nil || !free)
-            } else {
-                Button("Resize This Mini…") { if let mini { model.sheet = .resize(mini) } }
-                    .keyboardShortcut("r")
-                    .disabled(mini?.hasModel != true || model.requiredProblem != nil || !free || mini.flatMap { model.waiting($0.name) } != nil)
-            }
-            if let mini, model.pictureToCheck(mini) {
-                Button("Build Shape") { model.buildShape(mini) }
-                    .disabled(model.requiredProblem != nil || !free)
-            }
-            if let mini, model.canRetry(mini) {
-                Button("Try Again") { model.tryAgain(mini) }
-                    .disabled(model.requiredProblem != nil || !free)
-                Button("Report a Problem…") { reporter.report(mini) }
-                    .disabled(!free)
-            }
-            Button("Rename…") { if let mini { model.sheet = .rename(mini) } }
-                .disabled(mini == nil || !free || mini.flatMap { model.waiting($0.name) } != nil)
+            item(several ? .resizeSeveral : .resize)
+            item(.buildShape)
+            item(.tryAgain)
+            item(.reportProblem)
+            item(.rename)
             Divider()
-            // No icons in the menu bar: the other items have none.
-            if let mini, free {
-                AnotherVersionButton(mini: mini, showsIcon: false).environment(model)
-                NewShapeButton(mini: mini, showsIcon: false).environment(model)
-                EditAndMakeAgainButton(mini: mini, showsIcon: false).environment(model)
-            } else {
-                Button("Make Another Version…") {}.disabled(true)
-                Button("New 3D Shape…") {}.disabled(true)
-                Button("Edit & Make Again…") {}.disabled(true)
-            }
-            if let mini, free { DuplicateButton(mini: mini, showsIcon: false).environment(model) } else { Button("Duplicate…") {}.disabled(true) }
+            item(.anotherVersion)
+            item(.newShape)
+            item(.editAndMakeAgain)
+            item(.duplicate)
             if free && !chosen.isEmpty {
                 MoveToProjectMenu(minis: chosen, showsIcon: false).environment(model)
             } else {
@@ -169,10 +133,14 @@ struct MiniCommands: Commands {
             Button(model.pauseCommand) { model.togglePause() }
                 .disabled(!model.paused && model.current == nil && model.queue.isEmpty)
             Divider()
-            Button("Move to Trash") { model.askToTrash(chosen) }
-                .keyboardShortcut(.delete)
-                .disabled(chosen.isEmpty || !free)
+            item(.moveToTrash)
         }
+    }
+
+    /// One of the mini actions, on the selected minis, as the right-click menu has it (#361).
+    private func item(_ action: MiniAction) -> some View {
+        MiniActionButton(action: action, minis: model.chosen, showsIcon: false, withShortcut: true)
+            .environment(model).environment(reporter)
     }
 }
 

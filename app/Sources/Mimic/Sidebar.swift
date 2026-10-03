@@ -11,7 +11,6 @@ import UniformTypeIdentifiers
 /// (MainWindowChrome), so the Mini menu can ask too, sidebar hidden or not.
 struct Sidebar: View {
     @Environment(AppModel.self) private var model
-    @Environment(Reporter.self) private var reporter
     @State private var query = ""
     @SceneStorage("gallerySort") private var sort = GallerySort.made
     @SceneStorage("galleryShow") private var show = GalleryShow.all
@@ -129,7 +128,7 @@ struct Sidebar: View {
         // A new mini slides into the list (and a trashed one out) rather than popping.
         .animation(reduceMotion ? nil : .default, value: shown.map(\.id))
         // Delete (or ⌘⌫ from the Mini menu) moves them to the Trash, as the context menu does.
-        .onDeleteCommand { if model.sheet == nil, !model.chosen.isEmpty { model.askToTrash(model.chosen) } }
+        .onDeleteCommand { if model.miniMenu.enabled(.moveToTrash, for: model.chosen) { model.askToTrash(model.chosen) } }
         .overlay {
             if shown.isEmpty && !model.minis.isEmpty {
                 if Gallery.search(model.minis, query).isEmpty {
@@ -221,8 +220,7 @@ struct Sidebar: View {
     @ViewBuilder private func projectMenu(_ project: String) -> some View {
         Button("New Mini in This Project…", systemImage: "plus") { model.makeInProject = project; model.sheet = .make(nil) }
             .disabled(!model.setup.installed)
-        Button("Open Together in \(model.slicerName)", systemImage: "printer") { model.openTogether(model.minis.filter { $0.project == project }) }
-            .disabled(model.minis.filter { $0.project == project && $0.finished }.count < 2 || model.packing)
+        MiniActionButton(action: .openTogether, minis: model.minis.filter { $0.project == project })
         Button("Show in Finder", systemImage: "folder") { model.showInFinder(project: project) }
         Button("Resize All…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resizeAll(project) }
             .disabled(!model.minis.contains { $0.project == project && $0.hasModel } || model.requiredProblem != nil)
@@ -246,38 +244,25 @@ struct Sidebar: View {
     }
 
     @ViewBuilder private func menu(for mini: Mini) -> some View {
-        Button("Open in \(model.slicerName)", systemImage: "printer") {
-            if let stl = mini.stl { model.openInSlicer(stl) }
-        }
-        .disabled(!mini.finished)  // not made yet: nothing to print
-        CopiesButton(minis: [mini])
-        Button("Show in Finder", systemImage: "folder") { model.showInFinder([mini]) }
-        Button("Export for Virtual Tabletop…", systemImage: "square.and.arrow.up") { model.exportForTabletop(mini) }
-            .disabled(!mini.finished)
-            .help("A low-poly .glb to drag into a virtual tabletop")
-        Button("Resize This Mini…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resize(mini) }
-            .disabled(!mini.hasModel || model.requiredProblem != nil || model.waiting(mini.name) != nil)
+        let one = [mini]
+        MiniActionButton(action: .open, minis: one)
+        MiniActionButton(action: .copies, minis: one)
+        MiniActionButton(action: .showInFinder, minis: one)
+        MiniActionButton(action: .exportForTabletop, minis: one)
+        MiniActionButton(action: .resize, minis: one)
         Divider()
-        AnotherVersionButton(mini: mini)
-        NewShapeButton(mini: mini)
-        EditAndMakeAgainButton(mini: mini)
-        DuplicateButton(mini: mini)
-        MoveToProjectMenu(minis: [mini])
+        MiniActionButton(action: .anotherVersion, minis: one)
+        MiniActionButton(action: .newShape, minis: one)
+        MiniActionButton(action: .editAndMakeAgain, minis: one)
+        MiniActionButton(action: .duplicate, minis: one)
+        MoveToProjectMenu(minis: one)
         if model.waiting(mini.name) != nil { MoveInQueueMenu(mini: mini) }
         Divider()
-        if model.pictureToCheck(mini) {
-            Button("Build Shape", systemImage: "cube") { model.buildShape(mini) }
-                .disabled(model.requiredProblem != nil)
-                .help("Makes the 3D shape from the picture it's waiting with")
-        }
-        if model.canRetry(mini) {
-            Button("Try Again", systemImage: "arrow.clockwise") { model.tryAgain(mini) }
-                .disabled(model.requiredProblem != nil)
-            Button("Report a Problem…", systemImage: "exclamationmark.bubble") { reporter.report(mini) }
-        }
-        Button("Rename…", systemImage: "pencil") { model.sheet = .rename(mini) }
-            .disabled(model.waiting(mini.name) != nil)
-        Button("Move to Trash", systemImage: "trash", role: .destructive) { model.askToTrash([mini]) }
+        MiniActionButton(action: .buildShape, minis: one)
+        MiniActionButton(action: .tryAgain, minis: one)
+        MiniActionButton(action: .reportProblem, minis: one)
+        MiniActionButton(action: .rename, minis: one)
+        MiniActionButton(action: .moveToTrash, minis: one)
     }
 }
 
@@ -285,32 +270,14 @@ struct Sidebar: View {
 /// stands in for a mini's when several are selected.
 struct SeveralMenu: View {
     let minis: [Mini]
-    @Environment(AppModel.self) private var model
     var body: some View {
-        Button("Open Together in \(model.slicerName)", systemImage: "printer") { model.openTogether(minis) }
-            .disabled(minis.filter { $0.finished }.count < 2 || model.packing)
-            .help("One print file with all of them on the bed, each its own object named after it.")
-        CopiesButton(minis: minis)
-        Button("Show in Finder", systemImage: "folder") { model.showInFinder(minis) }
-        Button("Resize \(minis.count) Minis…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resizeSeveral(minis) }
-            .disabled(!minis.contains(where: \.hasModel) || model.requiredProblem != nil)
+        MiniActionButton(action: .openTogether, minis: minis)
+        MiniActionButton(action: .copies, minis: minis)
+        MiniActionButton(action: .showInFinder, minis: minis)
+        MiniActionButton(action: .resizeSeveral, minis: minis)
         MoveToProjectMenu(minis: minis)
         Divider()
-        Button("Move to Trash", systemImage: "trash", role: .destructive) { model.askToTrash(minis) }
-    }
-}
-
-/// Copies…, next to Open in the slicer: asks how many, for one mini or each of several.
-struct CopiesButton: View {
-    let minis: [Mini]
-    var showsIcon = true
-    @Environment(AppModel.self) private var model
-    var body: some View {
-        Button { model.sheet = .copies(minis) } label: {
-            if showsIcon { Label("Copies…", systemImage: "square.grid.2x2") } else { Text("Copies…") }
-        }
-        .help(minis.count == 1 ? "Several of this mini on the plate, in one print file" : "Several of each on the plate, in one print file")
-        .disabled(!minis.contains { $0.finished } || model.packing || model.sheet != nil)
+        MiniActionButton(action: .moveToTrash, minis: minis)
     }
 }
 
@@ -440,54 +407,6 @@ struct GalleryRow: View {
         .padding(.vertical, 2)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(mini.displayName), \(line)")
-    }
-}
-
-/// Make Another Version, for the right-click menu and the Mini menu.
-struct AnotherVersionButton: View {
-    /// Why it, New 3D Shape and Edit & Make Again are off for an imported model (#96).
-    static let imported = "Off for a model you imported: there's no picture or description to make it again from. Resize and Duplicate work."
-    let mini: Mini
-    var showsIcon = true
-    @Environment(AppModel.self) private var model
-    var body: some View {
-        Button { model.sheet = .version(mini, newShape: false) } label: {
-            if showsIcon { Label("Make Another Version…", systemImage: "square.on.square") } else { Text("Make Another Version…") }
-        }
-            .help(mini.settings.isImported ? Self.imported
-                  : "Makes it again with a new variation number, with a change to its picture if you like")
-            .disabled(model.requiredProblem != nil || !JobRunner.canMakeAnotherVersion(mini))
-    }
-}
-
-/// New 3D Shape, next to Make Another Version: the same picture, only the 3D shape made again.
-struct NewShapeButton: View {
-    let mini: Mini
-    var showsIcon = true
-    @Environment(AppModel.self) private var model
-    var body: some View {
-        Button { model.sheet = .version(mini, newShape: true) } label: {
-            if showsIcon { Label("New 3D Shape…", systemImage: "cube") } else { Text("New 3D Shape…") }
-        }
-            .help(mini.settings.isImported ? AnotherVersionButton.imported
-                  : "Keeps this picture, or redraws it with a change, and makes the 3D shape again")
-            .disabled(model.requiredProblem != nil || !JobRunner.canMakeNewShape(mini))
-    }
-}
-
-/// Edit & Make Again, for the right-click menu, the Mini menu and a mini's More menu: New Mini
-/// filled in with everything the mini was made from, ready to change.
-struct EditAndMakeAgainButton: View {
-    let mini: Mini
-    var showsIcon = true
-    @Environment(AppModel.self) private var model
-    var body: some View {
-        Button { model.sheet = .makeAgain(mini, MakeStart.again(mini, install: model.install)) } label: {
-            if showsIcon { Label("Edit & Make Again…", systemImage: "slider.horizontal.3") } else { Text("Edit & Make Again…") }
-        }
-            .help(mini.settings.isImported ? AnotherVersionButton.imported
-                  : "Opens New Mini filled in from this mini, to change what you like")
-            .disabled(!model.setup.installed || !JobRunner.canMakeAnotherVersion(mini))
     }
 }
 

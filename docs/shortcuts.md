@@ -125,11 +125,11 @@ What you can do to the selected mini, or minis. The same items are in a mini's r
 | **Copies…** | Several of each on the plate, in one print file |
 | **Show in Finder** ++opt+cmd+r++ | Shows the print file, or the mini's folder if it isn't made yet |
 | **Export for Virtual Tabletop…** ++shift+cmd+e++ | A small 3D model of the mini to drag into a virtual tabletop (see [Printing and exporting](printing.md#export-for-a-virtual-tabletop)) |
-| **Resize This Mini…** ++cmd+r++ | Makes the print file again at new sizes. With several selected, it's **Resize 3 Minis…** (or however many) |
+| **Resize This Mini…** ++cmd+r++ | Makes the print file again at new sizes *(when it isn't waiting or being made)*. With several selected, it's **Resize 3 Minis…** (or however many) |
 | **Build Shape** | Makes the 3D shape from a redrawn picture *(when its picture waits to be checked)* |
 | **Try Again** | Makes a mini that didn't finish, from the step that failed *(when it didn't finish)* |
 | **Report a Problem…** | Gathers what a bug report needs *(when it didn't finish)* |
-| **Rename…** | Gives the mini a new name |
+| **Rename…** | Gives the mini a new name *(when it isn't waiting or being made)* |
 | **Make Another Version…** | Makes it again with a new variation number (see [Versions](versions.md)) |
 | **New 3D Shape…** | Keeps its picture and makes only the 3D shape again |
 | **Edit & Make Again…** | Opens New Mini filled in from this mini |
@@ -180,7 +180,7 @@ What you can do to the selected mini, or minis. The same items are in a mini's r
 | The progress | The mini being made, or how the last one went. Click it for the steps, the queue and **Stop…** |
 | **Needs Setup** | Shows when something needs setting up, and opens Settings at it |
 | **New Mini** (+) | ++cmd+n++ |
-| **More** (…) | On a mini's page: **Copies…**, **Resize This Mini…**, **Edit & Make Again…** and **Show in Finder** |
+| **More** (…) | On a mini's page: **Copies…**, **Resize This Mini…**, **Edit & Make Again…**, **Export for Virtual Tabletop…** and **Show in Finder** |
 | **Open in …** | On a mini's page: opens it in your slicer |
 | **Show Details** / **Hide Details** | On a mini's page: the details panel, ++ctrl+cmd+i++ |
 

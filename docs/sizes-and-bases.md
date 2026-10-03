@@ -150,7 +150,8 @@ side (25 to 80 mm), and you can choose its shape, floor, size and magnet as for 
 Right-click a mini → **Resize This Mini…** (++cmd+r++), or use **More** on its page. Resize starts
 from the sizes the mini has now. Choose new ones and press **Resize**: Mimic makes the print file
 again, in about a minute. The mini itself doesn't change: the same shape, at the new size. If a
-mini is being made, the resize waits its turn in [the queue](queue.md).
+mini is being made, the resize waits its turn in [the queue](queue.md). A mini that's waiting or
+being made itself can be resized once it's made.
 
 ![Resize All in Adventuring Party, with the same size choices as New Mini](images/screens/sizes-and-bases-resize-all.png){ width="290" }
 

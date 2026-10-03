@@ -1,20 +1,6 @@
 import MimicCore
 import SwiftUI
 
-/// Duplicate…, for the right-click menu and the Mini menu (#85).
-struct DuplicateButton: View {
-    let mini: Mini
-    var showsIcon = true
-    @Environment(AppModel.self) private var model
-    var body: some View {
-        Button { model.sheet = .duplicate(mini) } label: {
-            if showsIcon { Label("Duplicate…", systemImage: "plus.square.on.square") } else { Text("Duplicate…") }
-        }
-        .help("Keeps a copy under a new name, then asks what size to make it")
-        .disabled(!mini.hasModel || model.waiting(mini.name) != nil || model.current?.name == mini.name)
-    }
-}
-
 /// Asks for the copy's name, makes the copy, then opens Resize for it.
 struct DuplicateSheet: View {
     @Environment(AppModel.self) private var model

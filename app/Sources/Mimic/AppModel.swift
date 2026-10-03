@@ -617,9 +617,7 @@ final class AppModel {
     }
 
     /// A mini waiting for its picture to be checked (#156): not waiting in the queue or being made.
-    func pictureToCheck(_ mini: Mini) -> Bool {
-        waiting(mini.name) == nil && current?.name != mini.name && mini.pictureToCheck
-    }
+    func pictureToCheck(_ mini: Mini) -> Bool { miniMenu.pictureToCheck(mini) }
 
     /// Build Shape, for a mini whose picture is ready to check (#156): carries on from it.
     func buildShape(_ name: String) throws {
@@ -641,10 +639,7 @@ final class AppModel {
     /// A mini that didn't finish and can be tried again: no print file, not waiting or being
     /// made, and it kept what it was asked for.
     /// One whose picture is ready to check has Build Shape and its own Try Again instead (#156).
-    func canRetry(_ mini: Mini) -> Bool {
-        !mini.finished && waiting(mini.name) == nil && current?.name != mini.name && mini.settings.requested != nil && !mini.settings.isImported
-            && !mini.pictureToCheck
-    }
+    func canRetry(_ mini: Mini) -> Bool { miniMenu.canRetry(mini) }
 
     /// Try Again from a failed mini's page or menus; a refusal is said as an alert.
     func tryAgain(_ mini: Mini) {

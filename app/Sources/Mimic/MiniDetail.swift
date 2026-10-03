@@ -182,21 +182,17 @@ struct MiniDetail: View {
     @ToolbarContentBuilder private func toolbar(kind: MiniKind) -> some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
             Menu {
-                CopiesButton(minis: [mini])
-                Button("Resize This Mini…", systemImage: "arrow.up.left.and.arrow.down.right") { model.sheet = .resize(mini) }
-                    .help("Remakes the print file at new sizes, in about a minute")
-                    .disabled(!mini.hasModel || model.requiredProblem != nil || model.waiting(mini.name) != nil)
-                EditAndMakeAgainButton(mini: mini)
-                Button("Show in Finder", systemImage: "folder") { model.showInFinder([mini]) }
-                    .help("Shows the print file and the previews in Finder.")
+                MiniActionButton(action: .copies, minis: [mini])
+                MiniActionButton(action: .resize, minis: [mini])
+                MiniActionButton(action: .editAndMakeAgain, minis: [mini])
+                MiniActionButton(action: .exportForTabletop, minis: [mini])
+                MiniActionButton(action: .showInFinder, minis: [mini])
             } label: {
                 Label("More", systemImage: "ellipsis")
             }
-            .help("Print copies, resize, make it again with changes, or show it in Finder")
-            Button("Open in \(model.slicerName)") { if let stl = mini.stl { model.openInSlicer(stl) } }
+            .help("Print copies, resize, make it again with changes, export it for a virtual tabletop, or show it in Finder")
+            MiniActionButton(action: .open, minis: [mini], showsIcon: false)
                 .buttonStyle(.glassProminent)
-                .help("Opens the print file in \(model.slicerName) to slice and print")
-                .disabled(!mini.finished)
                 .tourCallout(.mini)
             Button { model.showDetails.toggle() } label: {
                 Label(showDetails ? "Hide Details" : "Show Details", systemImage: "sidebar.trailing")
@@ -363,7 +359,7 @@ struct MiniDetail: View {
                     }
                 }
                 if mini.settings.isImported {
-                    Text(AnotherVersionButton.imported).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    Text(MiniActionButton.imported).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
                 if let description = made.description {
                     Button {
