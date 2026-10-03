@@ -66,6 +66,17 @@ public enum JobProgress {
         DrawThingsError.setup.contains { $0.description == s.problem }
     }
 
+    /// The first line for a job that didn't finish: what to do, from what went wrong (#435). "A
+    /// clearer picture" only when the 3D steps failed: when the picture couldn't be made (Draw
+    /// Things slow, a service busy, a picture that can't be read) or the Mac ran out of memory,
+    /// the reason itself says what to do, so it's the headline.
+    public static func failedHeadline(_ s: JobStatus, imported: Bool) -> String {
+        if drawThingsCaused(s) { return "Draw Things isn't ready. Check the setup steps, then try again." }
+        if imported { return "Try Resize This Mini with other sizes, or check the model in the app it came from." }
+        if let why = s.problem, s.step == .picture || why == s.step.outOfMemory { return why }
+        return "Try again, or use a clearer, full-body picture."
+    }
+
     /// Whether closing the job's popover means how the job ended was seen, so it can leave the
     /// toolbar: only with Mimic in front (`active`), nothing running or waiting (`busy`), and the
     /// popover having shown the end while Mimic was in front (`shownEnd`). A popover closed by

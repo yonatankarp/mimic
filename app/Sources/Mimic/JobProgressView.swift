@@ -174,10 +174,10 @@ struct JobProgressView: View {
                 }
             case .failed:
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(JobProgress.drawThingsCaused(s) ? "Draw Things didn't answer. Check the setup steps, then try again."
-                         : model.isImported(s.name) ? "Try Resize This Mini with other sizes, or check the model in the app it came from."
-                         : "Try again, or use a clearer, full-body picture.")
-                    if let why = retryProblem ?? model.requiredProblem ?? s.problem {
+                    let headline = JobProgress.failedHeadline(s, imported: model.isImported(s.name))
+                    Text(headline)
+                    // Not said twice when the reason is the headline.
+                    if let why = retryProblem ?? model.requiredProblem ?? s.problem, why != headline {
                         Text(why).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
                             .help(retryProblem != nil ? retryDetail ?? "" : "")
                     }
