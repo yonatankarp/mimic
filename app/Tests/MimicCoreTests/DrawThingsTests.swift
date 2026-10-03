@@ -112,17 +112,15 @@ final class DrawThingsTests: XCTestCase {
     }
 
     func testCLIOutput() {
-        let out = "\u{1B}[2K\rStep 1/4\n\u{1B}[2K\rStep 4/4\n\u{1B}[2KWrote: /tmp/a b.png\n"
-        XCTAssertEqual(DrawThings.wrotePath(out), "/tmp/a b.png")
-        XCTAssertNil(DrawThings.wrotePath("Step 1/4\n"))
         XCTAssertEqual(DrawThings.tail("\u{1B}[1mError:\u{1B}[0m model not found\n\n"), "Error: model not found")
     }
 
-    /// Stop ends the CLI, and reads as stopped, not as Draw Things refusing.
+    /// Stop ends the CLI, and reads as stopped, not as Draw Things refusing. Even one that
+    /// ignores being asked to stop, as the job's other programs are ended (#323).
     func testStopEndsTheCLI() throws {
         let cli = FileManager.default.temporaryDirectory.appendingPathComponent("fake-dt-\(UUID().uuidString)")
         let ran = cli.path + ".ran"
-        try "#!/bin/sh\ntouch '\(ran)'\nsleep 30\n".write(to: cli, atomically: true, encoding: .utf8)
+        try "#!/bin/sh\ntrap '' TERM\ntouch '\(ran)'\nsleep 60\n".write(to: cli, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: cli.path)
         defer { try? FileManager.default.removeItem(at: cli); try? FileManager.default.removeItem(atPath: ran) }
         let dt = DrawThings(environment: ["DRAWTHINGS_MODEL": "x"], cli: cli.path)
@@ -135,6 +133,44 @@ final class DrawThingsTests: XCTestCase {
         let started = Date()
         XCTAssertThrowsError(try dt.draw(description: "a dwarf", seed: 1)) { XCTAssertEqual($0 as? DrawThingsError, .cancelled) }
         XCTAssertLessThan(Date().timeIntervalSince(started), 10)
+    }
+
+    /// The CLI runs like the job's other programs (#323): with Mimic's own environment, not the
+    /// shell's tokens; on record while it runs, so a crashed Mimic's is stopped at the next
+    /// launch; and its picture is read from where it was told to write it, whatever it prints.
+    func testTheCLIRunsLikeMimicsOtherPrograms() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("dt-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let cli = dir.appendingPathComponent("cli"), env = dir.appendingPathComponent("env"), ran = dir.appendingPathComponent("ran")
+        let queue = dir.appendingPathComponent("queue")
+        try FileManager.default.createDirectory(at: queue, withIntermediateDirectories: true)
+        try """
+        #!/bin/sh
+        env > '\(env.path)'
+        for a; do last=$a; done
+        printf png > "$last"
+        echo "Wrote: /nowhere.png"
+        case "$*" in *"a sleepy dwarf"*) touch '\(ran.path)'; sleep 60 ;; esac
+        """.write(to: cli, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: cli.path)
+        setenv("MIMIC_TEST_SHELL_TOKEN", "secret", 1)
+        defer { unsetenv("MIMIC_TEST_SHELL_TOKEN") }
+        let dt = DrawThings(environment: ["DRAWTHINGS_MODEL": "x"], cli: cli.path, queue: queue)
+
+        XCTAssertEqual(try dt.draw(description: "a dwarf", seed: 1), Data("png".utf8))
+        let seen = try String(contentsOf: env, encoding: .utf8)
+        XCTAssertFalse(seen.contains("MIMIC_TEST_SHELL_TOKEN"), "the shell's environment reached the CLI")
+        XCTAssertTrue(seen.contains("PATH=\(Tools.childEnvironment()["PATH"]!)"), "the CLI didn't get Mimic's PATH")
+
+        // As after a crash: the next launch finds the CLI on record and stops it.
+        DispatchQueue.global().async {
+            _ = eventually { FileManager.default.fileExists(atPath: ran.path) }
+            XCTAssertTrue(Leftover.stop(queue: queue), "the running CLI isn't on record")
+        }
+        let started = Date()
+        XCTAssertThrowsError(try dt.draw(description: "a sleepy dwarf", seed: 1))
+        XCTAssertLessThan(Date().timeIntervalSince(started), 30)
     }
 
     /// A fake draw-things-cli that writes "png" as the picture and leaves `ran` behind.
