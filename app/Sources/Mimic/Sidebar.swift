@@ -172,18 +172,18 @@ struct Sidebar: View {
 
     static func title(_ sort: GallerySort) -> String {
         switch sort {
-        case .made: "Date Made"
-        case .name: "Name"
-        case .size: "Size"
+        case .made: String(localized: "Date Made")
+        case .name: String(localized: "Name")
+        case .size: String(localized: "Size")
         }
     }
 
     static func title(_ show: GalleryShow) -> String {
         switch show {
-        case .all: "All Minis"
-        case .characters: "Characters"
-        case .objects: "Objects"
-        case .unfinished: "Unfinished Minis"
+        case .all: String(localized: "All Minis")
+        case .characters: String(localized: "Characters")
+        case .objects: String(localized: "Objects")
+        case .unfinished: String(localized: "Unfinished Minis")
         }
     }
 
@@ -209,7 +209,7 @@ struct Sidebar: View {
     /// "Waiting (2nd)" for a mini in the queue, "Being made…" for the one running.
     private func rowStatus(_ mini: Mini) -> String? {
         if let n = model.waiting(mini.name) { return "Waiting (\(AppModel.ordinal(n)))" }
-        if let s = model.current, s.name == mini.name { return s.kind == .generate ? "Being made…" : "\(model.doing(s))…" }
+        if let s = model.current, s.name == mini.name { return s.kind == .generate ? String(localized: "Being made…") : "\(model.doing(s))…" }
         return nil
     }
 
@@ -281,7 +281,7 @@ struct RenameSheet: View {
         do {
             try model.rename(mini, to: Rules.folderName(shown), shown: shown)
         } catch {
-            problem = model.plainWords(error, else: "Couldn't rename it. Is its folder open in another app?"); return
+            problem = model.plainWords(error, else: String(localized: "Couldn't rename it. Is its folder open in another app?")); return
         }
         dismiss()
     }
@@ -342,7 +342,7 @@ struct GalleryRow: View {
     /// made only for a mini from before its sizes were kept.
     private var line: String {
         if let status { return status }
-        if !mini.finished { return mini.pictureToCheck ? "Picture ready to check" : "Not finished" }
+        if !mini.finished { return mini.pictureToCheck ? String(localized: "Picture ready to check") : String(localized: "Not finished") }
         return mini.settings.made.map(PrintTips.shortLine) ?? mini.madeAt.formatted(.relative(presentation: .named))
     }
 
@@ -407,7 +407,8 @@ struct ProjectNameSheet: View {
             Text(renaming.map { "Rename “\($0)”" } ?? "New Project").font(.headline)
             if renaming == nil {
                 Text(moving.isEmpty ? "A folder in your minis folder, to group minis in. Drag minis onto it to move them there."
-                     : "A folder in your minis folder. \(moving.count == 1 ? moving[0].displayName + " moves" : "The \(moving.count) minis move") into it.")
+                     : moving.count == 1 ? "A folder in your minis folder. \(moving[0].displayName) moves into it."
+                     : "A folder in your minis folder. The \(moving.count) minis move into it.")
                     .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             TextField("Project name", text: $text, prompt: Text("e.g. Tiefling Party"))  // Return presses the button
@@ -434,7 +435,7 @@ struct ProjectNameSheet: View {
                 if !moving.isEmpty { model.move(moving.map(\.name), to: name) }
             }
         } catch {
-            problem = model.plainWords(error, else: "Couldn't do that. Is the folder open in another app?"); return
+            problem = model.plainWords(error, else: String(localized: "Couldn't do that. Is the folder open in another app?")); return
         }
         dismiss()
     }

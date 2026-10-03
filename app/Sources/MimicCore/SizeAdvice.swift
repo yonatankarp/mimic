@@ -9,7 +9,7 @@ import Synchronization
 /// slider or typing a value means "I'll size it", and the suggestion leaves that value alone.
 public struct SizeCard: Equatable, Sendable {
     /// The switch that gives an object a base, as New Mini and Resize name it.
-    public static let addBase = "Add a base"
+    public static let addBase = String(localized: "Add a base", bundle: .mimicCore)
     public enum Purpose: String, CaseIterable, Sendable { case game, display }
 
     public static let heightRange = 15.0...200.0
@@ -124,10 +124,10 @@ public struct SizeCard: Equatable, Sendable {
     /// Resize All at Game Scale, which doesn't ask the real height: what the minis are sized
     /// from, when `without` of `count` have none kept (made before it was, or not at a scale).
     public static func severalNote(without: Int, of count: Int) -> String {
-        if without == 0 { return "Each character keeps its own real height, so a halfling stays shorter than an elf." }
-        if without == count { return "Every mini gets the same height, the Character height below: none of them has its real height saved." }
-        return "Each character keeps its own real height. " + (without == 1 ? "One mini has no real height saved, so it gets"
-            : "\(without) minis have no real height saved, so they get") + " the Character height below."
+        if without == 0 { return String(localized: "Each character keeps its own real height, so a halfling stays shorter than an elf.", bundle: .mimicCore) }
+        if without == count { return String(localized: "Every mini gets the same height, the Character height below: none of them has its real height saved.", bundle: .mimicCore) }
+        return String(localized: "Each character keeps its own real height. \(without) minis have no real height saved, so they get the Character height below.",
+                      bundle: .mimicCore)
     }
 
     /// What print prep is asked for. The extra thickness is sent only when chosen by hand:
@@ -155,10 +155,10 @@ public struct SizeCard: Equatable, Sendable {
         case (.object, nil):  // loaded at another size than the suggestion: the note is about the size it is
             h = height
             let best = Self.objectHeight(nozzle: nozzle)
-            note = h < best ? "At \(Int(h)) mm, a \(nozzle) mm nozzle softens fine details a little. For the clearest details, make it about \(Int(best)) mm on its longest side." : ""
+            note = h < best ? String(localized: "At \(Int(h)) mm, a \(nozzle) mm nozzle softens fine details a little. For the clearest details, make it about \(Int(best)) mm on its longest side.", bundle: .mimicCore) : ""
         case (.object, _):
             h = Self.objectHeight(nozzle: nozzle)
-            note = "Sized so details come out clearly on a \(nozzle) mm nozzle: about \(Int(h)) mm on its longest side. Change it to the size you want."
+            note = String(localized: "Sized so details come out clearly on a \(nozzle) mm nozzle: about \(Int(h)) mm on its longest side. Change it to the size you want.", bundle: .mimicCore)
         case (_, .game), (_, nil):  // nil: loaded sizes that match neither, so the note is about their height
             h = purpose == .game ? Self.gameHeight(real: realHeight, scale: scale) : height
             note = ""
@@ -166,14 +166,14 @@ public struct SizeCard: Equatable, Sendable {
             // faces just come out a little soft. Only really small sizes, or a 0.6 nozzle under
             // its 54 mm sweet spot (see PrintTips), turn faces into bumps.
             if (nozzle == "0.4" && h < 28) || (nozzle == "0.6" && h < 50) {
-                note = "At \(Int(h)) mm, a \(nozzle) mm nozzle turns faces into bumps. Use a 0.2 mm nozzle, or choose Best Print."
+                note = String(localized: "At \(Int(h)) mm, a \(nozzle) mm nozzle turns faces into bumps. Use a 0.2 mm nozzle, or choose Best Print.", bundle: .mimicCore)
                 warns = true
             } else if nozzle == "0.4" && h < 50 {
-                note = "At \(Int(h)) mm, a 0.4 mm nozzle softens faces a little. For sharper faces, use a 0.2 mm nozzle or choose Best Print."
+                note = String(localized: "At \(Int(h)) mm, a 0.4 mm nozzle softens faces a little. For sharper faces, use a 0.2 mm nozzle or choose Best Print.", bundle: .mimicCore)
             }
         case (_, .display):
             h = Self.bestPrint[nozzle] ?? 100
-            note = "Sized so faces come out clearly on a \(nozzle) mm nozzle: about \(Int(h)) mm tall. Chunky characters also look good a bit smaller."
+            note = String(localized: "Sized so faces come out clearly on a \(nozzle) mm nozzle: about \(Int(h)) mm tall. Chunky characters also look good a bit smaller.", bundle: .mimicCore)
         }
         // The note names the height as worked out; the slider can only hold its own range.
         if !heightTouched { height = Self.clamp(h, Self.heightRange, step: 1) }
@@ -226,7 +226,7 @@ public struct SizeCard: Equatable, Sendable {
     /// The line under the real height when what's typed can't be read, so 1.8 m isn't used unnoticed.
     public var realHeightProblem: String? {
         realHeight.trimmingCharacters(in: .whitespaces).isEmpty || Self.metres(realHeight) != nil ? nil
-            : "Couldn't read that, so it's using 1.8 m. Try 1.75 or 5'9\"."
+            : String(localized: "Couldn't read that, so it's using 1.8 m. Try 1.75 or 5'9\".", bundle: .mimicCore)
     }
 
     /// The round base for a character height: 40% of it, in steps of 5, 25 to 80 mm.
@@ -284,13 +284,16 @@ public enum MakeAdvice {
     /// typed for the picture, and `pictureNeed` what pictures still need, nil once they're ready.
     public static func missing(fromPicture: Bool, hasPicture: Bool, description: String, kind: MiniKind,
                                folder: String, newProject: String?, fix: String, pictureNeed: String?) -> String? {
-        if fromPicture && !hasPicture { return "Add a picture to start" }
-        if !fromPicture && description.isEmpty { return "Describe your \(kind == .object ? "object" : "character") to start" }
-        if folder.isEmpty { return "Give your mini a name" }
-        if let newProject, Rules.projectName(newProject) == nil { return "Name the new project" }
+        if fromPicture && !hasPicture { return String(localized: "Add a picture to start", bundle: .mimicCore) }
+        if !fromPicture && description.isEmpty {
+            return kind == .object ? String(localized: "Describe your object to start", bundle: .mimicCore)
+                : String(localized: "Describe your character to start", bundle: .mimicCore)
+        }
+        if folder.isEmpty { return String(localized: "Give your mini a name", bundle: .mimicCore) }
+        if let newProject, Rules.projectName(newProject) == nil { return String(localized: "Name the new project", bundle: .mimicCore) }
         guard let pictureNeed else { return nil }
-        if !fromPicture { return "A description needs \(pictureNeed) first" }
-        if !fix.isEmpty { return "A change needs \(pictureNeed) first" }
+        if !fromPicture { return String(localized: "A description needs \(pictureNeed) first", bundle: .mimicCore) }
+        if !fix.isEmpty { return String(localized: "A change needs \(pictureNeed) first", bundle: .mimicCore) }
         return nil
     }
 
@@ -307,8 +310,8 @@ public enum MakeAdvice {
     /// Pixel sizes, not points: a 144 dpi picture is twice as big as it looks.
     public static func pictureWarnings(width: Int, height: Int, kind: MiniKind = .character) -> [String] {
         var notes: [String] = []
-        if max(width, height) < 512 { notes.append("This picture is small, so the mini may come out blobby. A bigger picture works better.") }
-        if kind == .character, Double(width) > Double(height) * 1.15 { notes.append("This picture is wider than it is tall, so it may not show the whole body. A full-body picture works best.") }
+        if max(width, height) < 512 { notes.append(String(localized: "This picture is small, so the mini may come out blobby. A bigger picture works better.", bundle: .mimicCore)) }
+        if kind == .character, Double(width) > Double(height) * 1.15 { notes.append(String(localized: "This picture is wider than it is tall, so it may not show the whole body. A full-body picture works best.", bundle: .mimicCore)) }
         return notes
     }
 
@@ -341,12 +344,12 @@ public struct PrintTips: Sendable {
     public init(nozzle: String, kind: MiniKind = .character) {
         let object = kind == .object
         let t: (String, String, String) = switch nozzle {
-        case "0.2": ("Layer height 0.06–0.08 mm", "3–4", object ? "Crisp edges, small lettering and fine texture. Slow, but the most detail."
-                                                                : "Sharp faces, beard braids and belt buckles. Slow, but the most detail.")
-        case "0.6": ("Layer height 0.2 mm", "2–3", object ? "Quick and sturdy; small details blur. Best for big, simple shapes."
-                                                          : "Quick and sturdy; small details blur. Best at 54 mm scale or bigger.")
-        default: ("Layer height 0.12 mm", "3", object ? "Shapes and edges come out clearly; fine texture gets softened. A good balance."
-                                                      : "Faces and weapons come out clearly; hair strands and cloth edges get softened. A good balance.")
+        case "0.2": (String(localized: "Layer height 0.06–0.08 mm", bundle: .mimicCore), "3–4", object ? String(localized: "Crisp edges, small lettering and fine texture. Slow, but the most detail.", bundle: .mimicCore)
+                                                                : String(localized: "Sharp faces, beard braids and belt buckles. Slow, but the most detail.", bundle: .mimicCore))
+        case "0.6": (String(localized: "Layer height 0.2 mm", bundle: .mimicCore), "2–3", object ? String(localized: "Quick and sturdy; small details blur. Best for big, simple shapes.", bundle: .mimicCore)
+                                                          : String(localized: "Quick and sturdy; small details blur. Best at 54 mm scale or bigger.", bundle: .mimicCore))
+        default: (String(localized: "Layer height 0.12 mm", bundle: .mimicCore), "3", object ? String(localized: "Shapes and edges come out clearly; fine texture gets softened. A good balance.", bundle: .mimicCore)
+                                                      : String(localized: "Faces and weapons come out clearly; hair strands and cloth edges get softened. A good balance.", bundle: .mimicCore))
         }
         self.nozzle = Rules.nozzles.contains(nozzle) ? nozzle : "0.4"
         self.kind = kind
@@ -354,26 +357,29 @@ public struct PrintTips: Sendable {
     }
 
     private var placing: (line: String, short: String) {
-        kind == .object ? ("Print it as it sits: its bottom is already flat. Add a brim if it's tall and narrow.", "Flat side down")
-                        : ("Stand the mini upright on its base. No brim needed.", "Upright on its base, no brim")
+        kind == .object ? (String(localized: "Print it as it sits: its bottom is already flat. Add a brim if it's tall and narrow.", bundle: .mimicCore), String(localized: "Flat side down", bundle: .mimicCore))
+                        : (String(localized: "Stand the mini upright on its base. No brim needed.", bundle: .mimicCore), String(localized: "Upright on its base, no brim", bundle: .mimicCore))
     }
     public var lines: [String] {
-        ["\(layer). Supports: Tree (auto). Walls: \(walls).", placing.line, expect]
+        [String(localized: "\(layer). Supports: Tree (auto). Walls: \(walls).", bundle: .mimicCore), placing.line, expect]
     }
-    public var copyText: String { "\(layer) · Supports: Tree (auto) · Walls: \(walls) · \(placing.short)" }
+    public var copyText: String { String(localized: "\(layer) · Supports: Tree (auto) · Walls: \(walls) · \(placing.short)", bundle: .mimicCore) }
 
     /// What a mini was made at, as its page lists it: Character 32 mm, Base 25 mm, Nozzle 0.4 mm.
     /// An object's first row is its longest side, and its base may be None. A base that isn't
     /// round says so, and so does a floor on it: Base 25 mm hex, stone floor.
     public static func made(_ made: Sizes, kind: MiniKind = .character) -> [(label: String, value: String)] {
-        [(kind == .object ? "Longest side" : "Character", "\(mm(made.height, 32)) mm"),
-         ("Base", kind == .object && made.noBase ? "None" : "\(mm(made.base, 25)) mm" + (made.shape == .round ? "" : " \(made.shape.rawValue)")
-            + (made.style == .plain ? "" : ", \(made.style.words)") + (made.magnet.map { ", \($0.words) magnet hole" } ?? "")),
-         ("Nozzle", "\(made.nozzle ?? "0.4") mm")]
+        [(kind == .object ? String(localized: "Longest side", bundle: .mimicCore) : String(localized: "Character", bundle: .mimicCore),
+          String(localized: "\(mm(made.height, 32)) mm", bundle: .mimicCore)),
+         (String(localized: "Base", bundle: .mimicCore), kind == .object && made.noBase ? String(localized: "None", bundle: .mimicCore)
+            : String(localized: "\(mm(made.base, 25)) mm", bundle: .mimicCore) + (made.shape == .round ? "" : " \(made.shape.words)")
+            + (made.style == .plain ? "" : ", \(made.style.words)")
+            + (made.magnet.map { String(localized: ", \($0.words) magnet hole", bundle: .mimicCore) } ?? "")),
+         (String(localized: "Nozzle", bundle: .mimicCore), String(localized: "\(made.nozzle ?? "0.4") mm", bundle: .mimicCore))]
     }
 
     /// "32 mm · 0.4 mm nozzle": under a finished mini's name in the gallery.
-    public static func shortLine(_ made: Sizes) -> String { "\(mm(made.height, 32)) mm · \(made.nozzle ?? "0.4") mm nozzle" }
+    public static func shortLine(_ made: Sizes) -> String { String(localized: "\(mm(made.height, 32)) mm · \(made.nozzle ?? "0.4") mm nozzle", bundle: .mimicCore) }
 
     /// A size in whole millimetres; missing, 0 or not a number of millimetres ("inf", 1e20 from a
     /// hand edit, #307) is the default.
@@ -421,11 +427,11 @@ public enum Filament {
     static func wholeGrams(_ mm3: Double) -> Int { max(1, Int(grams(mm3).rounded())) }
 
     /// "≈ 4 g filament", beside a project's name.
-    public static func short(_ mm3: Double) -> String { "≈ \(wholeGrams(mm3)) g filament" }
+    public static func short(_ mm3: Double) -> String { String(localized: "≈ \(String(wholeGrams(mm3))) g filament", bundle: .mimicCore) }
 
     /// "Up to 4 g · 1.3 m": grams of PLA, metres of 1.75 mm filament.
     public static func words(_ mm3: Double) -> String {
         let metres = max(0.1, metres(mm3))
-        return "Up to \(wholeGrams(mm3)) g" + String(format: " · %.1f m", metres)
+        return String(localized: "Up to \(String(wholeGrams(mm3))) g · \(String(format: "%.1f", metres)) m", bundle: .mimicCore)
     }
 }

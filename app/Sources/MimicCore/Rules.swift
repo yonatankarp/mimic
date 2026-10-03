@@ -157,49 +157,59 @@ public enum RequestError: Error, Equatable, CustomStringConvertible {
          noPictureToFix(String), noPictureToCheck(String)
     public var description: String {
         switch self {
-        case .badName: "Names can only use lowercase letters, numbers and dashes."
+        case .badName: String(localized: "Names can only use lowercase letters, numbers and dashes.", bundle: .mimicCore)
         case .badNumber(let k):
-            "The \(k == "inflate" ? "extra thickness" : k) must be a number from \(SizeCard.text(Sizes.ranges[k]!.lowerBound)) to \(SizeCard.text(Sizes.ranges[k]!.upperBound)) mm."
-        case .badNozzle: "The nozzle must be 0.2, 0.4 or 0.6 mm."
-        case .nameTaken(let n): "You already have a mini called \(Mini.displayName(n))."
+            String(localized: "The \(Self.sizeName(k)) must be a number from \(SizeCard.text(Sizes.ranges[k]!.lowerBound)) to \(SizeCard.text(Sizes.ranges[k]!.upperBound)) mm.", bundle: .mimicCore)
+        case .badNozzle: String(localized: "The nozzle must be 0.2, 0.4 or 0.6 mm.", bundle: .mimicCore)
+        case .nameTaken(let n): String(localized: "You already have a mini called \(Mini.displayName(n)).", bundle: .mimicCore)
         // The lock held elsewhere comes with no mini's name: a second Mimic or `mimic` in Terminal.
-        case .busy("another Mimic window", _): "Another Mimic is making a mini right now. Wait for it to finish."
-        case .busy(let n, let kind): "Mimic is still \(kind == .prep ? "resizing" : "making") \(Mini.displayName(n)). Wait for it to finish."
-        case .nothingToRetry: "This mini can't be retried: its picture or description wasn't saved."
-        case .noModelYet: "This mini isn't made yet."
-        case .notFound: "That mini doesn't exist."
-        case .missing(let what): "\(what) is missing or won't start. Open Settings to see how to fix it."
-        case .modelNotDownloaded(let name): "The \(name) 3D model isn't downloaded. Open Settings → 3D Model to download it."
-        case .queued(let n): "\(Mini.displayName(n)) is already waiting in the queue."
-        case .noPicture: "That picture can't be found any more. Choose it again."
-        case .unreadablePicture: "Mimic can't read that picture. Try another one, or save it as a PNG or JPEG first."
-        case .badProjectName: "Give the project a name, without a slash or colon, that doesn't start with a dot or an underscore."
-        case .projectTaken(let n): "You already have a project or a mini called \(n)."
-        case .projectNotFound: "That project doesn't exist."
-        case .cantMove(let n): "\(Mini.displayName(n)) is being made or waiting in the queue. Move it once it's made."
+        case .busy("another Mimic window", _): String(localized: "Another Mimic is making a mini right now. Wait for it to finish.", bundle: .mimicCore)
+        case .busy(let n, .prep): String(localized: "Mimic is still resizing \(Mini.displayName(n)). Wait for it to finish.", bundle: .mimicCore)
+        case .busy(let n, _): String(localized: "Mimic is still making \(Mini.displayName(n)). Wait for it to finish.", bundle: .mimicCore)
+        case .nothingToRetry: String(localized: "This mini can't be retried: its picture or description wasn't saved.", bundle: .mimicCore)
+        case .noModelYet: String(localized: "This mini isn't made yet.", bundle: .mimicCore)
+        case .notFound: String(localized: "That mini doesn't exist.", bundle: .mimicCore)
+        case .missing(let what): String(localized: "\(what) is missing or won't start. Open Settings to see how to fix it.", bundle: .mimicCore)
+        case .modelNotDownloaded(let name): String(localized: "The \(name) 3D model isn't downloaded. Open Settings → 3D Model to download it.", bundle: .mimicCore)
+        case .queued(let n): String(localized: "\(Mini.displayName(n)) is already waiting in the queue.", bundle: .mimicCore)
+        case .noPicture: String(localized: "That picture can't be found any more. Choose it again.", bundle: .mimicCore)
+        case .unreadablePicture: String(localized: "Mimic can't read that picture. Try another one, or save it as a PNG or JPEG first.", bundle: .mimicCore)
+        case .badProjectName: String(localized: "Give the project a name, without a slash or colon, that doesn't start with a dot or an underscore.", bundle: .mimicCore)
+        case .projectTaken(let n): String(localized: "You already have a project or a mini called \(n).", bundle: .mimicCore)
+        case .projectNotFound: String(localized: "That project doesn't exist.", bundle: .mimicCore)
+        case .cantMove(let n): String(localized: "\(Mini.displayName(n)) is being made or waiting in the queue. Move it once it's made.", bundle: .mimicCore)
         // With the mini's name as shown, read where it was found: an error has no folder to read it from.
-        case .projectBusy(let p, let shown): "\(shown) in \(p) is being made or waiting in the queue. Wait for it, or remove it from the queue first."
-        case .noSource(let n): "Mimic can't make another version of \(Mini.displayName(n)): the picture or description it was made from wasn't saved."
-        case .noDrawing(let n): "Mimic can't make a new 3D shape of \(Mini.displayName(n)): its picture isn't made yet. Try Make Another Version instead."
-        case .cantDuplicate(let n): "\(Mini.displayName(n)) is being made, resized or waiting in the queue. Duplicate it once that's done."
-        case .noName: "Give it a name."
-        case .renameWaiting(let n): "\(Mini.displayName(n)) is waiting in the queue. Rename it once it's made."
-        case .imported(let n): "\(Mini.displayName(n)) was imported from a 3D model, so there's no picture or description to make it again from. Resize This Mini makes its print file again."
-        case .unreadableModel(GLB.tooBig): "That model is too big for Mimic to read. Try a simpler one, with fewer triangles."
-        case .unreadableModel(let why):"Mimic can't use that file: \(why). It needs a 3D model saved as GLB or STL."
-        case .unknownModel(let id): "This Mimic doesn't know a 3D model called \(id). Update Mimic, or make it again with another model."
-        case .minisFolderBusy: "A mini is being made or waiting in the queue. Change the folder once they're all done."
-        case .movingMinis: "Mimic is moving your minis to another folder. Try again when it's done."
-        case .sameMinisFolder: "Your minis are already in that folder."
-        case .minisFolderNested: "Choose a folder that isn't inside the one your minis are in now, and doesn't hold it."
+        case .projectBusy(let p, let shown): String(localized: "\(shown) in \(p) is being made or waiting in the queue. Wait for it, or remove it from the queue first.", bundle: .mimicCore)
+        case .noSource(let n): String(localized: "Mimic can't make another version of \(Mini.displayName(n)): the picture or description it was made from wasn't saved.", bundle: .mimicCore)
+        case .noDrawing(let n): String(localized: "Mimic can't make a new 3D shape of \(Mini.displayName(n)): its picture isn't made yet. Try Make Another Version instead.", bundle: .mimicCore)
+        case .cantDuplicate(let n): String(localized: "\(Mini.displayName(n)) is being made, resized or waiting in the queue. Duplicate it once that's done.", bundle: .mimicCore)
+        case .noName: String(localized: "Give it a name.", bundle: .mimicCore)
+        case .renameWaiting(let n): String(localized: "\(Mini.displayName(n)) is waiting in the queue. Rename it once it's made.", bundle: .mimicCore)
+        case .imported(let n): String(localized: "\(Mini.displayName(n)) was imported from a 3D model, so there's no picture or description to make it again from. Resize This Mini makes its print file again.", bundle: .mimicCore)
+        case .unreadableModel(GLB.tooBig): String(localized: "That model is too big for Mimic to read. Try a simpler one, with fewer triangles.", bundle: .mimicCore)
+        case .unreadableModel(let why):String(localized: "Mimic can't use that file: \(why). It needs a 3D model saved as GLB or STL.", bundle: .mimicCore)
+        case .unknownModel(let id): String(localized: "This Mimic doesn't know a 3D model called \(id). Update Mimic, or make it again with another model.", bundle: .mimicCore)
+        case .minisFolderBusy: String(localized: "A mini is being made or waiting in the queue. Change the folder once they're all done.", bundle: .mimicCore)
+        case .movingMinis: String(localized: "Mimic is moving your minis to another folder. Try again when it's done.", bundle: .mimicCore)
+        case .sameMinisFolder: String(localized: "Your minis are already in that folder.", bundle: .mimicCore)
+        case .minisFolderNested: String(localized: "Choose a folder that isn't inside the one your minis are in now, and doesn't hold it.", bundle: .mimicCore)
         case .minisFolderClash(let names):
-            "That folder already has minis or projects called \(ListFormatter.localizedString(byJoining: names)). Rename yours first, or use the folder without moving your minis."
-        case .sidesNeedAPicture: "Pictures of the back and sides go with a picture of the front, not a description."
-        case .oneSideOnly(let model): "\(model) makes a mini from one picture. Choose TRELLIS.2 in Settings → 3D Model to use pictures of the back and sides too."
-        case .noPictureToFix(let n): "Mimic can't change the picture of \(Mini.displayName(n)): its picture isn't made yet. Make another version without a change instead."
-        case .noPictureToCheck(let n): "\(Mini.displayName(n)) has no picture waiting to be checked."
-        case .fixNeedsAPicture: "What to change goes with a picture. For a description, change the description instead."
-        case .unreadableSettings(let n):"Mimic can't read the settings.json of \(Mini.displayName(n)), so it left it as it is. Fix or remove that file, then try again."
+            String(localized: "That folder already has minis or projects called \(ListFormatter.localizedString(byJoining: names)). Rename yours first, or use the folder without moving your minis.", bundle: .mimicCore)
+        case .sidesNeedAPicture: String(localized: "Pictures of the back and sides go with a picture of the front, not a description.", bundle: .mimicCore)
+        case .oneSideOnly(let model): String(localized: "\(model) makes a mini from one picture. Choose TRELLIS.2 in Settings → 3D Model to use pictures of the back and sides too.", bundle: .mimicCore)
+        case .noPictureToFix(let n): String(localized: "Mimic can't change the picture of \(Mini.displayName(n)): its picture isn't made yet. Make another version without a change instead.", bundle: .mimicCore)
+        case .noPictureToCheck(let n): String(localized: "\(Mini.displayName(n)) has no picture waiting to be checked.", bundle: .mimicCore)
+        case .fixNeedsAPicture: String(localized: "What to change goes with a picture. For a description, change the description instead.", bundle: .mimicCore)
+        case .unreadableSettings(let n):String(localized: "Mimic can't read the settings.json of \(Mini.displayName(n)), so it left it as it is. Fix or remove that file, then try again.", bundle: .mimicCore)
+        }
+    }
+
+    /// The size in “The height must be a number from…”.
+    private static func sizeName(_ k: String) -> String {
+        switch k {
+        case "inflate": String(localized: "extra thickness", bundle: .mimicCore, comment: "The size in “The %@ must be a number from 1 to 5 mm.”")
+        case "base": String(localized: "base", bundle: .mimicCore, comment: "The size in “The %@ must be a number from 1 to 5 mm.”")
+        default: String(localized: "height", bundle: .mimicCore, comment: "The size in “The %@ must be a number from 1 to 5 mm.”")
         }
     }
 }

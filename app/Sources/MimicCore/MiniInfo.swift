@@ -30,9 +30,9 @@ public struct Measured: Equatable, Sendable {
     }
 
     /// "26 × 25 mm"
-    public var footprint: String { "\(wide) × \(deep) mm" }
+    public var footprint: String { String(localized: "\(wide) × \(deep) mm", bundle: .mimicCore) }
     /// "34 mm tall · 26 × 25 mm", on the 3D view's badge.
-    public var caption: String { "\(tall) mm tall · \(footprint)" }
+    public var caption: String { String(localized: "\(tall) mm tall · \(footprint)", bundle: .mimicCore) }
 }
 
 /// Where a mini is, as `mimic list` says it.

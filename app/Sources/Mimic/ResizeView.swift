@@ -38,7 +38,7 @@ struct ResizeView: View {
                 Text(project.map { "Resize All in \($0)" } ?? group.map { "Resize \($0.count) Minis" } ?? "Resize \(mini.displayName)").font(.title2.bold())
                 Text(group != nil
                      ? "Remakes every mini's print file with these sizes, one after another, \(takes) each. Minis already this size are left out. The minis themselves don't change."
-                     : "Remakes the print file with these sizes. \(takes.capitalizedFirst)\(model.current == nil ? "" : ", once the jobs ahead of it are done"). The \(card.kind == .object ? "object" : "character") itself doesn't change.")
+                     : "Remakes the print file with these sizes. \(when). The \(card.kind == .object ? String(localized: "object") : String(localized: "character")) itself doesn't change.")
                     .font(.callout).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -80,4 +80,8 @@ struct ResizeView: View {
     }
 
     private var takes: String { JobProgress.about(model.estimate(mini.name, .prep, sizes: card.sizes).total) }
+    /// "About a minute", or when it waits for the jobs ahead of it.
+    private var when: String {
+        model.current == nil ? takes.capitalizedFirst : String(localized: "\(takes.capitalizedFirst), once the jobs ahead of it are done")
+    }
 }

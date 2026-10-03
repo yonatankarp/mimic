@@ -1,0 +1,1886 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key></key>
+	<string></string>
+	<key>%@ %@</key>
+	<string>%@ %@</string>
+	<key>%@ %@ · %@</key>
+	<string>%@ %@ · %@</string>
+	<key>%@ About %lld minutes a mini on this Mac.</key>
+	<string>%@ About %lld minutes a mini on this Mac.</string>
+	<key>%@ About %lld minutes a mini.</key>
+	<string>%@ About %lld minutes a mini.</string>
+	<key>%@ GB</key>
+	<string>%@ GB</string>
+	<key>%@ GB, about %lld minutes on a fast connection</key>
+	<string>%@ GB, about %lld minutes on a fast connection</string>
+	<key>%@ Give your mini a name.</key>
+	<string>%@ Give your mini a name.</string>
+	<key>%@ Last checked at %@.</key>
+	<string>%@ Last checked at %@.</string>
+	<key>%@ couldn't make the picture. Try again.</key>
+	<string>%@ couldn't make the picture. Try again.</string>
+	<key>%@ couldn't make the picture: %@</key>
+	<string>%@ couldn't make the picture: %@</string>
+	<key>%@ didn't finish</key>
+	<string>%@ didn't finish</string>
+	<key>%@ has no picture waiting to be checked.</key>
+	<string>%@ has no picture waiting to be checked.</string>
+	<key>%@ in %@ is being made or waiting in the queue. Wait for it, or remove it from the queue first.</key>
+	<string>%@ in %@ is being made or waiting in the queue. Wait for it, or remove it from the queue first.</string>
+	<key>%@ in the queue. Ready in %@.</key>
+	<string>%@ in the queue. Ready in %@.</string>
+	<key>%@ is already being made or waiting in the queue. Pick a new name.</key>
+	<string>%@ is already being made or waiting in the queue. Pick a new name.</string>
+	<key>%@ is already waiting in the queue.</key>
+	<string>%@ is already waiting in the queue.</string>
+	<key>%@ is being made or waiting in the queue. Move it once it's made.</key>
+	<string>%@ is being made or waiting in the queue. Move it once it's made.</string>
+	<key>%@ is being made, resized or waiting in the queue. Duplicate it once that's done.</key>
+	<string>%@ is being made, resized or waiting in the queue. Duplicate it once that's done.</string>
+	<key>%@ is busy, or you've reached your account's limit. Try again in a minute.</key>
+	<string>%@ is busy, or you've reached your account's limit. Try again in a minute.</string>
+	<key>%@ is installed and follows the instructions better. It takes a few seconds longer.</key>
+	<string>%@ is installed and follows the instructions better. It takes a few seconds longer.</string>
+	<key>%@ is missing or won't start. Open Settings to see how to fix it.</key>
+	<string>%@ is missing or won't start. Open Settings to see how to fix it.</string>
+	<key>%@ is ready</key>
+	<string>%@ is ready</string>
+	<key>%@ is waiting in the queue. Rename it once it's made.</key>
+	<string>%@ is waiting in the queue. Rename it once it's made.</string>
+	<key>%@ key works</key>
+	<string>%@ key works</string>
+	<key>%@ left</key>
+	<string>%@ left</string>
+	<key>%@ makes a mini from one picture. Choose TRELLIS.2 in Settings → 3D Model to use pictures of the back and sides too.</key>
+	<string>%@ makes a mini from one picture. Choose TRELLIS.2 in Settings → 3D Model to use pictures of the back and sides too.</string>
+	<key>%@ mm</key>
+	<string>%@ mm</string>
+	<key>%@ on this Mac</key>
+	<string>%@ on this Mac</string>
+	<key>%@ picture</key>
+	<string>%@ picture</string>
+	<key>%@ side</key>
+	<string>%@ side</string>
+	<key>%@ so far. Taking longer than usual. Still working, nothing's wrong.</key>
+	<string>%@ so far. Taking longer than usual. Still working, nothing's wrong.</string>
+	<key>%@ so far. This is unusually slow. You can keep waiting, or stop and try again.</key>
+	<string>%@ so far. This is unusually slow. You can keep waiting, or stop and try again.</string>
+	<key>%@ took too long to make the picture. Try again.</key>
+	<string>%@ took too long to make the picture. Try again.</string>
+	<key>%@ turned the key down. Copy it again from your account and save it in Settings, under Pictures.</key>
+	<string>%@ turned the key down. Copy it again from your account and save it in Settings, under Pictures.</string>
+	<key>%@ was imported from a 3D model, so there's no picture or description to make it again from. Resize This Mini makes its print file again.</key>
+	<string>%@ was imported from a 3D model, so there's no picture or description to make it again from. Resize This Mini makes its print file again.</string>
+	<key>%@ wouldn't make this picture (%@). Try different words or another picture.</key>
+	<string>%@ wouldn't make this picture (%@). Try different words or another picture.</string>
+	<key>%@ wouldn't make this picture. Try different words or another picture.</key>
+	<string>%@ wouldn't make this picture. Try different words or another picture.</string>
+	<key>%@ · %@ GB</key>
+	<string>%@ · %@ GB</string>
+	<key>%@ · %@ so far.</key>
+	<string>%@ · %@ so far.</string>
+	<key>%@ · %@ so far. You can use other apps meanwhile. Your Mac will be busy, and the fan may get loud.</key>
+	<string>%@ · %@ so far. You can use other apps meanwhile. Your Mac will be busy, and the fan may get loud.</string>
+	<key>%@ · %lld mm squares</key>
+	<string>%@ · %lld mm squares</string>
+	<key>%@ · Supports: Tree (auto) · Walls: %@ · %@</key>
+	<string>%@ · Supports: Tree (auto) · Walls: %@ · %@</string>
+	<key>%@ · ready in %@</key>
+	<string>%@ · ready in %@</string>
+	<key>%@, %@</key>
+	<string>%@, %@</string>
+	<key>%@, once the jobs ahead of it are done</key>
+	<string>%@, once the jobs ahead of it are done</string>
+	<key>%@, online</key>
+	<string>%@, online</string>
+	<key>%@. Supports: Tree (auto). Walls: %@.</key>
+	<string>%@. Supports: Tree (auto). Walls: %@.</string>
+	<key>%lld</key>
+	<string>%lld</string>
+	<key>%lld ahead of it.</key>
+	<string>%lld ahead of it.</string>
+	<key>%lld minis selected</key>
+	<string>%lld minis selected</string>
+	<key>%lld mm</key>
+	<string>%lld mm</string>
+	<key>%lld mm tall · %@</key>
+	<string>%lld mm tall · %@</string>
+	<key>%lld mm · %@ mm nozzle</key>
+	<string>%lld mm · %@ mm nozzle</string>
+	<key>%lld waiting</key>
+	<string>%lld waiting</string>
+	<key>%lld waiting, paused</key>
+	<string>%lld waiting, paused</string>
+	<key>%lld × %lld mm</key>
+	<string>%lld × %lld mm</string>
+	<key>%lld%%</key>
+	<string>%lld%%</string>
+	<key>, %@ magnet hole</key>
+	<string>, %@ magnet hole</string>
+	<key>0.2 mm · fine</key>
+	<string>0.2 mm · fine</string>
+	<key>0.4 mm · standard</key>
+	<string>0.4 mm · standard</string>
+	<key>0.6 mm · fast</key>
+	<string>0.6 mm · fast</string>
+	<key>1.80</key>
+	<string>1.80</string>
+	<key>25 mm Base</key>
+	<string>25 mm Base</string>
+	<key>28 mm</key>
+	<string>28 mm</string>
+	<key>32 mm Person</key>
+	<string>32 mm Person</string>
+	<key>32 mm · most common</key>
+	<string>32 mm · most common</string>
+	<key>35 mm · heroic</key>
+	<string>35 mm · heroic</string>
+	<key>3D Model</key>
+	<string>3D Model</string>
+	<key>3D engine</key>
+	<string>3D engine</string>
+	<key>3D model</key>
+	<string>3D model</string>
+	<key>3D model files (%@)</key>
+	<string>3D model files (%@)</string>
+	<key>3D shape number</key>
+	<string>3D shape number</string>
+	<key>3D view of %@</key>
+	<string>3D view of %@</string>
+	<key>3D view of %@, %lld mm tall with base, %@ footprint</key>
+	<string>3D view of %@, %lld mm tall with base, %@ footprint</string>
+	<key>54 mm</key>
+	<string>54 mm</string>
+	<key>75 mm</key>
+	<string>75 mm</string>
+	<key>A 3D model you imported</key>
+	<string>A 3D model you imported</string>
+	<key>A cartoon always gets the grey sculpt: without it, it comes out flat.</key>
+	<string>A cartoon always gets the grey sculpt: without it, it comes out flat.</string>
+	<key>A change needs %@ first</key>
+	<string>A change needs %@ first</string>
+	<key>A change needs %@ first.</key>
+	<string>A change needs %@ first.</string>
+	<key>A change needs %@. Open Settings to set it up.</key>
+	<string>A change needs %@. Open Settings to set it up.</string>
+	<key>A change needs the picture it was drawn as, and it isn't made yet.</key>
+	<string>A change needs the picture it was drawn as, and it isn't made yet.</string>
+	<key>A change redraws the picture, so it gets the grey sculpt too.</key>
+	<string>A change redraws the picture, so it gets the grey sculpt too.</string>
+	<key>A character is a mini that stands on a base; an object is sized by its longest side</key>
+	<string>A character is a mini that stands on a base; an object is sized by its longest side</string>
+	<key>A description</key>
+	<string>A description</string>
+	<key>A description needs %@ first</key>
+	<string>A description needs %@ first</string>
+	<key>A description needs %@.</key>
+	<string>A description needs %@.</string>
+	<key>A file came down damaged (%@). Press Try Again to download it once more.</key>
+	<string>A file came down damaged (%@). Press Try Again to download it once more.</string>
+	<key>A finished mini</key>
+	<string>A finished mini</string>
+	<key>A folder in your minis folder, to group minis in. Drag minis onto it to move them there.</key>
+	<string>A folder in your minis folder, to group minis in. Drag minis onto it to move them there.</string>
+	<key>A folder in your minis folder. %@ moves into it.</key>
+	<string>A folder in your minis folder. %@ moves into it.</string>
+	<key>A folder in your minis folder. The %lld minis move into it.</key>
+	<string>A folder in your minis folder. The %lld minis move into it.</string>
+	<key>A folder to group minis in (⇧⌘N). Drag minis onto it to move them.</key>
+	<string>A folder to group minis in (⇧⌘N). Drag minis onto it to move them.</string>
+	<key>A hole under the base to glue a magnet into.</key>
+	<string>A hole under the base to glue a magnet into.</string>
+	<key>A low-poly .glb to drag into a virtual tabletop</key>
+	<string>A low-poly .glb to drag into a virtual tabletop</string>
+	<key>A low-poly model of %@ in grey, for a virtual tabletop. A mini comes out in colour when it's made from a colour picture with “Turn it into a grey sculpt first” off.</key>
+	<string>A low-poly model of %@ in grey, for a virtual tabletop. A mini comes out in colour when it's made from a colour picture with “Turn it into a grey sculpt first” off.</string>
+	<key>A low-poly model of %@ in grey, for a virtual tabletop. A version with a change to its picture is redrawn as a grey sculpt, so it can't keep the picture's colours.</key>
+	<string>A low-poly model of %@ in grey, for a virtual tabletop. A version with a change to its picture is redrawn as a grey sculpt, so it can't keep the picture's colours.</string>
+	<key>A low-poly model of %@ in its colours, for a virtual tabletop.</key>
+	<string>A low-poly model of %@ in its colours, for a virtual tabletop.</string>
+	<key>A mini is being made or waiting in the queue. Change the folder once they're all done.</key>
+	<string>A mini is being made or waiting in the queue. Change the folder once they're all done.</string>
+	<key>A picture</key>
+	<string>A picture</string>
+	<key>A picture of the %@ of the same %@. Drop it here or click to choose.</key>
+	<string>A picture of the %@ of the same %@. Drop it here or click to choose.</string>
+	<key>A quick look around</key>
+	<string>A quick look around</string>
+	<key>AI helper for descriptions</key>
+	<string>AI helper for descriptions</string>
+	<key>API key</key>
+	<string>API key</string>
+	<key>API key saved in your Keychain</key>
+	<string>API key saved in your Keychain</string>
+	<key>Across the flat sides.</key>
+	<string>Across the flat sides.</string>
+	<key>Add a base</key>
+	<string>Add a base</string>
+	<key>Add a picture of the %@</key>
+	<string>Add a picture of the %@</string>
+	<key>Add a picture to start</key>
+	<string>Add a picture to start</string>
+	<key>Added to the queue.</key>
+	<string>Added to the queue.</string>
+	<key>Advanced</key>
+	<string>Advanced</string>
+	<key>All Minis</key>
+	<string>All Minis</string>
+	<key>All done in %@</key>
+	<string>All done in %@</string>
+	<key>Another Mimic is doing this one (another copy of the app, or Terminal): stop it there. Step %lld of 3 · %@ left.</key>
+	<string>Another Mimic is doing this one (another copy of the app, or Terminal): stop it there. Step %lld of 3 · %@ left.</string>
+	<key>Another Mimic is making a mini right now. Wait for it to finish.</key>
+	<string>Another Mimic is making a mini right now. Wait for it to finish.</string>
+	<key>Another Version of “%@”</key>
+	<string>Another Version of “%@”</string>
+	<key>Arrow keys turn and tilt it; Command-Equals and Command-Minus zoom.</key>
+	<string>Arrow keys turn and tilt it; Command-Equals and Command-Minus zoom.</string>
+	<key>As it was made. Settings has %@ mm.</key>
+	<string>As it was made. Settings has %@ mm.</string>
+	<key>At %lld mm, a %@ mm nozzle softens fine details a little. For the clearest details, make it about %lld mm on its longest side.</key>
+	<string>At %lld mm, a %@ mm nozzle softens fine details a little. For the clearest details, make it about %lld mm on its longest side.</string>
+	<key>At %lld mm, a %@ mm nozzle turns faces into bumps. Use a 0.2 mm nozzle, or choose Best Print.</key>
+	<string>At %lld mm, a %@ mm nozzle turns faces into bumps. Use a 0.2 mm nozzle, or choose Best Print.</string>
+	<key>At %lld mm, a 0.4 mm nozzle softens faces a little. For sharper faces, use a 0.2 mm nozzle or choose Best Print.</key>
+	<string>At %lld mm, a 0.4 mm nozzle softens faces a little. For sharper faces, use a 0.2 mm nozzle or choose Best Print.</string>
+	<key>Back</key>
+	<string>Back</string>
+	<key>Base</key>
+	<string>Base</string>
+	<key>Base size</key>
+	<string>Base size</string>
+	<key>Being made</key>
+	<string>Being made</string>
+	<key>Being made…</key>
+	<string>Being made…</string>
+	<key>Best Print</key>
+	<string>Best Print</string>
+	<key>Blank uses Claude Haiku 4.5: quick and inexpensive</key>
+	<string>Blank uses Claude Haiku 4.5: quick and inexpensive</string>
+	<key>Build Shape</key>
+	<string>Build Shape</string>
+	<key>Build its 3D shape when it looks right.</key>
+	<string>Build its 3D shape when it looks right.</string>
+	<key>Building the 3D shape (the long part)</key>
+	<string>Building the 3D shape (the long part)</string>
+	<key>Call it “%@”?</key>
+	<string>Call it “%@”?</string>
+	<key>Cancel</key>
+	<string>Cancel</string>
+	<key>Cancel Resize</key>
+	<string>Cancel Resize</string>
+	<key>Cancel Resize…</key>
+	<string>Cancel Resize…</string>
+	<key>Cancel resizing “%@”?</key>
+	<string>Cancel resizing “%@”?</string>
+	<key>Carry on with the queue</key>
+	<string>Carry on with the queue</string>
+	<key>Cartoon</key>
+	<string>Cartoon</string>
+	<key>Cartoons need the Pixal3D model.</key>
+	<string>Cartoons need the Pixal3D model.</string>
+	<key>Change</key>
+	<string>Change</string>
+	<key>Change it for a different take.</key>
+	<string>Change it for a different take.</string>
+	<key>Change the picture of the %@</key>
+	<string>Change the picture of the %@</string>
+	<key>Change the picture, %@</key>
+	<string>Change the picture, %@</string>
+	<key>Changed</key>
+	<string>Changed</string>
+	<key>Changed before: %@</key>
+	<string>Changed before: %@</string>
+	<key>Change…</key>
+	<string>Change…</string>
+	<key>Character</key>
+	<string>Character</string>
+	<key>Character height</key>
+	<string>Character height</string>
+	<key>Characters</key>
+	<string>Characters</string>
+	<key>Check Again</key>
+	<string>Check Again</string>
+	<key>Check Now</key>
+	<string>Check Now</string>
+	<key>Check for Updates…</key>
+	<string>Check for Updates…</string>
+	<key>Check for updates when Mimic opens</key>
+	<string>Check for updates when Mimic opens</string>
+	<key>Check it before the 3D shape is built, or press Draw Again for a new one.</key>
+	<string>Check it before the 3D shape is built, or press Draw Again for a new one.</string>
+	<key>Check that Mimic can write to its folder, then try again.</key>
+	<string>Check that Mimic can write to its folder, then try again.</string>
+	<key>Check that Mimic's folder is still there, then try again.</key>
+	<string>Check that Mimic's folder is still there, then try again.</string>
+	<key>Check the picture</key>
+	<string>Check the picture</string>
+	<key>Check the picture of %@</key>
+	<string>Check the picture of %@</string>
+	<key>Checking</key>
+	<string>Checking</string>
+	<key>Checking the files already here…</key>
+	<string>Checking the files already here…</string>
+	<key>Checking…</key>
+	<string>Checking…</string>
+	<key>Checks paused while a mini is being made.</key>
+	<string>Checks paused while a mini is being made.</string>
+	<key>Choose a 3D model to make print-ready: a GLB or STL file.</key>
+	<string>Choose a 3D model to make print-ready: a GLB or STL file.</string>
+	<key>Choose a folder that isn't inside the one your minis are in now, and doesn't hold it.</key>
+	<string>Choose a folder that isn't inside the one your minis are in now, and doesn't hold it.</string>
+	<key>Choose a picture</key>
+	<string>Choose a picture</string>
+	<key>Choose the version to show on this side</key>
+	<string>Choose the version to show on this side</string>
+	<key>Choose where Mimic keeps your minis.</key>
+	<string>Choose where Mimic keeps your minis.</string>
+	<key>Choose…</key>
+	<string>Choose…</string>
+	<key>Chunky characters with bold shapes work best. Small details, like a pet on a shoulder, may come out soft.</key>
+	<string>Chunky characters with bold shapes work best. Small details, like a pet on a shoulder, may come out soft.</string>
+	<key>Claude (Anthropic)</key>
+	<string>Claude (Anthropic)</string>
+	<key>Clear</key>
+	<string>Clear</string>
+	<key>Clear the time estimates?</key>
+	<string>Clear the time estimates?</string>
+	<key>Clear…</key>
+	<string>Clear…</string>
+	<key>Click or press Space for Quick Look; drag out for the print file</key>
+	<string>Click or press Space for Quick Look; drag out for the print file</string>
+	<key>Click, or press Space, to open it in Quick Look</key>
+	<string>Click, or press Space, to open it in Quick Look</string>
+	<key>Compare Side by Side…</key>
+	<string>Compare Side by Side…</string>
+	<key>Connect Mimic to it.</key>
+	<string>Connect Mimic to it.</string>
+	<key>Copied</key>
+	<string>Copied</string>
+	<key>Copies</key>
+	<string>Copies</string>
+	<key>Copies of %lld minis</key>
+	<string>Copies of %lld minis</string>
+	<key>Copies of each</key>
+	<string>Copies of each</string>
+	<key>Copies of “%@”</key>
+	<string>Copies of “%@”</string>
+	<key>Copies the description it was drawn from, to use again.</key>
+	<string>Copies the description it was drawn from, to use again.</string>
+	<key>Copies these settings as text, to keep in your slicer's notes.</key>
+	<string>Copies these settings as text, to keep in your slicer's notes.</string>
+	<key>Copies…</key>
+	<string>Copies…</string>
+	<key>Copy Command</key>
+	<string>Copy Command</string>
+	<key>Copy Description</key>
+	<string>Copy Description</string>
+	<key>Copy Settings</key>
+	<string>Copy Settings</string>
+	<key>Copy this command, paste it into Terminal once, then type mimic to make minis from there. It asks for your Mac password, because it adds mimic to a folder every account on this Mac uses.</key>
+	<string>Copy this command, paste it into Terminal once, then type mimic to make minis from there. It asks for your Mac password, because it adds mimic to a folder every account on this Mac uses.</string>
+	<key>Couldn't ask Ollama which models it has. Check that it's running.</key>
+	<string>Couldn't ask Ollama which models it has. Check that it's running.</string>
+	<key>Couldn't build its shape</key>
+	<string>Couldn't build its shape</string>
+	<key>Couldn't build the shape</key>
+	<string>Couldn't build the shape</string>
+	<key>Couldn't change the folder</key>
+	<string>Couldn't change the folder</string>
+	<key>Couldn't delete the project</key>
+	<string>Couldn't delete the project</string>
+	<key>Couldn't do that. Is the folder open in another app?</key>
+	<string>Couldn't do that. Is the folder open in another app?</string>
+	<key>Couldn't export %@</key>
+	<string>Couldn't export %@</string>
+	<key>Couldn't find the character in the picture. Try one with a plain background.</key>
+	<string>Couldn't find the character in the picture. Try one with a plain background.</string>
+	<key>Couldn't make a new 3D shape</key>
+	<string>Couldn't make a new 3D shape</string>
+	<key>Couldn't make another version</key>
+	<string>Couldn't make another version</string>
+	<key>Couldn't make the copy. Is the disk full, or its folder open in another app?</key>
+	<string>Couldn't make the copy. Is the disk full, or its folder open in another app?</string>
+	<key>Couldn't make the report</key>
+	<string>Couldn't make the report</string>
+	<key>Couldn't move it</key>
+	<string>Couldn't move it</string>
+	<key>Couldn't move it to the Trash</key>
+	<string>Couldn't move it to the Trash</string>
+	<key>Couldn't move your minis, so they're still where they were. Check that Mimic can write to that folder, then try again.</key>
+	<string>Couldn't move your minis, so they're still where they were. Check that Mimic can write to that folder, then try again.</string>
+	<key>Couldn't move “%@” to the Trash</key>
+	<string>Couldn't move “%@” to the Trash</string>
+	<key>Couldn't pause the queue</key>
+	<string>Couldn't pause the queue</string>
+	<key>Couldn't put it back</key>
+	<string>Couldn't put it back</string>
+	<key>Couldn't put them in one print file</key>
+	<string>Couldn't put them in one print file</string>
+	<key>Couldn't reach %@. Try again in a minute.</key>
+	<string>Couldn't reach %@. Try again in a minute.</string>
+	<key>Couldn't reach the service. Check its address in Settings.</key>
+	<string>Couldn't reach the service. Check its address in Settings.</string>
+	<key>Couldn't read that, so it's using 1.8 m. Try 1.75 or 5'9".</key>
+	<string>Couldn't read that, so it's using 1.8 m. Try 1.75 or 5'9".</string>
+	<key>Couldn't read the queue</key>
+	<string>Couldn't read the queue</string>
+	<key>Couldn't remove it from the queue</key>
+	<string>Couldn't remove it from the queue</string>
+	<key>Couldn't remove the 3D engine. %@</key>
+	<string>Couldn't remove the 3D engine. %@</string>
+	<key>Couldn't rename it</key>
+	<string>Couldn't rename it</string>
+	<key>Couldn't rename it back</key>
+	<string>Couldn't rename it back</string>
+	<key>Couldn't rename it. Is its folder open in another app?</key>
+	<string>Couldn't rename it. Is its folder open in another app?</string>
+	<key>Couldn't resume the queue</key>
+	<string>Couldn't resume the queue</string>
+	<key>Couldn't save the key in your Keychain (error %@).</key>
+	<string>Couldn't save the key in your Keychain (error %@).</string>
+	<key>Couldn't save the key in your Keychain. Try again.</key>
+	<string>Couldn't save the key in your Keychain. Try again.</string>
+	<key>Couldn't show this mini</key>
+	<string>Couldn't show this mini</string>
+	<key>Couldn't start it. Check that its folder is still there, then try again.</key>
+	<string>Couldn't start it. Check that its folder is still there, then try again.</string>
+	<key>Couldn't start. Check that Mimic's folder is still there, then try again.</key>
+	<string>Couldn't start. Check that Mimic's folder is still there, then try again.</string>
+	<key>Couldn't try again</key>
+	<string>Couldn't try again</string>
+	<key>Create</key>
+	<string>Create</string>
+	<key>Crisp edges, small lettering and fine texture. Slow, but the most detail.</key>
+	<string>Crisp edges, small lettering and fine texture. Slow, but the most detail.</string>
+	<key>Date Made</key>
+	<string>Date Made</string>
+	<key>Delete All</key>
+	<string>Delete All</string>
+	<key>Delete Project</key>
+	<string>Delete Project</string>
+	<key>Delete Project…</key>
+	<string>Delete Project…</string>
+	<key>Delete the project “%@”?</key>
+	<string>Delete the project “%@”?</string>
+	<key>Describe your %@</key>
+	<string>Describe your %@</string>
+	<key>Describe your character to start</key>
+	<string>Describe your character to start</string>
+	<key>Describe your object to start</key>
+	<string>Describe your object to start</string>
+	<key>Description</key>
+	<string>Description</string>
+	<key>Don't Ask Again</key>
+	<string>Don't Ask Again</string>
+	<key>Don't Move</key>
+	<string>Don't Move</string>
+	<key>Done</key>
+	<string>Done</string>
+	<key>Download</key>
+	<string>Download</string>
+	<key>Download FLUX.2 Klein.</key>
+	<string>Download FLUX.2 Klein.</string>
+	<key>Downloading %@</key>
+	<string>Downloading %@</string>
+	<key>Drag it to turn it around, and Open in %@ sends it to your slicer. The panel on the right has its size, previews and print tips.</key>
+	<string>Drag it to turn it around, and Open in %@ sends it to your slicer. The panel on the right has its size, previews and print tips.</string>
+	<key>Drag minis here</key>
+	<string>Drag minis here</string>
+	<key>Drag minis onto it to move them here. Right-click for more.</key>
+	<string>Drag minis onto it to move them here. Right-click for more.</string>
+	<key>Drag or press the arrow keys to turn · pinch, scroll, ⌘= or ⌘− to zoom · double-click to face front</key>
+	<string>Drag or press the arrow keys to turn · pinch, scroll, ⌘= or ⌘− to zoom · double-click to face front</string>
+	<key>Drag to turn · scroll to zoom</key>
+	<string>Drag to turn · scroll to zoom</string>
+	<key>Draw Again</key>
+	<string>Draw Again</string>
+	<key>Draw Things</key>
+	<string>Draw Things</string>
+	<key>Draw Things app</key>
+	<string>Draw Things app</string>
+	<key>Draw Things closed before it was ready. Try again.</key>
+	<string>Draw Things closed before it was ready. Try again.</string>
+	<key>Draw Things connected through its command line tool</key>
+	<string>Draw Things connected through its command line tool</string>
+	<key>Draw Things didn't answer in time. It may be busy or stuck: quit and reopen Draw Things, then try again.</key>
+	<string>Draw Things didn't answer in time. It may be busy or stuck: quit and reopen Draw Things, then try again.</string>
+	<key>Draw Things is open and connected</key>
+	<string>Draw Things is open and connected</string>
+	<key>Draw Things is set up.</key>
+	<string>Draw Things is set up.</string>
+	<key>Draw Things isn't answering. Open Draw Things, then Settings → Advanced → API Server: turn it on, HTTP, port 7860.</key>
+	<string>Draw Things isn't answering. Open Draw Things, then Settings → Advanced → API Server: turn it on, HTTP, port 7860.</string>
+	<key>Draw Things isn't ready. Check the setup steps, then try again.</key>
+	<string>Draw Things isn't ready. Check the setup steps, then try again.</string>
+	<key>Draw Things isn't set up yet.</key>
+	<string>Draw Things isn't set up yet.</string>
+	<key>Draw Things makes the pictures on this Mac, so nothing is sent anywhere.</key>
+	<string>Draw Things makes the pictures on this Mac, so nothing is sent anywhere.</string>
+	<key>Draw Things opens when needed</key>
+	<string>Draw Things opens when needed</string>
+	<key>Draw Things refused the request: %@</key>
+	<string>Draw Things refused the request: %@</string>
+	<key>Draw Things, on this Mac</key>
+	<string>Draw Things, on this Mac</string>
+	<key>Draws the picture again with a new variation number</key>
+	<string>Draws the picture again with a new variation number</string>
+	<key>Drop a picture, paste it (⌘V), or click to choose</key>
+	<string>Drop a picture, paste it (⌘V), or click to choose</string>
+	<key>Duplicate</key>
+	<string>Duplicate</string>
+	<key>Duplicate “%@”</key>
+	<string>Duplicate “%@”</string>
+	<key>Duplicate…</key>
+	<string>Duplicate…</string>
+	<key>Each character keeps its own real height, so a halfling stays shorter than an elf.</key>
+	<string>Each character keeps its own real height, so a halfling stays shorter than an elf.</string>
+	<key>Each mini needs about 150 MB while it's being made.</key>
+	<string>Each mini needs about 150 MB while it's being made.</string>
+	<key>Edit &amp; Make Again</key>
+	<string>Edit &amp; Make Again</string>
+	<key>Edit &amp; Make Again…</key>
+	<string>Edit &amp; Make Again…</string>
+	<key>Edit → Undo puts them back.</key>
+	<string>Edit → Undo puts them back.</string>
+	<key>Every mini gets the same height, the Character height below: none of them has its real height saved.</key>
+	<string>Every mini gets the same height, the Character height below: none of them has its real height saved.</string>
+	<key>Everything's ready.</key>
+	<string>Everything's ready.</string>
+	<key>Export for Virtual Tabletop</key>
+	<string>Export for Virtual Tabletop</string>
+	<key>Export for Virtual Tabletop…</key>
+	<string>Export for Virtual Tabletop…</string>
+	<key>Exported %@ in grey</key>
+	<string>Exported %@ in grey</string>
+	<key>Extra thickness for thin parts</key>
+	<string>Extra thickness for thin parts</string>
+	<key>FLUX.2 Klein isn't downloaded in Draw Things. Search for it in Draw Things' model list and download it.</key>
+	<string>FLUX.2 Klein isn't downloaded in Draw Things. Search for it in Draw Things' model list and download it.</string>
+	<key>FLUX.2 Klein model in Draw Things</key>
+	<string>FLUX.2 Klein model in Draw Things</string>
+	<key>Face Front</key>
+	<string>Face Front</string>
+	<key>Faces and weapons come out clearly; hair strands and cloth edges get softened. A good balance.</key>
+	<string>Faces and weapons come out clearly; hair strands and cloth edges get softened. A good balance.</string>
+	<key>Filament</key>
+	<string>Filament</string>
+	<key>Find</key>
+	<string>Find</string>
+	<key>Find a mini</key>
+	<string>Find a mini</string>
+	<key>Find…</key>
+	<string>Find…</string>
+	<key>Finished while you waited</key>
+	<string>Finished while you waited</string>
+	<key>Flat 2D cartoon art comes out smoother this way</key>
+	<string>Flat 2D cartoon art comes out smoother this way</string>
+	<key>Flat side down</key>
+	<string>Flat side down</string>
+	<key>Footprint</key>
+	<string>Footprint</string>
+	<key>For a character already on a base or a rock: Mimic flattens that</key>
+	<string>For a character already on a base or a rock: Mimic flattens that</string>
+	<key>For flat drawings with outlines and flat colours. Made from the grey sculpt with Pixal3D, which keeps cartoon shapes smooth.</key>
+	<string>For flat drawings with outlines and flat colours. Made from the grey sculpt with Pixal3D, which keeps cartoon shapes smooth.</string>
+	<key>For round magnets, sized across by tall, with a little room to spare. The base gets a little taller to fit it.</key>
+	<string>For round magnets, sized across by tall, with a little room to spare. The base gets a little taller to fit it.</string>
+	<key>Forget Mimic's settings and show the tour again</key>
+	<string>Forget Mimic's settings and show the tour again</string>
+	<key>Free disk space</key>
+	<string>Free disk space</string>
+	<key>Free disk space (%@ GB)</key>
+	<string>Free disk space (%@ GB)</string>
+	<key>Free up some space: each mini takes about 150 MB while it's being made.</key>
+	<string>Free up some space: each mini takes about 150 MB while it's being made.</string>
+	<key>Front</key>
+	<string>Front</string>
+	<key>Front picture</key>
+	<string>Front picture</string>
+	<key>Full body, head to feet, plain background</key>
+	<string>Full body, head to feet, plain background</string>
+	<key>Game Scale</key>
+	<string>Game Scale</string>
+	<key>Game Scale matches the other minis on your table; Best Print goes for detail. Your printer's nozzle is set in Settings, and is most likely 0.4 mm.</key>
+	<string>Game Scale matches the other minis on your table; Best Print goes for detail. Your printer's nozzle is set in Settings, and is most likely 0.4 mm.</string>
+	<key>General</key>
+	<string>General</string>
+	<key>Get Draw Things from the App Store.</key>
+	<string>Get Draw Things from the App Store.</string>
+	<key>Get OrcaSlicer, a free slicer for most printers</key>
+	<string>Get OrcaSlicer, a free slicer for most printers</string>
+	<key>Get a key</key>
+	<string>Get a key</string>
+	<key>Getting the picture ready</key>
+	<string>Getting the picture ready</string>
+	<key>Give it a name.</key>
+	<string>Give it a name.</string>
+	<key>Give the project a name, without a slash or colon, that doesn't start with a dot or an underscore.</key>
+	<string>Give the project a name, without a slash or colon, that doesn't start with a dot or an underscore.</string>
+	<key>Give your mini a name</key>
+	<string>Give your mini a name</string>
+	<key>Gives it a new name</key>
+	<string>Gives it a new name</string>
+	<key>Go back to the description you wrote</key>
+	<string>Go back to the description you wrote</string>
+	<key>Grams of PLA and metres of 1.75 mm filament, printed solid; infill makes a big mini take less</key>
+	<string>Grams of PLA and metres of 1.75 mm filament, printed solid; infill makes a big mini take less</string>
+	<key>Grey sculpt</key>
+	<string>Grey sculpt</string>
+	<key>Height with base</key>
+	<string>Height with base</string>
+	<key>Height, width or depth, whichever is biggest.</key>
+	<string>Height, width or depth, whichever is biggest.</string>
+	<key>Helper</key>
+	<string>Helper</string>
+	<key>Hex</key>
+	<string>Hex</string>
+	<key>Hide Details</key>
+	<string>Hide Details</string>
+	<key>Hide the details panel (⌃⌘I)</key>
+	<string>Hide the details panel (⌃⌘I)</string>
+	<key>How it's listed, and what its print file is called</key>
+	<string>How it's listed, and what its print file is called</string>
+	<key>How long each side of the square base is</key>
+	<string>How long each side of the square base is</string>
+	<key>How long each side of the square base is; 25 mm fits one map square</key>
+	<string>How long each side of the square base is; 25 mm fits one map square</string>
+	<key>How tall an average human is on the table: at 32 mm, a 1.8 m human stands 32 mm tall</key>
+	<string>How tall an average human is on the table: at 32 mm, a 1.8 m human stands 32 mm tall</string>
+	<key>How tall is the character?</key>
+	<string>How tall is the character?</string>
+	<key>How tall the character would be in real life. A halfling is about 1 m; leave it blank for an average human (1.8 m).</key>
+	<string>How tall the character would be in real life. A halfling is about 1 m; leave it blank for an average human (1.8 m).</string>
+	<key>How wide the hex base is, flat side to flat side; 25 mm fits one hex on a 1-inch hex map</key>
+	<string>How wide the hex base is, flat side to flat side; 25 mm fits one hex on a 1-inch hex map</string>
+	<key>How wide the round base is</key>
+	<string>How wide the round base is</string>
+	<key>How wide the round base is; 25 mm fits one map square</key>
+	<string>How wide the round base is; 25 mm fits one map square</string>
+	<key>If the change came out right, build the 3D shape from it. If not, draw it again.</key>
+	<string>If the change came out right, build the 3D shape from it. If not, draw it again.</string>
+	<key>Import</key>
+	<string>Import</string>
+	<key>Import Model…</key>
+	<string>Import Model…</string>
+	<key>Import a 3D Model</key>
+	<string>Import a 3D Model</string>
+	<key>Import · takes %@</key>
+	<string>Import · takes %@</string>
+	<key>Importing</key>
+	<string>Importing</string>
+	<key>Improve Description</key>
+	<string>Improve Description</string>
+	<key>Improved description</key>
+	<string>Improved description</string>
+	<key>In Draw Things' model list, search for FLUX.2 Klein and download it.</key>
+	<string>In Draw Things' model list, search for FLUX.2 Klein and download it.</string>
+	<key>In Draw Things' model list, search for FLUX.2 Klein and download it. It's big, so give it a few minutes.</key>
+	<string>In Draw Things' model list, search for FLUX.2 Klein and download it. It's big, so give it a few minutes.</string>
+	<key>In metres or feet, like 1.75 or 5'9".</key>
+	<string>In metres or feet, like 1.75 or 5'9".</string>
+	<key>In the background, and quit afterwards if Mimic opened it.</key>
+	<string>In the background, and quit afterwards if Mimic opened it.</string>
+	<key>In use</key>
+	<string>In use</string>
+	<key>Include a picture of Mimic's window (the issue is public)</key>
+	<string>Include a picture of Mimic's window (the issue is public)</string>
+	<key>Include the picture (the issue is public)</key>
+	<string>Include the picture (the issue is public)</string>
+	<key>Install Command-Line Tool</key>
+	<string>Install Command-Line Tool</string>
+	<key>Install Command-Line Tool…</key>
+	<string>Install Command-Line Tool…</string>
+	<key>Install Draw Things from the Mac App Store. It's free.</key>
+	<string>Install Draw Things from the Mac App Store. It's free.</string>
+	<key>Install a slicer such as Bambu Studio, OrcaSlicer, PrusaSlicer or Cura. Until then Mimic opens minis with your Mac's default app for 3D files.</key>
+	<string>Install a slicer such as Bambu Studio, OrcaSlicer, PrusaSlicer or Cura. Until then Mimic opens minis with your Mac's default app for 3D files.</string>
+	<key>Is it still in the Trash?</key>
+	<string>Is it still in the Trash?</string>
+	<key>Is its folder open in another app?</key>
+	<string>Is its folder open in another app?</string>
+	<key>It hasn't been made yet, so it goes to the Trash, where you can get it back.</key>
+	<string>It hasn't been made yet, so it goes to the Trash, where you can get it back.</string>
+	<key>It hasn't been made yet, so its picture and settings go to the Trash, where you can get them back.</key>
+	<string>It hasn't been made yet, so its picture and settings go to the Trash, where you can get them back.</string>
+	<key>It keeps its current size.</key>
+	<string>It keeps its current size.</string>
+	<key>It keeps its previous size.</key>
+	<string>It keeps its previous size.</string>
+	<key>It leaves the queue. You can put it back from the Trash, but not in the queue.</key>
+	<string>It leaves the queue. You can put it back from the Trash, but not in the queue.</string>
+	<key>It looks like your Mac ran out of memory while %@. Quit other apps, then try again.</key>
+	<string>It looks like your Mac ran out of memory while %@. Quit other apps, then try again.</string>
+	<key>It stands the way up its file has it. If it comes out lying down, turn it upright in the app it came from and import it again.</key>
+	<string>It stands the way up its file has it. If it comes out lying down, turn it upright in the app it came from and import it again.</string>
+	<key>It stays, so you can try again later.</key>
+	<string>It stays, so you can try again later.</string>
+	<key>It stopped before it was done.</key>
+	<string>It stopped before it was done.</string>
+	<key>It stopped while %@.</key>
+	<string>It stopped while %@.</string>
+	<key>It was kept, so you can try again later.</key>
+	<string>It was kept, so you can try again later.</string>
+	<key>It works.</key>
+	<string>It works.</string>
+	<key>It's a cartoon</key>
+	<string>It's a cartoon</string>
+	<key>It's being made. Move it to the Trash once it's done.</key>
+	<string>It's being made. Move it to the Trash once it's done.</string>
+	<key>It's free.</key>
+	<string>It's free.</string>
+	<key>It's kept, so you can try again later.</key>
+	<string>It's kept, so you can try again later.</string>
+	<key>Its back and sides, so the 3D model doesn't have to guess them. Drop each on its place, or click to choose.</key>
+	<string>Its back and sides, so the 3D model doesn't have to guess them. Drop each on its place, or click to choose.</string>
+	<key>Its size with the base: height, then the footprint it stands on.</key>
+	<string>Its size with the base: height, then the footprint it stands on.</string>
+	<key>Joins the queue, %lld ahead · ready in %@</key>
+	<string>Joins the queue, %lld ahead · ready in %@</string>
+	<key>Keep Minis</key>
+	<string>Keep Minis</string>
+	<key>Keep Minis moves %@ to Unsorted. Delete All moves %@ to the Trash with the project. You can put anything back from the Trash.</key>
+	<string>Keep Minis moves %@ to Unsorted. Delete All moves %@ to the Trash with the project. You can put anything back from the Trash.</string>
+	<key>Keep This One…</key>
+	<string>Keep This One…</string>
+	<key>Keep in Queue</key>
+	<string>Keep in Queue</string>
+	<key>Keep your minis in another folder</key>
+	<string>Keep your minis in another folder</string>
+	<key>Keeps a copy under a new name, then asks what size to make it</key>
+	<string>Keeps a copy under a new name, then asks what size to make it</string>
+	<key>Keeps its picture and makes only the 3D shape again. Type a change to redraw the picture with it first.</key>
+	<string>Keeps its picture and makes only the 3D shape again. Type a change to redraw the picture with it first.</string>
+	<key>Keeps the queue waiting while your Mac runs on its battery</key>
+	<string>Keeps the queue waiting while your Mac runs on its battery</string>
+	<key>Keeps this picture, or redraws it with a change, and makes the 3D shape again</key>
+	<string>Keeps this picture, or redraws it with a change, and makes the 3D shape again</string>
+	<key>Keeps this version and moves the others to the Trash.</key>
+	<string>Keeps this version and moves the others to the Trash.</string>
+	<key>Last checked</key>
+	<string>Last checked</string>
+	<key>Layer height 0.06–0.08 mm</key>
+	<string>Layer height 0.06–0.08 mm</string>
+	<key>Layer height 0.12 mm</key>
+	<string>Layer height 0.12 mm</string>
+	<key>Layer height 0.2 mm</key>
+	<string>Layer height 0.2 mm</string>
+	<key>Left</key>
+	<string>Left</string>
+	<key>Let the mini being made finish, and start no more until you resume</key>
+	<string>Let the mini being made finish, and start no more until you resume</string>
+	<key>Loading your mini…</key>
+	<string>Loading your mini…</string>
+	<key>Longest side</key>
+	<string>Longest side</string>
+	<key>Mac's default app for 3D files</key>
+	<string>Mac's default app for 3D files</string>
+	<key>Made</key>
+	<string>Made</string>
+	<key>Made from</key>
+	<string>Made from</string>
+	<key>Made with %@, as %@ was.</key>
+	<string>Made with %@, as %@ was.</string>
+	<key>Magnet hole</key>
+	<string>Magnet hole</string>
+	<key>Make</key>
+	<string>Make</string>
+	<key>Make Another Version…</key>
+	<string>Make Another Version…</string>
+	<key>Make Mini</key>
+	<string>Make Mini</string>
+	<key>Make Mini draws from this one. Change anything you like.</key>
+	<string>Make Mini draws from this one. Change anything you like.</string>
+	<key>Make Mini starts it; the time it takes on this Mac is beside the button. Its progress is in the toolbar, and you can keep using Mimic meanwhile.</key>
+	<string>Make Mini starts it; the time it takes on this Mac is beside the button. Its progress is in the toolbar, and you can keep using Mimic meanwhile.</string>
+	<key>Make Report</key>
+	<string>Make Report</string>
+	<key>Make a new mini (⌘N)</key>
+	<string>Make a new mini (⌘N)</string>
+	<key>Make it</key>
+	<string>Make it</string>
+	<key>Make it with the 3D model chosen in Settings instead</key>
+	<string>Make it with the 3D model chosen in Settings instead</string>
+	<key>Make pictures with</key>
+	<string>Make pictures with</string>
+	<key>Make this one sooner. Drag it, or right-click, to move it further</key>
+	<string>Make this one sooner. Drag it, or right-click, to move it further</string>
+	<key>Make your first mini from a picture or a description. It takes about %lld minutes.</key>
+	<string>Make your first mini from a picture or a description. It takes about %lld minutes.</string>
+	<key>Make · takes %@</key>
+	<string>Make · takes %@</string>
+	<key>Makes a file of what happened and opens a form on GitHub to send it with</key>
+	<string>Makes a file of what happened and opens a form on GitHub to send it with</string>
+	<key>Makes it again from the step that failed</key>
+	<string>Makes it again from the step that failed</string>
+	<key>Makes it again with a new variation number, with a change to its picture if you like</key>
+	<string>Makes it again with a new variation number, with a change to its picture if you like</string>
+	<key>Makes it again with a new variation number. Type a change to redraw its picture with it.</key>
+	<string>Makes it again with a new variation number. Type a change to redraw its picture with it.</string>
+	<key>Makes the 3D shape from the picture it's waiting with</key>
+	<string>Makes the 3D shape from the picture it's waiting with</string>
+	<key>Makes the 3D shape from this picture</key>
+	<string>Makes the 3D shape from this picture</string>
+	<key>Making</key>
+	<string>Making</string>
+	<key>Making the print-ready file</key>
+	<string>Making the print-ready file</string>
+	<key>Match your other minis, or go big enough for clear faces</key>
+	<string>Match your other minis, or go big enough for clear faces</string>
+	<key>Matches the other minis on your table.</key>
+	<string>Matches the other minis on your table.</string>
+	<key>Millimetre Grid</key>
+	<string>Millimetre Grid</string>
+	<key>Mimic</key>
+	<string>Mimic</string>
+	<key>Mimic %@ installs when the queue is done</key>
+	<string>Mimic %@ installs when the queue is done</string>
+	<key>Mimic %@ is available</key>
+	<string>Mimic %@ is available</string>
+	<key>Mimic Help</key>
+	<string>Mimic Help</string>
+	<key>Mimic asks GitHub for its latest release each time it opens. Only public release information is read; nothing about your Mac or your minis is sent.</key>
+	<string>Mimic asks GitHub for its latest release each time it opens. Only public release information is read; nothing about your Mac or your minis is sent.</string>
+	<key>Mimic asks GitHub for its latest release only when you check. Only public release information is read; nothing about your Mac or your minis is sent.</key>
+	<string>Mimic asks GitHub for its latest release only when you check. Only public release information is read; nothing about your Mac or your minis is sent.</string>
+	<key>Mimic can't change the picture of %@: its picture isn't made yet. Make another version without a change instead.</key>
+	<string>Mimic can't change the picture of %@: its picture isn't made yet. Make another version without a change instead.</string>
+	<key>Mimic can't make a new 3D shape of %@: its picture isn't made yet. Try Make Another Version instead.</key>
+	<string>Mimic can't make a new 3D shape of %@: its picture isn't made yet. Try Make Another Version instead.</string>
+	<key>Mimic can't make another version of %@: the picture or description it was made from wasn't saved.</key>
+	<string>Mimic can't make another version of %@: the picture or description it was made from wasn't saved.</string>
+	<key>Mimic can't read that picture. Try another one, or save it as a PNG or JPEG first.</key>
+	<string>Mimic can't read that picture. Try another one, or save it as a PNG or JPEG first.</string>
+	<key>Mimic can't read the settings.json of %@, so it left it as it is. Fix or remove that file, then try again.</key>
+	<string>Mimic can't read the settings.json of %@, so it left it as it is. Fix or remove that file, then try again.</string>
+	<key>Mimic can't read these pictures.</key>
+	<string>Mimic can't read these pictures.</string>
+	<key>Mimic can't use that file: %@. It needs a 3D model saved as GLB or STL.</key>
+	<string>Mimic can't use that file: %@. It needs a 3D model saved as GLB or STL.</string>
+	<key>Mimic can't use that folder. Choose another one.</key>
+	<string>Mimic can't use that folder. Choose another one.</string>
+	<key>Mimic couldn't reach the internet. Check your connection, then press Try Again. It carries on where it stopped.</key>
+	<string>Mimic couldn't reach the internet. Check your connection, then press Try Again. It carries on where it stopped.</string>
+	<key>Mimic couldn't read its list of minis waiting to be made, so it put the list aside and started a new one. Minis that were waiting didn't start: make or resize them again.</key>
+	<string>Mimic couldn't read its list of minis waiting to be made, so it put the list aside and started a new one. Minis that were waiting didn't start: make or resize them again.</string>
+	<key>Mimic couldn't read the colours from its 3D model</key>
+	<string>Mimic couldn't read the colours from its 3D model</string>
+	<key>Mimic deletes it from your Keychain. To use it later, you'll need to paste it in again.</key>
+	<string>Mimic deletes it from your Keychain. To use it later, you'll need to paste it in again.</string>
+	<key>Mimic does this itself, with Draw Things' command line tool: it comes with the 3D engine, and Draw Things doesn't even need to be open. Without it: in Draw Things, Settings → Advanced → API Server. Turn it on, choose HTTP, set the port to 7860.</key>
+	<string>Mimic does this itself, with Draw Things' command line tool: it comes with the 3D engine, and Draw Things doesn't even need to be open. Without it: in Draw Things, Settings → Advanced → API Server. Turn it on, choose HTTP, set the port to 7860.</string>
+	<key>Mimic forgets how long your minis took, and uses its own figures until you've made a few more. Your minis are kept.</key>
+	<string>Mimic forgets how long your minis took, and uses its own figures until you've made a few more. Your minis are kept.</string>
+	<key>Mimic forgets its settings and saved keys, then opens again as it did the first time. Your minis are kept.</key>
+	<string>Mimic forgets its settings and saved keys, then opens again as it did the first time. Your minis are kept.</string>
+	<key>Mimic forgets its settings, tips and any saved AI keys, and shows the tour again. Your minis are kept.
+
+Reset All also removes the 3D engine: first-launch setup shows again and downloads it again (%@ GB, depending on the 3D model).</key>
+	<string>Mimic forgets its settings, tips and any saved AI keys, and shows the tour again. Your minis are kept.
+
+Reset All also removes the 3D engine: first-launch setup shows again and downloads it again (%@ GB, depending on the 3D model).</string>
+	<key>Mimic is moving your minis to another folder. Try again when it's done.</key>
+	<string>Mimic is moving your minis to another folder. Try again when it's done.</string>
+	<key>Mimic is still downloading</key>
+	<string>Mimic is still downloading</string>
+	<key>Mimic is still making %@. Wait for it to finish.</key>
+	<string>Mimic is still making %@. Wait for it to finish.</string>
+	<key>Mimic is still making “%@”</key>
+	<string>Mimic is still making “%@”</string>
+	<key>Mimic is still resizing %@. Wait for it to finish.</key>
+	<string>Mimic is still resizing %@. Wait for it to finish.</string>
+	<key>Mimic is still resizing “%@”</key>
+	<string>Mimic is still resizing “%@”</string>
+	<key>Mimic isn't fully set up yet: %@.</key>
+	<string>Mimic isn't fully set up yet: %@.</string>
+	<key>Mimic lists the slicers it finds on this Mac. The Mac's default app works with any other slicer.</key>
+	<string>Mimic lists the slicers it finds on this Mac. The Mac's default app works with any other slicer.</string>
+	<key>Mimic makes it print-ready at these sizes, %@. It has no picture, so it can be resized and duplicated, but not made again.</key>
+	<string>Mimic makes it print-ready at these sizes, %@. It has no picture, so it can be resized and duplicated, but not made again.</string>
+	<key>Mimic needs about %@ GB of free space for its 3D engine, and this Mac has %@ GB. Free up some space, then press Try Again.</key>
+	<string>Mimic needs about %@ GB of free space for its 3D engine, and this Mac has %@ GB. Free up some space, then press Try Again.</string>
+	<key>Mimic opened Draw Things, but it didn't answer. In Draw Things: Settings → Advanced → API Server: turn it on, choose HTTP, port 7860. Then try again.</key>
+	<string>Mimic opened Draw Things, but it didn't answer. In Draw Things: Settings → Advanced → API Server: turn it on, choose HTTP, port 7860. Then try again.</string>
+	<key>Mimic opens Draw Things when it needs it.</key>
+	<string>Mimic opens Draw Things when it needs it.</string>
+	<key>Mimic opens it when it needs it. Its API server has to be on: in Draw Things, Settings → Advanced → API Server, HTTP, port 7860.</key>
+	<string>Mimic opens it when it needs it. Its API server has to be on: in Draw Things, Settings → Advanced → API Server, HTTP, port 7860.</string>
+	<key>Mimic puts its notes on making this mini, its settings and your description of it, and which Mac, version and setup this is, into one file, with keys and passwords taken out. Then it shows you the file and opens a form on GitHub to attach it to.</key>
+	<string>Mimic puts its notes on making this mini, its settings and your description of it, and which Mac, version and setup this is, into one file, with keys and passwords taken out. Then it shows you the file and opens a form on GitHub to attach it to.</string>
+	<key>Mimic puts its notes on what happened, and which Mac, version and setup this is, into one file, with keys and passwords taken out. Then it shows you the file and opens a form on GitHub to attach it to.</key>
+	<string>Mimic puts its notes on what happened, and which Mac, version and setup this is, into one file, with keys and passwords taken out. Then it shows you the file and opens a form on GitHub to attach it to.</string>
+	<key>Mimic puts what macOS noted about the crash, its own notes from before it, and which Mac and version this is into one file, with keys and passwords taken out. Then it shows you the file and opens a form on GitHub to attach it to. Nothing is sent unless you send it.</key>
+	<string>Mimic puts what macOS noted about the crash, its own notes from before it, and which Mac and version this is into one file, with keys and passwords taken out. Then it shows you the file and opens a form on GitHub to attach it to. Nothing is sent unless you send it.</string>
+	<key>Mimic quit unexpectedly last time. Report it?</key>
+	<string>Mimic quit unexpectedly last time. Report it?</string>
+	<key>Mimic redraws it as a grey statue, which the 3D engine understands far better. Turn it off if your picture is already a grey 3D model, or to keep its colours for Export for Virtual Tabletop: the shape may come out less clean.</key>
+	<string>Mimic redraws it as a grey statue, which the 3D engine understands far better. Turn it off if your picture is already a grey 3D model, or to keep its colours for Export for Virtual Tabletop: the shape may come out less clean.</string>
+	<key>Mimic redraws the picture with this change and shows it to you before building the 3D shape</key>
+	<string>Mimic redraws the picture with this change and shows it to you before building the 3D shape</string>
+	<key>Mimic stopped while making it. Resize it to try again.</key>
+	<string>Mimic stopped while making it. Resize it to try again.</string>
+	<key>Mimic stopped while making it. Try Again.</key>
+	<string>Mimic stopped while making it. Try Again.</string>
+	<key>Mimic times every mini it makes on this Mac to tell you how long the next will take. The times are kept on this Mac only and never sent anywhere.</key>
+	<string>Mimic times every mini it makes on this Mac to tell you how long the next will take. The times are kept on this Mac only and never sent anywhere.</string>
+	<key>Mimic tour</key>
+	<string>Mimic tour</string>
+	<key>Mimic turns a picture or a few words into a mini you can 3D print, right here on your Mac.</key>
+	<string>Mimic turns a picture or a few words into a mini you can 3D print, right here on your Mac.</string>
+	<key>Mimic's own figures, until you've made a few minis</key>
+	<string>Mimic's own figures, until you've made a few minis</string>
+	<key>Mini</key>
+	<string>Mini</string>
+	<key>Minis</key>
+	<string>Minis</string>
+	<key>Minis in no project. Drag minis here to take them out of theirs.</key>
+	<string>Minis in no project. Drag minis here to take them out of theirs.</string>
+	<key>Model</key>
+	<string>Model</string>
+	<key>More</key>
+	<string>More</string>
+	<key>More in the list</key>
+	<string>More in the list</string>
+	<key>More keeps swords and capes in one piece, but softens faces</key>
+	<string>More keeps swords and capes in one piece, but softens faces</string>
+	<key>More pictures of the same %@ (optional)</key>
+	<string>More pictures of the same %@ (optional)</string>
+	<key>Move %@ up</key>
+	<string>Move %@ up</string>
+	<key>Move %lld minis to the Trash?</key>
+	<string>Move %lld minis to the Trash?</string>
+	<key>Move Down</key>
+	<string>Move Down</string>
+	<key>Move Minis</key>
+	<string>Move Minis</string>
+	<key>Move Up</key>
+	<string>Move Up</string>
+	<key>Move in Queue</key>
+	<string>Move in Queue</string>
+	<key>Move to End</key>
+	<string>Move to End</string>
+	<key>Move to Front</key>
+	<string>Move to Front</string>
+	<key>Move to Project</key>
+	<string>Move to Project</string>
+	<key>Move to Trash</key>
+	<string>Move to Trash</string>
+	<key>Move your minis to “%@”?</key>
+	<string>Move your minis to “%@”?</string>
+	<key>Move “%@” to the Trash?</key>
+	<string>Move “%@” to the Trash?</string>
+	<key>Moves it to the Trash; Edit → Undo puts it back</key>
+	<string>Moves it to the Trash; Edit → Undo puts it back</string>
+	<key>Moves them to the Trash; Edit → Undo puts them back</key>
+	<string>Moves them to the Trash; Edit → Undo puts them back</string>
+	<key>Moving your minis…</key>
+	<string>Moving your minis…</string>
+	<key>Name</key>
+	<string>Name</string>
+	<key>Name of the copy</key>
+	<string>Name of the copy</string>
+	<key>Name the new project</key>
+	<string>Name the new project</string>
+	<key>Name the new project, then drop the pictures again.</key>
+	<string>Name the new project, then drop the pictures again.</string>
+	<key>Names can only use lowercase letters, numbers and dashes.</key>
+	<string>Names can only use lowercase letters, numbers and dashes.</string>
+	<key>Nearly done</key>
+	<string>Nearly done</string>
+	<key>Needed to make minis</key>
+	<string>Needed to make minis</string>
+	<key>Needs Setup</key>
+	<string>Needs Setup</string>
+	<key>Needs fixing</key>
+	<string>Needs fixing</string>
+	<key>Never</key>
+	<string>Never</string>
+	<key>New 3D Shape of “%@”</key>
+	<string>New 3D Shape of “%@”</string>
+	<key>New 3D Shape…</key>
+	<string>New 3D Shape…</string>
+	<key>New Mini</key>
+	<string>New Mini</string>
+	<key>New Mini in This Project…</key>
+	<string>New Mini in This Project…</string>
+	<key>New Mini…</key>
+	<string>New Mini…</string>
+	<key>New Project</key>
+	<string>New Project</string>
+	<key>New Project…</key>
+	<string>New Project…</string>
+	<key>New minis are made with the model in use, and cartoons with Pixal3D. Try Again uses the model a mini was first made with.</key>
+	<string>New minis are made with the model in use, and cartoons with Pixal3D. Try Again uses the model a mini was first made with.</string>
+	<key>New name</key>
+	<string>New name</string>
+	<key>New project's name</key>
+	<string>New project's name</string>
+	<key>Next</key>
+	<string>Next</string>
+	<key>No %@</key>
+	<string>No %@</string>
+	<key>No %@ key is saved. Paste yours in Settings, under Pictures.</key>
+	<string>No %@ key is saved. Paste yours in Settings, under Pictures.</string>
+	<key>No AI helper is set up. Choose one in Settings → Pictures.</key>
+	<string>No AI helper is set up. Choose one in Settings → Pictures.</string>
+	<key>No API key saved for this address. Paste yours in Settings → Pictures.</key>
+	<string>No API key saved for this address. Paste yours in Settings → Pictures.</string>
+	<key>No internet connection. Connect, then try again.</key>
+	<string>No internet connection. Connect, then try again.</string>
+	<key>No mini selected</key>
+	<string>No mini selected</string>
+	<key>No minis yet</key>
+	<string>No minis yet</string>
+	<key>No models installed yet. In Terminal: ollama pull gemma3</key>
+	<string>No models installed yet. In Terminal: ollama pull gemma3</string>
+	<key>None</key>
+	<string>None</string>
+	<key>None of these minis can be resized right now.</key>
+	<string>None of these minis can be resized right now.</string>
+	<key>Not Now</key>
+	<string>Not Now</string>
+	<key>Not done</key>
+	<string>Not done</string>
+	<key>Not finished</key>
+	<string>Not finished</string>
+	<key>Not in its colours: %@.</key>
+	<string>Not in its colours: %@.</string>
+	<key>Not sure? Most printers come with 0.4 mm. Choose the same nozzle in your slicer.</key>
+	<string>Not sure? Most printers come with 0.4 mm. Choose the same nozzle in your slicer.</string>
+	<key>Nothing was kept. It's in the Trash if you want the pieces.</key>
+	<string>Nothing was kept. It's in the Trash if you want the pieces.</string>
+	<key>Nozzle</key>
+	<string>Nozzle</string>
+	<key>OK</key>
+	<string>OK</string>
+	<key>Object</key>
+	<string>Object</string>
+	<key>Objects</key>
+	<string>Objects</string>
+	<key>Off</key>
+	<string>Off</string>
+	<key>Off for a model you imported: there's no picture or description to make it again from. Resize and Duplicate work.</key>
+	<string>Off for a model you imported: there's no picture or description to make it again from. Resize and Duplicate work.</string>
+	<key>Off: it stands on its own flat bottom</key>
+	<string>Off: it stands on its own flat bottom</string>
+	<key>Ollama isn't running. Open the Ollama app, then try again.</key>
+	<string>Ollama isn't running. Open the Ollama app, then try again.</string>
+	<key>Ollama, on this Mac</key>
+	<string>Ollama, on this Mac</string>
+	<key>On</key>
+	<string>On</string>
+	<key>On battery · %lld waiting</key>
+	<string>On battery · %lld waiting</string>
+	<key>One print file with all of them on the bed, each its own object named after it.</key>
+	<string>One print file with all of them on the bed, each its own object named after it.</string>
+	<key>One size for all of them; each waits its turn</key>
+	<string>One size for all of them; each waits its turn</string>
+	<key>One thing before your first mini: Mimic needs its 3D engine, the part that turns a picture into a model. It runs on your Mac, so nothing you make is uploaded.</key>
+	<string>One thing before your first mini: Mimic needs its 3D engine, the part that turns a picture into a model. It runs on your Mac, so nothing you make is uploaded.</string>
+	<key>Online pictures aren't set up yet.</key>
+	<string>Online pictures aren't set up yet.</string>
+	<key>Open Draw Things when needed</key>
+	<string>Open Draw Things when needed</string>
+	<key>Open Draw Things, then Settings → Advanced → API Server: turn it on, choose HTTP, port 7860.</key>
+	<string>Open Draw Things, then Settings → Advanced → API Server: turn it on, choose HTTP, port 7860.</string>
+	<key>Open Minis Folder</key>
+	<string>Open Minis Folder</string>
+	<key>Open Settings</key>
+	<string>Open Settings</string>
+	<key>Open Setup</key>
+	<string>Open Setup</string>
+	<key>Open Together in %@</key>
+	<string>Open Together in %@</string>
+	<key>Open in %@</key>
+	<string>Open in %@</string>
+	<key>Open minis in</key>
+	<string>Open minis in</string>
+	<key>Open the App Store</key>
+	<string>Open the App Store</string>
+	<key>Open the mini and try again from there.</key>
+	<string>Open the mini and try again from there.</string>
+	<key>Open the mini and try from there.</key>
+	<string>Open the mini and try from there.</string>
+	<key>Open them one at a time instead.</key>
+	<string>Open them one at a time instead.</string>
+	<key>OpenAI-compatible service</key>
+	<string>OpenAI-compatible service</string>
+	<key>Opening Draw Things…</key>
+	<string>Opening Draw Things…</string>
+	<key>Opens Draw Things in the background when a mini needs a picture</key>
+	<string>Opens Draw Things in the background when a mini needs a picture</string>
+	<key>Opens New Mini filled in from this mini, to change what you like</key>
+	<string>Opens New Mini filled in from this mini, to change what you like</string>
+	<key>Opens New Mini with a sample picture of a dwarf, ready to make.</key>
+	<string>Opens New Mini with a sample picture of a dwarf, ready to make.</string>
+	<key>Opens the print file in %@ to slice and print</key>
+	<string>Opens the print file in %@ to slice and print</string>
+	<key>Optional</key>
+	<string>Optional</string>
+	<key>Optional, not set up</key>
+	<string>Optional, not set up</string>
+	<key>Optional. A cloud helper receives only what you type: a description, or what to change in a picture, never the picture itself. Keys are kept in your Mac's Keychain.</key>
+	<string>Optional. A cloud helper receives only what you type: a description, or what to change in a picture, never the picture itself. Keys are kept in your Mac's Keychain.</string>
+	<key>Optional. Ollama runs on this Mac, so what you type stays here.</key>
+	<string>Optional. Ollama runs on this Mac, so what you type stays here.</string>
+	<key>Optional: describe a character or make grey sculpts. Set it up later in Settings → Pictures.</key>
+	<string>Optional: describe a character or make grey sculpts. Set it up later in Settings → Pictures.</string>
+	<key>Paste your key</key>
+	<string>Paste your key</string>
+	<key>Pause After This One</key>
+	<string>Pause After This One</string>
+	<key>Pause Queue</key>
+	<string>Pause Queue</string>
+	<key>Paused · %lld waiting</key>
+	<string>Paused · %lld waiting</string>
+	<key>Pick a mini on the left.</key>
+	<string>Pick a mini on the left.</string>
+	<key>Pick one of your Ollama models in Settings.</key>
+	<string>Pick one of your Ollama models in Settings.</string>
+	<key>Pick the scale your other minis use.</key>
+	<string>Pick the scale your other minis use.</string>
+	<key>Picture</key>
+	<string>Picture</string>
+	<key>Picture Options</key>
+	<string>Picture Options</string>
+	<key>Picture added.</key>
+	<string>Picture added.</string>
+	<key>Picture pasted.</key>
+	<string>Picture pasted.</string>
+	<key>Picture ready to check</key>
+	<string>Picture ready to check</string>
+	<key>Pictures</key>
+	<string>Pictures</string>
+	<key>Pictures of the %@ and %@</key>
+	<string>Pictures of the %@ and %@</string>
+	<key>Pictures of the back and sides go with a picture of the front, not a description.</key>
+	<string>Pictures of the back and sides go with a picture of the front, not a description.</string>
+	<key>Pictures work right away. To describe a character or turn a picture into a grey sculpt, Mimic needs the free Draw Things app. This list updates on its own.</key>
+	<string>Pictures work right away. To describe a character or turn a picture into a grey sculpt, Mimic needs the free Draw Things app. This list updates on its own.</string>
+	<key>Plain, or a floor pressed into the top of the base: flagstones, planks or cobblestones</key>
+	<string>Plain, or a floor pressed into the top of the base: flagstones, planks or cobblestones</string>
+	<key>Press + (or ⌘N) to start one from a picture or a description. To learn by doing, use the sample dwarf.</key>
+	<string>Press + (or ⌘N) to start one from a picture or a description. To learn by doing, use the sample dwarf.</string>
+	<key>Press Make Mini to make your dwarf; the time it takes is beside the button. Its progress opens in the toolbar, and the tour carries on when you close it.</key>
+	<string>Press Make Mini to make your dwarf; the time it takes is beside the button. Its progress opens in the toolbar, and the tour carries on when you close it.</string>
+	<key>Previews</key>
+	<string>Previews</string>
+	<key>Print copies, resize, make it again with changes, export it for a virtual tabletop, or show it in Finder</key>
+	<string>Print copies, resize, make it again with changes, export it for a virtual tabletop, or show it in Finder</string>
+	<key>Print it as it sits: its bottom is already flat. Add a brim if it's tall and narrow.</key>
+	<string>Print it as it sits: its bottom is already flat. Add a brim if it's tall and narrow.</string>
+	<key>Print tips for a %@ mm nozzle</key>
+	<string>Print tips for a %@ mm nozzle</string>
+	<key>Progress</key>
+	<string>Progress</string>
+	<key>Project</key>
+	<string>Project</string>
+	<key>Project name</key>
+	<string>Project name</string>
+	<key>Queue</key>
+	<string>Queue</string>
+	<key>Quick and sturdy; small details blur. Best at 54 mm scale or bigger.</key>
+	<string>Quick and sturdy; small details blur. Best at 54 mm scale or bigger.</string>
+	<key>Quick and sturdy; small details blur. Best for big, simple shapes.</key>
+	<string>Quick and sturdy; small details blur. Best for big, simple shapes.</string>
+	<key>Quit</key>
+	<string>Quit</string>
+	<key>Quitting stops it for now. The next time you open Mimic, it carries on from the last step it finished.</key>
+	<string>Quitting stops it for now. The next time you open Mimic, it carries on from the last step it finished.</string>
+	<key>Quitting stops the download. Start it again later and it picks up where it left off.</key>
+	<string>Quitting stops the download. Start it again later and it picks up where it left off.</string>
+	<key>Ready</key>
+	<string>Ready</string>
+	<key>Ready in %@.</key>
+	<string>Ready in %@.</string>
+	<key>Ready to print.</key>
+	<string>Ready to print.</string>
+	<key>Redraws your picture as a grey statue with the same pose</key>
+	<string>Redraws your picture as a grey statue with the same pose</string>
+	<key>Refresh</key>
+	<string>Refresh</string>
+	<key>Remakes every mini's print file with these sizes, one after another, %@ each. Minis already this size are left out. The minis themselves don't change.</key>
+	<string>Remakes every mini's print file with these sizes, one after another, %@ each. Minis already this size are left out. The minis themselves don't change.</string>
+	<key>Remakes the print file at new sizes, in about a minute</key>
+	<string>Remakes the print file at new sizes, in about a minute</string>
+	<key>Remakes the print file with these sizes. %@. The %@ itself doesn't change.</key>
+	<string>Remakes the print file with these sizes. %@. The %@ itself doesn't change.</string>
+	<key>Remove %@</key>
+	<string>Remove %@</string>
+	<key>Remove %@ from the queue</key>
+	<string>Remove %@ from the queue</string>
+	<key>Remove %@?</key>
+	<string>Remove %@?</string>
+	<key>Remove Key</key>
+	<string>Remove Key</string>
+	<key>Remove from Queue</key>
+	<string>Remove from Queue</string>
+	<key>Remove from Queue…</key>
+	<string>Remove from Queue…</string>
+	<key>Remove it from the queue</key>
+	<string>Remove it from the queue</string>
+	<key>Remove the picture of the %@</key>
+	<string>Remove the picture of the %@</string>
+	<key>Remove the saved key?</key>
+	<string>Remove the saved key?</string>
+	<key>Remove this picture</key>
+	<string>Remove this picture</string>
+	<key>Remove “%@” from the queue?</key>
+	<string>Remove “%@” from the queue?</string>
+	<key>Removed %@ from the queue.</key>
+	<string>Removed %@ from the queue.</string>
+	<key>Remove…</key>
+	<string>Remove…</string>
+	<key>Rename</key>
+	<string>Rename</string>
+	<key>Rename Project…</key>
+	<string>Rename Project…</string>
+	<key>Rename “%@”</key>
+	<string>Rename “%@”</string>
+	<key>Rename…</key>
+	<string>Rename…</string>
+	<key>Repair</key>
+	<string>Repair</string>
+	<key>Report</key>
+	<string>Report</string>
+	<key>Report a Problem…</key>
+	<string>Report a Problem…</string>
+	<key>Report a problem with “%@”?</key>
+	<string>Report a problem with “%@”?</string>
+	<key>Report a problem?</key>
+	<string>Report a problem?</string>
+	<key>Reset</key>
+	<string>Reset</string>
+	<key>Reset All</key>
+	<string>Reset All</string>
+	<key>Reset Mimic?</key>
+	<string>Reset Mimic?</string>
+	<key>Reset Mimic…</key>
+	<string>Reset Mimic…</string>
+	<key>Resize</key>
+	<string>Resize</string>
+	<key>Resize %@</key>
+	<string>Resize %@</string>
+	<key>Resize %lld Minis</key>
+	<string>Resize %lld Minis</string>
+	<key>Resize %lld Minis…</key>
+	<string>Resize %lld Minis…</string>
+	<key>Resize All</key>
+	<string>Resize All</string>
+	<key>Resize All in %@</key>
+	<string>Resize All in %@</string>
+	<key>Resize All…</key>
+	<string>Resize All…</string>
+	<key>Resize This Mini…</key>
+	<string>Resize This Mini…</string>
+	<key>Resize them together, move them to a project, or move them to the Trash.</key>
+	<string>Resize them together, move them to a project, or move them to the Trash.</string>
+	<key>Resize · takes %@</key>
+	<string>Resize · takes %@</string>
+	<key>Resizing</key>
+	<string>Resizing</string>
+	<key>Resume Download</key>
+	<string>Resume Download</string>
+	<key>Resume Queue</key>
+	<string>Resume Queue</string>
+	<key>Right</key>
+	<string>Right</string>
+	<key>Right-click a mini for more, press Space to preview it, or drag it into a project (⇧⌘N makes one).</key>
+	<string>Right-click a mini for more, press Space to preview it, or drag it into a project (⇧⌘N makes one).</string>
+	<key>Roughly the filament for every mini in it, printed solid</key>
+	<string>Roughly the filament for every mini in it, printed solid</string>
+	<key>Round</key>
+	<string>Round</string>
+	<key>Same description and same number give the same drawing</key>
+	<string>Same description and same number give the same drawing</string>
+	<key>Save</key>
+	<string>Save</string>
+	<key>Scale</key>
+	<string>Scale</string>
+	<key>See what's new and update</key>
+	<string>See what's new and update</string>
+	<key>Service address</key>
+	<string>Service address</string>
+	<key>Set Up</key>
+	<string>Set Up</string>
+	<key>Set by your nozzle.</key>
+	<string>Set by your nozzle.</string>
+	<key>Set for you by the choices above.</key>
+	<string>Set for you by the choices above.</string>
+	<key>Set for your nozzle; type a value or drag to change it</key>
+	<string>Set for your nozzle; type a value or drag to change it</string>
+	<key>Set to %@. Keys are kept per address: one saved here is only sent to %@.</key>
+	<string>Set to %@. Keys are kept per address: one saved here is only sent to %@.</string>
+	<key>Set up Draw Things</key>
+	<string>Set up Draw Things</string>
+	<key>Settings</key>
+	<string>Settings</string>
+	<key>Settings (⌘,) is where you choose your slicer and set up Draw Things. If something needs you, Needs Setup appears in the toolbar.</key>
+	<string>Settings (⌘,) is where you choose your slicer and set up Draw Things. If something needs you, Needs Setup appears in the toolbar.</string>
+	<key>Setup stopped. Press Try Again: it carries on where it stopped.</key>
+	<string>Setup stopped. Press Try Again: it carries on where it stopped.</string>
+	<key>Several of each on the plate, in one print file</key>
+	<string>Several of each on the plate, in one print file</string>
+	<key>Several of this mini on the plate, in one print file</key>
+	<string>Several of this mini on the plate, in one print file</string>
+	<key>Shape</key>
+	<string>Shape</string>
+	<key>Shapes and edges come out clearly; fine texture gets softened. A good balance.</key>
+	<string>Shapes and edges come out clearly; fine texture gets softened. A good balance.</string>
+	<key>Sharp faces, beard braids and belt buckles. Slow, but the most detail.</key>
+	<string>Sharp faces, beard braids and belt buckles. Slow, but the most detail.</string>
+	<key>Show</key>
+	<string>Show</string>
+	<key>Show All Minis</key>
+	<string>Show All Minis</string>
+	<key>Show Details</key>
+	<string>Show Details</string>
+	<key>Show Mini</key>
+	<string>Show Mini</string>
+	<key>Show Picture</key>
+	<string>Show Picture</string>
+	<key>Show Progress</key>
+	<string>Show Progress</string>
+	<key>Show Tour</key>
+	<string>Show Tour</string>
+	<key>Show how it went</key>
+	<string>Show how it went</string>
+	<key>Show in Finder</key>
+	<string>Show in Finder</string>
+	<key>Show progress, the queue and Stop</key>
+	<string>Show progress, the queue and Stop</string>
+	<key>Show size, previews, versions and print tips (⌃⌘I)</key>
+	<string>Show size, previews, versions and print tips (⌃⌘I)</string>
+	<key>Show something of a known size next to the mini, at its true scale</key>
+	<string>Show something of a known size next to the mini, at its true scale</string>
+	<key>Showing %@ only. Click to show all or sort.</key>
+	<string>Showing %@ only. Click to show all or sort.</string>
+	<key>Shows the print file and the previews in Finder.</key>
+	<string>Shows the print file and the previews in Finder.</string>
+	<key>Shows this version.</key>
+	<string>Shows this version.</string>
+	<key>Shows two versions in 3D next to each other, turning and zooming together.</key>
+	<string>Shows two versions in 3D next to each other, turning and zooming together.</string>
+	<key>Side</key>
+	<string>Side</string>
+	<key>Size</key>
+	<string>Size</string>
+	<key>Size &amp; printer</key>
+	<string>Size &amp; printer</string>
+	<key>Size Reference</key>
+	<string>Size Reference</string>
+	<key>Size and nozzle</key>
+	<string>Size and nozzle</string>
+	<key>Size for</key>
+	<string>Size for</string>
+	<key>Sized so details come out clearly on a %@ mm nozzle: about %lld mm on its longest side. Change it to the size you want.</key>
+	<string>Sized so details come out clearly on a %@ mm nozzle: about %lld mm on its longest side. Change it to the size you want.</string>
+	<key>Sized so faces come out clearly on a %@ mm nozzle: about %lld mm tall. Chunky characters also look good a bit smaller.</key>
+	<string>Sized so faces come out clearly on a %@ mm nozzle: about %lld mm tall. Chunky characters also look good a bit smaller.</string>
+	<key>Skip Tour</key>
+	<string>Skip Tour</string>
+	<key>Skipped %@: Mimic can't use it.</key>
+	<string>Skipped %@: Mimic can't use it.</string>
+	<key>Skipped %@: Mimic can't use them.</key>
+	<string>Skipped %@: Mimic can't use them.</string>
+	<key>Skipped %lld: not made yet, or already waiting or being made.</key>
+	<string>Skipped %lld: not made yet, or already waiting or being made.</string>
+	<key>Solid objects with bold shapes work best. Thin handles, wires and fine texture may come out soft.</key>
+	<string>Solid objects with bold shapes work best. Thin handles, wires and fine texture may come out soft.</string>
+	<key>Some of the 3D model files are missing. Download fetches only what's missing (up to %@ GB).</key>
+	<string>Some of the 3D model files are missing. Download fetches only what's missing (up to %@ GB).</string>
+	<key>Something went wrong while %@</key>
+	<string>Something went wrong while %@</string>
+	<key>Something went wrong while %@.</key>
+	<string>Something went wrong while %@.</string>
+	<key>Sort By</key>
+	<string>Sort By</string>
+	<key>Sort and Show</key>
+	<string>Sort and Show</string>
+	<key>Sort the list, or show only some minis</key>
+	<string>Sort the list, or show only some minis</string>
+	<key>Source</key>
+	<string>Source</string>
+	<key>Square</key>
+	<string>Square</string>
+	<key>Square and hex bases fit grid and hex maps; the figure faces a flat side</key>
+	<string>Square and hex bases fit grid and hex maps; the figure faces a flat side</string>
+	<key>Stand the mini upright on its base. No brim needed.</key>
+	<string>Stand the mini upright on its base. No brim needed.</string>
+	<key>Start a new mini</key>
+	<string>Start a new mini</string>
+	<key>Start from</key>
+	<string>Start from</string>
+	<key>Start from a picture of your %@, or from a description</key>
+	<string>Start from a picture of your %@, or from a description</string>
+	<key>Start minis only when plugged in</key>
+	<string>Start minis only when plugged in</string>
+	<key>Start over</key>
+	<string>Start over</string>
+	<key>Starting…</key>
+	<string>Starting…</string>
+	<key>Starts from the picture %@ was drawn as.</key>
+	<string>Starts from the picture %@ was drawn as.</string>
+	<key>Step %@</key>
+	<string>Step %@</string>
+	<key>Step %lld of 3: %@. %@ left.</key>
+	<string>Step %lld of 3: %@. %@ left.</string>
+	<key>Step %lld, %@</key>
+	<string>Step %lld, %@</string>
+	<key>Step %lld, done</key>
+	<string>Step %lld, done</string>
+	<key>Step %lld, not done</key>
+	<string>Step %lld, not done</string>
+	<key>Stop</key>
+	<string>Stop</string>
+	<key>Stop Making…</key>
+	<string>Stop Making…</string>
+	<key>Stop Resizing…</key>
+	<string>Stop Resizing…</string>
+	<key>Stopped %@</key>
+	<string>Stopped %@</string>
+	<key>Stopped %@ %@</key>
+	<string>Stopped %@ %@</string>
+	<key>Stopped.</key>
+	<string>Stopped.</string>
+	<key>Stop…</key>
+	<string>Stop…</string>
+	<key>TRELLIS.2 can also use pictures of the back and sides.</key>
+	<string>TRELLIS.2 can also use pictures of the back and sides.</string>
+	<key>Takes %@ on this Mac; keep using your Mac meanwhile</key>
+	<string>Takes %@ on this Mac; keep using your Mac meanwhile</string>
+	<key>Takes %@; keep using your Mac meanwhile</key>
+	<string>Takes %@; keep using your Mac meanwhile</string>
+	<key>Test</key>
+	<string>Test</string>
+	<key>That folder already has minis or projects called %@. Rename yours first, or use the folder without moving your minis.</key>
+	<string>That folder already has minis or projects called %@. Rename yours first, or use the folder without moving your minis.</string>
+	<key>That folder already has minis, and Mimic shows them either way. Yours stay where they are now unless you move them.</key>
+	<string>That folder already has minis, and Mimic shows them either way. Yours stay where they are now unless you move them.</string>
+	<key>That mini doesn't exist.</key>
+	<string>That mini doesn't exist.</string>
+	<key>That model is too big for Mimic to read. Try a simpler one, with fewer triangles.</key>
+	<string>That model is too big for Mimic to read. Try a simpler one, with fewer triangles.</string>
+	<key>That picture can't be found any more. Choose it again.</key>
+	<string>That picture can't be found any more. Choose it again.</string>
+	<key>That picture can't be read.</key>
+	<string>That picture can't be read.</string>
+	<key>That project doesn't exist.</key>
+	<string>That project doesn't exist.</string>
+	<key>That service address doesn't look right. It should start with https://.</key>
+	<string>That service address doesn't look right. It should start with https://.</string>
+	<key>The %@ 3D model isn't downloaded. Open Settings → 3D Model to download it.</key>
+	<string>The %@ 3D model isn't downloaded. Open Settings → 3D Model to download it.</string>
+	<key>The %@ must be a number from %@ to %@ mm.</key>
+	<string>The %@ must be a number from %@ to %@ mm.</string>
+	<key>The 3D engine</key>
+	<string>The 3D engine</string>
+	<key>The 3D engine downloaded but doesn't start on this Mac. Mimic needs a Mac with an Apple chip (M1 or newer).</key>
+	<string>The 3D engine downloaded but doesn't start on this Mac. Mimic needs a Mac with an Apple chip (M1 or newer).</string>
+	<key>The 3D engine is missing (%@). Open Mimic's Settings and press Repair next to the 3D engine.</key>
+	<string>The 3D engine is missing (%@). Open Mimic's Settings and press Repair next to the 3D engine.</string>
+	<key>The 3D engine is missing or won't start. Repair downloads it again.</key>
+	<string>The 3D engine is missing or won't start. Repair downloads it again.</string>
+	<key>The AI helper writes a fuller description you can edit</key>
+	<string>The AI helper writes a fuller description you can edit</string>
+	<key>The API key was turned down. Copy it again from your account and save it in Settings.</key>
+	<string>The API key was turned down. Copy it again from your account and save it in Settings.</string>
+	<key>The copy has the same shape. Next, choose its size: making it takes about a minute.</key>
+	<string>The copy has the same shape. Next, choose its size: making it takes about a minute.</string>
+	<key>The crispest surface detail, and the fastest. Sometimes loses or misplaces something a figure holds; Make Another Version usually fixes it.</key>
+	<string>The crispest surface detail, and the fastest. Sometimes loses or misplaces something a figure holds; Make Another Version usually fixes it.</string>
+	<key>The download server had a problem (error %lld). Wait a few minutes, then press Try Again.</key>
+	<string>The download server had a problem (error %lld). Wait a few minutes, then press Try Again.</string>
+	<key>The empty project goes to the Trash.</key>
+	<string>The empty project goes to the Trash.</string>
+	<key>The folder it's kept in, and where it's listed on the left.</key>
+	<string>The folder it's kept in, and where it's listed on the left.</string>
+	<key>The grey sculpt needs %@.</key>
+	<string>The grey sculpt needs %@.</string>
+	<key>The helper answered with nothing. Try again.</key>
+	<string>The helper answered with nothing. Try again.</string>
+	<key>The helper couldn't answer.</key>
+	<string>The helper couldn't answer.</string>
+	<key>The helper said no: %@</key>
+	<string>The helper said no: %@</string>
+	<key>The helper took too long to answer. Try again.</key>
+	<string>The helper took too long to answer. Try again.</string>
+	<key>The list shows only %@ for now.</key>
+	<string>The list shows only %@ for now.</string>
+	<key>The model %@ isn't installed in Ollama. In Terminal: ollama pull %@</key>
+	<string>The model %@ isn't installed in Ollama. In Terminal: ollama pull %@</string>
+	<key>The model's name, as the service writes it</key>
+	<string>The model's name, as the service writes it</string>
+	<key>The most reliable with what a figure holds or carries: a weapon, a bow, a pet on a shoulder. A slightly softer surface, and slower on bulky figures.</key>
+	<string>The most reliable with what a figure holds or carries: a weapon, a bow, a pet on a shoulder. A slightly softer surface, and slower on bulky figures.</string>
+	<key>The next mini waits until your Mac is plugged in. One already being made carries on.</key>
+	<string>The next mini waits until your Mac is plugged in. One already being made carries on.</string>
+	<key>The nozzle must be 0.2, 0.4 or 0.6 mm.</key>
+	<string>The nozzle must be 0.2, 0.4 or 0.6 mm.</string>
+	<key>The other versions are in the Trash, so the plain name is free.</key>
+	<string>The other versions are in the Trash, so the plain name is free.</string>
+	<key>The picture %@ was made from</key>
+	<string>The picture %@ was made from</string>
+	<key>The picture of %@</key>
+	<string>The picture of %@</string>
+	<key>The picture of %@ is ready</key>
+	<string>The picture of %@ is ready</string>
+	<key>The queue carries on with the next one.</key>
+	<string>The queue carries on with the next one.</string>
+	<key>The queue is paused. Resume it to carry on.</key>
+	<string>The queue is paused. Resume it to carry on.</string>
+	<key>The service doesn't know a model called %@. Check its name in Settings.</key>
+	<string>The service doesn't know a model called %@. Check its name in Settings.</string>
+	<key>The service is busy right now. Try again in a minute.</key>
+	<string>The service is busy right now. Try again in a minute.</string>
+	<key>The service's API address; leave blank for OpenAI</key>
+	<string>The service's API address; leave blank for OpenAI</string>
+	<key>The test didn't work. Check the key, then try again.</key>
+	<string>The test didn't work. Check the key, then try again.</string>
+	<key>The test didn't work. Check the settings above, then try again.</key>
+	<string>The test didn't work. Check the settings above, then try again.</string>
+	<key>The tip your printer prints through, chosen in Settings → General. Choose the same nozzle in your slicer.</key>
+	<string>The tip your printer prints through, chosen in Settings → General. Choose the same nozzle in your slicer.</string>
+	<key>The tip your printer prints through; finer keeps more detail. New minis are sized for it.</key>
+	<string>The tip your printer prints through; finer keeps more detail. New minis are sized for it.</string>
+	<key>The version you're looking at.</key>
+	<string>The version you're looking at.</string>
+	<key>The whole object, plain background</key>
+	<string>The whole object, plain background</string>
+	<key>Then</key>
+	<string>Then</string>
+	<key>They go side by side on the plate in one print file.</key>
+	<string>They go side by side on the plate in one print file.</string>
+	<key>They're all already that size.</key>
+	<string>They're all already that size.</string>
+	<key>This 3D engine ignores PIXAL3D_STEPS, so it would run the slow way. Stopped it before wasting the run. Open Mimic's Settings and press Repair next to the 3D engine.</key>
+	<string>This 3D engine ignores PIXAL3D_STEPS, so it would run the slow way. Stopped it before wasting the run. Open Mimic's Settings and press Repair next to the 3D engine.</string>
+	<key>This Mac has %llu GB of memory. Mimic is made for Macs with 32 GB, so making a mini may be very slow or fail here.</key>
+	<string>This Mac has %llu GB of memory. Mimic is made for Macs with 32 GB, so making a mini may be very slow or fail here.</string>
+	<key>This Mimic doesn't know a 3D model called %@. Update Mimic, or make it again with another model.</key>
+	<string>This Mimic doesn't know a 3D model called %@. Update Mimic, or make it again with another model.</string>
+	<key>This copy of Mimic was started with a folder of its own, so it can't be changed here.</key>
+	<string>This copy of Mimic was started with a folder of its own, so it can't be changed here.</string>
+	<key>This frees about %@ GB. Minis you made with it stay. You can download it again any time.</key>
+	<string>This frees about %@ GB. Minis you made with it stay. You can download it again any time.</string>
+	<key>This mini can't be retried: its picture or description wasn't saved.</key>
+	<string>This mini can't be retried: its picture or description wasn't saved.</string>
+	<key>This mini didn't finish</key>
+	<string>This mini didn't finish</string>
+	<key>This mini isn't finished yet</key>
+	<string>This mini isn't finished yet</string>
+	<key>This mini isn't made yet.</key>
+	<string>This mini isn't made yet.</string>
+	<key>This picture is small, so the mini may come out blobby. A bigger picture works better.</key>
+	<string>This picture is small, so the mini may come out blobby. A bigger picture works better.</string>
+	<key>This picture is wider than it is tall, so it may not show the whole body. A full-body picture works best.</key>
+	<string>This picture is wider than it is tall, so it may not show the whole body. A full-body picture works best.</string>
+	<key>Those waiting leave the queue. You can put them back from the Trash, but not in the queue.</key>
+	<string>Those waiting leave the queue. You can put them back from the Trash, but not in the queue.</string>
+	<key>Time estimates</key>
+	<string>Time estimates</string>
+	<key>Top</key>
+	<string>Top</string>
+	<key>Try Again</key>
+	<string>Try Again</string>
+	<key>Try Resize This Mini with other sizes, or check the model in the app it came from.</key>
+	<string>Try Resize This Mini with other sizes, or check the model in the app it came from.</string>
+	<key>Try Show in Finder and delete it there.</key>
+	<string>Try Show in Finder and delete it there.</string>
+	<key>Try Show in Finder and move it to the Trash there.</key>
+	<string>Try Show in Finder and move it to the Trash there.</string>
+	<key>Try again, or save it somewhere else.</key>
+	<string>Try again, or save it somewhere else.</string>
+	<key>Try again, or use a clearer, full-body picture.</key>
+	<string>Try again, or use a clearer, full-body picture.</string>
+	<key>Try again.</key>
+	<string>Try again.</string>
+	<key>Turn it into a grey sculpt first (recommended)</key>
+	<string>Turn it into a grey sculpt first (recommended)</string>
+	<key>Turn the mini back to face you and zoom back out (⌘0, or double-click it)</key>
+	<string>Turn the mini back to face you and zoom back out (⌘0, or double-click it)</string>
+	<key>Turning or zooming one turns and zooms both.</key>
+	<string>Turning or zooming one turns and zooms both.</string>
+	<key>Turns a mini into instructions for your printer.</key>
+	<string>Turns a mini into instructions for your printer.</string>
+	<key>Turns your picture into a 3D shape, on your Mac's graphics chip.</key>
+	<string>Turns your picture into a 3D shape, on your Mac's graphics chip.</string>
+	<key>Type a value or drag to change it. The base adds about 2 mm.</key>
+	<string>Type a value or drag to change it. The base adds about 2 mm.</string>
+	<key>Type the model's name in Settings.</key>
+	<string>Type the model's name in Settings.</string>
+	<key>Unfinished Minis</key>
+	<string>Unfinished Minis</string>
+	<key>Unsorted</key>
+	<string>Unsorted</string>
+	<key>Up to %@ g · %@ m</key>
+	<string>Up to %@ g · %@ m</string>
+	<key>Updates</key>
+	<string>Updates</string>
+	<key>Upright on its base, no brim</key>
+	<string>Upright on its base, no brim</string>
+	<key>Use</key>
+	<string>Use</string>
+	<key>Use %@</key>
+	<string>Use %@</string>
+	<key>Use %@ mm</key>
+	<string>Use %@ mm</string>
+	<key>Use It</key>
+	<string>Use It</string>
+	<key>Use Original</key>
+	<string>Use Original</string>
+	<key>Use This Folder</key>
+	<string>Use This Folder</string>
+	<key>Use the Sample</key>
+	<string>Use the Sample</string>
+	<key>Use the character's own base instead of adding one</key>
+	<string>Use the character's own base instead of adding one</string>
+	<key>Variation number</key>
+	<string>Variation number</string>
+	<key>Version</key>
+	<string>Version</string>
+	<key>Versions</key>
+	<string>Versions</string>
+	<key>Wait for the mini being made to finish</key>
+	<string>Wait for the mini being made to finish</string>
+	<key>Wait for the mini being made to finish.</key>
+	<string>Wait for the mini being made to finish.</string>
+	<key>Waiting (%lld)</key>
+	<string>Waiting (%lld)</string>
+	<key>Waiting to be made</key>
+	<string>Waiting to be made</string>
+	<key>Welcome to Mimic</key>
+	<string>Welcome to Mimic</string>
+	<key>What are you making?</key>
+	<string>What are you making?</string>
+	<key>What draws a character from a description and turns a picture into a grey sculpt</key>
+	<string>What draws a character from a description and turns a picture into a grey sculpt</string>
+	<key>What is it?</key>
+	<string>What is it?</string>
+	<key>What the 3D engine has learned, for the 3D model in use. Downloaded once.</key>
+	<string>What the 3D engine has learned, for the 3D model in use. Downloaded once.</string>
+	<key>What to change (optional)</key>
+	<string>What to change (optional)</string>
+	<key>What to change goes with a picture. For a description, change the description instead.</key>
+	<string>What to change goes with a picture. For a description, change the description instead.</string>
+	<key>What's been made so far will be thrown away.</key>
+	<string>What's been made so far will be thrown away.</string>
+	<key>Where Open in … sends a finished mini</key>
+	<string>Where Open in … sends a finished mini</string>
+	<key>Which 3D model?</key>
+	<string>Which 3D model?</string>
+	<key>Which Mimic this is. Include it when you report a problem.</key>
+	<string>Which Mimic this is. Include it when you report a problem.</string>
+	<key>Writes a fuller description from a few words, in New Mini</key>
+	<string>Writes a fuller description from a few words, in New Mini</string>
+	<key>Writing the change…</key>
+	<string>Writing the change…</string>
+	<key>Yes</key>
+	<string>Yes</string>
+	<key>You already have a mini called %@.</key>
+	<string>You already have a mini called %@.</string>
+	<key>You already have a mini called %@. Pick a new name, or use Resize This Mini to change its size.</key>
+	<string>You already have a mini called %@. Pick a new name, or use Resize This Mini to change its size.</string>
+	<key>You already have a mini called %@. Pick a new name.</key>
+	<string>You already have a mini called %@. Pick a new name.</string>
+	<key>You already have a project or a mini called %@.</key>
+	<string>You already have a project or a mini called %@.</string>
+	<key>You can change the folder once no mini is being made or waiting in the queue.</key>
+	<string>You can change the folder once no mini is being made or waiting in the queue.</string>
+	<key>You can close this window while it downloads. Mimic carries on, and if the download stops, it picks up where it left off.</key>
+	<string>You can close this window while it downloads. Mimic carries on, and if the download stops, it picks up where it left off.</string>
+	<key>You can switch later in Settings → 3D Model.</key>
+	<string>You can switch later in Settings → 3D Model.</string>
+	<key>You typed</key>
+	<string>You typed</string>
+	<key>Your %@ account is out of credits, or has reached its spending limit. Add credits or raise your limit on their website, then try again.</key>
+	<string>Your %@ account is out of credits, or has reached its spending limit. Add credits or raise your limit on their website, then try again.</string>
+	<key>Your Mac is on battery, so the queue carries on when it's plugged in.</key>
+	<string>Your Mac is on battery, so the queue carries on when it's plugged in.</string>
+	<key>Your Mac ran out of space during the download. Free up some space (the setup screen shows how big the download is), then press Try Again.</key>
+	<string>Your Mac ran out of space during the download. Free up some space (the setup screen shows how big the download is), then press Try Again.</string>
+	<key>Your description, or the picture to redraw, is sent to %@. Each picture Mimic draws or redraws is one paid request on your account: one for a description or a grey sculpt, plus one for each side picture it redraws. A picture used as it is costs nothing. The key is kept in your Mac's Keychain.</key>
+	<string>Your description, or the picture to redraw, is sent to %@. Each picture Mimic draws or redraws is one paid request on your account: one for a description or a grey sculpt, plus one for each side picture it redraws. A picture used as it is costs nothing. The key is kept in your Mac's Keychain.</string>
+	<key>Your minis are already in that folder.</key>
+	<string>Your minis are already in that folder.</string>
+	<key>Your minis are saved in</key>
+	<string>Your minis are saved in</string>
+	<key>Your own description still works.</key>
+	<string>Your own description still works.</string>
+	<key>Your printer's nozzle</key>
+	<string>Your printer's nozzle</string>
+	<key>Yours stay where they are now unless you move them, and Mimic shows only the minis in the new folder.</key>
+	<string>Yours stay where they are now unless you move them, and Mimic shows only the minis in the new folder.</string>
+	<key>Zoom In</key>
+	<string>Zoom In</string>
+	<key>Zoom Out</key>
+	<string>Zoom Out</string>
+	<key>a working %@ key</key>
+	<string>a working %@ key</string>
+	<key>a working online key</key>
+	<string>a working online key</string>
+	<key>about %lld minutes</key>
+	<string>about %lld minutes</string>
+	<key>about %lld minutes left</key>
+	<string>about %lld minutes left</string>
+	<key>about a minute</key>
+	<string>about a minute</string>
+	<key>about a minute left</key>
+	<string>about a minute left</string>
+	<key>back</key>
+	<string>back</string>
+	<key>base</key>
+	<string>base</string>
+	<key>beside a 32 mm person</key>
+	<string>beside a 32 mm person</string>
+	<key>building the 3D shape</key>
+	<string>building the 3D shape</string>
+	<key>character</key>
+	<string>character</string>
+	<key>cobblestones</key>
+	<string>cobblestones</string>
+	<key>copies</key>
+	<string>copies</string>
+	<key>copy</key>
+	<string>copy</string>
+	<key>couldn't draw %@</key>
+	<string>couldn't draw %@</string>
+	<key>couldn't make the colours' picture</key>
+	<string>couldn't make the colours' picture</string>
+	<key>couldn't pack %@</key>
+	<string>couldn't pack %@</string>
+	<key>couldn't put %@ in place</key>
+	<string>couldn't put %@ in place</string>
+	<key>couldn't read the 3D model's colours</key>
+	<string>couldn't read the 3D model's colours</string>
+	<key>couldn't start draw-things-cli</key>
+	<string>couldn't start draw-things-cli</string>
+	<key>couldn't write %@</key>
+	<string>couldn't write %@</string>
+	<key>e.g. Dwarf Cleric</key>
+	<string>e.g. Dwarf Cleric</string>
+	<key>e.g. Teapot</key>
+	<string>e.g. Teapot</string>
+	<key>e.g. Tiefling Party</key>
+	<string>e.g. Tiefling Party</string>
+	<key>e.g. a round teapot with a curved spout and a lid</key>
+	<string>e.g. a round teapot with a curved spout and a lid</string>
+	<key>e.g. close the cape so both arms show</key>
+	<string>e.g. close the cape so both arms show</string>
+	<key>e.g. dwarf cleric holding a warhammer against his chest, shield on his back</key>
+	<string>e.g. dwarf cleric holding a warhammer against his chest, shield on his back</string>
+	<key>e.g. remove the stand, make the handle thicker</key>
+	<string>e.g. remove the stand, make the handle thicker</string>
+	<key>extra thickness</key>
+	<string>extra thickness</string>
+	<key>front</key>
+	<string>front</string>
+	<key>getting the picture ready</key>
+	<string>getting the picture ready</string>
+	<key>height</key>
+	<string>height</string>
+	<key>hex</key>
+	<string>hex</string>
+	<key>in progress</key>
+	<string>in progress</string>
+	<key>it can't be opened</key>
+	<string>it can't be opened</string>
+	<key>it gave no address to collect the picture from</key>
+	<string>it gave no address to collect the picture from</string>
+	<key>it has no shape in it</key>
+	<string>it has no shape in it</string>
+	<key>it isn't made yet</key>
+	<string>it isn't made yet</string>
+	<key>it's another kind of file</key>
+	<string>it's another kind of file</string>
+	<key>it's cut short or isn't a 3D model</key>
+	<string>it's cut short or isn't a 3D model</string>
+	<key>its 3D model has no colours saved with it</key>
+	<string>its 3D model has no colours saved with it</string>
+	<key>its 3D model is missing from its folder</key>
+	<string>its 3D model is missing from its folder</string>
+	<key>its corners are too far apart to be one model</key>
+	<string>its corners are too far apart to be one model</string>
+	<key>its shape is stored in a way Mimic can't read</key>
+	<string>its shape is stored in a way Mimic can't read</string>
+	<key>left</key>
+	<string>left</string>
+	<key>less than a minute</key>
+	<string>less than a minute</string>
+	<key>m</key>
+	<string>m</string>
+	<key>making the print-ready file</key>
+	<string>making the print-ready file</string>
+	<key>mm</key>
+	<string>mm</string>
+	<key>nearly done</key>
+	<string>nearly done</string>
+	<key>no mesh in the .glb</key>
+	<string>no mesh in the .glb</string>
+	<key>no picture in the reply</key>
+	<string>no picture in the reply</string>
+	<key>not a .glb file</key>
+	<string>not a .glb file</string>
+	<key>not an STL file</key>
+	<string>not an STL file</string>
+	<key>not started</key>
+	<string>not started</string>
+	<key>object</key>
+	<string>object</string>
+	<key>of each</key>
+	<string>of each</string>
+	<key>on a 25 mm base ring</key>
+	<string>on a 25 mm base ring</string>
+	<key>on a grid of %lld mm squares</key>
+	<string>on a grid of %lld mm squares</string>
+	<key>plain</key>
+	<string>plain</string>
+	<key>right</key>
+	<string>right</string>
+	<key>round</key>
+	<string>round</string>
+	<key>seconds</key>
+	<string>seconds</string>
+	<key>square</key>
+	<string>square</string>
+	<key>stone floor</key>
+	<string>stone floor</string>
+	<key>the .glb has no scene or no data</key>
+	<string>the .glb has no scene or no data</string>
+	<key>the .glb has triangles pointing nowhere</key>
+	<string>the .glb has triangles pointing nowhere</string>
+	<key>the .glb is cut short</key>
+	<string>the .glb is cut short</string>
+	<key>the .glb places its parts in a way Mimic can't read</key>
+	<string>the .glb places its parts in a way Mimic can't read</string>
+	<key>the .glb stores its shape in a way Mimic can't read</key>
+	<string>the .glb stores its shape in a way Mimic can't read</string>
+	<key>the .glb's parts loop back on themselves</key>
+	<string>the .glb's parts loop back on themselves</string>
+	<key>the .glb's picture places don't match its corners</key>
+	<string>the .glb's picture places don't match its corners</string>
+	<key>the .glb's positions aren't 3D</key>
+	<string>the .glb's positions aren't 3D</string>
+	<key>the link to download it had stopped working. Try again.</key>
+	<string>the link to download it had stopped working. Try again.</string>
+	<key>the model declined this description</key>
+	<string>the model declined this description</string>
+	<key>the picture it sent can't be read</key>
+	<string>the picture it sent can't be read</string>
+	<key>the print file has no triangles</key>
+	<string>the print file has no triangles</string>
+	<key>this Mimic doesn't know the 3D model it was made with, %@</key>
+	<string>this Mimic doesn't know the 3D model it was made with, %@</string>
+	<key>wooden floor</key>
+	<string>wooden floor</string>
+	<key>your slicer</key>
+	<string>your slicer</string>
+	<key>“%@” is being made, so it wasn't moved to the Trash. Move it there once it's done.</key>
+	<string>“%@” is being made, so it wasn't moved to the Trash. Move it there once it's done.</string>
+	<key>≈ %@ g filament</key>
+	<string>≈ %@ g filament</string>
+</dict>
+</plist>

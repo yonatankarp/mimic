@@ -32,21 +32,21 @@ public enum ModelImport {
 
     static func read(_ url: URL, most: Int) throws -> Read {
         let ext = url.pathExtension.lowercased()
-        guard extensions.contains(ext) else { throw RequestError.unreadableModel("it's another kind of file") }
-        guard let data = try? Data(contentsOf: url) else { throw RequestError.unreadableModel("it can't be opened") }
+        guard extensions.contains(ext) else { throw RequestError.unreadableModel(String(localized: "it's another kind of file", bundle: .mimicCore)) }
+        guard let data = try? Data(contentsOf: url) else { throw RequestError.unreadableModel(String(localized: "it can't be opened", bundle: .mimicCore)) }
         let corners: [SIMD3<Float>]
         if ext == "glb" {
             let mesh: Mesh
             do { mesh = try GLB.parse(data, painted: false, most: most).mesh }
             // The reader's own reason, such as "the .glb is too big" (#438); JSON's raw text isn't one.
             catch let e as PrepError { throw RequestError.unreadableModel(e.description) }
-            catch { throw RequestError.unreadableModel("its shape is stored in a way Mimic can't read") }
+            catch { throw RequestError.unreadableModel(String(localized: "its shape is stored in a way Mimic can't read", bundle: .mimicCore)) }
             corners = mesh.triangles.flatMap { [mesh.positions[Int($0.x)], mesh.positions[Int($0.y)], mesh.positions[Int($0.z)]] }
         } else {
             corners = try stlCorners(data)
         }
         let mesh = try weld(corners)
-        guard !mesh.triangles.isEmpty else { throw RequestError.unreadableModel("it has no shape in it") }
+        guard !mesh.triangles.isEmpty else { throw RequestError.unreadableModel(String(localized: "it has no shape in it", bundle: .mimicCore)) }
         // A GLB's units are metres by its spec, and generators' sizes vary: only an STL's are a hint.
         return Read(glb: GLB.encode(mesh), note: ext == "stl" ? unitsNote(mesh) : nil)
     }
@@ -74,18 +74,18 @@ public enum ModelImport {
         // Text: "vertex x y z" lines, three to a facet.
         let text = String(decoding: data, as: UTF8.self)
         guard text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().hasPrefix("solid") else {
-            throw RequestError.unreadableModel("it's cut short or isn't a 3D model")
+            throw RequestError.unreadableModel(String(localized: "it's cut short or isn't a 3D model", bundle: .mimicCore))
         }
         var out: [SIMD3<Float>] = []
         for line in text.split(whereSeparator: \.isNewline) {
             let words = line.split(whereSeparator: \.isWhitespace)
             guard words.first?.lowercased() == "vertex" else { continue }
             guard words.count == 4, let x = Float(words[1]), let y = Float(words[2]), let z = Float(words[3]) else {
-                throw RequestError.unreadableModel("it's cut short or isn't a 3D model")
+                throw RequestError.unreadableModel(String(localized: "it's cut short or isn't a 3D model", bundle: .mimicCore))
             }
             out.append(SIMD3(x, y, z))
         }
-        guard out.count % 3 == 0 else { throw RequestError.unreadableModel("it's cut short or isn't a 3D model") }
+        guard out.count % 3 == 0 else { throw RequestError.unreadableModel(String(localized: "it's cut short or isn't a 3D model", bundle: .mimicCore)) }
         return out
     }
 
@@ -100,7 +100,7 @@ public enum ModelImport {
         var mesh = Mesh()
         guard lo.x <= hi.x else { return mesh }
         let span = simd_length(hi - lo)
-        guard span.isFinite, span <= 1e7 else { throw RequestError.unreadableModel("its corners are too far apart to be one model") }
+        guard span.isFinite, span <= 1e7 else { throw RequestError.unreadableModel(String(localized: "its corners are too far apart to be one model", bundle: .mimicCore)) }
         let cell = max(span * 1e-6, .leastNormalMagnitude)
         var index: [SIMD3<Int32>: UInt32] = [:]
         index.reserveCapacity(corners.count / 2)
@@ -150,7 +150,8 @@ extension JobRunner {
     /// What a job of `kind` is doing, for the progress window and the list: "Making", "Resizing",
     /// or "Importing" for an import's first print prep.
     public static func doing(_ kind: JobKind, importing: Bool) -> String {
-        kind == .generate ? "Making" : importing ? "Importing" : "Resizing"
+        kind == .generate ? String(localized: "Making", bundle: .mimicCore)
+            : importing ? String(localized: "Importing", bundle: .mimicCore) : String(localized: "Resizing", bundle: .mimicCore)
     }
 
     /// Imports the 3D model at `file` as a new mini called `name` (`shown` as typed), of `kind`,

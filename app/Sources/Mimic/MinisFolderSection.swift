@@ -65,14 +65,14 @@ struct MinisFolderSection: View {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.canCreateDirectories = true
-        panel.prompt = "Use This Folder"
-        panel.message = "Choose where Mimic keeps your minis."
+        panel.prompt = String(localized: "Use This Folder")
+        panel.message = String(localized: "Choose where Mimic keeps your minis.")
         panel.directoryURL = model.install.runs.deletingLastPathComponent()
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             try MinisFolder.check(from: model.install.runs, to: url)
         } catch {
-            problem = model.plainWords(error, else: "Mimic can't use that folder. Choose another one.")
+            problem = model.plainWords(error, else: String(localized: "Mimic can't use that folder. Choose another one."))
             return
         }
         picked = url  // asks whether to move them
@@ -87,7 +87,7 @@ struct MinisFolderSection: View {
             do {
                 try await model.changeMinisFolder(to: url, moving: moving)
             } catch {
-                problem = model.plainWords(error, else: "Couldn't move your minis, so they're still where they were. Check that Mimic can write to that folder, then try again.")
+                problem = model.plainWords(error, else: String(localized: "Couldn't move your minis, so they're still where they were. Check that Mimic can write to that folder, then try again."))
             }
             changing = false
         }

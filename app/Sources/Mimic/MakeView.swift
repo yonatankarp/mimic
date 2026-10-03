@@ -282,7 +282,8 @@ struct MakeView: View {
             Spacer()
             Button("Cancel") { writingTask?.cancel(); TourGuide.shared.newMiniCancelled(); model.sheet = nil }.keyboardShortcut(.cancelAction)
             Button("Make Mini") { make() }
-                .help("Takes \(JobProgress.about(estimate.total))\(estimate.learned ? " on this Mac" : ""); keep using your Mac meanwhile")
+                .help(estimate.learned ? String(localized: "Takes \(JobProgress.about(estimate.total)) on this Mac; keep using your Mac meanwhile")
+                      : String(localized: "Takes \(JobProgress.about(estimate.total)); keep using your Mac meanwhile"))
                 .keyboardShortcut(.defaultAction)
                 .disabled(model.requiredProblem != nil || takenName != nil || missing != nil || writing)
                 .tourCallout(.make, arrow: .top)
@@ -301,7 +302,7 @@ struct MakeView: View {
     private var cartoonOn: Bool { cartoon && !object && start == .picture && health.picturesReady && pixal3dHere != false }
     /// The grey sculpt, which a cartoon always gets.
     private var sculpt: Bool { (restyle || cartoonOn) && health.picturesReady }
-    private var thing: String { object ? "object" : "character" }
+    private var thing: String { object ? String(localized: "object") : String(localized: "character") }
 
     // MARK: Picture
 
@@ -345,7 +346,7 @@ struct MakeView: View {
                 Button("Picture Options") { withAnimation(reduceMotion ? nil : .default) { pictureOptions.toggle() } }.buttonStyle(.plain)
             }
             // In sight with it closed: without them, the picture is made without the grey sculpt.
-            if !health.picturesReady { needsPictures("The grey sculpt needs \(health.pictureNeed).") }
+            if !health.picturesReady { needsPictures(String(localized: "The grey sculpt needs \(health.pictureNeed).")) }
         }
     }
 
@@ -415,7 +416,7 @@ struct MakeView: View {
     }
 
     private func sideSlot(_ side: PictureSide) -> some View {
-        let words = side == .back ? "back" : "\(side.rawValue) side"
+        let words = side == .back ? side.words : String(localized: "\(side.words) side", comment: "“left side”: in “Add a picture of the %@”")
         return Button { chooser.open(side) } label: {
             VStack(spacing: 4) {
                 if let p = sides[side] {
@@ -447,14 +448,14 @@ struct MakeView: View {
                                                            set: { sideTargeted = $0 ? side : sideTargeted == side ? nil : sideTargeted })) { providers in
             Task {
                 if let item = await PictureDrop.pictures(Array(providers.prefix(1))).first { takeSide(side, item.url) }
-                else { say("That picture can't be read.", error: true) }
+                else { say(String(localized: "That picture can't be read."), error: true) }
             }
             return true
         }
     }
 
     private func takeSide(_ side: PictureSide, _ url: URL) {
-        guard let p = Picture(url) else { return say("That picture can't be read.", error: true) }
+        guard let p = Picture(url) else { return say(String(localized: "That picture can't be read."), error: true) }
         sides[side] = p
         drawn = nil  // a change starts from the pictures chosen now
         message = nil
@@ -480,7 +481,7 @@ struct MakeView: View {
                     autoName = true
                 }
             ImproveBox(description: description, kind: card.kind.rawValue, improved: $improved, request: $improving)
-            if !health.picturesReady { needsPictures("A description needs \(health.pictureNeed).") } else { opensWhenNeeded }
+            if !health.picturesReady { needsPictures(String(localized: "A description needs \(health.pictureNeed).")) } else { opensWhenNeeded }
         }
     }
 
@@ -499,14 +500,14 @@ struct MakeView: View {
 
     /// `unnamed`: what to say when the picture came without a name to give the mini.
     private func take(_ url: URL, unnamed: String? = nil) {
-        guard let p = Picture(url) else { return say("That picture can't be read.", error: true) }
+        guard let p = Picture(url) else { return say(String(localized: "That picture can't be read."), error: true) }
         picture = p
         start = .picture
         // Another picture has none of the changes the mini it was filled in from had.
         earlierFixes = []; earlierFixUsed = nil; drawn = nil
         message = nil
         if name.isEmpty {
-            if let unnamed { say("\(unnamed) Give your mini a name."); nameFocused = true }
+            if let unnamed { say(String(localized: "\(unnamed) Give your mini a name.")); nameFocused = true }
             else { name = Rules.shownName(fromFile: url.deletingPathExtension().lastPathComponent) ?? "" }
         }
     }
@@ -516,8 +517,8 @@ struct MakeView: View {
         Task {
             let items = await PictureDrop.pictures(providers)
             if items.count > 1 { make(items.map(\.url)) }
-            else if let item = items.first { take(item.url, unnamed: item.named ? nil : "Picture added.") }
-            else { say("That picture can't be read.", error: true) }
+            else if let item = items.first { take(item.url, unnamed: item.named ? nil : String(localized: "Picture added.")) }
+            else { say(String(localized: "That picture can't be read."), error: true) }
         }
     }
 
@@ -537,7 +538,7 @@ struct MakeView: View {
         if let image = NSImage(pasteboard: pb), let tiff = image.tiffRepresentation,
            let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
             let url = FileManager.default.temporaryDirectory.appendingPathComponent("Pasted picture \(UUID().uuidString.prefix(8)).png")
-            if (try? png.write(to: url)) != nil { pasted.append(url); return take(url, unnamed: "Picture pasted.") }
+            if (try? png.write(to: url)) != nil { pasted.append(url); return take(url, unnamed: String(localized: "Picture pasted.")) }
         }
         NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
     }
@@ -582,11 +583,12 @@ struct MakeView: View {
     /// "About 8 minutes on this Mac", or when it would wait: how long until it's ready.
     private var timing: String {
         let e = estimate
-        let own = "\(JobProgress.about(e.total).capitalizedFirst)\(e.learned ? " on this Mac" : "")"
+        let about = JobProgress.about(e.total).capitalizedFirst
+        let own = e.learned ? String(localized: "\(about) on this Mac") : about
         guard model.current != nil else { return own }
         let ahead = model.queue.count + 1
         let ready = model.queueTimes().last?.ready ?? model.runningLeft()
-        return "Joins the queue, \(ahead) ahead · ready in \(JobProgress.about(ready + e.total))"
+        return String(localized: "Joins the queue, \(ahead) ahead · ready in \(JobProgress.about(ready + e.total))")
     }
 
     private var trimmedDescription: String { description.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -645,9 +647,9 @@ struct MakeView: View {
     /// file. Names can be changed afterwards.
     private func make(_ pictures: [URL]) {
         guard model.requiredProblem == nil else { return }
-        if project == .new && Rules.projectName(newProjectName) == nil { return say("Name the new project, then drop the pictures again.", error: true) }
+        if project == .new && Rules.projectName(newProjectName) == nil { return say(String(localized: "Name the new project, then drop the pictures again."), error: true) }
         let typed = trimmedFix
-        if !typed.isEmpty && !health.picturesReady { return say("A change needs \(health.pictureNeed) first.", error: true) }
+        if !typed.isEmpty && !health.picturesReady { return say(String(localized: "A change needs \(health.pictureNeed) first."), error: true) }
         writing = !typed.isEmpty && FixWriter.helperOn
         writingTask = Task {
             let used = writing ? await FixWriter.rewrite(typed, kind: card.kind) : nil

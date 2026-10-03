@@ -21,10 +21,10 @@ public struct QueueEntry: Codable, Equatable, Sendable, Identifiable {
 
     /// What taking it out of the queue does to the mini, as `JobRunner.remove` does it.
     public func takeOutSays(importing: Bool) -> String {
-        job == .prep && !importing ? "It keeps its current size."
-            : again == true ? "It stays, so you can try again later."
-            : job == .generate ? "It hasn't been made yet, so its picture and settings go to the Trash, where you can get them back."
-            : "It hasn't been made yet, so it goes to the Trash, where you can get it back."
+        job == .prep && !importing ? String(localized: "It keeps its current size.", bundle: .mimicCore)
+            : again == true ? String(localized: "It stays, so you can try again later.", bundle: .mimicCore)
+            : job == .generate ? String(localized: "It hasn't been made yet, so its picture and settings go to the Trash, where you can get them back.", bundle: .mimicCore)
+            : String(localized: "It hasn't been made yet, so it goes to the Trash, where you can get it back.", bundle: .mimicCore)
     }
 }
 
@@ -55,8 +55,8 @@ public enum QueueHold: Sendable, Equatable {
     /// What the queue is doing, in words: the popover, the menus and `mimic queue`.
     public var sentence: String {
         switch self {
-        case .paused: "The queue is paused. Resume it to carry on."
-        case .battery: "Your Mac is on battery, so the queue carries on when it's plugged in."
+        case .paused: String(localized: "The queue is paused. Resume it to carry on.", bundle: .mimicCore)
+        case .battery: String(localized: "Your Mac is on battery, so the queue carries on when it's plugged in.", bundle: .mimicCore)
         }
     }
 }

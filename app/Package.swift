@@ -4,6 +4,7 @@ import PackageDescription
 
 let package = Package(
     name: "Mimic",
+    defaultLocalization: "en",
     platforms: [.macOS(.v26)],
     products: [
         .executable(name: "mimic", targets: ["Mimic"]),
@@ -16,8 +17,9 @@ let package = Package(
     targets: [
         // Everything that isn't UI: jobs, the pipeline, Draw Things, checks, the gallery on disk.
         // Optimised in debug builds too: print prep's loops run ~30x slower unoptimised, which
-        // made its tests take minutes.
-        .target(name: "MimicCore", swiftSettings: [.unsafeFlags(["-O"], .when(configuration: .debug)), slowCode]),
+        // made its tests take minutes. The words people see: the String Catalog, and its English
+        // table compiled by strings.py, since Swift 6.2 copies a catalog without compiling it.
+        .target(name: "MimicCore", exclude: ["Localizable.xcstrings"], resources: [.process("Resources")], swiftSettings: [.unsafeFlags(["-O"], .when(configuration: .debug)), slowCode]),
         // The app and the `mimic` command-line tool: one binary, same code.
         .executableTarget(name: "Mimic", dependencies: ["MimicCore", .product(name: "Sparkle", package: "Sparkle")],
                           resources: [.copy("Resources/sample-dwarf.png")], swiftSettings: [slowCode],

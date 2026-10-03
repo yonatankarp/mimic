@@ -121,7 +121,7 @@ struct MiniCommands: Commands {
             // The job's toolbar item, from the keyboard.
             Button("Show Progress") { model.showWindow(); model.jobPopover = true }
                 .disabled(model.toolbarJob == nil || !free)
-            Button(model.stopCommand ?? "Stop Making…") { model.showWindow(); model.confirmingStop = true }
+            Button(model.stopCommand ?? String(localized: "Stop Making…")) { model.showWindow(); model.confirmingStop = true }
                 .disabled(model.stopCommand == nil || !free)
             Divider()
             // Shared with every Mimic on this Mac: resuming here resumes a pause made anywhere.

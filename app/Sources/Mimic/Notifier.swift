@@ -52,12 +52,12 @@ final class Notifier: NSObject {
         case MiniNotification.retry:
             // In the background, as the job's popover's Try Again; only a refusal brings Mimic forward.
             do { try model.retry(name) } catch {
-                model.problem = Problem("Couldn't try again", model.plainWords(error, else: "Open the mini and try again from there."))
+                model.problem = Problem(String(localized: "Couldn't try again"), model.plainWords(error, else: String(localized: "Open the mini and try again from there.")))
                 model.go(to: name)
             }
         case MiniNotification.buildShape:
             do { try model.buildShape(name) } catch {
-                model.problem = Problem("Couldn't build its shape", model.plainWords(error, else: "Open the mini and try from there."))
+                model.problem = Problem(String(localized: "Couldn't build its shape"), model.plainWords(error, else: String(localized: "Open the mini and try from there.")))
                 model.go(to: name)
             }
         case MiniNotification.open:

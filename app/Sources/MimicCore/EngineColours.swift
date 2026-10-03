@@ -20,7 +20,7 @@ public struct EngineColours: Sendable {
     /// than `far` of its height as placed is what's at a point.
     public init(model: Mesh, paint: GLB.Paint, toPrint: simd_double4x4, far: Float = 0.03) throws {
         guard let source = CGImageSourceCreateWithData(paint.image as CFData, nil),
-              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { throw PrepError("couldn't read the 3D model's colours") }
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { throw PrepError(String(localized: "couldn't read the 3D model's colours", bundle: .mimicCore)) }
         picture = try Engine.rgba(image, opaque: true); width = image.width; height = image.height
         self.model = model; uv = paint.uv
         grid = Nearest(model)

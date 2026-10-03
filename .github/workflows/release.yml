@@ -44,6 +44,10 @@ jobs:
       - name: Test
         working-directory: app
         run: swift test --force-resolved-versions --enable-code-coverage
+      - name: Strings
+        # Every word the code looks up is in the String Catalog, and nothing else is (app/strings.py).
+        working-directory: app
+        run: ./strings.py --check
       - name: Coverage
         # MimicCore's line coverage, on the run's summary page. Only a report: it never fails the
         # build. Rough, since MimicCore is optimised in debug builds too (Package.swift).

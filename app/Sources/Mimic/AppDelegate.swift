@@ -23,11 +23,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // whose question comes next.
         if model.setup.running, model.job?.running != true, !Self.systemQuit {
             let alert = NSAlert()
-            alert.messageText = "Mimic is still downloading"
-            alert.informativeText = "Quitting stops the download. Start it again later and it picks up where it left off."
+            alert.messageText = String(localized: "Mimic is still downloading")
+            alert.informativeText = String(localized: "Quitting stops the download. Start it again later and it picks up where it left off.")
             // First, so Esc presses it.
-            alert.addButton(withTitle: "Cancel")
-            alert.addButton(withTitle: "Quit").hasDestructiveAction = true
+            alert.addButton(withTitle: String(localized: "Cancel"))
+            alert.addButton(withTitle: String(localized: "Quit")).hasDestructiveAction = true
             guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }
         }
         guard let s = model.job, s.running else { return .terminateNow }
@@ -37,13 +37,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !Self.systemQuit {
             let alert = NSAlert()
             let who = model.displayName(s)
-            alert.messageText = s.kind == .prep ? "Mimic is still resizing “\(who)”" : "Mimic is still making “\(who)”"
+            alert.messageText = s.kind == .prep ? String(localized: "Mimic is still resizing “\(who)”") : String(localized: "Mimic is still making “\(who)”")
             let waiting = model.queue.count
-            alert.informativeText = "Quitting stops it for now. The next time you open Mimic, it carries on from the last step it finished."
-                + (waiting == 0 ? "" : " The \(waiting == 1 ? "mini" : "\(waiting) minis") waiting in the queue will follow.")
+            alert.informativeText = String(localized: "Quitting stops it for now. The next time you open Mimic, it carries on from the last step it finished.")
+                + (waiting == 0 ? "" : " " + String(localized: "The \(waiting) minis waiting in the queue will follow."))
             // First, so Esc presses it.
-            alert.addButton(withTitle: "Cancel")
-            alert.addButton(withTitle: "Quit").hasDestructiveAction = true
+            alert.addButton(withTitle: String(localized: "Cancel"))
+            alert.addButton(withTitle: String(localized: "Quit")).hasDestructiveAction = true
             guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }
         }
         jobs.keepGoing = { _ in false }  // the queue waits for the next launch
@@ -95,8 +95,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             item.target = self
             menu.addItem(item)
         }
-        if model.setup.installed && free { add("New Mini…", #selector(newMini)) }
-        if model.toolbarJob != nil && free { add("Show Progress", #selector(showProgress)) }
+        if model.setup.installed && free { add(String(localized: "New Mini…"), #selector(newMini)) }
+        if model.toolbarJob != nil && free { add(String(localized: "Show Progress"), #selector(showProgress)) }
         if let title = model.stopCommand, free { add(title, #selector(stopJob)) }
         if !model.queue.isEmpty && free { add(model.pauseCommand, #selector(togglePause)) }
         return menu

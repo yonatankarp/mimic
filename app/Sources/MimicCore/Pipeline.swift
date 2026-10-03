@@ -171,7 +171,21 @@ public enum Pipeline {
 public enum PictureSide: String, Codable, CaseIterable, Sendable {
     case back, left, right
     /// "Back", as New Mini labels its place.
-    public var title: String { rawValue.capitalized }
+    public var title: String {
+        switch self {
+        case .back: String(localized: "Back", bundle: .mimicCore)
+        case .left: String(localized: "Left", bundle: .mimicCore)
+        case .right: String(localized: "Right", bundle: .mimicCore)
+        }
+    }
+    /// "back", inside a sentence: "Pictures of the front, left and back".
+    public var words: String {
+        switch self {
+        case .back: String(localized: "back", bundle: .mimicCore, comment: "A picture of the back of the character")
+        case .left: String(localized: "left", bundle: .mimicCore, comment: "A picture of the left side of the character")
+        case .right: String(localized: "right", bundle: .mimicCore, comment: "A picture of the right side of the character")
+        }
+    }
     public var upload: String { "upload-\(rawValue).img" }
     public var source: String { "source-\(rawValue).png" }
 }

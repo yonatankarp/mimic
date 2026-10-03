@@ -15,12 +15,21 @@ public enum JobStep: Int, Codable, CaseIterable, Comparable, Sendable {
         }
     }
 
-    /// The label inside a sentence: "while building the 3D shape", its other capitals kept.
-    public var during: String { label.prefix(1).lowercased() + label.dropFirst() }
+    /// The label inside a sentence: "while building the 3D shape". The label itself stays
+    /// English: it's what the job's log and the timings read back.
+    public var during: String {
+        switch self {
+        case .picture: String(localized: "getting the picture ready", bundle: .mimicCore)
+        case .shape: String(localized: "building the 3D shape", bundle: .mimicCore)
+        case .print: String(localized: "making the print-ready file", bundle: .mimicCore)
+        }
+    }
 
     /// Why a step whose program was killed outright (signal 9) stopped: that's how macOS ends one
     /// when the Mac runs out of memory (#305).
-    public var outOfMemory: String { "It looks like your Mac ran out of memory while \(during). Quit other apps, then try again." }
+    public var outOfMemory: String {
+        String(localized: "It looks like your Mac ran out of memory while \(during). Quit other apps, then try again.", bundle: .mimicCore)
+    }
 
     public static func < (a: JobStep, b: JobStep) -> Bool { a.rawValue < b.rawValue }
 }
@@ -76,16 +85,16 @@ extension JobStatus {
 
     /// What happens to the mini if it's stopped, as `JobRunner.settle` does it: Stop's question.
     public var stopAsks: String {
-        kind == .prep && !importing ? "It keeps its previous size."
-            : again ? "It's kept, so you can try again later."
-            : "What's been made so far will be thrown away."
+        kind == .prep && !importing ? String(localized: "It keeps its previous size.", bundle: .mimicCore)
+            : again ? String(localized: "It's kept, so you can try again later.", bundle: .mimicCore)
+            : String(localized: "What's been made so far will be thrown away.", bundle: .mimicCore)
     }
 
     /// What happened to the mini once it was stopped.
     public var stopSays: String {
-        kind == .prep && !importing ? "It keeps its previous size."
-            : again ? "It was kept, so you can try again later."
-            : "Nothing was kept. It's in the Trash if you want the pieces."
+        kind == .prep && !importing ? String(localized: "It keeps its previous size.", bundle: .mimicCore)
+            : again ? String(localized: "It was kept, so you can try again later.", bundle: .mimicCore)
+            : String(localized: "Nothing was kept. It's in the Trash if you want the pieces.", bundle: .mimicCore)
     }
 }
 
@@ -389,7 +398,7 @@ public final class JobRunner: @unchecked Sendable {
     /// isn't waiting.
     public func removeSaying(_ name: String) throws -> String? {
         let shown = Mini.displayName(name, runs: install.runs)
-        return try remove(name) ? "Removed \(shown) from the queue." : nil
+        return try remove(name) ? String(localized: "Removed \(shown) from the queue.", bundle: .mimicCore) : nil
     }
 
     /// Moves a waiting job `by` places, earlier (negative) or later. False when it isn't waiting.
@@ -529,7 +538,7 @@ public final class JobRunner: @unchecked Sendable {
                 // Checked when it was queued, so rare: its folder went, or its model was removed.
                 var s = JobStatus(name: entry.name, kind: entry.job, step: entry.job == .prep ? .print : .picture, started: Date())
                 s.running = false; s.exit = 1
-                s.problem = plainWords(error) ?? "Couldn't start it. Check that its folder is still there, then try again."
+                s.problem = plainWords(error) ?? String(localized: "Couldn't start it. Check that its folder is still there, then try again.", bundle: .mimicCore)
                 Log.queue.error("\(entry.name, privacy: .public) couldn't start: \(String(describing: error), privacy: .public)")
                 lock.withLock { current = s }
                 notify()
@@ -566,7 +575,7 @@ public final class JobRunner: @unchecked Sendable {
         Log.queue.error("\(left.name, privacy: .public) was left half made by a Mimic that quit unexpectedly")
         try? MiniSettings.update(folder) { s in
             // An imported model has no Try Again; Resize makes its print file again.
-            s.failed = s.isImported ? "Mimic stopped while making it. Resize it to try again." : "Mimic stopped while making it. Try Again."
+            s.failed = s.isImported ? String(localized: "Mimic stopped while making it. Resize it to try again.", bundle: .mimicCore) : String(localized: "Mimic stopped while making it. Try Again.", bundle: .mimicCore)
             s.failedStep = left.step.rawValue
         }
     }
@@ -654,7 +663,7 @@ public final class JobRunner: @unchecked Sendable {
             } catch {
                 ran.code = 1
                 // In plain words (#324): the raw text, a Cocoa error's say, is for the log.
-                ran.problem = plainWords(error) ?? "It stopped while \(number.during)."
+                ran.problem = plainWords(error) ?? String(localized: "It stopped while \(number.during).", bundle: .mimicCore)
                 append(log, "\(error)\n")
             }
             ran.took[number, default: 0] += Date().timeIntervalSince(began)  // step 1 is one run per picture
@@ -701,7 +710,7 @@ public final class JobRunner: @unchecked Sendable {
         if !canceled, ran.code != 0, ran.problem == nil {
             let step = status?.step ?? .shape
             ran.problem = report.failure.map { String($0.prefix { $0 != "\n" }) }
-                ?? (ran.code == -9 ? step.outOfMemory : "It stopped while \(step.during).")
+                ?? (ran.code == -9 ? step.outOfMemory : String(localized: "It stopped while \(step.during).", bundle: .mimicCore))
         }
         // Kept with the mini, so its page says it after a relaunch too.
         if !canceled {

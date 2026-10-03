@@ -103,7 +103,7 @@ private struct TrashQuestions: ViewModifier {
                 Button("Cancel", role: .cancel) {}
             } message: { project in
                 let count = model.minis.filter { $0.project == project }.count
-                let minis = count == 1 ? "its mini" : "its \(count) minis"
+                let minis = String(localized: "its \(count) minis", comment: "In “Keep Minis moves %@ to Unsorted.”")
                 Text(count == 0 ? "The empty project goes to the Trash."
                      : "Keep Minis moves \(minis) to Unsorted. Delete All moves \(minis) to the Trash with the project. You can put anything back from the Trash.")
             }

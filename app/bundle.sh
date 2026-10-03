@@ -38,8 +38,11 @@ cp Mimic.icns "$app/Contents/Resources/Mimic.icns"
   printf 'Mimic\n=====\n\n'; cat ../LICENSE
   printf '\n\nSparkle\n=======\n\n'; cat .build/checkouts/Sparkle/LICENSE
 } > "$app/Contents/Resources/Acknowledgements.txt"
-# SwiftPM's resource bundle (the tour's sample picture); Bundle.main.resourceURL is where the app looks.
-cp -R "$(dirname "$bin")/Mimic_Mimic.bundle" "$app/Contents/Resources/"
+# SwiftPM's resource bundles (the tour's sample picture; MimicCore's words, its String Catalog's
+# table); Bundle.main.resourceURL is where the app looks. The same table goes in the app's own
+# Resources too, where SwiftUI looks up the words of every view (NOTES.md).
+cp -R "$(dirname "$bin")/Mimic_Mimic.bundle" "$(dirname "$bin")/Mimic_MimicCore.bundle" "$app/Contents/Resources/"
+cp -R Sources/MimicCore/Resources/*.lproj "$app/Contents/Resources/"
 cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -49,6 +52,8 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>CFBundleIdentifier</key><string>$id</string>
   <key>CFBundleExecutable</key><string>mimic</string>
   <key>CFBundleIconFile</key><string>Mimic</string>
+  <key>CFBundleDevelopmentRegion</key><string>en</string>
+  <key>CFBundleLocalizations</key><array><string>en</string></array>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>${version:-dev}</string>
   <key>CFBundleVersion</key><string>$build</string>
@@ -79,4 +84,7 @@ sign --entitlements Mimic.entitlements "$app"
 # The dev build uses this checkout as its Mimic folder (runs/ and engine/). The release build
 # finds its own: ~/Documents/Mimic and ~/Library/Application Support/Mimic.
 [ "$kind" = release ] || defaults write "$id" installDir "$(cd .. && pwd)"
+# Words missing from the String Catalog show in CAPITALS in the dev build (and are logged), rather
+# than quietly as the English in the code.
+[ "$kind" = release ] || defaults write "$id" NSShowNonLocalizedStrings -bool YES
 echo "$app"

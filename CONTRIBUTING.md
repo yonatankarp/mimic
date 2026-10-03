@@ -34,6 +34,17 @@ the problem matters more than a specific solution.
 3. `cd app && swift test` passes, and anything new has a test. The tests here plant the bug
    they guard against first (see `app/NOTES.md`); keep that habit.
 4. Text people see is plain English, for people who aren't technical. No jargon, no file names.
+   It lives in the code and goes through the String Catalog
+   (`app/Sources/MimicCore/Localizable.xcstrings`), so Mimic can be translated later:
+   - In a view, a literal is enough: `Text("Make Mini")`, `Button("Cancel")`, `.help("…")`.
+   - Words built in code: `String(localized: "Couldn't move \(name)")` in the app,
+     `String(localized: "…", bundle: .mimicCore)` in MimicCore. A plain `String` shown in a view
+     isn't looked up, so it would stay English.
+   - Write the many form of a count (`"\(n) minis"`); the one form goes in the catalog's plural
+     variations.
+   - Then run `app/strings.py`: it adds the new words to the catalog (and drops unused ones) and
+     compiles its table. Commit both. CI fails if they aren't in step with the code.
+   - The `mimic` command's own words stay in the code, English only (`app/NOTES.md` says why).
 5. Open a pull request that says what changed and why, and how you checked it. Its title starts
    with the kind of change: `feat:` (a new feature), `change:` (an improvement) or `fix:` (a bug
    fix) for what people will notice, `docs:`, `chore:`, `ci:`, `test:` or `refactor:` otherwise.

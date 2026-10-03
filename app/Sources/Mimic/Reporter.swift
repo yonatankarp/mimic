@@ -40,7 +40,7 @@ final class Reporter {
         let picture = hasPicture && include.state == .on
         let shot = includeWindow.state == .on ? window : nil
         let folder = model.install.runs.appendingPathComponent("_reports"), build = BuildInfo.line, mac = Report.mac
-        let failure = mini.map { $0.settings.failed ?? "It stopped before it was done." }
+        let failure = mini.map { $0.settings.failed ?? String(localized: "It stopped before it was done.") }
         make(model, mini: mini) { setup, saved in
             try? Report.write(to: folder, mini: mini, picture: picture, build: build, mac: mac,
                               appLog: Log.recent(since: Date().addingTimeInterval(-3600)), setup: setup, window: shot, saved: saved)
@@ -86,7 +86,7 @@ final class Reporter {
                 let saved = Keychain.all()
                 return write(setup, saved).map { ($0, setup, saved) }
             }.value
-            guard let made else { model.problem = Problem("Couldn't make the report", "Check that Mimic's folder is still there, then try again."); return }
+            guard let made else { model.problem = Problem(String(localized: "Couldn't make the report"), String(localized: "Check that Mimic's folder is still there, then try again.")); return }
             NSWorkspace.shared.activateFileViewerSelecting([made.0])
             NSWorkspace.shared.open(issue(made.1, made.2))
         }

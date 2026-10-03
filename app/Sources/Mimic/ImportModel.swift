@@ -8,8 +8,8 @@ enum ImportModel {
     /// Asks for a GLB or STL file, then opens the import sheet for it.
     @MainActor static func choose(_ model: AppModel) {
         let panel = NSOpenPanel()
-        panel.message = "Choose a 3D model to make print-ready: a GLB or STL file."
-        panel.prompt = "Import"
+        panel.message = String(localized: "Choose a 3D model to make print-ready: a GLB or STL file.")
+        panel.prompt = String(localized: "Import")
         panel.allowedContentTypes = ModelImport.extensions.compactMap { UTType(filenameExtension: $0) }
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url else { return }

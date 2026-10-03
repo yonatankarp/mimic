@@ -151,9 +151,9 @@ struct SettingsView: View {
             }
         } else if health.picturesReady {
             Section {
-                SetupStep(done: true, title: "Draw Things is set up.",
+                SetupStep(done: true, title: String(localized: "Draw Things is set up."),
                           detail: health.drawThingsOpensWhenNeeded
-                              ? "Mimic opens it when it needs it. Its API server has to be on: in Draw Things, Settings → Advanced → API Server, HTTP, port 7860."
+                              ? String(localized: "Mimic opens it when it needs it. Its API server has to be on: in Draw Things, Settings → Advanced → API Server, HTTP, port 7860.")
                               : nil)
             } header: {
                 Text("Draw Things")
@@ -179,8 +179,8 @@ struct SettingsView: View {
         let service = ImageService.load(.standard).online
         let fix = health.results[Checks.onlineID]?.fix ?? ""
         let detail = switch ready {
-        case false?: service == nil ? "Draw Things isn't set up yet." : fix.isEmpty ? "Online pictures aren't set up yet." : fix
-        default: service.map { "\($0.name), online" } ?? "Draw Things, on this Mac"
+        case false?: service == nil ? String(localized: "Draw Things isn't set up yet.") : fix.isEmpty ? String(localized: "Online pictures aren't set up yet.") : fix
+        default: service.map { String(localized: "\($0.name), online") } ?? String(localized: "Draw Things, on this Mac")
         }
         return HStack(alignment: .firstTextBaseline) {
             CheckMark(ok: ready, required: false)
@@ -214,12 +214,12 @@ struct SettingsView: View {
     }
 
     private var summary: String {
-        if health.running { return "Checking…" }
-        if model.running { return "Checks paused while a mini is being made." }
+        if health.running { return String(localized: "Checking…") }
+        if model.running { return String(localized: "Checks paused while a mini is being made.") }
         guard let when = health.lastChecked else { return "" }
         let bad = health.readiness.problems
-        let head = bad == 0 ? "Everything's ready." : "\(bad) thing\(bad > 1 ? "s" : "") to look at."
-        return "\(head) Last checked at \(when.formatted(date: .omitted, time: .shortened))."
+        let head = bad == 0 ? String(localized: "Everything's ready.") : String(localized: "\(bad) things to look at.")
+        return String(localized: "\(head) Last checked at \(when.formatted(date: .omitted, time: .shortened)).")
     }
 
 }
@@ -227,10 +227,10 @@ struct SettingsView: View {
 private struct CheckRow: View {
     /// What each part is for, in a sentence: the labels name the parts, this says why they matter.
     static var what: [String: String] { [
-        "engine": "Turns your picture into a 3D shape, on your Mac's graphics chip.",
-        "models": "What the 3D engine has learned, for the 3D model in use. Downloaded once.",
-        "space": "Each mini needs about 150 MB while it's being made.",
-        "slicer": "Turns a mini into instructions for your printer.",
+        "engine": String(localized: "Turns your picture into a 3D shape, on your Mac's graphics chip."),
+        "models": String(localized: "What the 3D engine has learned, for the 3D model in use. Downloaded once."),
+        "space": String(localized: "Each mini needs about 150 MB while it's being made."),
+        "slicer": String(localized: "Turns a mini into instructions for your printer."),
     ] }
     let check: Check
     let result: CheckResult?
@@ -277,10 +277,10 @@ private struct CheckMark: View {
 
     var body: some View {
         let (symbol, color, said): (String, Color, String) = switch ok {
-        case nil: ("circle.dotted", .secondary, "Checking")
-        case true?: ("checkmark.circle.fill", .green, "Ready")
-        case false? where required: ("xmark.circle.fill", .red, "Needs fixing")
-        case false?: ("exclamationmark.triangle.fill", .orange, "Optional, not set up")
+        case nil: ("circle.dotted", .secondary, String(localized: "Checking"))
+        case true?: ("checkmark.circle.fill", .green, String(localized: "Ready"))
+        case false? where required: ("xmark.circle.fill", .red, String(localized: "Needs fixing"))
+        case false?: ("exclamationmark.triangle.fill", .orange, String(localized: "Optional, not set up"))
         }
         Image(systemName: symbol)
             .foregroundStyle(color)
@@ -377,7 +377,8 @@ struct SetupStep: View {
         HStack(alignment: .firstTextBaseline) {
             Image(systemName: done ? "checkmark.circle.fill" : "circle")
                 .foregroundStyle(done ? .green : .secondary).frame(width: 18)
-                .accessibilityLabel(step.map { "Step \($0), \(done ? "done" : "not done")" } ?? (done ? "Done" : "Not done"))
+                .accessibilityLabel(step.map { done ? String(localized: "Step \($0), done") : String(localized: "Step \($0), not done") }
+                                    ?? (done ? String(localized: "Done") : String(localized: "Not done")))
                 .accessibilityRemoveTraits(.isSelected)  // as CheckMark
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
@@ -396,13 +397,12 @@ struct DrawThingsSteps: View {
     private var health: Health { .shared }
 
     var body: some View {
-        SetupStep(done: health.ok("drawthings-app"), step: 1, title: "Get Draw Things from the App Store.",
-                  detail: "It's free.", link: ("Open the App Store", SetupModel.drawThingsStore))
-        SetupStep(done: health.drawThingsConnected, step: 2, title: "Connect Mimic to it.",
-                  detail: "Mimic does this itself, with Draw Things' command line tool: it comes with the 3D engine, and Draw Things doesn't even need to be open. "
-                      + "Without it: in Draw Things, Settings → Advanced → API Server. Turn it on, choose HTTP, set the port to 7860.")
-        SetupStep(done: health.ok("drawthings-model"), step: 3, title: "Download FLUX.2 Klein.",
-                  detail: "In Draw Things' model list, search for FLUX.2 Klein and download it. It's big, so give it a few minutes.")
+        SetupStep(done: health.ok("drawthings-app"), step: 1, title: String(localized: "Get Draw Things from the App Store."),
+                  detail: String(localized: "It's free."), link: (String(localized: "Open the App Store"), SetupModel.drawThingsStore))
+        SetupStep(done: health.drawThingsConnected, step: 2, title: String(localized: "Connect Mimic to it."),
+                  detail: String(localized: "Mimic does this itself, with Draw Things' command line tool: it comes with the 3D engine, and Draw Things doesn't even need to be open. Without it: in Draw Things, Settings → Advanced → API Server. Turn it on, choose HTTP, set the port to 7860."))
+        SetupStep(done: health.ok("drawthings-model"), step: 3, title: String(localized: "Download FLUX.2 Klein."),
+                  detail: String(localized: "In Draw Things' model list, search for FLUX.2 Klein and download it. It's big, so give it a few minutes."))
     }
 }
 
@@ -418,7 +418,7 @@ private struct TimingsSection: View {
             } label: {
                 Text("Time estimates")
                 Text(model.learnedFrom == 0 ? "Mimic's own figures, until you've made a few minis"
-                     : "Based on \(model.learnedFrom) mini\(model.learnedFrom == 1 ? "" : "s") made on this Mac")
+                     : "Based on \(model.learnedFrom) minis made on this Mac")
             }
         } footer: {
             Text("Mimic times every mini it makes on this Mac to tell you how long the next will take. The times are kept on this Mac only and never sent anywhere.")
@@ -451,16 +451,16 @@ enum CommandLineTool {
     /// The command, selectable, with Copy Command (Return) and Cancel (Esc).
     static func show() {
         let alert = NSAlert()
-        alert.messageText = "Install Command-Line Tool"
-        alert.informativeText = "Copy this command, paste it into Terminal once, then type mimic to make minis from there. It asks for your Mac password, because it adds mimic to a folder every account on this Mac uses."
+        alert.messageText = String(localized: "Install Command-Line Tool")
+        alert.informativeText = String(localized: "Copy this command, paste it into Terminal once, then type mimic to make minis from there. It asks for your Mac password, because it adds mimic to a folder every account on this Mac uses.")
         let text = NSTextField(wrappingLabelWithString: command)
         text.font = .monospacedSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
         text.isSelectable = true
         text.preferredMaxLayoutWidth = 280
         text.frame.size = NSSize(width: 280, height: text.fittingSize.height)
         alert.accessoryView = text
-        alert.addButton(withTitle: "Copy Command")
-        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: String(localized: "Copy Command"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(command, forType: .string)
@@ -507,7 +507,7 @@ private struct ResetSection: View {
         do {
             try Reset.run(install: model.install, domain: Reset.ownDomain(), removeEngine: removeEngine)
         } catch {
-            problem = "Couldn't remove the 3D engine. \(model.plainWords(error, else: "Check that Mimic can write to its folder, then try again."))"
+            problem = String(localized: "Couldn't remove the 3D engine. \(model.plainWords(error, else: String(localized: "Check that Mimic can write to its folder, then try again.")))")
             return
         }
         // The tips show again too: their store is cleared as the new copy starts.

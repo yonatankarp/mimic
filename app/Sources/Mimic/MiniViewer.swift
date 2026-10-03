@@ -31,8 +31,8 @@ struct MiniViewer: View {
     /// choice for every mini. Built only when the choice or the print file changes.
     @AppStorage(SizeReference.key) private var reference = SizeReference.none
     @State private var referenceEntity: Entity?
-    static let hint = "Drag to turn · scroll to zoom"
-    static let help = "Drag or press the arrow keys to turn · pinch, scroll, ⌘= or ⌘− to zoom · double-click to face front"
+    static let hint = String(localized: "Drag to turn · scroll to zoom")
+    static let help = String(localized: "Drag or press the arrow keys to turn · pinch, scroll, ⌘= or ⌘− to zoom · double-click to face front")
     /// The stage's size, running up under the toolbar, and the height below the toolbar.
     @State private var stageSize = CGSize.zero
     @State private var seenHeight: CGFloat = 0
@@ -159,8 +159,8 @@ struct MiniViewer: View {
 
     /// "3D view of Raven, 34 mm tall with base, 26 × 25 mm footprint, beside a 32 mm person".
     private var spoken: String {
-        guard let measured else { return "3D view of \(name)" }
-        var words = "3D view of \(name), \(measured.tall) mm tall with base, \(measured.footprint) footprint"
+        guard let measured else { return String(localized: "3D view of \(name)") }
+        var words = String(localized: "3D view of \(name), \(measured.tall) mm tall with base, \(measured.footprint) footprint")
         if let layout, let extra = layout.kind.spoken(gridSquare: layout.gridSquare) { words += ", \(extra)" }
         return words
     }
@@ -290,7 +290,7 @@ struct MiniViewer: View {
     /// The size badge, with the grid's square when the grid is shown: "34 mm tall · 26 × 25 mm · 1 mm squares".
     private func caption(_ measured: Measured) -> String {
         guard let layout, layout.kind == .grid else { return measured.caption }
-        return "\(measured.caption) · \(Int(layout.gridSquare)) mm squares"
+        return String(localized: "\(measured.caption) · \(Int(layout.gridSquare)) mm squares")
     }
 
     /// The size reference as RealityKit draws it: flat colour, no lighting, so it reads as a

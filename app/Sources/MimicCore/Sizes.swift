@@ -119,6 +119,15 @@ extension Sizes: Codable {
 /// hex faces the figure with a flat side.
 public enum BaseShape: String, CaseIterable, Sendable {
     case round, square, hex
+
+    /// "hex": how the mini's page names it.
+    public var words: String {
+        switch self {
+        case .round: String(localized: "round", bundle: .mimicCore)
+        case .square: String(localized: "square", bundle: .mimicCore)
+        case .hex: String(localized: "hex", bundle: .mimicCore)
+        }
+    }
 }
 
 /// What the top of the base looks like: flat, or a floor pressed into it (Solid.relief).
@@ -128,10 +137,10 @@ public enum BaseStyle: String, CaseIterable, Sendable {
     /// "stone floor": how the mini's page and the size card name it.
     public var words: String {
         switch self {
-        case .plain: "plain"
-        case .stone: "stone floor"
-        case .wood: "wooden floor"
-        case .cobble: "cobblestones"
+        case .plain: String(localized: "plain", bundle: .mimicCore)
+        case .stone: String(localized: "stone floor", bundle: .mimicCore)
+        case .wood: String(localized: "wooden floor", bundle: .mimicCore)
+        case .cobble: String(localized: "cobblestones", bundle: .mimicCore)
         }
     }
 }
@@ -148,7 +157,7 @@ public enum Magnet: String, CaseIterable, Sendable {
     public var height: Double { self == .mm8x3 ? 3 : 2 }
 
     /// "5 × 2 mm": how the size card and the mini's page name it.
-    public var words: String { "\(Int(diameter)) × \(Int(height)) mm" }
+    public var words: String { String(localized: "\(Int(diameter)) × \(Int(height)) mm", bundle: .mimicCore) }
 }
 
 /// What a mini is of. Stored as settings.json's "kind" only for an object: absent means a

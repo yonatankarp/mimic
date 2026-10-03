@@ -95,7 +95,7 @@ public enum Engine {
         let request = VNGenerateForegroundInstanceMaskRequest()
         try handler.perform([request])
         guard let found = request.results?.first, !found.allInstances.isEmpty else {
-            throw Failure("Couldn't find the character in the picture. Try one with a plain background.", forPeople: true)
+            throw Failure(String(localized: "Couldn't find the character in the picture. Try one with a plain background.", bundle: .mimicCore), forPeople: true)
         }
         let mask = try found.generateScaledMaskForImage(forInstances: found.allInstances, from: handler)
         // ponytail: the picture's own alpha is dropped here (drawn over black), like the wrapper's
@@ -187,7 +187,7 @@ public enum Engine {
             throw Failure("The picture is missing: \(picture.path)")
         }
         guard FileManager.default.isExecutableFile(atPath: cli.path) else {
-            throw Failure("The 3D engine is missing (\(cli.path)). Open Mimic's Settings and press Repair next to the 3D engine.", forPeople: true)
+            throw Failure(String(localized: "The 3D engine is missing (\(cli.path)). Open Mimic's Settings and press Repair next to the 3D engine.", bundle: .mimicCore), forPeople: true)
         }
         if !sides.isEmpty && !model.multiView { throw Failure(RequestError.oneSideOnly(model.name).description, forPeople: true) }
         func cutOutIfNeeded(_ picture: URL) throws -> URL {
@@ -250,8 +250,7 @@ public enum Engine {
             // Only trellis-cli: stopping the group would end this program before it could say why.
             kill(process.pid, SIGKILL)
             process.wait()
-            throw Failure("This 3D engine ignores PIXAL3D_STEPS, so it would run the slow way. "
-                          + "Stopped it before wasting the run. Open Mimic's Settings and press Repair next to the 3D engine.", forPeople: true)
+            throw Failure(String(localized: "This 3D engine ignores PIXAL3D_STEPS, so it would run the slow way. Stopped it before wasting the run. Open Mimic's Settings and press Repair next to the 3D engine.", bundle: .mimicCore), forPeople: true)
         }
         let code = process.wait()
         // Killed outright: how macOS ends the biggest program when the Mac runs out of memory.

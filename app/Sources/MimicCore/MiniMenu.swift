@@ -46,22 +46,22 @@ public struct MiniMenu: Sendable {
 
     public func title(_ action: MiniAction, for minis: [Mini], slicer: String) -> String {
         switch action {
-        case .open: "Open in \(slicer)"
-        case .openTogether: "Open Together in \(slicer)"
-        case .copies: "Copies…"
-        case .showInFinder: "Show in Finder"
-        case .exportForTabletop: "Export for Virtual Tabletop…"
-        case .resize: "Resize This Mini…"
-        case .resizeSeveral: "Resize \(minis.count) Minis…"
-        case .buildShape: "Build Shape"
-        case .tryAgain: "Try Again"
-        case .reportProblem: "Report a Problem…"
-        case .rename: "Rename…"
-        case .anotherVersion: "Make Another Version…"
-        case .newShape: "New 3D Shape…"
-        case .editAndMakeAgain: "Edit & Make Again…"
-        case .duplicate: "Duplicate…"
-        case .moveToTrash: "Move to Trash"
+        case .open: String(localized: "Open in \(slicer)", bundle: .mimicCore)
+        case .openTogether: String(localized: "Open Together in \(slicer)", bundle: .mimicCore)
+        case .copies: String(localized: "Copies…", bundle: .mimicCore)
+        case .showInFinder: String(localized: "Show in Finder", bundle: .mimicCore)
+        case .exportForTabletop: String(localized: "Export for Virtual Tabletop…", bundle: .mimicCore)
+        case .resize: String(localized: "Resize This Mini…", bundle: .mimicCore)
+        case .resizeSeveral: String(localized: "Resize \(minis.count) Minis…", bundle: .mimicCore)
+        case .buildShape: String(localized: "Build Shape", bundle: .mimicCore)
+        case .tryAgain: String(localized: "Try Again", bundle: .mimicCore)
+        case .reportProblem: String(localized: "Report a Problem…", bundle: .mimicCore)
+        case .rename: String(localized: "Rename…", bundle: .mimicCore)
+        case .anotherVersion: String(localized: "Make Another Version…", bundle: .mimicCore)
+        case .newShape: String(localized: "New 3D Shape…", bundle: .mimicCore)
+        case .editAndMakeAgain: String(localized: "Edit & Make Again…", bundle: .mimicCore)
+        case .duplicate: String(localized: "Duplicate…", bundle: .mimicCore)
+        case .moveToTrash: String(localized: "Move to Trash", bundle: .mimicCore)
         }
     }
 

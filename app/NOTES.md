@@ -824,6 +824,43 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   cell further out (a quarter of a millimetre at 100 mm), which closes the tunnels a few thousand
   triangles couldn't show anyway. Without the half-cell offset, the coarse grid punches new holes
   through thin wings. A milder trim is left as it was: it doesn't stall.
+- **Every word people see is in one String Catalog, English only for now** (#103):
+  `Sources/MimicCore/Localizable.xcstrings`, so another language is translation work: its
+  translations in the catalog, and the language in bundle.sh's `CFBundleLocalizations`.
+  - **Keys are the English text** (SwiftUI's default), with a comment in the catalog where the
+    words alone are ambiguous ("base", "back"). Every key has an English value, the key itself,
+    so the compiled table holds every word.
+  - **The table is compiled by `strings.py` and committed** (`Resources/en.lproj`), not by
+    `swift build`: Swift 6.2, which CI builds with, copies a catalog into the bundle without
+    compiling it, and Foundation can't read one uncompiled (newer Swift compiles it, so the two
+    built different apps). It's MimicCore's resource, read through `Bundle.mimicCore`
+    (`String(localized: "…", bundle: .mimicCore)`), not `Bundle.module`, whose accessor stops
+    the program when it can't find the bundle, as through the Terminal symlink. bundle.sh copies
+    the same table into the app's own Resources too: SwiftUI's `Text("…")`, `Button`, `.help` and
+    the app's `String(localized:)` look in Bundle.main, and passing `bundle:` to every view isn't
+    possible (Button has no such parameter).
+  - **Keeping it complete.** `swift build` doesn't extract strings as Xcode does, so
+    `strings.py` builds once with the compiler's `-emit-localized-strings`, which lists every key
+    the code looks up, adds new ones to the catalog and drops unused ones. CI runs
+    `strings.py --check`, which fails when a key is missing, unused, or the table isn't compiled
+    from the catalog as it is. It sees only lookups: a plain `String` shown with `Text(someString)`
+    is shown as it is, so words built in code go through `String(localized:)` first. In the dev
+    build (bundle.sh sets `NSShowNonLocalizedStrings`) a word looked up but missing from the table
+    shows in CAPITALS, and is logged.
+  - **Plurals** are the catalog's plural variations: the code has the many form ("\(n) minis
+    added to the queue."), the catalog the one form. A sentence whose number isn't in it ("Mimic
+    can't use it/them", "copy/copies", one mini named instead of counted) stays two whole
+    sentences chosen in the code: the catalog only takes a plural that shows its number.
+  - **Numbers** in `String(localized:)` are formatted for the language, so 1234 would read
+    1,234: a count that can pass 999 (gigabytes, grams) goes in as `String(n)`, as it was.
+  - **`mimic` in Terminal stays English** (`Bundle.englishOnly()` at its start): its words are for
+    scripts and bug reports, and its JSON never changes. Its own words (CLI.swift, `Usage`,
+    `CommandRefusal`, completions) aren't in the catalog; MimicCore's that it shares with the app
+    are, and come from the English table. Print prep runs as `mimic _prep`, so its report
+    (prep-result.json, prep.log) is English too.
+  - **English on purpose:** what's written for the maintainer or read back by code: logs (a job's
+    log has its step names, which the timings read back), Report a Problem's files and the GitHub
+    form's fields, crash reports, the prompts sent to the picture and AI services, and file names.
 
 ## Not yet seen working
 

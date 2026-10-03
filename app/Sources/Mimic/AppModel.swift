@@ -312,7 +312,7 @@ final class AppModel {
     var current: JobStatus? { running ? job : elsewhere }
 
     /// When a mini just added should be ready, or why it waits.
-    private func whenReady(_ ready: TimeInterval) -> String { hold.map { $0.sentence } ?? "Ready in \(JobProgress.about(ready))." }
+    private func whenReady(_ ready: TimeInterval) -> String { hold.map { $0.sentence } ?? String(localized: "Ready in \(JobProgress.about(ready)).") }
 
     // MARK: Time estimates
 
@@ -385,7 +385,7 @@ final class AppModel {
             try self.make(name: name, picture: .image(url), restyle: restyle, seed: seed, sizes: sizes, kind: kind, project: project, cartoon: cartoon,
                           shown: shown, fixes: fix.isEmpty ? [] : [fix], fixUsed: fixUsed, checkPicture: !fix.isEmpty)
         }
-        guard let last = done.added.last else { return done.failure.map { plainWords($0) } ?? "Mimic can't read these pictures." }
+        guard let last = done.added.last else { return done.failure.map { plainWords($0) } ?? String(localized: "Mimic can't read these pictures.") }
         let ready = readyIn(last) ?? runningLeft()
         present { $0.noteQueued(.init(name: last, text: "\(JobPresentation.QueuedNote.added(done.added.count)) \(whenReady(ready))\(done.skippedNote)")) }
         return nil
@@ -400,7 +400,7 @@ final class AppModel {
             try start(new) {
                 try $0.makeAnotherVersion(of: mini.name, as: new, change: change, changeUsed: changeUsed, checkPicture: !change.isEmpty).ahead
             }
-        } catch { problem = Problem("Couldn't make another version", plainWords(error, else: "Try again.")) }
+        } catch { problem = Problem(String(localized: "Couldn't make another version"), plainWords(error, else: String(localized: "Try again."))) }
     }
 
     /// A sibling of `mini` from the picture it already has, with only a new 3D shape; with a
@@ -411,7 +411,7 @@ final class AppModel {
             try start(new) {
                 try $0.makeNewShape(of: mini.name, as: new, change: change, changeUsed: changeUsed, checkPicture: !change.isEmpty).ahead
             }
-        } catch { problem = Problem("Couldn't make a new 3D shape", plainWords(error, else: "Try again.")) }
+        } catch { problem = Problem(String(localized: "Couldn't make a new 3D shape"), plainWords(error, else: String(localized: "Try again."))) }
     }
 
     /// Import Model: a new mini from a 3D model file, print prep only.
@@ -464,7 +464,7 @@ final class AppModel {
 
     /// Build Shape from a menu; a refusal is said as an alert.
     func buildShape(_ mini: Mini) {
-        do { try buildShape(mini.name) } catch { problem = Problem("Couldn't build the shape", plainWords(error, else: "Check that Mimic's folder is still there, then try again.")) }
+        do { try buildShape(mini.name) } catch { problem = Problem(String(localized: "Couldn't build the shape"), plainWords(error, else: String(localized: "Check that Mimic's folder is still there, then try again."))) }
     }
 
     /// Try Again on a picture ready to check (#156): draws it again with a new variation number.
@@ -480,14 +480,14 @@ final class AppModel {
 
     /// Try Again from a failed mini's page or menus; a refusal is said as an alert.
     func tryAgain(_ mini: Mini) {
-        do { try retry(mini.name) } catch { problem = Problem("Couldn't try again", plainWords(error, else: "Check that Mimic's folder is still there, then try again.")) }
+        do { try retry(mini.name) } catch { problem = Problem(String(localized: "Couldn't try again"), plainWords(error, else: String(localized: "Check that Mimic's folder is still there, then try again."))) }
     }
 
     func stop() { jobs.cancel() }
 
     /// An error in words for people. Mimic's own refusals already are; anything else (a Cocoa
     /// error, a failed launch) gets `fallback`, and its raw text goes only in the tooltip.
-    func plainWords(_ error: Error, else fallback: String = "Couldn't start. Check that Mimic's folder is still there, then try again.") -> String {
+    func plainWords(_ error: Error, else fallback: String = String(localized: "Couldn't start. Check that Mimic's folder is still there, then try again.")) -> String {
         MimicCore.plainWords(error, making: current, else: fallback)
     }
 
@@ -524,8 +524,8 @@ final class AppModel {
         refreshQueue()
         var note: JobPresentation.QueuedNote?
         if let ahead, let ready = readyIn(name) {
-            let before = ahead == 0 ? "" : " \(ahead) ahead of it."
-            note = .init(name: name, text: "Added to the queue.\(before) \(whenReady(ready))")
+            let before = ahead == 0 ? "" : " " + String(localized: "\(ahead) ahead of it.")
+            note = .init(name: name, text: String(localized: "Added to the queue.") + before + " " + whenReady(ready))
         } else {
             job = jobs.status  // at once, so the popover never opens on the previous job
             DockProgress.follow(self)

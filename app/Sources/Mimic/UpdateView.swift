@@ -167,12 +167,14 @@ struct UpdatesSection: View {
                     Button("Check Now") { updates.check() }.disabled(!updates.canCheck)
                 } label: {
                     Text("Last checked")
-                    Text(updates.lastChecked.map { $0.formatted(.relative(presentation: .named)) } ?? "Never")
+                    Text(updates.lastChecked.map { $0.formatted(.relative(presentation: .named)) } ?? String(localized: "Never"))
                 }
             } header: {
                 Text("Updates")
             } footer: {
-                Text("Mimic asks GitHub for its latest release \(updates.automatic ? "each time it opens" : "only when you check"). Only public release information is read; nothing about your Mac or your minis is sent.")
+                Text(updates.automatic
+                     ? "Mimic asks GitHub for its latest release each time it opens. Only public release information is read; nothing about your Mac or your minis is sent."
+                     : "Mimic asks GitHub for its latest release only when you check. Only public release information is read; nothing about your Mac or your minis is sent.")
                     .foregroundStyle(.secondary)
             }
         }
