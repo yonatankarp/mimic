@@ -274,8 +274,13 @@ public struct MiniSettings: Codable, Equatable, Sendable {
         }
         change(&s)
         let enc = JSONEncoder()
-        enc.outputFormatting = [.prettyPrinted, .sortedKeys]
         enc.dateEncodingStrategy = .custom { date, e in var c = e.singleValueContainer(); try c.encode(date.formatted(dates)) }
-        try enc.encode(s).write(to: file(folder), options: .atomic)
+        // What a newer Mimic wrote that this one doesn't know is kept, as it was (#326): a minis
+        // folder in iCloud may be shared with one. Its own keys are its properties' names.
+        let known = Set(Mirror(reflecting: s).children.compactMap(\.label))
+        var out = ((try? JSONSerialization.jsonObject(with: Data(contentsOf: file(folder)))) as? [String: Any] ?? [:])
+            .filter { !known.contains($0.key) }
+        out.merge(try JSONSerialization.jsonObject(with: enc.encode(s)) as? [String: Any] ?? [:]) { $1 }
+        try JSONSerialization.data(withJSONObject: out, options: [.prettyPrinted, .sortedKeys]).write(to: file(folder), options: .atomic)
     }
 }

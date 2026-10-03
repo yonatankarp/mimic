@@ -41,6 +41,17 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(MiniSettings.load(folder).seed, 7)
     }
 
+    /// What a newer Mimic wrote that this one doesn't know is kept when it writes the file back
+    /// (#326): two Macs may share a minis folder. What it knows and clears is still cleared.
+    func testWhatANewerMimicWroteIsKept() throws {
+        let file = folder.appendingPathComponent("settings.json")
+        try #"{"seed": 42, "failed": "It stopped.", "pose": {"arms": "raised"}, "tags": ["elf", 3]}"#
+            .write(to: file, atomically: true, encoding: .utf8)
+        try MiniSettings.update(folder) { $0.seed = 7; $0.failed = nil }
+        let json = try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as! NSDictionary
+        XCTAssertEqual(json, ["seed": 7, "pose": ["arms": "raised"], "tags": ["elf", 3]])
+    }
+
     /// Changes to one mini's settings take turns, so none is lost to another made at the same
     /// time (a rename while it's resized, #179).
     func testUpdatesTakeTurns() throws {
