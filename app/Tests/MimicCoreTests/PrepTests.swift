@@ -271,6 +271,14 @@ final class PrepTests: XCTestCase {
         XCTAssertEqual(PrepReport.read(dir)?.failure, "flat")
     }
 
+    /// Why print prep failed reaches the mini's page only when it's said for people (#440): a
+    /// file's or JSON's raw text stays in prep.log, and the job says which step stopped.
+    func testAFailureIsReportedInPlainWordsOnly() {
+        XCTAssertEqual(PrepReport(failed: PrepError(Prep.flatProblem)).failure, Prep.flatProblem)
+        XCTAssertEqual(PrepReport(failed: RequestError.notFound).failure, RequestError.notFound.description)
+        XCTAssertNil(PrepReport(failed: CocoaError(.fileReadNoSuchFile)).failure)
+    }
+
     /// The generator's figures are often hollow, and the solid's wall round the hollow is a
     /// piece of its own, bigger than any part (the elf's was its whole body's length). Dropping
     /// it fills the hollow, which is right, and says nothing: it's inside out, so its volume is
