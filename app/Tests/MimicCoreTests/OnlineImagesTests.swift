@@ -22,19 +22,19 @@ final class OnlineImagesTests: XCTestCase {
     static func fake(status: String = "Ready", pending: Int = 0, submit: Int = 200, details: String = "null",
                      hiccups: Int = 0, hiccup: Int = 503, downloads: [Int] = [], resigned: Bool = false, busy: Int = 0) throws -> FakeLLM {
         let asked = Counter(), fetched = Counter(), submitted = Counter()
-        nonisolated(unsafe) var port: UInt16 = 0
+        let port = Port()
         let server = try FakeLLM { r in
             let path = r.head.split(separator: " ").dropFirst().first.map(String.init) ?? ""
             if path.hasPrefix("/v1/flux-2-klein-9b") {
                 if submitted.next() < busy { return (429, Data(#"{"detail":"Too many active tasks"}"#.utf8)) }
-                return (submit, Data(#"{"id":"t1","polling_url":"http://127.0.0.1:\#(port)/v1/get_result?id=t1"}"#.utf8))
+                return (submit, Data(#"{"id":"t1","polling_url":"http://127.0.0.1:\#(port.value)/v1/get_result?id=t1"}"#.utf8))
             }
             if path.hasPrefix("/v1/get_result") {
                 let n = asked.next()
                 if n < hiccups { return (hiccup, Data()) }
                 let s = n - hiccups < pending ? "Pending" : status
                 let sig = resigned ? "?sig=\(n)" : ""
-                let result = s == "Ready" ? #"{"sample":"http://127.0.0.1:\#(port)/sample.png\#(sig)"}"# : "null"
+                let result = s == "Ready" ? #"{"sample":"http://127.0.0.1:\#(port.value)/sample.png\#(sig)"}"# : "null"
                 // As api.bfl.ai answers an id it doesn't know: 404, with the status in the body.
                 return (s == "Task not found" ? 404 : 200, Data(#"{"id":"t1","status":"\#(s)","result":\#(result),"details":\#(details)}"#.utf8))
             }
@@ -45,7 +45,7 @@ final class OnlineImagesTests: XCTestCase {
             if path == "/v1/credits" { return (submit, Data(#"{"credits":12.5}"#.utf8)) }
             return (404, Data())
         }
-        port = server.port
+        port.value = server.port
         return server
     }
 
@@ -395,6 +395,11 @@ final class OnlineImagesTests: XCTestCase {
         }
         XCTAssertTrue(FileManager.default.fileExists(atPath: folder.path), "a failed mini is kept, not thrown away")
     }
+}
+
+/// A fake server's port, for its own answers: set once it's listening, before anything asks it.
+final class Port: @unchecked Sendable {
+    var value: UInt16 = 0
 }
 
 final class Counter: @unchecked Sendable {

@@ -372,13 +372,18 @@ public enum Tabletop {
         }
 
         // Each corner's normal, its triangles' weighted by their area, for a smooth one across a triangle.
-        var normals = [SIMD3<Float>](repeating: .zero, count: low.positions.count)
-        for t in low.triangles {
-            let n = simd_cross(low.positions[Int(t.y)] - low.positions[Int(t.x)], low.positions[Int(t.z)] - low.positions[Int(t.x)])
-            normals[Int(t.x)] += n; normals[Int(t.y)] += n; normals[Int(t.z)] += n
-        }
+        let normals = {
+            var sums = [SIMD3<Float>](repeating: .zero, count: low.positions.count)
+            for t in low.triangles {
+                let n = simd_cross(low.positions[Int(t.y)] - low.positions[Int(t.x)], low.positions[Int(t.z)] - low.positions[Int(t.x)])
+                sums[Int(t.x)] += n; sums[Int(t.y)] += n; sums[Int(t.z)] += n
+            }
+            return sums
+        }()
         var pixels = [UInt8](repeating: 255, count: size * size * 4)
-        pixels.withUnsafeMutableBufferPointer { out in
+        pixels.withUnsafeMutableBufferPointer { buffer in
+            // Each triangle writes only its own cell's pixels.
+            nonisolated(unsafe) let out = buffer
             DispatchQueue.concurrentPerform(iterations: low.triangles.count) { k in
                 let t = low.triangles[k]
                 let a = low.positions[Int(t.x)], b = low.positions[Int(t.y)], c = low.positions[Int(t.z)]

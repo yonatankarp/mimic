@@ -290,11 +290,12 @@ final class TimingsTests: XCTestCase {
         // The app and `mimic make` starting together on a new Mac both seed, while a job
         // finishes (#333). Planted: the check and the import were outside the lock, so the minis
         // went in twice or the second seed's clear wiped the finished job.
+        let finished = record(steps: [3: 1]), mac = mac
         for _ in 0..<20 {
             try FileManager.default.removeItem(at: t.url)
             DispatchQueue.concurrentPerform(iterations: 8) { i in
                 t.seedIfNeeded(runs: fx.install.runs, machine: mac)  // each Mimic seeds as it starts
-                if i == 0 { t.append([record(steps: [3: 1])]) }
+                if i == 0 { t.append([finished]) }
             }
             let all = t.load()
             XCTAssertEqual(all.filter { $0.imported == true }.count, 1, "seeded once")
