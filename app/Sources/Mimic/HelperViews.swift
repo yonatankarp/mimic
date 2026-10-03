@@ -56,7 +56,7 @@ struct ImproveBox: View {
             working = false
             switch result {
             case .success(let better): improved = better
-            case .failure(let error): problem = "\(error) Your own description still works."
+            case .failure(let error): problem = said(error, else: "The helper couldn't answer.") + " Your own description still works."
             }
         }
     }
@@ -178,7 +178,7 @@ struct HelperSection: View {
             hasKey = true
             testResult = nil
         } catch {
-            testResult = (false, "\(error)")
+            testResult = (false, said(error, else: "Couldn't save the key in your Keychain. Try again."))
         }
     }
 
@@ -194,7 +194,7 @@ struct HelperSection: View {
                 if model.isEmpty, let first = names.first { model = DescriptionHelper.recommendedOllama(names) ?? first }
             case .failure(let error):
                 ollamaModels = []
-                ollamaProblem = "\(error)"
+                ollamaProblem = said(error, else: "Couldn't ask Ollama which models it has. Check that it's running.")
             }
         }
     }
@@ -209,7 +209,7 @@ struct HelperSection: View {
             testing = false
             switch result {
             case .success: testResult = (true, "It works.")
-            case .failure(let error): testResult = (false, "\(error)")
+            case .failure(let error): testResult = (false, said(error, else: "The test didn't work. Check the settings above, then try again."))
             }
         }
     }
@@ -290,7 +290,7 @@ struct PicturesSection: View {
             hasKey = true
             changed()
         } catch {
-            testResult = (false, "\(error)")
+            testResult = (false, said(error, else: "Couldn't save the key in your Keychain. Try again."))
         }
     }
 
@@ -309,8 +309,16 @@ struct PicturesSection: View {
             guard service == asked else { return }
             switch result {
             case .success: testResult = (true, "It works.")
-            case .failure(let error): testResult = (false, "\(error)")
+            case .failure(let error): testResult = (false, said(error, else: "The test didn't work. Check the key, then try again."))
             }
         }
     }
+}
+
+/// An error from the AI helper or an online picture service in plain words (#324): Mimic's own
+/// say what happened; anything else is `fallback`. Both, and the raw text, go in the log.
+private func said(_ error: Error, else fallback: String) -> String {
+    let words = plainWords(error) ?? fallback
+    Log.shown.error("\(words, privacy: .public) (\(String(describing: error), privacy: .public))")
+    return words
 }

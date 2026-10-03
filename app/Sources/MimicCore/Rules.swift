@@ -119,6 +119,19 @@ public enum Rules {
     public static let nozzles: Set<String> = ["0.2", "0.4", "0.6"]
 }
 
+/// An error in words for people (#324): Mimic's own already are. Anything else, a Cocoa error
+/// say, is nil: the caller says what it was doing instead, and keeps the raw text for the log.
+public func plainWords(_ error: Error) -> String? {
+    switch error {
+    case let e as RequestError: e.description
+    case let e as Refusal: e.description
+    case let e as DrawThingsError: e.description
+    case let e as OnlineImagesError: e.description
+    case let e as HelperError: e.description
+    default: nil
+    }
+}
+
 /// A refusal of the app's or the command line's own, already in words for people: a job
 /// refused before it started, a project that isn't there.
 public struct Refusal: Error, Equatable, CustomStringConvertible {

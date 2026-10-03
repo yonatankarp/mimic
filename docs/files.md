@@ -63,7 +63,7 @@ Everything about one mini is in its folder. For a mini called `tiefling`:
 | `model.glb` | The 3D shape the 3D engine made, before print prep, with the engine's colours. Resize, Duplicate and Export for Virtual Tabletop start from it. |
 | `placement.json` | Where print prep put `model.glb` to make the print file: see [below](#placementjson). Made again with the print file. |
 | `settings.json` | How the mini was made and what it was asked for: see below. |
-| `generate.job.log` | The steps of the last make or Try Again: `[1/3] Getting the picture ready`, `[2/3] Building the 3D shape`, `[3/3] Making the print-ready file`. |
+| `generate.job.log` | The steps of the last make or Try Again: `[1/3] Getting the picture ready`, `[2/3] Building the 3D shape`, `[3/3] Making the print-ready file`. When a step fails inside Mimic itself, the full error is here too; the mini's page says it in plain words. |
 | `prep.job.log` | The same for the last job that only ran print prep: a resize, an import, or a Try Again that only needed print prep. |
 | `pixal3d.log` | What the 3D engine said, for either 3D model. Where a failure in step 2 shows. |
 | `prep.log` | What print prep did, with sizes, how many loose pieces it dropped and any warnings. See [Tuning print prep](print-prep.md#what-it-says). |
