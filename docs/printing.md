@@ -83,7 +83,7 @@ Your choice stays for every mini. It's also in **View → Size Reference**.
 ## Export for a virtual tabletop
 
 Playing online? Right-click a mini → **Export for Virtual Tabletop…** (or **Mini → Export for
-Virtual Tabletop…**, ++shift+cmd+e++), choose where to save it, and Mimic shows it in Finder. It's a small, low-poly `.glb` (about 5,000 triangles) at the mini's
+Virtual Tabletop…**, ++shift+cmd+e++, or **More** on its page), choose where to save it, and Mimic shows it in Finder. It's a small, low-poly `.glb` (about 5,000 triangles) at the mini's
 real size, to drag into a virtual tabletop.
 
 It comes out in colour or in grey:

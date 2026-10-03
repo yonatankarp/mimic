@@ -38,7 +38,8 @@ See [Printing and exporting](printing.md#the-3d-view) for everything it does.
 
 The toolbar has:
 
-- **More**: **Copies…**, **Resize This Mini…**, **Edit & Make Again…** and **Show in Finder**.
+- **More**: **Copies…**, **Resize This Mini…**, **Edit & Make Again…**, **Export for Virtual
+  Tabletop…** and **Show in Finder**.
 - **Open in …**: opens the mini in your slicer. The button names it, like **Open in Bambu
   Studio**. See [Printing and exporting](printing.md).
 - **Show Details** / **Hide Details** (++ctrl+cmd+i++): the details panel on the right.
@@ -137,8 +138,8 @@ hides, so nothing out of sight is moved or deleted with the rest.
 ## Rename a mini
 
 Right-click it → **Rename…** (or **Mini → Rename…**), type the new name and press **Rename**.
-**Edit → Undo** gives it back its old name. A mini waiting in the queue
-can be renamed once it's made.
+**Edit → Undo** gives it back its old name. A mini that's waiting in the
+queue or being made can be renamed once it's made.
 
 Names can have capitals, accents, spaces and other alphabets: "Élodie", "D&D Bard", "Дракон".
 Each name is used once across all your minis and projects, whatever the capitals.
