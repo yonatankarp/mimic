@@ -97,6 +97,9 @@ look at:
 | `failed`, `failedStep`, `notes`, `fragile` | Why the last run didn't finish, and what the last finished run wants you to know. |
 | `created` | When it was asked for: the list's order. |
 
+A field Mimic doesn't know, such as one a newer Mimic on another Mac wrote, is kept as it is when
+Mimic changes the file.
+
 For scripts, `mimic info <name> --json` gives the same in a form that won't change: see
 [JSON for scripts](cli.md#json-for-scripts).
 

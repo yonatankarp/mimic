@@ -78,7 +78,7 @@ public struct Sizes: Equatable, Sendable {
 }
 
 extension Sizes: Codable {
-    private enum K: String, CodingKey { case height, base, nozzle, inflate, nobase, shape, style, magnet }
+    enum K: String, CodingKey, CaseIterable { case height, base, nozzle, inflate, nobase, shape, style, magnet }
     public init(from d: Decoder) throws {
         let c = try d.container(keyedBy: K.self)
         func text(_ k: K) -> String? {
@@ -274,8 +274,19 @@ public struct MiniSettings: Codable, Equatable, Sendable {
         }
         change(&s)
         let enc = JSONEncoder()
-        enc.outputFormatting = [.prettyPrinted, .sortedKeys]
         enc.dateEncodingStrategy = .custom { date, e in var c = e.singleValueContainer(); try c.encode(date.formatted(dates)) }
-        try enc.encode(s).write(to: file(folder), options: .atomic)
+        // What a newer Mimic wrote that this one doesn't know is kept, as it was (#326): a minis
+        // folder in iCloud may be shared with one. Its own keys are its properties' names, and
+        // the sizes' theirs.
+        func merged(_ old: Any?, _ new: [String: Any], known: Set<String>) -> [String: Any] {
+            ((old as? [String: Any]) ?? [:]).filter { !known.contains($0.key) }.merging(new) { $1 }
+        }
+        let old = (try? JSONSerialization.jsonObject(with: Data(contentsOf: file(folder)))) as? [String: Any] ?? [:]
+        var out = merged(old, try JSONSerialization.jsonObject(with: enc.encode(s)) as? [String: Any] ?? [:],
+                         known: Set(Mirror(reflecting: s).children.compactMap(\.label)))
+        for key in ["requested", "made"] {
+            if let new = out[key] as? [String: Any] { out[key] = merged(old[key], new, known: Set(Sizes.K.allCases.map(\.rawValue))) }
+        }
+        try JSONSerialization.data(withJSONObject: out, options: [.prettyPrinted, .sortedKeys]).write(to: file(folder), options: .atomic)
     }
 }
