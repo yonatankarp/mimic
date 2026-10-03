@@ -25,7 +25,7 @@ before it acts.
 | ++opt+cmd+up++ / ++opt+cmd+down++ | **Move Up** / **Move Down** in the queue *(when the selected mini is waiting)* |
 | ++cmd+comma++ | **Settings…** |
 | ++cmd+w++ | Closes the window. A mini being made carries on (see [The queue](queue.md)) |
-| ++cmd+q++ | Quits Mimic. While a mini is being made, it asks first |
+| ++cmd+q++ | Quits Mimic. While a mini is being made or the 3D engine downloads, it asks first |
 
 ### In the list of minis
 
@@ -86,7 +86,7 @@ Click a preview in the details panel first.
 | **Check for Updates…** | Looks for a newer Mimic *(in the downloaded app)* |
 | **Settings…** ++cmd+comma++ | Everything Mimic needs, the 3D model, Draw Things and more (see [Settings](settings.md)) |
 | **Install Command-Line Tool…** | Shows how to add `mimic` to Terminal (see [Mimic from a terminal](cli.md)) |
-| **Quit Mimic** ++cmd+q++ | Asks first while a mini is being made |
+| **Quit Mimic** ++cmd+q++ | Asks first while a mini is being made or the 3D engine downloads |
 
 ### File
 
