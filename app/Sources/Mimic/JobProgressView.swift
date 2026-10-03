@@ -59,6 +59,7 @@ struct JobProgressView: View {
                                 }
                             }
                         }
+                        .accessibilityElement(children: .combine)  // "Step 2, in progress, Building the 3D shape, …"
                     }
                 }
                 Spacer(minLength: 0)
@@ -380,6 +381,17 @@ private struct StepMark: View {
             .contentTransition(.symbolEffect(.replace))
             .animation(reduceMotion ? nil : .default, value: state)
             .frame(width: 18, height: 18)
+            .accessibilityLabel("Step \(number), \(said)")
+            .accessibilityRemoveTraits(.isSelected)  // SwiftUI calls any checkmark "selected"
+    }
+
+    private var said: String {
+        switch state {
+        case .pending: "not started"
+        case .active: "in progress"
+        case .done: "done"
+        case .failed: "failed"
+        }
     }
 
     private var symbol: String {

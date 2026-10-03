@@ -34,6 +34,10 @@ struct GlidingBar: ProgressViewStyle {
                 }
             }
             .frame(height: 6)
+            // Drawn shapes say nothing to VoiceOver: without this the bar wasn't there at all.
+            .accessibilityElement()
+            .accessibilityLabel("Progress")
+            .accessibilityValue("\(Int(fraction * 100))%")
             .animation(reduceMotion || working || fraction < 1 ? nil : .easeOut(duration: 0.5), value: fraction)
         }
     }

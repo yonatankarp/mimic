@@ -276,14 +276,16 @@ private struct CheckMark: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        let (symbol, color): (String, Color) = switch ok {
-        case nil: ("circle.dotted", .secondary)
-        case true?: ("checkmark.circle.fill", .green)
-        case false? where required: ("xmark.circle.fill", .red)
-        case false?: ("exclamationmark.triangle.fill", .orange)
+        let (symbol, color, said): (String, Color, String) = switch ok {
+        case nil: ("circle.dotted", .secondary, "Checking")
+        case true?: ("checkmark.circle.fill", .green, "Ready")
+        case false? where required: ("xmark.circle.fill", .red, "Needs fixing")
+        case false?: ("exclamationmark.triangle.fill", .orange, "Optional, not set up")
         }
         Image(systemName: symbol)
             .foregroundStyle(color)
+            .accessibilityLabel(said)  // the colour says it on screen; VoiceOver needs the words
+            .accessibilityRemoveTraits(.isSelected)  // SwiftUI calls any checkmark "selected"
             .symbolEffect(.rotate, options: .repeat(.continuous), isActive: ok == nil && !reduceMotion)
             .contentTransition(.symbolEffect(.replace))
             .animation(reduceMotion ? nil : .default.delay(stagger), value: ok)
@@ -365,6 +367,8 @@ private struct ModelsSection: View {
 
 struct SetupStep: View {
     let done: Bool
+    /// Its number in a list of steps, for VoiceOver.
+    var step: Int?
     let title: String
     var detail: String?
     var link: (title: String, url: URL)?
@@ -373,6 +377,8 @@ struct SetupStep: View {
         HStack(alignment: .firstTextBaseline) {
             Image(systemName: done ? "checkmark.circle.fill" : "circle")
                 .foregroundStyle(done ? .green : .secondary).frame(width: 18)
+                .accessibilityLabel(step.map { "Step \($0), \(done ? "done" : "not done")" } ?? (done ? "Done" : "Not done"))
+                .accessibilityRemoveTraits(.isSelected)  // as CheckMark
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                 if let detail { Text(detail).font(.callout).foregroundStyle(.secondary) }
@@ -390,12 +396,12 @@ struct DrawThingsSteps: View {
     private var health: Health { .shared }
 
     var body: some View {
-        SetupStep(done: health.ok("drawthings-app"), title: "Get Draw Things from the App Store.",
+        SetupStep(done: health.ok("drawthings-app"), step: 1, title: "Get Draw Things from the App Store.",
                   detail: "It's free.", link: ("Open the App Store", SetupModel.drawThingsStore))
-        SetupStep(done: health.drawThingsConnected, title: "Connect Mimic to it.",
+        SetupStep(done: health.drawThingsConnected, step: 2, title: "Connect Mimic to it.",
                   detail: "Mimic does this itself, with Draw Things' command line tool: it comes with the 3D engine, and Draw Things doesn't even need to be open. "
                       + "Without it: in Draw Things, Settings → Advanced → API Server. Turn it on, choose HTTP, set the port to 7860.")
-        SetupStep(done: health.ok("drawthings-model"), title: "Download FLUX.2 Klein.",
+        SetupStep(done: health.ok("drawthings-model"), step: 3, title: "Download FLUX.2 Klein.",
                   detail: "In Draw Things' model list, search for FLUX.2 Klein and download it. It's big, so give it a few minutes.")
     }
 }

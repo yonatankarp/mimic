@@ -317,6 +317,7 @@ struct MiniDetail: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(v.name == mini.name ? .isSelected : [])  // the ring says it on screen
         .help(v.name == mini.name ? "The version you're looking at." : "Shows this version.")
     }
 
