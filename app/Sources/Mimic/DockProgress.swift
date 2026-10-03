@@ -5,6 +5,9 @@ import MimicCore
 @MainActor
 enum DockProgress {
     private static var task: Task<Void, Never>?
+    /// Seconds between redraws: every second, like the popover's clock (a 2-second step read
+    /// as a stutter).
+    private static let tick = 1.0
 
     static func follow(_ model: AppModel) {
         task?.cancel()
@@ -14,8 +17,7 @@ enum DockProgress {
             while !Task.isCancelled, let s = model.job, s.running {
                 view.fraction = JobProgress.fraction(s, estimate: model.estimate(s))
                 tile.display()
-                // Every second, like the popover's clock: a 2-second step read as a stutter.
-                try? await Task.sleep(for: .seconds(1))
+                try? await Task.sleep(for: .seconds(tick))
             }
             tile.contentView = nil
             tile.display()

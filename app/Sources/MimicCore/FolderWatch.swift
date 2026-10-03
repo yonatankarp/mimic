@@ -29,11 +29,15 @@ public final class FolderWatch {
         }
     }
 
+    /// Seconds of quiet after a change before `changed` is called, so a burst of file events
+    /// (a mini added, a project renamed) calls it once.
+    private static let settle = 0.3
+
     private func soon() {
         pending?.cancel()
         let work = DispatchWorkItem { [changed] in MainActor.assumeIsolated { changed() } }
         pending = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.settle, execute: work)
     }
 
     deinit { sources.forEach { $0.cancel() } }

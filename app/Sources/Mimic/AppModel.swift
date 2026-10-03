@@ -729,11 +729,16 @@ final class AppModel {
         present { $0.popoverShowing(active: active, open: jobPopover, idle: !running && elsewhere == nil) }
     }
 
-    /// Opens the job's popover a moment after New Mini or Resize has gone: both in one update
-    /// could drop the popover. VoiceOver is told, as it doesn't notice a popover opening by itself.
+    /// Seconds for New Mini or Resize to close before the job's popover opens: both in one update
+    /// could drop the popover. Not the sheet's `onDismiss`: Try Again and Redraw start a job with
+    /// no sheet up, so it would never come.
+    static let showJobDelay = 0.4
+
+    /// Opens the job's popover a moment after New Mini or Resize has gone (`showJobDelay`).
+    /// VoiceOver is told, as it doesn't notice a popover opening by itself.
     private func showJob() {
         Task {
-            try? await Task.sleep(for: .seconds(0.4))
+            try? await Task.sleep(for: .seconds(Self.showJobDelay))
             // Not with another app in front: it would close unseen. The toolbar item stays.
             guard sheet == nil, !jobPopover, active, NSApp.isActive else { return }
             jobPopover = true

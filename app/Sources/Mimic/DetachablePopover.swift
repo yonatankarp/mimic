@@ -27,7 +27,7 @@ struct DetachablePopover<Content: View>: NSViewRepresentable {
         }
         // The click outside that closed it also presses the toolbar button, which asks to open it
         // again: SwiftUI's popover ignores that, and so does this.
-        if Date().timeIntervalSince(c.lastClosed) < 0.3 {
+        if Date().timeIntervalSince(c.lastClosed) < Self.reopenGuard {
             DispatchQueue.main.async { isPresented = false }
             return
         }
@@ -46,6 +46,11 @@ struct DetachablePopover<Content: View>: NSViewRepresentable {
         // with the window closed), once the anchor is in it.
         DispatchQueue.main.async { c.show(from: anchor) }
     }
+
+    /// Seconds after it closes in which a request to open it again is the same click that closed
+    /// it. The close notification (`popoverDidClose`) is already what starts it: the button's
+    /// press comes after it, so there's no later event to wait on.
+    private static var reopenGuard: TimeInterval { 0.3 }
 
     static func dismantleNSView(_ anchor: Anchor, coordinator: Coordinator) { coordinator.popover?.close() }
 
