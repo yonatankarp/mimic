@@ -34,7 +34,7 @@ struct ImportSheet: View {
     init(file: URL, room: CGSize) {
         self.file = file
         self.room = room
-        _height = State(initialValue: min(720, room.height - 8))
+        _height = State(initialValue: room.sheetHeight)
     }
 
     var body: some View {

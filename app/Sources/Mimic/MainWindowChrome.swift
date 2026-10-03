@@ -56,8 +56,28 @@ struct MainWindowChrome: ViewModifier {
                 }
             }
             .modifier(JobQuestions())
+            .modifier(TrashQuestions())
+            // Move to Trash registers its Undo with the window's undo manager (Edit → Undo).
+            .onChange(of: undoManager, initial: true) { model.undo = undoManager }
+            // Kept by the model, so a notification or the Dock menu can bring the window back
+            // after it's been closed while a mini is made.
+            .onAppear { model.openMainWindow = { [openWindow] in openWindow(id: "main") } }
+            .alert(model.problem ?? "", isPresented: showsProblem) {
+                Button("OK") {}
+            }
+    }
+}
+
+/// The questions Move to Trash and Delete Project ask, over the window. A modifier of its own,
+/// with named bindings: inline, they made the window's modifier chain too slow for CI's Swift to
+/// type-check.
+private struct TrashQuestions: ViewModifier {
+    @Environment(AppModel.self) private var model
+
+    func body(content: Content) -> some View {
+        content
             .confirmationDialog(model.trashing.count == 1 ? "Move “\(model.trashing[0].displayName)” to the Trash?" : "Move \(model.trashing.count) minis to the Trash?",
-                                isPresented: Binding(get: { !model.trashing.isEmpty }, set: { if !$0 { model.trashing = [] } }),
+                                isPresented: trashing,
                                 presenting: model.trashing) { group in
                 Button("Move to Trash", role: .destructive) { model.trash(group) }
                 Button("Cancel", role: .cancel) {}
@@ -65,14 +85,9 @@ struct MainWindowChrome: ViewModifier {
                 Text(group.count == 1 ? "It leaves the queue. You can put it back from the Trash, but not in the queue."
                      : "Those waiting leave the queue. You can put them back from the Trash, but not in the queue.")
             }
-            // Move to Trash registers its Undo with the window's undo manager (Edit → Undo).
-            .onChange(of: undoManager, initial: true) { model.undo = undoManager }
-            // Kept by the model, so a notification or the Dock menu can bring the window back
-            // after it's been closed while a mini is made.
-            .onAppear { model.openMainWindow = { [openWindow] in openWindow(id: "main") } }
             // Deleting a project never trashes its minis silently: keeping them is the default.
             .confirmationDialog("Delete the project “\(model.deletingProject ?? "")”?",
-                                isPresented: Binding(get: { model.deletingProject != nil }, set: { if !$0 { model.deletingProject = nil } }),
+                                isPresented: deletingProject,
                                 presenting: model.deletingProject) { project in
                 let count = model.minis.filter { $0.project == project }.count
                 if count == 0 {
@@ -88,9 +103,14 @@ struct MainWindowChrome: ViewModifier {
                 Text(count == 0 ? "The empty project goes to the Trash."
                      : "Keep Minis moves \(minis) to Unsorted. Delete All moves \(minis) to the Trash with the project. You can put anything back from the Trash.")
             }
-            .alert(model.problem ?? "", isPresented: showsProblem) {
-                Button("OK") {}
-            }
+    }
+
+    private var trashing: Binding<Bool> {
+        Binding(get: { !model.trashing.isEmpty }, set: { if !$0 { model.trashing = [] } })
+    }
+
+    private var deletingProject: Binding<Bool> {
+        Binding(get: { model.deletingProject != nil }, set: { if !$0 { model.deletingProject = nil } })
     }
 }
 
