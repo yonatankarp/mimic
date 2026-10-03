@@ -39,7 +39,7 @@ public enum ModelImport {
         } else {
             corners = try stlCorners(data)
         }
-        let mesh = weld(corners)
+        let mesh = try weld(corners)
         guard !mesh.triangles.isEmpty else { throw RequestError.unreadableModel("it has no shape in it") }
         // A GLB's units are metres by its spec, and generators' sizes vary: only an STL's are a hint.
         return Read(glb: GLB.encode(mesh), note: ext == "stl" ? unitsNote(mesh) : nil)
@@ -86,12 +86,16 @@ public enum ModelImport {
     /// Triangles given as separate corners (an STL's) joined into one mesh: corners in the same
     /// place, to a millionth of the model's size, become one, and a triangle left with two
     /// corners in one place (a sliver) is dropped. Corners that aren't numbers are dropped too.
-    public static func weld(_ corners: [SIMD3<Float>]) -> Mesh {
+    /// Corners further apart than any model's are refused: past Float's range the grid's cells
+    /// would be infinite and its places not numbers (#334).
+    public static func weld(_ corners: [SIMD3<Float>]) throws -> Mesh {
         var lo = SIMD3<Float>(repeating: .infinity), hi = -lo
         for p in corners where p.x.isFinite && p.y.isFinite && p.z.isFinite { lo = simd_min(lo, p); hi = simd_max(hi, p) }
         var mesh = Mesh()
         guard lo.x <= hi.x else { return mesh }
-        let cell = max(simd_length(hi - lo) * 1e-6, .leastNormalMagnitude)
+        let span = simd_length(hi - lo)
+        guard span.isFinite, span <= 1e7 else { throw RequestError.unreadableModel("its corners are too far apart to be one model") }
+        let cell = max(span * 1e-6, .leastNormalMagnitude)
         var index: [SIMD3<Int32>: UInt32] = [:]
         index.reserveCapacity(corners.count / 2)
         func vertex(_ p: SIMD3<Float>) -> UInt32 {

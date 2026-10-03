@@ -28,15 +28,25 @@ final class ImportTests: XCTestCase {
         let cube = PrepTests.box(half: [1, 2, 3])
         let corners = cube.triangles.flatMap { [cube.positions[Int($0.x)], cube.positions[Int($0.y)], cube.positions[Int($0.z)]] }
         XCTAssertEqual(corners.count, 36)
-        let joined = ModelImport.weld(corners)
+        let joined = try ModelImport.weld(corners)
         XCTAssertEqual(joined.positions.count, 8)
         XCTAssertEqual(joined.triangles.count, 12)
         // Written and read back as floats, a corner can come back a hair off: still the same corner.
         let jittered = corners.enumerated().map { $0.element + SIMD3(repeating: $0.offset % 2 == 0 ? 1e-7 : 0) }
-        XCTAssertEqual(ModelImport.weld(jittered).positions.count, 8)
+        XCTAssertEqual(try ModelImport.weld(jittered).positions.count, 8)
         // A sliver (two corners in one place) has no area to print.
         let sliver: [SIMD3<Float>] = [[0, 0, 0], [0, 0, 0], [1, 0, 0]]
-        XCTAssertEqual(ModelImport.weld(corners + sliver).triangles.count, 12)
+        XCTAssertEqual(try ModelImport.weld(corners + sliver).triangles.count, 12)
+    }
+
+    /// Corners at the ends of Float's range made the grid's cells infinite and closed Mimic (#334).
+    func testCornersTooFarApartAreRefused() throws {
+        for far: Float in [3e38, 1e8] {
+            XCTAssertThrowsError(try ModelImport.weld([[-far, 0, 0], [far, 0, 0], [0, far, 0]]), "\(far)") { error in
+                guard case .unreadableModel = error as? RequestError else { return XCTFail("\(far): \(error)") }
+            }
+        }
+        XCTAssertEqual(try ModelImport.weld([[0, 0, 0], [1e6, 0, 0], [0, 1e6, 0]]).triangles.count, 1, "a kilometre across is read")
     }
 
     func testTheModelWrittenIsReadBackTheSame() throws {
