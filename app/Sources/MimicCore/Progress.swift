@@ -59,8 +59,11 @@ public enum JobProgress {
         return left < 15 ? "nearly done" : "\(about(left)) left"
     }
 
-    /// The web version's test: a failure whose reason names Draw Things is fixed in Setup.
-    public static func drawThingsCaused(_ s: JobStatus) -> Bool { s.problem?.contains("Draw Things") == true }
+    /// The web version's test: a failure whose reason names Draw Things is fixed in Setup. Not a
+    /// timeout: Draw Things was on, just slow or stuck (#321).
+    public static func drawThingsCaused(_ s: JobStatus) -> Bool {
+        s.problem?.contains("Draw Things") == true && s.problem != DrawThingsError.timedOut.description
+    }
 
     /// Whether closing the job's popover means how the job ended was seen, so it can leave the
     /// toolbar: only with Mimic in front (`active`), nothing running or waiting (`busy`), and the
