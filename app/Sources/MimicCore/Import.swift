@@ -28,13 +28,19 @@ public enum ModelImport {
     /// its triangles are joined where their corners meet: an STL keeps no corner shared, and many
     /// GLBs split them at every seam or face. Print prep finds a model's main pieces (what an
     /// object is sized by and stands on) by shared corners, and of unjoined triangles finds none.
-    public static func read(_ url: URL) throws -> Read {
+    public static func read(_ url: URL) throws -> Read { try read(url, most: GLB.most) }
+
+    static func read(_ url: URL, most: Int) throws -> Read {
         let ext = url.pathExtension.lowercased()
         guard extensions.contains(ext) else { throw RequestError.unreadableModel("it's another kind of file") }
         guard let data = try? Data(contentsOf: url) else { throw RequestError.unreadableModel("it can't be opened") }
         let corners: [SIMD3<Float>]
         if ext == "glb" {
-            guard let mesh = try? GLB.parse(data) else { throw RequestError.unreadableModel("its shape is stored in a way Mimic can't read") }
+            let mesh: Mesh
+            do { mesh = try GLB.parse(data, painted: false, most: most).mesh }
+            // The reader's own reason, such as "the .glb is too big" (#438); JSON's raw text isn't one.
+            catch let e as PrepError { throw RequestError.unreadableModel(e.description) }
+            catch { throw RequestError.unreadableModel("its shape is stored in a way Mimic can't read") }
             corners = mesh.triangles.flatMap { [mesh.positions[Int($0.x)], mesh.positions[Int($0.y)], mesh.positions[Int($0.z)]] }
         } else {
             corners = try stlCorners(data)

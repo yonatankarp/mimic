@@ -113,6 +113,21 @@ final class MakeRequestTests: XCTestCase {
         XCTAssertEqual(refusal { try self.parse("make", "a", "--image") }, "--image needs a picture")
     }
 
+    /// The next option isn't an option's value: `--image --restyle` used "--restyle" as the
+    /// picture (#430).
+    func testAnOptionIsNotTheValueOfTheOneBefore() throws {
+        let said = ["--height": "--height needs a number", "--size": "--size needs a number", "--base": "--base needs a number",
+                    "--inflate": "--inflate needs a number", "--nozzle": "--nozzle needs 0.2, 0.4 or 0.6",
+                    "--image": "--image needs a picture", "--back": "--back needs a picture", "--project": "--project needs a project's name",
+                    "--change": "--change needs what to change, in quotes", "--seed": "--seed needs a number"]
+        for (flag, words) in said {
+            XCTAssertEqual(refusal { try self.parse("make", "a", "x", flag, "--restyle") }, words, flag)
+        }
+        XCTAssertEqual(refusal { try self.parse("resize", "--project", "--height", "30") }, "--project needs a project's name")
+        // A negative number is still a value, for the range check to refuse.
+        XCTAssertEqual(try parse("resize", "a", "--inflate", "-1").sizes.inflate, "-1")
+    }
+
     func testADescriptionIsTakenOnce() throws {
         XCTAssertEqual(try parse("resize", "a", "words").description, "words")
         XCTAssertEqual(refusal { try self.parse("make", "a", "a dwarf", "a second one") }, "unknown option: a second one\n" + Usage.text)
@@ -272,11 +287,12 @@ final class MakeRequestTests: XCTestCase {
         XCTAssertEqual([ExitCode.failed, ExitCode.usage, ExitCode.stopped], [1, 64, 130])
         for typedWrong: Error in [CommandRefusal.usage, CommandRefusal.badSeed, CommandRefusal.unknownOption("--x"),
                                   CommandRefusal.notTaken(command: "retry", option: "--height"), RequestError.badNumber("height"),
-                                  RequestError.badNozzle] {
+                                  RequestError.badNozzle, RequestError.noName, RequestError.badName, RequestError.badProjectName] {
             XCTAssertEqual(ExitCode.of(typedWrong), 64, "\(typedWrong)")
         }
         // Mimic isn't ready, or the mini isn't there: nothing typed wrong.
-        for failed: Error in [CommandRefusal.notSetUp, RequestError.notFound, RequestError.queued("a"), Refusal("no")] {
+        for failed: Error in [CommandRefusal.notSetUp, RequestError.notFound, RequestError.queued("a"), Refusal("no"),
+                              RequestError.nameTaken("a"), RequestError.projectTaken("P")] {
             XCTAssertEqual(ExitCode.of(failed), 1, "\(failed)")
         }
     }
