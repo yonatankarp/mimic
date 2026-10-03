@@ -612,9 +612,12 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   the mini. Nor are those of print prep and the 3D step (#319), which are `mimic _prep` and
   `mimic _engine`, the same binary: a report keeps no arguments, so they're told apart by
   `parentProc`, which is `mimic` for a step (the app's is `launchd`, Terminal's the shell), or
-  `Exited process` when the step's parent died first (seen on trellis-cli's reports). The ceiling:
-  a `mimic` command whose shell had already exited isn't offered either; `mimic _prep` run by hand
-  in Terminal is, which is right, as there's no job to show it. Don't Ask Again is `crashDontAsk`. The setup (#283) goes in too, as it is at the
+  `Exited process` when the parent exits between the crash and the report (seen on trellis-cli's
+  reports, with the parent's real pid). The ceiling: a step left running after its parent had
+  gone (the app crashed, or `mimic make` was killed with SIGKILL; Ctrl-C stops the step) belongs
+  to launchd, so its crash is still offered; and a `mimic` command whose shell exits as it
+  crashes isn't. `mimic _prep` run by hand in Terminal is offered, which is right, as there's no
+  job to show it. Don't Ask Again is `crashDontAsk`. The setup (#283) goes in too, as it is at the
   next launch: the crashed launch's queue and last job went with it.
 - **One job at a time, and a queue shared by every Mimic** (`MimicCore/Queue.swift`, `Jobs.swift`;
   0.5.0). A job asked for while one runs, in this Mimic or another (the installed app, a dev

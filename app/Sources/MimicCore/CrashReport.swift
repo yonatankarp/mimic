@@ -118,7 +118,7 @@ public enum CrashReport {
 
     /// Print prep and the 3D step (`mimic _prep`, `mimic _engine`) are this binary too, and their
     /// crash shows as a failed job (#319). A report doesn't keep the arguments, so they're told
-    /// apart by what started them: Mimic, or, when it went first, a parent that had already exited.
+    /// apart by what started them: Mimic, or "Exited process" when it exited before the report.
     /// The app's parent is launchd, and `mimic` in Terminal's is the shell.
     static func startedByAJob(_ body: [String: Any]) -> Bool {
         ["mimic", "exited process"].contains((body["parentProc"] as? String)?.lowercased())
