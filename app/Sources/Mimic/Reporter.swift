@@ -27,15 +27,8 @@ final class Reporter {
         include.state = .off
         let includeWindow = NSButton(checkboxWithTitle: ReportQuestion.includeWindow, target: nil, action: nil)
         includeWindow.state = .off  // #350: it can show other minis
-        var rows: [NSView] = hasPicture ? [include] : []
-        if let window, let image = NSImage(data: window) {
-            let preview = NSImageView(image: image)
-            preview.imageScaling = .scaleProportionallyUpOrDown
-            let width: CGFloat = 260
-            preview.widthAnchor.constraint(equalToConstant: width).isActive = true
-            preview.heightAnchor.constraint(equalToConstant: width * image.size.height / max(image.size.width, 1)).isActive = true
-            rows += [includeWindow, preview]
-        }
+        // No preview of the window: the 3D view doesn't draw into it, so it came out mostly blank.
+        let rows: [NSView] = (hasPicture ? [include] : []) + (window != nil ? [includeWindow] : [])
         if !rows.isEmpty {
             let stack = NSStackView(views: rows)
             stack.orientation = .vertical
@@ -93,7 +86,7 @@ final class Reporter {
                 let saved = Keychain.all()
                 return write(setup, saved).map { ($0, setup, saved) }
             }.value
-            guard let made else { model.problem = "Couldn't make the report. Check that Mimic's folder is still there, then try again."; return }
+            guard let made else { model.problem = Problem("Couldn't make the report", "Check that Mimic's folder is still there, then try again."); return }
             NSWorkspace.shared.activateFileViewerSelecting([made.0])
             NSWorkspace.shared.open(issue(made.1, made.2))
         }

@@ -139,9 +139,9 @@ While New Mini or another sheet is open, everything here except **Pause After Th
 | **Move to Project** ▸ | **Unsorted**, any project, or **New Project…** |
 | **Show Progress** | Opens the progress popover *(while a mini is being made)* |
 | **Stop Making…** | Stops the mini being made. **Stop Resizing…** for a resize |
-| **Move in Queue** ▸ | **Move to Front**, **Move Up** ++opt+cmd+up++, **Move Down** ++opt+cmd+down++, **Move to End**, and **Take Out of Queue…** (**Don't Resize…** for a resize) *(when the mini is waiting)* |
+| **Move in Queue** ▸ | **Move to Front**, **Move Up** ++opt+cmd+up++, **Move Down** ++opt+cmd+down++, **Move to End**, and **Remove from Queue…** (**Cancel Resize…** for a resize) *(when the mini is waiting)* |
 | **Pause After This One** | Lets the mini being made finish and starts no more. It's **Pause Queue** when nothing is being made, and **Resume Queue** while paused |
-| **Move to Trash** ++cmd+"Delete"++ | **Edit → Undo** puts it back |
+| **Move to Trash** ++cmd+"Delete"++ | Moves it to the Trash. **Edit → Undo** puts it back |
 
 ### Help
 
@@ -173,7 +173,8 @@ While New Mini or another sheet is open, everything here except **Pause After Th
 
 ### A waiting mini, in the progress popover
 
-**Move to Front**, **Move Up**, **Move Down**, **Move to End** and **Take Out of Queue…**.
+**Move to Front**, **Move Up**, **Move Down**, **Move to End** and **Remove from Queue…** (**Cancel
+Resize…** for a resize).
 
 ## The toolbar
 

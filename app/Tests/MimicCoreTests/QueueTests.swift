@@ -280,7 +280,7 @@ final class QueueTests: XCTestCase {
         try jobs.resize(name: "first", sizes: sizes)
         XCTAssertEqual(try jobs.make(name: "big-photo-qa", picture: .image(try fx.picture("photo.jpg")), restyle: false, seed: 1,
                                      sizes: sizes, model: EngineDownload.standard, shown: "Big Photo QA"), 1)
-        XCTAssertEqual(try jobs.removeSaying("big-photo-qa"), "Took Big Photo QA out of the queue.")
+        XCTAssertEqual(try jobs.removeSaying("big-photo-qa"), "Removed Big Photo QA from the queue.")
         XCTAssertNil(Gallery.folder(fx.install.runs, "big-photo-qa"), "its folder went to the Trash")
         XCTAssertNil(try jobs.removeSaying("big-photo-qa"), "it isn't waiting any more")
         jobs.waitUntilDone()

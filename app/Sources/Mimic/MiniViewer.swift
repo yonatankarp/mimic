@@ -89,7 +89,11 @@ struct MiniViewer: View {
         .animation(reduceMotion ? nil : .easeOut(duration: 0.4), value: hintSeen)
         .overlay {
             if failed {
-                Text("Couldn't show this mini. Try Show in Finder.").foregroundStyle(.secondary)
+                ContentUnavailableView {
+                    Label("Couldn't show this mini", systemImage: "exclamationmark.triangle")
+                } actions: {
+                    Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([stl]) }
+                }
             } else if mini == nil {
                 VStack(spacing: 10) {
                     Image(systemName: "cube.transparent")

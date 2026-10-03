@@ -124,7 +124,7 @@ struct MiniActionButton: View {
         case .newShape: imported ? Self.imported : "Keeps this picture, or redraws it with a change, and makes the 3D shape again"
         case .editAndMakeAgain: imported ? Self.imported : "Opens New Mini filled in from this mini, to change what you like"
         case .duplicate: "Keeps a copy under a new name, then asks what size to make it"
-        case .moveToTrash: "Edit → Undo puts it back"
+        case .moveToTrash: minis.count == 1 ? "Moves it to the Trash; Edit → Undo puts it back" : "Moves them to the Trash; Edit → Undo puts them back"
         }
     }
 }

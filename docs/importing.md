@@ -67,7 +67,7 @@ imported.
 If its print-ready step fails, its page offers **Resize This Mini…** instead of Try Again: try
 other sizes, or check the model in the app it came from. If Mimic quit unexpectedly while importing
 it, its page says "Mimic stopped while making it. Resize it to try again." Stop an import before
-its first print file is made, or take it out of the queue, and it goes to the Trash.
+its first print file is made, or remove it from the queue, and it goes to the Trash.
 
 ## Import in Terminal
 

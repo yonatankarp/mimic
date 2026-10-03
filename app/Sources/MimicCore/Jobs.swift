@@ -389,7 +389,7 @@ public final class JobRunner: @unchecked Sendable {
     /// isn't waiting.
     public func removeSaying(_ name: String) throws -> String? {
         let shown = Mini.displayName(name, runs: install.runs)
-        return try remove(name) ? "Took \(shown) out of the queue." : nil
+        return try remove(name) ? "Removed \(shown) from the queue." : nil
     }
 
     /// Moves a waiting job `by` places, earlier (negative) or later. False when it isn't waiting.

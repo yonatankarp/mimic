@@ -596,11 +596,11 @@ enum CLI {
             if let r = running, r.name == mine.name { seen = true; mine.saw(r) }
             if !waiting && running?.name != mine.name {
                 // Made (or not) by another Mimic: its folder says which.
-                guard let folder = Gallery.folder(jobs.install.runs, mine.name) else { return fail("Stopped, or taken out of the queue.", ExitCode.stopped) }
+                guard let folder = Gallery.folder(jobs.install.runs, mine.name) else { return fail("Stopped, or removed from the queue.", ExitCode.stopped) }
                 let stl = folder.appendingPathComponent("\(mine.name).stl")
                 let at = (try? FileManager.default.attributesOfItem(atPath: stl.path))?[.modificationDate] as? Date
                 if let at, at >= added { print("Done: \(stl.path)"); return 0 }
-                return seen ? fail("It didn't finish. See the logs in \(folder.path)") : fail("It was taken out of the queue.", ExitCode.stopped)
+                return seen ? fail("It didn't finish. See the logs in \(folder.path)") : fail("It was removed from the queue.", ExitCode.stopped)
             }
             Thread.sleep(forTimeInterval: 1)
         }

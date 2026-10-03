@@ -9,7 +9,7 @@ public struct ReportQuestion: Equatable, Sendable {
     public static let make = "Make Report", cancel = "Cancel"
     /// Its own checkbox, shown only when the mini has a picture.
     public static let includePicture = "Include the picture (the issue is public)"
-    /// Its own checkbox too, unticked to start (#350), over a preview: the window can show minis' names and pictures.
+    /// Its own checkbox too, unticked to start (#350): the window can show minis' names and pictures.
     public static let includeWindow = "Include a picture of Mimic's window (the issue is public)"
 
     /// `mini` is the failed mini's name as shown, or nil from the Help menu.

@@ -62,8 +62,10 @@ struct MainWindowChrome: ViewModifier {
             // Kept by the model, so a notification or the Dock menu can bring the window back
             // after it's been closed while a mini is made.
             .onAppear { model.openMainWindow = { [openWindow] in openWindow(id: "main") } }
-            .alert(model.problem ?? "", isPresented: showsProblem) {
+            .alert(model.problem?.title ?? "", isPresented: showsProblem, presenting: model.problem) { _ in
                 Button("OK") {}
+            } message: { problem in
+                Text(problem.message)
             }
     }
 }

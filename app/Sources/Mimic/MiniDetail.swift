@@ -80,8 +80,8 @@ struct MiniDetail: View {
             MiniViewer(stl: stl, version: mini.madeAt, name: mini.displayName, facesAway: mini.facesAway, measured: $measured)
                 .overlay(alignment: .topLeading) { notes }
         } else if let n = model.waiting(mini.name) {
-            ContentUnavailableView("Waiting to be made (\(AppModel.ordinal(n)) in the queue).", systemImage: "hourglass",
-                                   description: Text("Ready in \(JobProgress.about(model.readyIn(mini.name) ?? 0))."))
+            ContentUnavailableView("Waiting to be made", systemImage: "hourglass",
+                                   description: Text("\(AppModel.ordinal(n).capitalizedFirst) in the queue. Ready in \(JobProgress.about(model.readyIn(mini.name) ?? 0))."))
         } else if let s = model.current, s.name == mini.name {
             // Being made (#77): which step, and how long it has left, with the progress a click away.
             TimelineView(.periodic(from: .now, by: 5)) { t in
@@ -123,7 +123,7 @@ struct MiniDetail: View {
                     .help(model.requiredProblem ?? "Makes its print file. Try Again is off for a model you imported.")
             }
         } else {
-            ContentUnavailableView("This mini isn't finished yet.", systemImage: "hourglass")
+            ContentUnavailableView("This mini isn't finished yet", systemImage: "hourglass")
         }
     }
 
@@ -406,7 +406,7 @@ struct MiniDetail: View {
     /// put the version that had the plain name back from the Trash.
     private func rename(to name: String) {
         do { try model.rename(mini, to: name) }
-        catch { model.problem = model.plainWords(error, else: "Couldn't rename it. Is its folder open in another app?"); return }
+        catch { model.problem = Problem("Couldn't rename it", model.plainWords(error, else: "Is its folder open in another app?")); return }
         model.selection = [name]
     }
 }

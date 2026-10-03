@@ -285,7 +285,7 @@ final class ProjectTests: XCTestCase {
         try jobs.resize(name: "raven", sizes: sizes)
         XCTAssertThrowsError(try jobs.renameProject("TIEFLINGS", to: "Other")) {
             XCTAssertEqual($0 as? RequestError, .projectBusy("TIEFLINGS", "Raven the Bold"))
-            XCTAssertEqual("\($0)", "Raven the Bold in TIEFLINGS is being made or waiting in the queue. Wait for it, or take it out of the queue first.")
+            XCTAssertEqual("\($0)", "Raven the Bold in TIEFLINGS is being made or waiting in the queue. Wait for it, or remove it from the queue first.")
         }
         jobs.waitUntilDone()
     }

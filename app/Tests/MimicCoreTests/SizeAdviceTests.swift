@@ -328,7 +328,7 @@ final class SizeAdviceTests: XCTestCase {
         inside.triangles = inside.triangles.map { SIMD3($0.x, $0.z, $0.y) }
         XCTAssertEqual(Filament.volume(inside.triangles.flatMap { [inside.positions[Int($0.x)], inside.positions[Int($0.y)], inside.positions[Int($0.z)]] }), 8000, accuracy: 1)
         XCTAssertEqual(Filament.words(volume), "Up to 10 g · 3.3 m")
-        XCTAssertEqual(Filament.short(200), "up to 1 g", "never 0 g")
+        XCTAssertEqual(Filament.short(200), "≈ 1 g filament", "never 0 g")
     }
 
     /// A project's filament is added up again whenever one of its minis changes; only print
@@ -367,8 +367,8 @@ final class SizeAdviceTests: XCTestCase {
         XCTAssertEqual(Filament.grams(1000), 1.24, accuracy: 1e-9)
         XCTAssertEqual(Filament.grams(8000), 9.92, accuracy: 1e-9)
         XCTAssertEqual(Filament.metres(1000), 0.41575, accuracy: 1e-5)
-        XCTAssertEqual(Filament.short(8000), "up to 10 g", "9.92 g rounds to 10")
-        XCTAssertEqual(Filament.short(0), "up to 1 g")
+        XCTAssertEqual(Filament.short(8000), "≈ 10 g filament", "9.92 g rounds to 10")
+        XCTAssertEqual(Filament.short(0), "≈ 1 g filament")
         XCTAssertEqual(Filament.words(0), "Up to 1 g · 0.1 m", "never 0 m either")
     }
 
