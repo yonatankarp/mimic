@@ -406,7 +406,9 @@ enum CommandLineTool {
     // isn't on the PATH, which would take a second step. The app's own path only when it's in
     // Applications: opened from the disk image (or translocated), it's gone after a restart.
     static let command: String = {
-        let app = Bundle.main.bundlePath.hasPrefix("/Applications/") ? Bundle.main.bundlePath : "/Applications/Mimic.app"
+        let path = Bundle.main.bundlePath.hasPrefix("/Applications/") ? Bundle.main.bundlePath : "/Applications/Mimic.app"
+        // Escaped for its double quotes: a renamed app could have a " or $ in its name.
+        let app = path.replacingOccurrences(of: #"([\\"$`])"#, with: #"\\$1"#, options: .regularExpression)
         return "sudo mkdir -p /usr/local/bin && sudo ln -sf \"\(app)/Contents/MacOS/mimic\" /usr/local/bin/mimic"
     }()
 
