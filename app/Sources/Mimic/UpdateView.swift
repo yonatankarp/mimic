@@ -70,17 +70,27 @@ final class Updater: NSObject, SPUUpdaterDelegate {
     /// Every few seconds (the queue's watch): an update that was waiting for the queue installs
     /// once it's done.
     func tick() {
-        guard let relaunch, !busy else { return }
-        self.relaunch = nil
+        guard let relaunch, let model, !busy else { return }
         // A window with a sheet up refuses to quit (seen: the old Mimic stayed open), so the
         // sheet goes first, and so do alerts and questions, which SwiftUI shows as sheets too.
-        model?.sheet = nil; model?.problem = nil; model?.trashing = []; model?.deletingProject = nil
+        let closable = model.sheet != nil || model.problem != nil || !model.trashing.isEmpty || model.deletingProject != nil
+        // Any other (a mini's own question, Settings', a save panel) is yours to answer: the
+        // update waits for it, rather than closing what you're doing every few seconds (#337).
+        guard closable || !Self.dialogUp else { return }
+        self.relaunch = nil
+        model.sheet = nil; model.problem = nil; model.trashing = []; model.deletingProject = nil
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(0.5))
-            if busy { self.relaunch = relaunch; return }  // a mini started meanwhile, maybe in another Mimic
+            // A mini started meanwhile, maybe in another Mimic, or a dialog is still up: kept
+            // for a later tick, never dropped.
+            if busy || Self.dialogUp { self.relaunch = relaunch; return }
             relaunch()
         }
     }
+
+    /// A dialog is up somewhere in Mimic: a modal panel, or a sheet on any of its windows (SwiftUI's
+    /// alerts and questions are sheets too).
+    private static var dialogUp: Bool { NSApp.modalWindow != nil || NSApp.windows.contains { $0.attachedSheet != nil } }
 
     func updater(_ updater: SPUUpdater, shouldPostponeRelaunchForUpdate item: SUAppcastItem,
                  untilInvokingBlock installHandler: @escaping () -> Void) -> Bool {
