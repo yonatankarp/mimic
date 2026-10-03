@@ -18,7 +18,7 @@ public final class BlackForestLabs: OnlineClient, OnlineImages, @unchecked Senda
     public static let model = "flux-2-klein-9b"
 
     /// Why it failed when the picture's download link stopped working, after "couldn't make the picture: ".
-    static let expired = "the link to download it had stopped working. Try again."
+    static let expired = String(localized: "the link to download it had stopped working. Try again.", bundle: .mimicCore)
 
     /// How often to ask whether the picture is ready.
     var poll: TimeInterval = 0.5
@@ -61,7 +61,7 @@ public final class BlackForestLabs: OnlineClient, OnlineImages, @unchecked Senda
         submit.timeoutInterval = 60
         let started = try self.submit { try json(submit) }
         guard let polling = (started["polling_url"] as? String).flatMap(URL.init(string:)), sendsKey(to: polling) else {
-            throw fail(.failed("it gave no address to collect the picture from"))
+            throw fail(.failed(String(localized: "it gave no address to collect the picture from", bundle: .mimicCore)))
         }
         let deadline = Date().addingTimeInterval(timeout)
         func wait() { pause(poll) }
@@ -80,7 +80,7 @@ public final class BlackForestLabs: OnlineClient, OnlineImages, @unchecked Senda
             switch reply["status"] as? String {
             case "Ready":
                 guard let sample = ((reply["result"] as? [String: Any])?["sample"] as? String).flatMap(URL.init(string:)) else {
-                    throw fail(.failed("no picture in the reply"))
+                    throw fail(.failed(String(localized: "no picture in the reply", bundle: .mimicCore)))
                 }
                 // The delivery address is signed: it needs no key, so none is sent there. Not
                 // through json(): its 403 means a wrong key, and no key goes here.

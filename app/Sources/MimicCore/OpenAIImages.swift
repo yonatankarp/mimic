@@ -84,7 +84,7 @@ public final class OpenAIImages: OnlineClient, OnlineImages, @unchecked Sendable
         req.timeoutInterval = timeout
         let reply = try submit { try json(req) }
         guard let b64 = ((reply["data"] as? [[String: Any]])?.first?["b64_json"] as? String), let picture = Data(base64Encoded: b64) else {
-            throw fail(.failed("no picture in the reply"))
+            throw fail(.failed(String(localized: "no picture in the reply", bundle: .mimicCore)))
         }
         return try png(picture, width: width, height: height)
     }

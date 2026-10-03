@@ -7,13 +7,13 @@ public enum JobProgress {
     /// This Mimic's `job` can be stopped: "Stop Making…" or "Stop Resizing…" in the menus, else nil.
     public static func stopCommand(_ job: JobStatus?) -> String? {
         guard let job, job.running else { return nil }
-        return job.kind == .prep ? "Stop Resizing…" : "Stop Making…"
+        return job.kind == .prep ? String(localized: "Stop Resizing…", bundle: .mimicCore) : String(localized: "Stop Making…", bundle: .mimicCore)
     }
 
     /// Pause After This One, Pause Queue or Resume Queue, in the job's popover and the Mini menu.
     /// `making`: a mini is being made, here or in another Mimic.
     public static func pauseCommand(paused: Bool, making: Bool) -> String {
-        paused ? "Resume Queue" : making ? "Pause After This One" : "Pause Queue"
+        paused ? String(localized: "Resume Queue", bundle: .mimicCore) : making ? String(localized: "Pause After This One", bundle: .mimicCore) : String(localized: "Pause Queue", bundle: .mimicCore)
     }
 
     /// The bar never claims to be done before it is.
@@ -30,10 +30,10 @@ public enum JobProgress {
 
     /// "about 8 minutes", "about a minute", "about 1 hour 20 minutes".
     public static func about(_ seconds: TimeInterval) -> String {
-        if seconds < 45 { return "less than a minute" }
-        if seconds < 90 { return "about a minute" }
+        if seconds < 45 { return String(localized: "less than a minute", bundle: .mimicCore) }
+        if seconds < 90 { return String(localized: "about a minute", bundle: .mimicCore) }
         let minutes = Int((seconds / 60).rounded())
-        if minutes < 60 { return "about \(minutes) minutes" }
+        if minutes < 60 { return String(localized: "about \(minutes) minutes", bundle: .mimicCore) }
         let h = minutes / 60, m = minutes % 60
         return "about \(h) hour\(h > 1 ? "s" : "")" + (m == 0 ? "" : " \(m) minute\(m > 1 ? "s" : "")")
     }
@@ -52,23 +52,24 @@ public enum JobProgress {
     public static func note(_ s: JobStatus, estimate: Estimate, now: Date = Date()) -> String {
         let t = clock(now.timeIntervalSince(s.started))
         switch pace(s, estimate: estimate, now: now) {
-        case .verySlow: return "\(t) so far. This is unusually slow. You can keep waiting, or stop and try again."
-        case .slow: return "\(t) so far. Taking longer than usual. Still working, nothing's wrong."
+        case .verySlow: return String(localized: "\(t) so far. This is unusually slow. You can keep waiting, or stop and try again.", bundle: .mimicCore)
+        case .slow: return String(localized: "\(t) so far. Taking longer than usual. Still working, nothing's wrong.", bundle: .mimicCore)
         case .usual: break
         }
         let left = estimate.left(s, now: now)
-        let head = left < 15 ? "Nearly done" : "\(about(left).capitalizedFirst) left"
-        if s.kind == .prep { return "\(head) · \(t) so far." }
-        return "\(head) · \(t) so far. You can use other apps meanwhile. Your Mac will be busy, and the fan may get loud."
+        let head = left < 15 ? String(localized: "Nearly done", bundle: .mimicCore)
+            : String(localized: "\(about(left).capitalizedFirst) left", bundle: .mimicCore)
+        if s.kind == .prep { return String(localized: "\(head) · \(t) so far.", bundle: .mimicCore) }
+        return String(localized: "\(head) · \(t) so far. You can use other apps meanwhile. Your Mac will be busy, and the fan may get loud.", bundle: .mimicCore)
     }
 
     /// Beside a step: how long the one running has left, or how long one to come should take.
     public static func stepNote(_ step: JobStep, of s: JobStatus, estimate: Estimate, now: Date = Date()) -> String? {
-        if s.running, step == s.step, s.openingDrawThings { return "Opening Draw Things…" }
+        if s.running, step == s.step, s.openingDrawThings { return String(localized: "Opening Draw Things…", bundle: .mimicCore) }
         guard s.running, step >= s.step, let e = estimate.steps[step] else { return nil }
-        if step > s.step { return e < 45 ? "seconds" : about(e) }
+        if step > s.step { return e < 45 ? String(localized: "seconds", bundle: .mimicCore, comment: "How long a step to come takes") : about(e) }
         let left = e - now.timeIntervalSince(s.stepStarted ?? s.started)
-        return left < 15 ? "nearly done" : "\(about(left)) left"
+        return left < 15 ? String(localized: "nearly done", bundle: .mimicCore) : String(localized: "\(about(left)) left", bundle: .mimicCore)
     }
 
     /// A failure fixed in Setup: Draw Things isn't running or isn't set up. Decided by what went
@@ -83,10 +84,10 @@ public enum JobProgress {
     /// Things slow, a service busy, a picture that can't be read) or the Mac ran out of memory,
     /// the reason itself says what to do, so it's the headline.
     public static func failedHeadline(_ s: JobStatus, imported: Bool) -> String {
-        if drawThingsCaused(s) { return "Draw Things isn't ready. Check the setup steps, then try again." }
-        if imported { return "Try Resize This Mini with other sizes, or check the model in the app it came from." }
+        if drawThingsCaused(s) { return String(localized: "Draw Things isn't ready. Check the setup steps, then try again.", bundle: .mimicCore) }
+        if imported { return String(localized: "Try Resize This Mini with other sizes, or check the model in the app it came from.", bundle: .mimicCore) }
         if let why = s.problem, s.step == .picture || why == s.step.outOfMemory { return why }
-        return "Try again, or use a clearer, full-body picture."
+        return String(localized: "Try again, or use a clearer, full-body picture.", bundle: .mimicCore)
     }
 
     /// Whether closing the job's popover means how the job ended was seen, so it can leave the

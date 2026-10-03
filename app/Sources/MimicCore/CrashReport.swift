@@ -188,9 +188,7 @@ public enum CrashReport {
 
 /// What Mimic asks at launch after a crash.
 public enum CrashQuestion {
-    public static let title = "Mimic quit unexpectedly last time. Report it?"
-    public static let text = "Mimic puts what macOS noted about the crash, its own notes from before it, and which Mac and version this is "
-        + "into one file, with keys and passwords taken out. Then it shows you the file and opens a form on GitHub to attach it to. "
-        + "Nothing is sent unless you send it."
-    public static let report = "Report", notNow = "Not Now", dontAsk = "Don't Ask Again"
+    public static let title = String(localized: "Mimic quit unexpectedly last time. Report it?", bundle: .mimicCore)
+    public static let text = String(localized: "Mimic puts what macOS noted about the crash, its own notes from before it, and which Mac and version this is into one file, with keys and passwords taken out. Then it shows you the file and opens a form on GitHub to attach it to. Nothing is sent unless you send it.", bundle: .mimicCore)
+    public static let report = String(localized: "Report", bundle: .mimicCore), notNow = String(localized: "Not Now", bundle: .mimicCore), dontAsk = String(localized: "Don't Ask Again", bundle: .mimicCore)
 }

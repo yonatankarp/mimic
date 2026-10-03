@@ -43,7 +43,8 @@ public struct EngineModel: Sendable, Equatable, Identifiable {
 
     /// The summary and how long a mini takes: `minutes` learned on this Mac when given.
     public func described(minutes learned: Int? = nil) -> String {
-        "\(summary) About \(learned ?? minutes) minutes a mini\(learned == nil ? "" : " on this Mac")."
+        guard let learned else { return String(localized: "\(summary) About \(minutes) minutes a mini.", bundle: .mimicCore) }
+        return String(localized: "\(summary) About \(learned) minutes a mini on this Mac.", bundle: .mimicCore)
     }
 
     public var bytes: Int64 { files.reduce(0) { $0 + $1.bytes } }
@@ -141,7 +142,7 @@ public enum EngineDownload {
     /// minis (cutout, 3D, print prep) on an M2 Max, measured in app/NOTES.md.
     static let pixal3d = EngineModel(
         id: "pixal3d-sv", name: "Pixal3D",
-        summary: "The crispest surface detail, and the fastest. Sometimes loses or misplaces something a figure holds; Make Another Version usually fixes it.", minutes: 8,
+        summary: String(localized: "The crispest surface detail, and the fastest. Sometimes loses or misplaces something a figure holds; Make Another Version usually fixes it.", bundle: .mimicCore), minutes: 8,
         family: .pixal3dSingleView,
         files: files(pixal3dURL, [
             ("dinov3.gguf", 323_657_920, "0dd4ffd4b46a248f5b7d49c35275d68461fbf73f57ddb4c1fa8afb4f7bb45a0d"),
@@ -163,7 +164,7 @@ public enum EngineDownload {
     /// downloaded. birefnet.gguf is left out: Mimic always hands the engine a cutout.
     static let trellis2Q8 = EngineModel(
         id: "trellis2-q8", name: "TRELLIS.2",
-        summary: "The most reliable with what a figure holds or carries: a weapon, a bow, a pet on a shoulder. A slightly softer surface, and slower on bulky figures.", minutes: 14,
+        summary: String(localized: "The most reliable with what a figure holds or carries: a weapon, a bow, a pet on a shoulder. A slightly softer surface, and slower on bulky figures.", bundle: .mimicCore), minutes: 14,
         family: .trellis2,
         files: files(trellis2URL, [
             ("q8/dinov3.gguf", 323_657_920, "0dd4ffd4b46a248f5b7d49c35275d68461fbf73f57ddb4c1fa8afb4f7bb45a0d"),
@@ -228,17 +229,17 @@ public enum SetupError: Error, Equatable, CustomStringConvertible {
     public var description: String {
         switch self {
         case .offline:
-            "Mimic couldn't reach the internet. Check your connection, then press Try Again. It carries on where it stopped."
+            String(localized: "Mimic couldn't reach the internet. Check your connection, then press Try Again. It carries on where it stopped.", bundle: .mimicCore)
         case .server(let code):
-            "The download server had a problem (error \(code)). Wait a few minutes, then press Try Again."
+            String(localized: "The download server had a problem (error \(code)). Wait a few minutes, then press Try Again.", bundle: .mimicCore)
         case .diskFull(let need, let have):
-            "Mimic needs about \(need) GB of free space for its 3D engine, and this Mac has \(have) GB. Free up some space, then press Try Again."
+            String(localized: "Mimic needs about \(String(need)) GB of free space for its 3D engine, and this Mac has \(String(have)) GB. Free up some space, then press Try Again.", bundle: .mimicCore)
         case .ranOutOfSpace:
-            "Your Mac ran out of space during the download. Free up some space (the setup screen shows how big the download is), then press Try Again."
+            String(localized: "Your Mac ran out of space during the download. Free up some space (the setup screen shows how big the download is), then press Try Again.", bundle: .mimicCore)
         case .damaged(let name):
-            "A file came down damaged (\(name)). Press Try Again to download it once more."
+            String(localized: "A file came down damaged (\(name)). Press Try Again to download it once more.", bundle: .mimicCore)
         case .engineWontStart:
-            "The 3D engine downloaded but doesn't start on this Mac. Mimic needs a Mac with an Apple chip (M1 or newer)."
+            String(localized: "The 3D engine downloaded but doesn't start on this Mac. Mimic needs a Mac with an Apple chip (M1 or newer).", bundle: .mimicCore)
         }
     }
 }

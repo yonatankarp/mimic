@@ -19,17 +19,18 @@ public enum MiniNotification {
     /// A make that stopped for its picture to be checked (#156) says so.
     public static func text(_ s: JobStatus, who: String) -> Text {
         s.outcome == .pictureReady
-            ? Text(title: "Check the picture of \(who)", body: "Build its 3D shape when it looks right.", category: picture)
+            ? Text(title: String(localized: "Check the picture of \(who)", bundle: .mimicCore), body: String(localized: "Build its 3D shape when it looks right.", bundle: .mimicCore), category: picture)
             : s.succeeded
-            ? Text(title: "\(who) is ready", body: "Ready to print.", category: ready)
-            : Text(title: "\(who) didn't finish", body: "Something went wrong while \(s.step.during).",
+            ? Text(title: String(localized: "\(who) is ready", bundle: .mimicCore), body: String(localized: "Ready to print.", bundle: .mimicCore), category: ready)
+            : Text(title: String(localized: "\(who) didn't finish", bundle: .mimicCore),
+                   body: String(localized: "Something went wrong while \(s.step.during).", bundle: .mimicCore),
                    category: failed)
     }
 
     /// The ready one's button, which names the slicer.
-    public static func openTitle(slicer: String) -> String { "Open in \(slicer)" }
+    public static func openTitle(slicer: String) -> String { String(localized: "Open in \(slicer)", bundle: .mimicCore) }
     /// The failed one's button.
-    public static let retryTitle = "Try Again"
+    public static let retryTitle = String(localized: "Try Again", bundle: .mimicCore)
     /// The picture-ready one's button.
-    public static let buildShapeTitle = "Build Shape"
+    public static let buildShapeTitle = String(localized: "Build Shape", bundle: .mimicCore)
 }

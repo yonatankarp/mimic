@@ -65,7 +65,7 @@ public enum GLB {
     static let tooBig = "the .glb is too big"
     static func parse(_ data: Data, painted: Bool, most: Int = GLB.most) throws -> (mesh: Mesh, paint: Paint?) {
         func u32(_ at: Int) -> UInt32 { data.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: at, as: UInt32.self) } }
-        guard data.count >= 20, u32(0) == 0x4654_6C67 else { throw PrepError("not a .glb file") }
+        guard data.count >= 20, u32(0) == 0x4654_6C67 else { throw PrepError(String(localized: "not a .glb file", bundle: .mimicCore)) }
         var json: [String: Any]?, bin: Range<Int>?
         var at = 12
         while at + 8 <= data.count {
@@ -74,11 +74,11 @@ public enum GLB {
             if type == 0x004E_4942 { bin = body }
             at += 8 + length
         }
-        guard let json, let bin else { throw PrepError("the .glb has no scene or no data") }
+        guard let json, let bin else { throw PrepError(String(localized: "the .glb has no scene or no data", bundle: .mimicCore)) }
 
         let accessors = json["accessors"] as? [[String: Any]] ?? []
         let views = json["bufferViews"] as? [[String: Any]] ?? []
-        let unreadable = PrepError("the .glb stores its shape in a way Mimic can't read")
+        let unreadable = PrepError(String(localized: "the .glb stores its shape in a way Mimic can't read", bundle: .mimicCore))
         /// A count, offset or index: missing is nil, anything but a whole number from zero up is
         /// a broken file, not a default.
         func whole(_ value: Any) throws -> Int {
@@ -101,10 +101,10 @@ public enum GLB {
             let stride = try int(view, "byteStride") ?? size * width
             let count = try int(a, "count") ?? 0
             guard stride >= size * width else { throw unreadable }  // elements can't overlap
-            guard viewOffset <= bin.count, offset <= bin.count else { throw PrepError("the .glb is cut short") }
+            guard viewOffset <= bin.count, offset <= bin.count else { throw PrepError(String(localized: "the .glb is cut short", bundle: .mimicCore)) }
             let start = bin.lowerBound + viewOffset + offset
             guard count == 0 || (start + size * width <= bin.upperBound && count - 1 <= (bin.upperBound - start - size * width) / stride)
-            else { throw PrepError("the .glb is cut short") }
+            else { throw PrepError(String(localized: "the .glb is cut short", bundle: .mimicCore)) }
             let get: (Int, Int) -> Double = { i, c in
                 data.withUnsafeBytes { b in
                     let o = start + i * stride + c * size
@@ -143,7 +143,7 @@ public enum GLB {
             let t = (n["translation"] as? [NSNumber])?.map(\.doubleValue) ?? [0, 0, 0]
             let r = (n["rotation"] as? [NSNumber])?.map(\.doubleValue) ?? [0, 0, 0, 1]
             let s = (n["scale"] as? [NSNumber])?.map(\.doubleValue) ?? [1, 1, 1]
-            guard t.count == 3, r.count == 4, s.count == 3 else { throw PrepError("the .glb places its parts in a way Mimic can't read") }
+            guard t.count == 3, r.count == 4, s.count == 3 else { throw PrepError(String(localized: "the .glb places its parts in a way Mimic can't read", bundle: .mimicCore)) }
             let rot = simd_double4x4(simd_quatd(ix: r[0], iy: r[1], iz: r[2], r: r[3]))
             let scale = simd_double4x4(diagonal: SIMD4(s[0], s[1], s[2], 1))
             var m = rot * scale
@@ -158,7 +158,7 @@ public enum GLB {
                 guard (try int(prim, "mode") ?? 4) == 4 else { continue }  // points and lines have no volume
                 guard let attrs = prim["attributes"] as? [String: Any], let pos = try int(attrs, "POSITION") else { continue }
                 let p = try reader(pos)
-                guard p.width == 3 else { throw PrepError("the .glb's positions aren't 3D") }
+                guard p.width == 3 else { throw PrepError(String(localized: "the .glb's positions aren't 3D", bundle: .mimicCore)) }
                 guard out.positions.count + p.count <= most else { throw tooBig }
                 let base = UInt32(out.positions.count)
                 out.positions.reserveCapacity(out.positions.count + p.count)
@@ -170,7 +170,7 @@ public enum GLB {
                 }
                 if uv != nil, let t = try int(attrs, "TEXCOORD_0"), let m = try int(prim, "material"), material ?? m == m {
                     let r = try reader(t)
-                    guard r.width == 2, r.count == p.count else { throw PrepError("the .glb's picture places don't match its corners") }
+                    guard r.width == 2, r.count == p.count else { throw PrepError(String(localized: "the .glb's picture places don't match its corners", bundle: .mimicCore)) }
                     material = m
                     for i in 0..<r.count { uv!.append(SIMD2(Float(r.get(i, 0)), Float(r.get(i, 1)))) }
                 } else {
@@ -190,7 +190,7 @@ public enum GLB {
                 } else {
                     idx = (0..<UInt32(p.count)).map { $0 }
                 }
-                guard idx.allSatisfy({ Int($0) < p.count }) else { throw PrepError("the .glb has triangles pointing nowhere") }
+                guard idx.allSatisfy({ Int($0) < p.count }) else { throw PrepError(String(localized: "the .glb has triangles pointing nowhere", bundle: .mimicCore)) }
                 for t in stride(from: 0, to: idx.count - 2, by: 3) {
                     let tri = SIMD3(base + idx[t], base + idx[t + 1], base + idx[t + 2])
                     out.triangles.append(flip ? SIMD3(tri.x, tri.z, tri.y) : tri)
@@ -203,7 +203,7 @@ public enum GLB {
         func walk(_ n: Int, _ parent: simd_double4x4, depth: Int, seen: inout Set<Int>) throws {
             guard n < nodes.count, depth < 64 else { return }
             try step()
-            guard seen.insert(n).inserted else { throw PrepError("the .glb's parts loop back on themselves") }
+            guard seen.insert(n).inserted else { throw PrepError(String(localized: "the .glb's parts loop back on themselves", bundle: .mimicCore)) }
             let world = try parent * local(nodes[n])
             if let m = try int(nodes[n], "mesh") { try add(mesh: m, world) }
             for c in nodes[n]["children"] as? [Any] ?? [] { try walk(whole(c), world, depth: depth + 1, seen: &seen) }
@@ -217,7 +217,7 @@ public enum GLB {
             try walk(r, matrix_identity_double4x4, depth: 0, seen: &seen)
         }
         if roots.isEmpty { for m in meshes.indices { try add(mesh: m, matrix_identity_double4x4) } }
-        guard !out.triangles.isEmpty else { throw PrepError("no mesh in the .glb") }
+        guard !out.triangles.isEmpty else { throw PrepError(String(localized: "no mesh in the .glb", bundle: .mimicCore)) }
         // Material → its base colour texture → that texture's picture → the bytes stored for it.
         func entry(_ list: String, _ i: Int) -> [String: Any]? {
             guard let a = json[list] as? [[String: Any]], a.indices.contains(i) else { return nil }
@@ -315,12 +315,11 @@ public enum Tabletop {
 
     /// What the save window says, before saving, so a grey one isn't a surprise (#256).
     public static func saveMessage(_ mini: Mini) -> String {
-        let grey = "A low-poly model of \(mini.displayName) in grey, for a virtual tabletop."
-        return inColour(mini.settings)
-            ? "A low-poly model of \(mini.displayName) in its colours, for a virtual tabletop."
+        inColour(mini.settings)
+            ? String(localized: "A low-poly model of \(mini.displayName) in its colours, for a virtual tabletop.", bundle: .mimicCore)
             : mini.settings.change != nil
-            ? grey + " A version with a change to its picture is redrawn as a grey sculpt, so it can't keep the picture's colours."
-            : grey + " A mini comes out in colour when it's made from a colour picture with “Turn it into a grey sculpt first” off."
+            ? String(localized: "A low-poly model of \(mini.displayName) in grey, for a virtual tabletop. A version with a change to its picture is redrawn as a grey sculpt, so it can't keep the picture's colours.", bundle: .mimicCore)
+            : String(localized: "A low-poly model of \(mini.displayName) in grey, for a virtual tabletop. A mini comes out in colour when it's made from a colour picture with “Turn it into a grey sculpt first” off.", bundle: .mimicCore)
     }
 
     /// Writes `mini`'s .glb to `url`, and says how many triangles and bytes it came to, whether
@@ -329,7 +328,7 @@ public enum Tabletop {
     @discardableResult
     public static func export(_ mini: Mini, to url: URL, triangles: Int = triangles)
         throws -> (triangles: Int, bytes: Int, colour: Bool, whyGrey: String?) {
-        guard let stl = mini.stl else { throw PrepError("it isn't made yet") }
+        guard let stl = mini.stl else { throw PrepError(String(localized: "it isn't made yet", bundle: .mimicCore)) }
         // Grey whenever the colours can't be had: the shape is what a tabletop can't do without.
         // `facesAway` and a `Placement` never meet: a record is only ever beside the print file
         // it was written with, and a print file written since 0.10.0 faces front (`Mini.facesAway`
@@ -337,12 +336,12 @@ public enum Tabletop {
         var colours: EngineColours?, whyGrey: String?
         do {
             colours = try EngineColours.of(mini)
-            if colours == nil, inColour(mini.settings) { whyGrey = "its 3D model has no colours saved with it" }
+            if colours == nil, inColour(mini.settings) { whyGrey = String(localized: "its 3D model has no colours saved with it", bundle: .mimicCore) }
         } catch RequestError.unknownModel(let id) {  // placing it again needs its model's settings
-            whyGrey = "this Mimic doesn't know the 3D model it was made with, \(id)"
+            whyGrey = String(localized: "this Mimic doesn't know the 3D model it was made with, \(id)", bundle: .mimicCore)
         } catch {
             whyGrey = FileManager.default.fileExists(atPath: mini.folder.appendingPathComponent(Mini.modelFile).path)
-                ? "Mimic couldn't read the colours from its 3D model" : "its 3D model is missing from its folder"
+                ? String(localized: "Mimic couldn't read the colours from its 3D model", bundle: .mimicCore) : String(localized: "its 3D model is missing from its folder", bundle: .mimicCore)
         }
         let made = try export(stl, to: url, triangles: triangles, colours: colours, facesAway: mini.facesAway)
         return (made.triangles, made.bytes, colours != nil, whyGrey)
@@ -357,7 +356,7 @@ public enum Tabletop {
         var solid = try ModelImport.weld(STL.read(stl))
         // Half a turn about the vertical: both axes, as one alone would mirror it.
         if facesAway { solid.positions = solid.positions.map { SIMD3(-$0.x, -$0.y, $0.z) } }
-        guard !solid.triangles.isEmpty else { throw PrepError("the print file has no triangles") }
+        guard !solid.triangles.isEmpty else { throw PrepError(String(localized: "the print file has no triangles", bundle: .mimicCore)) }
         var mesh = solid
         if solid.triangles.count > triangles {
             // A deep trim is drawn again through a grid first, about 60 of its triangles to each
@@ -454,10 +453,10 @@ public enum Tabletop {
                                   bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
                                   provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent),
               let dest = CGImageDestinationCreateWithData(data, UTType.jpeg.identifier as CFString, 1, nil) else {
-            throw PrepError("couldn't make the colours' picture")
+            throw PrepError(String(localized: "couldn't make the colours' picture", bundle: .mimicCore))
         }
         CGImageDestinationAddImage(dest, image, [kCGImageDestinationLossyCompressionQuality: 0.85] as CFDictionary)
-        guard CGImageDestinationFinalize(dest) else { throw PrepError("couldn't make the colours' picture") }
+        guard CGImageDestinationFinalize(dest) else { throw PrepError(String(localized: "couldn't make the colours' picture", bundle: .mimicCore)) }
         return data as Data
     }
 }
@@ -487,13 +486,13 @@ public enum STL {
         }
         let part = url.path.hasSuffix(".stl") ? String(url.path.dropLast(4)) + ".part.stl" : url.path + ".part.stl"
         try data.write(to: URL(fileURLWithPath: part))
-        guard rename(part, url.path) == 0 else { throw PrepError("couldn't put \(url.lastPathComponent) in place") }
+        guard rename(part, url.path) == 0 else { throw PrepError(String(localized: "couldn't put \(url.lastPathComponent) in place", bundle: .mimicCore)) }
     }
 
     /// Reads a binary STL back as separate triangles (tests, and anything checking a print file).
     public static func read(_ url: URL) throws -> [SIMD3<Float>] {
         let data = try Data(contentsOf: url)
-        guard data.count >= 84 else { throw PrepError("not an STL file") }
+        guard data.count >= 84 else { throw PrepError(String(localized: "not an STL file", bundle: .mimicCore)) }
         return data.withUnsafeBytes { b in
             let n = Int(b.loadUnaligned(fromByteOffset: 80, as: UInt32.self))
             var out: [SIMD3<Float>] = []

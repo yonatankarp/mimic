@@ -174,12 +174,12 @@ public struct ResizeAll {
     /// " 2 were already that size."
     public var sameNote: String { same == 0 ? "" : " \(same) \(same == 1 ? "was" : "were") already that size." }
     /// " Skipped 1: not made yet, or already waiting or being made."
-    public var skippedNote: String { skipped == 0 ? "" : " Skipped \(skipped): not made yet, or already waiting or being made." }
+    public var skippedNote: String { skipped == 0 ? "" : " " + String(localized: "Skipped \(skipped): not made yet, or already waiting or being made.", bundle: .mimicCore) }
     /// Why none was added, in words, given the last refusal's (`failure`) in words; nil when some were.
     public func nothingAdded(_ why: String?) -> String? {
         guard added.isEmpty else { return nil }
-        if same > 0 && skipped == 0 { return "They're all already that size." }
-        return (why ?? "None of these minis can be resized right now.") + sameNote + skippedNote
+        if same > 0 && skipped == 0 { return String(localized: "They're all already that size.", bundle: .mimicCore) }
+        return (why ?? String(localized: "None of these minis can be resized right now.", bundle: .mimicCore)) + sameNote + skippedNote
     }
 }
 

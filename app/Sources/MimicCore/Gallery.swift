@@ -56,9 +56,22 @@ public struct Mini: Identifiable, Hashable, Sendable {
     /// was given (and those of its back and sides), then its views. Only the ones it has.
     public var previews: [MiniPreview] {
         let sides = sidePictures
-        return ((source ?? upload).map { [MiniPreview(caption: sides.isEmpty ? "Picture" : "Front picture", url: $0)] } ?? [])
-            + sides.map { MiniPreview(caption: "\($0.side.title) picture", url: $0.url) }
-            + renders.map { MiniPreview(caption: $0.view.capitalized, url: $0.url) }
+        let picture = sides.isEmpty ? String(localized: "Picture", bundle: .mimicCore) : String(localized: "Front picture", bundle: .mimicCore)
+        return ((source ?? upload).map { [MiniPreview(caption: picture, url: $0)] } ?? [])
+            + sides.map { MiniPreview(caption: String(localized: "\($0.side.title) picture", bundle: .mimicCore), url: $0.url) }
+            + renders.map { MiniPreview(caption: Self.viewName($0.view), url: $0.url) }
+    }
+
+    /// "Front": the caption of a view of the print file.
+    private static func viewName(_ view: String) -> String {
+        switch view {
+        case "front": String(localized: "Front", bundle: .mimicCore)
+        case "left": String(localized: "Left", bundle: .mimicCore)
+        case "right": String(localized: "Right", bundle: .mimicCore)
+        case "side": String(localized: "Side", bundle: .mimicCore)
+        case "back": String(localized: "Back", bundle: .mimicCore)
+        default: view.capitalized
+        }
     }
     /// Its print file faces +y, as print files did before 0.10.0 (#275), so the 3D view and
     /// Export for Virtual Tabletop turn it round. One made since says it faces front; those made

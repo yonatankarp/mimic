@@ -293,7 +293,7 @@ public struct DescriptionHelper: Sendable {
         let text: String?
         switch provider {
         case .anthropic:
-            if json["stop_reason"] as? String == "refusal" { throw HelperError.refused("the model declined this description") }
+            if json["stop_reason"] as? String == "refusal" { throw HelperError.refused(String(localized: "the model declined this description", bundle: .mimicCore)) }
             text = (json["content"] as? [[String: Any]])?.first { $0["type"] as? String == "text" }?["text"] as? String
         case .openai:
             text = (((json["choices"] as? [[String: Any]])?.first)?["message"] as? [String: Any])?["content"] as? String
@@ -438,22 +438,22 @@ public enum HelperError: Error, CustomStringConvertible, Equatable {
 
     public var description: String {
         switch self {
-        case .off: "No AI helper is set up. Choose one in Settings → Pictures."
-        case .noKey: "No API key saved for this address. Paste yours in Settings → Pictures."
-        case .noModel(.ollama): "Pick one of your Ollama models in Settings."
-        case .noModel: "Type the model's name in Settings."
-        case .badURL: "That service address doesn't look right. It should start with https://."
-        case .noInternet: "No internet connection. Connect, then try again."
-        case .unreachable: "Couldn't reach the service. Check its address in Settings."
-        case .timedOut: "The helper took too long to answer. Try again."
-        case .notRunning: "Ollama isn't running. Open the Ollama app, then try again."
-        case .badKey: "The API key was turned down. Copy it again from your account and save it in Settings."
-        case .modelMissing(let m, .ollama): "The model \(m) isn't installed in Ollama. In Terminal: ollama pull \(m)"
-        case .modelMissing(let m, _): "The service doesn't know a model called \(m). Check its name in Settings."
-        case .busy: "The service is busy right now. Try again in a minute."
-        case .empty: "The helper answered with nothing. Try again."
-        case .refused(let why): "The helper said no: \(why)"
-        case .keychain(let status): "Couldn't save the key in your Keychain (error \(status))."
+        case .off: String(localized: "No AI helper is set up. Choose one in Settings → Pictures.", bundle: .mimicCore)
+        case .noKey: String(localized: "No API key saved for this address. Paste yours in Settings → Pictures.", bundle: .mimicCore)
+        case .noModel(.ollama): String(localized: "Pick one of your Ollama models in Settings.", bundle: .mimicCore)
+        case .noModel: String(localized: "Type the model's name in Settings.", bundle: .mimicCore)
+        case .badURL: String(localized: "That service address doesn't look right. It should start with https://.", bundle: .mimicCore)
+        case .noInternet: String(localized: "No internet connection. Connect, then try again.", bundle: .mimicCore)
+        case .unreachable: String(localized: "Couldn't reach the service. Check its address in Settings.", bundle: .mimicCore)
+        case .timedOut: String(localized: "The helper took too long to answer. Try again.", bundle: .mimicCore)
+        case .notRunning: String(localized: "Ollama isn't running. Open the Ollama app, then try again.", bundle: .mimicCore)
+        case .badKey: String(localized: "The API key was turned down. Copy it again from your account and save it in Settings.", bundle: .mimicCore)
+        case .modelMissing(let m, .ollama): String(localized: "The model \(m) isn't installed in Ollama. In Terminal: ollama pull \(m)", bundle: .mimicCore)
+        case .modelMissing(let m, _): String(localized: "The service doesn't know a model called \(m). Check its name in Settings.", bundle: .mimicCore)
+        case .busy: String(localized: "The service is busy right now. Try again in a minute.", bundle: .mimicCore)
+        case .empty: String(localized: "The helper answered with nothing. Try again.", bundle: .mimicCore)
+        case .refused(let why): String(localized: "The helper said no: \(why)", bundle: .mimicCore)
+        case .keychain(let status): String(localized: "Couldn't save the key in your Keychain (error \(String(status))).", bundle: .mimicCore)
         }
     }
 }

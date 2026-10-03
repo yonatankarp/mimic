@@ -1,9 +1,9 @@
 import Foundation
 
-/// The words people see come from one String Catalog, `Resources/Localizable.xcstrings`, compiled
-/// into MimicCore's resource bundle. MimicCore looks its own up here (`String(localized: "…",
-/// bundle: .mimicCore)`); the app's views look in Bundle.main, where bundle.sh copies the same
-/// compiled table. `app/strings.py` keeps the catalog in step with the code (NOTES.md).
+/// The words people see come from one String Catalog, `Localizable.xcstrings`, whose English table
+/// (`Resources/en.lproj`) is in MimicCore's resource bundle. MimicCore looks its own up here
+/// (`String(localized: "…", bundle: .mimicCore)`); the app's views look in Bundle.main, where
+/// bundle.sh copies the same table. `app/strings.py` keeps both in step with the code (NOTES.md).
 extension Bundle {
     /// MimicCore's resource bundle: in the app's Contents/Resources, also when run through the
     /// Terminal symlink (Bundle.main isn't the app then), beside the binary for `swift run`, or

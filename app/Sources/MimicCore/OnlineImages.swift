@@ -196,7 +196,7 @@ public class OnlineClient: @unchecked Sendable {
     /// A PNG of the size asked for, as Draw Things gives and step 1 writes `source.png`. PNG and the
     /// size are asked for, but anything else that comes back is converted and scaled to them.
     func png(_ data: Data, width: Int, height: Int) throws -> Data {
-        let unreadable = fail(.failed("the picture it sent can't be read"))
+        let unreadable = fail(.failed(String(localized: "the picture it sent can't be read", bundle: .mimicCore)))
         guard let src = CGImageSourceCreateWithData(data as CFData, nil), let image = CGImageSourceCreateImageAtIndex(src, 0, nil) else {
             throw unreadable
         }
@@ -254,18 +254,18 @@ public struct OnlineImagesError: Error, CustomStringConvertible, Equatable {
 
     public var description: String {
         switch problem {
-        case .noKey: "No \(service) key is saved. Paste yours in Settings, under Pictures."
-        case .badKey: "\(service) turned the key down. Copy it again from your account and save it in Settings, under Pictures."
-        case .noCredits: "Your \(service) account is out of credits, or has reached its spending limit. Add credits or raise your limit on their website, then try again."
-        case .busy: "\(service) is busy, or you've reached your account's limit. Try again in a minute."
-        case .refused(let why) where why.isEmpty: "\(service) wouldn't make this picture. Try different words or another picture."
-        case .refused(let why): "\(service) wouldn't make this picture (\(why.joined(separator: ", ").lowercased())). Try different words or another picture."
-        case .timedOut: "\(service) took too long to make the picture. Try again."
-        case .noInternet: "No internet connection. Connect, then try again."
-        case .unreachable: "Couldn't reach \(service). Try again in a minute."
-        case .failed(let why) where why.isEmpty: "\(service) couldn't make the picture. Try again."
-        case .failed(let why): "\(service) couldn't make the picture: \(why)"
-        case .cancelled: "Stopped."
+        case .noKey: String(localized: "No \(service) key is saved. Paste yours in Settings, under Pictures.", bundle: .mimicCore)
+        case .badKey: String(localized: "\(service) turned the key down. Copy it again from your account and save it in Settings, under Pictures.", bundle: .mimicCore)
+        case .noCredits: String(localized: "Your \(service) account is out of credits, or has reached its spending limit. Add credits or raise your limit on their website, then try again.", bundle: .mimicCore)
+        case .busy: String(localized: "\(service) is busy, or you've reached your account's limit. Try again in a minute.", bundle: .mimicCore)
+        case .refused(let why) where why.isEmpty: String(localized: "\(service) wouldn't make this picture. Try different words or another picture.", bundle: .mimicCore)
+        case .refused(let why): String(localized: "\(service) wouldn't make this picture (\(why.joined(separator: ", ").lowercased())). Try different words or another picture.", bundle: .mimicCore)
+        case .timedOut: String(localized: "\(service) took too long to make the picture. Try again.", bundle: .mimicCore)
+        case .noInternet: String(localized: "No internet connection. Connect, then try again.", bundle: .mimicCore)
+        case .unreachable: String(localized: "Couldn't reach \(service). Try again in a minute.", bundle: .mimicCore)
+        case .failed(let why) where why.isEmpty: String(localized: "\(service) couldn't make the picture. Try again.", bundle: .mimicCore)
+        case .failed(let why): String(localized: "\(service) couldn't make the picture: \(why)", bundle: .mimicCore)
+        case .cancelled: String(localized: "Stopped.", bundle: .mimicCore)
         }
     }
 }

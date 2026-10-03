@@ -12,6 +12,7 @@ enum Entry {
         // so any other "-" argument opens the app; these few are the command line's own.
         let commandLineFlags = ["--version", "-v", "--help", "-h"]
         if let first = args.first, !first.hasPrefix("-") || commandLineFlags.contains(first) {
+            Bundle.englishOnly()
             exit(CLI.run(args))
         }
         MimicApp.main()

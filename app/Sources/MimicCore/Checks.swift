@@ -40,7 +40,11 @@ public struct Readiness: Sendable {
     /// Things when needed).
     public var picturesReady: Bool { online ? ok(Checks.onlineID) : Checks.drawThingsIDs.allSatisfy(ok) }
     /// What a picture needs, as "A description needs …" says it, with `service` chosen in Settings.
-    public func pictureNeed(_ service: ImageService) -> String { online ? "a working \(service.online?.name ?? "online") key" : "Draw Things" }
+    public func pictureNeed(_ service: ImageService) -> String {
+        guard online else { return "Draw Things" }
+        guard let name = service.online?.name else { return String(localized: "a working online key", bundle: .mimicCore) }
+        return String(localized: "a working \(name) key", bundle: .mimicCore)
+    }
     /// Ready, and closed: Mimic opens it when a mini needs it.
     public var drawThingsOpensWhenNeeded: Bool { results["drawthings-api"]?.label == Checks.opensWhenNeeded }
     /// Its API has answered in this check, so its connection is known to be on.
@@ -63,7 +67,7 @@ public struct Readiness: Sendable {
     public var blocking: String? {
         let missing = checks.compactMap { c in results[c.id].flatMap { $0.required && !$0.ok ? $0.label : nil } }
         if missing.isEmpty { return nil }
-        return "Mimic isn't fully set up yet: \(missing.joined(separator: ", "))."
+        return String(localized: "Mimic isn't fully set up yet: \(missing.joined(separator: ", ")).", bundle: .mimicCore)
     }
 }
 
@@ -97,32 +101,31 @@ public struct Checks: Sendable {
     }
 
     /// The API check's label while Draw Things is closed and Mimic will open it.
-    public static let opensWhenNeeded = "Draw Things opens when needed"
+    public static let opensWhenNeeded = String(localized: "Draw Things opens when needed", bundle: .mimicCore)
 
     public static let drawThingsIDs: Set<String> = ["drawthings-app", "drawthings-api", "drawthings-model"]
     /// The online service's one check, in their place when it makes the pictures.
     public static let onlineID = "images-online"
     /// Whatever makes the pictures: Draw Things' checks, or the online service's.
     public static let pictureIDs = drawThingsIDs.union([onlineID])
-    public static func onlineLabel(_ service: OnlineService) -> String { "\(service.name) key works" }
+    public static func onlineLabel(_ service: OnlineService) -> String { String(localized: "\(service.name) key works", bundle: .mimicCore) }
 
     public var all: [Check] {
         let s = self
         return [
-            check("engine", "3D engine", true,
-                  "The 3D engine is missing or won't start. Repair downloads it again.") { s.engineStarts() },
-            check("models", "3D model files (\(model.name))", true,
-                  "Some of the 3D model files are missing. Download fetches only what's missing (up to \(Checks.gigabytes(model.bytes)) GB).") { s.modelsComplete() },
-            Check(id: "space", label: "Free disk space", required: true,
-                  fix: "Free up some space: each mini takes about 150 MB while it's being made.") {
+            check("engine", String(localized: "3D engine", bundle: .mimicCore), true,
+                  String(localized: "The 3D engine is missing or won't start. Repair downloads it again.", bundle: .mimicCore)) { s.engineStarts() },
+            check("models", String(localized: "3D model files (\(model.name))", bundle: .mimicCore), true,
+                  String(localized: "Some of the 3D model files are missing. Download fetches only what's missing (up to \(Checks.gigabytes(model.bytes)) GB).", bundle: .mimicCore)) { s.modelsComplete() },
+            Check(id: "space", label: String(localized: "Free disk space", bundle: .mimicCore), required: true,
+                  fix: String(localized: "Free up some space: each mini takes about 150 MB while it's being made.", bundle: .mimicCore)) {
                 let gb = Double(s.freeBytes(s.install.runs) ?? 0) / 1e9
-                return CheckResult(id: "space", label: "Free disk space (\(Int(gb.rounded())) GB)", required: true, ok: gb >= 5,
-                                   fix: "Free up some space: each mini takes about 150 MB while it's being made.")
+                return CheckResult(id: "space", label: String(localized: "Free disk space (\(String(Int(gb.rounded()))) GB)", bundle: .mimicCore), required: true, ok: gb >= 5,
+                                   fix: String(localized: "Free up some space: each mini takes about 150 MB while it's being made.", bundle: .mimicCore))
             },
         ] + pictures + [
             check("slicer", "A slicer to print with", false,
-                  "Install a slicer such as Bambu Studio, OrcaSlicer, PrusaSlicer or Cura. "
-                  + "Until then Mimic opens minis with your Mac's default app for 3D files.") {
+                  String(localized: "Install a slicer such as Bambu Studio, OrcaSlicer, PrusaSlicer or Cura. Until then Mimic opens minis with your Mac's default app for 3D files.", bundle: .mimicCore)) {
                 !Slicer.installed(in: s.appFolders).isEmpty
             },
         ]
@@ -139,10 +142,10 @@ public struct Checks: Sendable {
             }]
         }
         return [
-            check("drawthings-app", "Draw Things app", false, "Install Draw Things from the Mac App Store. It's free.") {
+            check("drawthings-app", String(localized: "Draw Things app", bundle: .mimicCore), false, String(localized: "Install Draw Things from the Mac App Store. It's free.", bundle: .mimicCore)) {
                 s.drawThingsInstalled()
             },
-            Check(id: "drawthings-api", label: "Draw Things is open and connected", required: false, fix: Self.apiFix) {
+            Check(id: "drawthings-api", label: String(localized: "Draw Things is open and connected", bundle: .mimicCore), required: false, fix: Self.apiFix) {
                 // With the command line tool, the app and its API server aren't needed at all.
                 if s.drawThings.cli != nil {
                     return CheckResult(id: "drawthings-api", label: Self.commandLine, required: false, ok: true, fix: Self.apiFix)
@@ -150,17 +153,17 @@ public struct Checks: Sendable {
                 // Closed is fine when Mimic opens it: informative, not something to fix.
                 let connected = s.drawThings.reachable()
                 let ok = connected || (s.autoOpen && s.drawThingsInstalled())
-                return CheckResult(id: "drawthings-api", label: connected || !ok ? "Draw Things is open and connected" : Self.opensWhenNeeded,
+                return CheckResult(id: "drawthings-api", label: connected || !ok ? String(localized: "Draw Things is open and connected", bundle: .mimicCore) : Self.opensWhenNeeded,
                                    required: false, ok: ok, fix: Self.apiFix)
             },
-            check("drawthings-model", "FLUX.2 Klein model in Draw Things", false,
-                  "In Draw Things' model list, search for FLUX.2 Klein and download it.") { s.drawThings.model() != nil },
+            check("drawthings-model", String(localized: "FLUX.2 Klein model in Draw Things", bundle: .mimicCore), false,
+                  String(localized: "In Draw Things' model list, search for FLUX.2 Klein and download it.", bundle: .mimicCore)) { s.drawThings.model() != nil },
         ]
     }
 
     /// The API check's label when Mimic's `draw-things-cli` makes the pictures.
-    public static let commandLine = "Draw Things connected through its command line tool"
-    static let apiFix = "Open Draw Things, then Settings → Advanced → API Server: turn it on, choose HTTP, port 7860."
+    public static let commandLine = String(localized: "Draw Things connected through its command line tool", bundle: .mimicCore)
+    static let apiFix = String(localized: "Open Draw Things, then Settings → Advanced → API Server: turn it on, choose HTTP, port 7860.", bundle: .mimicCore)
 
     func drawThingsInstalled() -> Bool { appFolders.contains { isDirectory($0.appendingPathComponent("Draw Things.app")) } }
 

@@ -118,7 +118,7 @@ public enum ThreeMF {
         zip.arguments = ["-q", "-X", "-1", "-r", "together.3mf", "[Content_Types].xml", "_rels", "3D"]
         try zip.run()
         zip.waitUntilExit()
-        guard zip.terminationStatus == 0 else { throw PrepError("couldn't pack \(url.lastPathComponent)") }
+        guard zip.terminationStatus == 0 else { throw PrepError(String(localized: "couldn't pack \(url.lastPathComponent)", bundle: .mimicCore)) }
         try? fm.removeItem(at: url)
         try fm.moveItem(at: dir.appendingPathComponent("together.3mf"), to: url)
     }

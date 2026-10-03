@@ -38,11 +38,11 @@ cp Mimic.icns "$app/Contents/Resources/Mimic.icns"
   printf 'Mimic\n=====\n\n'; cat ../LICENSE
   printf '\n\nSparkle\n=======\n\n'; cat .build/checkouts/Sparkle/LICENSE
 } > "$app/Contents/Resources/Acknowledgements.txt"
-# SwiftPM's resource bundles (the tour's sample picture; MimicCore's compiled String Catalog);
-# Bundle.main.resourceURL is where the app looks. The catalog's English table goes in the app's own
+# SwiftPM's resource bundles (the tour's sample picture; MimicCore's words, its String Catalog's
+# table); Bundle.main.resourceURL is where the app looks. The same table goes in the app's own
 # Resources too, where SwiftUI looks up the words of every view (NOTES.md).
 cp -R "$(dirname "$bin")/Mimic_Mimic.bundle" "$(dirname "$bin")/Mimic_MimicCore.bundle" "$app/Contents/Resources/"
-cp -R "$(dirname "$bin")/Mimic_MimicCore.bundle/Contents/Resources/"*.lproj "$app/Contents/Resources/"
+cp -R Sources/MimicCore/Resources/*.lproj "$app/Contents/Resources/"
 cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

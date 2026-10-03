@@ -188,7 +188,7 @@ public final class DrawThings: @unchecked Sendable {
         // its own place, same pid), in a session of its own so Stop ends whatever it started too,
         // with Mimic's own environment rather than the shell's, and on record while it runs.
         var fds: [Int32] = [0, 0]
-        guard pipe(&fds) == 0 else { throw DrawThingsError.refused("couldn't start draw-things-cli") }
+        guard pipe(&fds) == 0 else { throw DrawThingsError.refused(String(localized: "couldn't start draw-things-cli", bundle: .mimicCore)) }
         let p: GroupProcess
         do {
             p = try lock.withLock {
@@ -224,7 +224,7 @@ public final class DrawThings: @unchecked Sendable {
         if wasCanceled { throw DrawThingsError.cancelled }
         if timedOut { throw DrawThingsError.timedOut }
         guard code == 0 else { throw DrawThingsError.refused(Self.tail(text)) }
-        guard let png = try? Data(contentsOf: output) else { throw DrawThingsError.refused("no picture in the reply") }
+        guard let png = try? Data(contentsOf: output) else { throw DrawThingsError.refused(String(localized: "no picture in the reply", bundle: .mimicCore)) }
         return png
     }
 
@@ -276,7 +276,7 @@ public final class DrawThings: @unchecked Sendable {
             }
             guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let first = (json["images"] as? [String])?.first, let png = Data(base64Encoded: first) else {
-                result = .failure(DrawThingsError.refused("no picture in the reply")); return
+                result = .failure(DrawThingsError.refused(String(localized: "no picture in the reply", bundle: .mimicCore))); return
             }
             result = .success(png)
         }
@@ -373,14 +373,14 @@ public enum DrawThingsError: Error, CustomStringConvertible, Equatable {
     public static let setup: [DrawThingsError] = [.notRunning, .noModel, .apiOff]
     public var description: String {
         switch self {
-        case .notRunning: "Draw Things isn't answering. Open Draw Things, then Settings → Advanced → API Server: turn it on, HTTP, port 7860."
-        case .timedOut: "Draw Things didn't answer in time. It may be busy or stuck: quit and reopen Draw Things, then try again."
-        case .noModel: "FLUX.2 Klein isn't downloaded in Draw Things. Search for it in Draw Things' model list and download it."
-        case .cancelled: "Stopped."
-        case .badPicture: "That picture can't be read."
-        case .refused(let why): "Draw Things refused the request: \(why)"
-        case .apiOff: "Mimic opened Draw Things, but it didn't answer. In Draw Things: Settings → Advanced → API Server: turn it on, choose HTTP, port 7860. Then try again."
-        case .closedWhileOpening: "Draw Things closed before it was ready. Try again."
+        case .notRunning: String(localized: "Draw Things isn't answering. Open Draw Things, then Settings → Advanced → API Server: turn it on, HTTP, port 7860.", bundle: .mimicCore)
+        case .timedOut: String(localized: "Draw Things didn't answer in time. It may be busy or stuck: quit and reopen Draw Things, then try again.", bundle: .mimicCore)
+        case .noModel: String(localized: "FLUX.2 Klein isn't downloaded in Draw Things. Search for it in Draw Things' model list and download it.", bundle: .mimicCore)
+        case .cancelled: String(localized: "Stopped.", bundle: .mimicCore)
+        case .badPicture: String(localized: "That picture can't be read.", bundle: .mimicCore)
+        case .refused(let why): String(localized: "Draw Things refused the request: \(why)", bundle: .mimicCore)
+        case .apiOff: String(localized: "Mimic opened Draw Things, but it didn't answer. In Draw Things: Settings → Advanced → API Server: turn it on, choose HTTP, port 7860. Then try again.", bundle: .mimicCore)
+        case .closedWhileOpening: String(localized: "Draw Things closed before it was ready. Try again.", bundle: .mimicCore)
         }
     }
 }

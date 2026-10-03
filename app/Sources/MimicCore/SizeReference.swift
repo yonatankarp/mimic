@@ -15,10 +15,10 @@ public enum SizeReference: String, CaseIterable, Sendable {
     /// In the view's menu.
     public var title: String {
         switch self {
-        case .none: "None"
-        case .base: "25 mm Base"
-        case .person: "32 mm Person"
-        case .grid: "Millimetre Grid"
+        case .none: String(localized: "None", bundle: .mimicCore)
+        case .base: String(localized: "25 mm Base", bundle: .mimicCore)
+        case .person: String(localized: "32 mm Person", bundle: .mimicCore)
+        case .grid: String(localized: "Millimetre Grid", bundle: .mimicCore)
         }
     }
 
@@ -26,9 +26,9 @@ public enum SizeReference: String, CaseIterable, Sendable {
     public func spoken(gridSquare: Float) -> String? {
         switch self {
         case .none: nil
-        case .base: "on a 25 mm base ring"
-        case .person: "beside a 32 mm person"
-        case .grid: "on a grid of \(Int(gridSquare)) mm squares"
+        case .base: String(localized: "on a 25 mm base ring", bundle: .mimicCore)
+        case .person: String(localized: "beside a 32 mm person", bundle: .mimicCore)
+        case .grid: String(localized: "on a grid of \(Int(gridSquare)) mm squares", bundle: .mimicCore)
         }
     }
 }

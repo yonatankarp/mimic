@@ -150,10 +150,10 @@ public enum Render {
                                   bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.last.rawValue),
                                   provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent),
               let dest = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil) else {
-            throw PrepError("couldn't draw \(url.lastPathComponent)")
+            throw PrepError(String(localized: "couldn't draw \(url.lastPathComponent)", bundle: .mimicCore))
         }
         CGImageDestinationAddImage(dest, image, nil)
-        guard CGImageDestinationFinalize(dest) else { throw PrepError("couldn't write \(url.lastPathComponent)") }
+        guard CGImageDestinationFinalize(dest) else { throw PrepError(String(localized: "couldn't write \(url.lastPathComponent)", bundle: .mimicCore)) }
     }
 }
 

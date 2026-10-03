@@ -1,23 +1,29 @@
 #!/usr/bin/env python3
 """Keeps the String Catalog in step with the code, as Xcode would (`swift build` doesn't).
 
-    ./strings.py          # adds the words the code uses to the catalog, drops those it no longer does
-    ./strings.py --check  # changes nothing; fails if the catalog isn't in step (CI runs this)
+    ./strings.py          # adds the words the code uses to the catalog, drops those it no longer does,
+                          # and compiles its English table
+    ./strings.py --check  # changes nothing; fails if the catalog or its table isn't in step (CI runs this)
 
 The compiler lists every string the code looks up (SwiftUI's Text, Button, .help…, and
 String(localized:)), one .stringsdata file per source file. A new key gets its English value,
 the key itself, so the compiled table holds every word and the dev build can show a missing one.
 Existing entries are kept as they are: plural variations and comments are edited in the catalog.
+
+The table (Resources/en.lproj) is compiled here and committed, not by `swift build`: Swift 6.2,
+which CI builds with, copies a String Catalog into the app without compiling it.
 """
 import collections
 import json
 import pathlib
+import shutil
 import subprocess
 import sys
 import tempfile
 
 app = pathlib.Path(__file__).resolve().parent
-catalog = app / "Sources/MimicCore/Resources/Localizable.xcstrings"
+catalog = app / "Sources/MimicCore/Localizable.xcstrings"
+table = app / "Sources/MimicCore/Resources/en.lproj"
 
 
 def used_keys():
@@ -56,6 +62,21 @@ def render(data):
     return json.dumps(data, indent=2, ensure_ascii=False, separators=(",", " : ")) + "\n"
 
 
+def compile_table(text, folder):
+    """The English table Xcode would build from the catalog `text`, in `folder`/en.lproj."""
+    source = pathlib.Path(folder, "Localizable.xcstrings")
+    source.write_text(text)
+    subprocess.run(["xcrun", "xcstringstool", "compile", str(source), "--output-directory", folder], check=True)
+    return pathlib.Path(folder, "en.lproj")
+
+
+def parsed(folder):
+    """Each file of a table, read: two Xcodes may write the same table differently."""
+    read = lambda f: json.loads(subprocess.run(["plutil", "-convert", "json", "-o", "-", str(f)],
+                                               capture_output=True, check=True).stdout)
+    return {f.name: read(f) for f in sorted(folder.glob("*"))} if folder.exists() else {}
+
+
 def main():
     check = sys.argv[1:] == ["--check"]
     keys = used_keys()
@@ -65,12 +86,17 @@ def main():
         entry = old["strings"].get(key, {"comment": comment} if comment else {})
         entry.setdefault("localizations", {}).setdefault("en", {"stringUnit": {"state": "translated", "value": key}})
         strings[key] = entry
-    new = dict(old, strings=strings)
-    if render(new) == catalog.read_text():
-        return
-    if not check:
-        catalog.write_text(render(new))
-        print(f"Updated {catalog.relative_to(app)}: {len(strings)} strings.")
+    text = render(dict(old, strings=strings))
+    with tempfile.TemporaryDirectory() as tmp:
+        compiled = compile_table(text, tmp)
+        if not check:
+            catalog.write_text(text)
+            shutil.rmtree(table, ignore_errors=True)
+            shutil.copytree(compiled, table)
+            print(f"Updated {catalog.relative_to(app)} ({len(strings)} strings) and its table.")
+            return
+        table_ok = parsed(compiled) == parsed(table)
+    if text == catalog.read_text() and table_ok:
         return
     for key in sorted(keys.keys() - old["strings"].keys()):
         print(f"missing: {key!r}")
@@ -78,7 +104,9 @@ def main():
         print(f"no longer used: {key!r}")
     for key in sorted(k for k, e in old["strings"].items() if k in keys and "en" not in e.get("localizations", {})):
         print(f"no English: {key!r}")
-    sys.exit("The String Catalog isn't in step with the code: run app/strings.py and commit the catalog.")
+    if not table_ok:
+        print(f"{table.relative_to(app)} isn't compiled from the catalog as it is.")
+    sys.exit("The String Catalog isn't in step with the code: run app/strings.py and commit what it changes.")
 
 
 main()
