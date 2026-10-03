@@ -390,5 +390,7 @@ final class JobProgressTests: XCTestCase {
         XCTAssertFalse(JobProgress.drawThingsCaused(s))
         s.problem = DrawThingsError.notRunning.description
         XCTAssertTrue(JobProgress.drawThingsCaused(s))
+        s.problem = DrawThingsError.timedOut.description
+        XCTAssertFalse(JobProgress.drawThingsCaused(s), "on but slow or stuck: setup isn't the cause")
     }
 }

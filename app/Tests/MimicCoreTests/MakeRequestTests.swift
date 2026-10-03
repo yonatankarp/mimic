@@ -103,12 +103,14 @@ final class MakeRequestTests: XCTestCase {
         XCTAssertEqual(try parse("make", "a", "x", "--seed", "1", "--seed", "2").seed, 2)
     }
 
-    func testASizeWithNoValueIsLeftOut() throws {
-        XCTAssertNil(try parse("resize", "a", "--height").sizes.height)
-        XCTAssertNil(try parse("resize", "a", "--base").sizes.base)
-        XCTAssertNil(try parse("resize", "a", "--nozzle").sizes.nozzle)
-        XCTAssertNil(try parse("resize", "a", "--inflate").sizes.inflate)
-        XCTAssertNil(try parse("make", "a", "--image").image)
+    /// A size or picture given as the last word, with no value, is refused rather than quietly
+    /// left out, which made the mini at another size (#329).
+    func testAnOptionWithNoValueIsRefused() throws {
+        for flag in ["--height", "--size", "--base", "--inflate"] {
+            XCTAssertEqual(refusal { try self.parse("resize", "a", flag) }, "\(flag) needs a number", flag)
+        }
+        XCTAssertEqual(refusal { try self.parse("resize", "a", "--nozzle") }, "--nozzle needs 0.2, 0.4 or 0.6")
+        XCTAssertEqual(refusal { try self.parse("make", "a", "--image") }, "--image needs a picture")
     }
 
     func testADescriptionIsTakenOnce() throws {
