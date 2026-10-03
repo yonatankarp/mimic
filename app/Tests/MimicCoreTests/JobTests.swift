@@ -420,6 +420,7 @@ final class JobTests: XCTestCase {
         XCTAssertNotEqual(kill(child, 0), 0, "Stop left the 3D engine's child running")
         XCTAssertEqual(spy.trashed.map(\.lastPathComponent), ["mini"])
         XCTAssertEqual(jobs.status?.stopSays, "Nothing was kept. It's in the Trash if you want the pieces.")
+        XCTAssertFalse(jobs.cancel(), "Stop acted on a job that had already ended (#322)")
     }
 
     /// Stopping Try Again of a mini that failed in the 3D step (#178): it goes back to how it
