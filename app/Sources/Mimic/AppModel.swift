@@ -3,7 +3,6 @@ import MimicCore
 import Observation
 import OSLog
 import SwiftUI
-import UniformTypeIdentifiers
 
 /// The sheet over the main window, one at a time.
 enum AppSheet: Identifiable, Equatable {
@@ -782,67 +781,7 @@ final class AppModel {
         if minis.contains(where: { $0.name == name }) { selection = [name] }
     }
 
-    // MARK: Slicer
-
-    /// Opens a print file in the picked slicer, or the Mac's default app for STL files.
-    func openInSlicer(_ stl: URL) { Slicer.open(stl, in: Slicer.preferred()) }
-
-    var slicerName: String { Slicer.preferred()?.name ?? "your slicer" }
-
-    /// Minis being put in one print file for Open Together or Copies; their menu items wait meanwhile.
+    /// Minis being put in one print file for Open Together or Copies (`PrintFiles.swift`); their
+    /// menu items wait meanwhile.
     var packing = false
-
-    /// Open Together: one 3MF with every made mini of `group` laid out on the bed, each its own
-    /// object named after it, opened in the slicer; with `copies`, that many of each. Named after
-    /// the mini, or their project when they share one. Written off the main thread (a party's file
-    /// is tens of MB), kept in the temporary folder: the slicer's own project is where it's saved.
-    func openTogether(_ group: [Mini], copies: Int = 1) {
-        let made = group.filter { $0.stl != nil }
-        guard !made.isEmpty, !packing else { return }
-        // One of one mini is its own print file.
-        if made.count == 1 && copies == 1 { openInSlicer(made[0].stl!); return }
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("Open Together")
-        let url = dir.appendingPathComponent(Rules.printFileName(ThreeMF.name(made, copies: copies)))
-        let parts = made.map { ($0.displayName, $0.stl!) }
-        packing = true
-        Task {
-            let failed: Error? = await Task.detached {
-                do {
-                    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-                    try ThreeMF.write(try parts.map { ($0.0, try STL.read($0.1)) }, copies: copies, to: url)
-                    return nil
-                } catch { return error }
-            }.value
-            packing = false
-            if let failed { problem = plainWords(failed, else: "Couldn't put them in one print file. Open them one at a time instead.") }
-            else { openInSlicer(url) }
-        }
-    }
-
-    /// Export for Virtual Tabletop (#158): asks where, then writes a low-poly .glb of the print
-    /// file there, off the main thread (seconds), and shows it in Finder.
-    func exportForTabletop(_ mini: Mini) {
-        guard mini.stl != nil else { return }
-        let panel = NSSavePanel()
-        panel.title = "Export for Virtual Tabletop"
-        panel.message = Tabletop.saveMessage(mini)
-        panel.nameFieldStringValue = "\(mini.displayName).glb"
-        panel.allowedContentTypes = [UTType(filenameExtension: "glb") ?? .data]
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        Task {
-            let made: Result<String?, Error> = await Task.detached {
-                Result { try Tabletop.export(mini, to: url).whyGrey }
-            }.value
-            switch made {
-            case .failure(let failed): problem = plainWords(failed, else: "Couldn't export \(mini.displayName).")
-            case .success(let whyGrey):
-                NSWorkspace.shared.activateFileViewerSelecting([url])
-                // The save window said it would be in its colours (#317).
-                if let whyGrey { problem = "Exported \(mini.displayName) in grey, not in its colours: \(whyGrey)." }
-            }
-        }
-    }
-
-    /// The print file selected in Finder, or the folder when there's no print file yet.
-    func showInFinder(_ minis: [Mini]) { NSWorkspace.shared.activateFileViewerSelecting(minis.map { $0.stl ?? $0.folder }) }
 }
