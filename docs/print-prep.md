@@ -178,7 +178,8 @@ be a GLB: for an STL, import it with File → Import Model… or `mimic import` 
 
 It writes `dwarf.stl`, `dwarf_front.png`, `dwarf_left.png`, `dwarf_right.png`, `dwarf_back.png`,
 `placement.json` and `prep-result.json`, and prints what it did. It exits with 0 when it worked, or prints
-`mini_prep: FAILED: …` and exits with 2.
+`mini_prep: FAILED: …` and exits with 1, an option it doesn't take or a size out of range
+included (not 64, as the other `mimic` commands do for something typed wrong).
 
 Things worth trying that the app doesn't offer:
 
