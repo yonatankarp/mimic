@@ -135,6 +135,20 @@ final class DrawThingsTests: XCTestCase {
         XCTAssertLessThan(Date().timeIntervalSince(started), 10)
     }
 
+    /// A CLI that never answers is stopped after the same time the API gets, and said to be
+    /// slow or stuck (#433), even one that ignores being asked to stop.
+    func testAStuckCLIGivesUp() throws {
+        let cli = FileManager.default.temporaryDirectory.appendingPathComponent("fake-dt-\(UUID().uuidString)")
+        try "#!/bin/sh\ntrap '' TERM\nsleep 60\n".write(to: cli, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: cli.path)
+        defer { try? FileManager.default.removeItem(at: cli) }
+        let dt = DrawThings(environment: ["DRAWTHINGS_MODEL": "x"], cli: cli.path)
+        dt.requestTimeout = 1
+        let started = Date()
+        XCTAssertThrowsError(try dt.draw(description: "a dwarf", seed: 1)) { XCTAssertEqual($0 as? DrawThingsError, .timedOut) }
+        XCTAssertLessThan(Date().timeIntervalSince(started), 15)
+    }
+
     /// The CLI runs like the job's other programs (#323): with Mimic's own environment, not the
     /// shell's tokens; on record while it runs, so a crashed Mimic's is stopped at the next
     /// launch; and its picture is read from where it was told to write it, whatever it prints.
