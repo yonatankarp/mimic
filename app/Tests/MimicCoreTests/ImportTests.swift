@@ -49,6 +49,18 @@ final class ImportTests: XCTestCase {
         XCTAssertEqual(try ModelImport.weld([[0, 0, 0], [1e6, 0, 0], [0, 1e6, 0]]).triangles.count, 1, "a kilometre across is read")
     }
 
+    /// A model too big for the .glb reader is called too big, not unreadable (#438).
+    func testAModelTooBigSaysSo() throws {
+        let fourTimes = Mesh(positions: GLBTests.triangle.positions, triangles: Array(repeating: [0, 1, 2], count: 4))
+        let file = try temporary().appendingPathComponent("big.glb")
+        try PrepTests.glb(fourTimes, translation: .zero).write(to: file)
+        XCTAssertEqual(try ModelImport.read(file, most: 12).glb.isEmpty, false)
+        XCTAssertThrowsError(try ModelImport.read(file, most: 10)) { error in
+            guard case .unreadableModel(let why) = error as? RequestError else { return XCTFail("\(error)") }
+            XCTAssertEqual(why, "the .glb is too big")
+        }
+    }
+
     func testTheModelWrittenIsReadBackTheSame() throws {
         let mesh = PrepTests.fixture()
         let back = try GLB.parse(GLB.encode(mesh))
