@@ -125,7 +125,7 @@ final class AppModel {
     /// Mimic is the app in front. Set before the popover closes on switching away (it closes
     /// when the app resigns), which NSApp.isActive may not yet say.
     private var active = true
-    /// "Stop making …?", asked from the job's popover, the Mini menu or the Dock menu.
+    /// "Stop making …?", asked from the job's popover, the Queue menu or the Dock menu.
     var confirmingStop = false
     /// The job in the toolbar, which the job's popover hangs from; nil hides both.
     var toolbarJob: JobStatus? { JobProgress.inToolbar(job, keptShown: presentation.keptShown, elsewhere: elsewhere) }
@@ -133,7 +133,9 @@ final class AppModel {
     var stopCommand: String? { JobProgress.stopCommand(job) }
     /// View → Face Front: bumped for the mini's 3D view to turn back to face you.
     var faceFrontRequests = 0
-    /// Edit → Find: bumped for the sidebar to put the cursor in its search field.
+    /// View → Zoom In (up) and Zoom Out (down): for the mini's 3D view to zoom a step.
+    var zoomRequests = 0
+    /// Edit → Find → Find…: bumped for the sidebar to put the cursor in its search field.
     var findRequests = 0
     /// Keep This One from Compare Side by Side: the version to ask about once the sheet has
     /// gone (`keepWhenClosed`), then on its page (`askToKeep`), whose dialog does the keeping.

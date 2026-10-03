@@ -4,7 +4,7 @@ import QuickLook
 import SwiftUI
 
 /// A mini's page: the 3D view fills it, running up under the toolbar; Open in the slicer and
-/// More are in the toolbar; its size, previews, versions and print tips are in the details
+/// More are in the toolbar (`MiniToolbarItems`); its size, previews, versions and print tips are in the details
 /// panel on the right, which the toolbar shows and hides.
 struct MiniDetail: View {
     let mini: Mini
@@ -35,7 +35,6 @@ struct MiniDetail: View {
         let trashable = versions.filter { $0.name != mini.name && $0.name != model.current?.name }.count
         page
             .navigationTitle(mini.displayName)
-            .toolbar { toolbar(kind: settings.kind ?? .character) }
             .inspector(isPresented: $model.showDetails) {
                 details(settings, versions: versions, canKeep: trashable > 0)
                     .inspectorColumnWidth(min: 240, ideal: 290, max: 420)
@@ -175,36 +174,6 @@ struct MiniDetail: View {
             .padding(12)
             .background(.regularMaterial, in: .rect(cornerRadius: 16))  // content, not a control: no glass
             .padding(12)
-        }
-    }
-
-    /// One group: More (Copies first), Open in the slicer, and the details panel's toggle.
-    @ToolbarContentBuilder private func toolbar(kind: MiniKind) -> some ToolbarContent {
-        ToolbarItemGroup(placement: .primaryAction) {
-            Menu {
-                MiniActionButton(action: .copies, minis: [mini])
-                MiniActionButton(action: .resize, minis: [mini])
-                MiniActionButton(action: .editAndMakeAgain, minis: [mini])
-                MiniActionButton(action: .exportForTabletop, minis: [mini])
-                MiniActionButton(action: .showInFinder, minis: [mini])
-            } label: {
-                Label("More", systemImage: "ellipsis")
-            }
-            .help("Print copies, resize, make it again with changes, export it for a virtual tabletop, or show it in Finder")
-            // Prominent only once it works: until then the page's own button (Try Again, Build
-            // Shape) is the one to press, and a pale disabled one here shouldn't outshine it.
-            if mini.finished {
-                MiniActionButton(action: .open, minis: [mini], showsIcon: false)
-                    .buttonStyle(.glassProminent)
-                    .tourCallout(.mini)
-            } else {
-                MiniActionButton(action: .open, minis: [mini], showsIcon: false)
-                    .tourCallout(.mini)
-            }
-            Button { model.showDetails.toggle() } label: {
-                Label(showDetails ? "Hide Details" : "Show Details", systemImage: "sidebar.trailing")
-            }
-            .help(showDetails ? "Hide the details panel (⌃⌘I)" : "Show size, previews, versions and print tips (⌃⌘I)")
         }
     }
 
@@ -435,5 +404,53 @@ struct Thumbnail: View {
         .animation(reduceMotion ? nil : .easeOut(duration: 0.4), value: image.map(ObjectIdentifier.init))
         // Read off the main thread: a picture can be a few megabytes.
         .task(id: "\(url?.path ?? "")\(version)") { [url] in image = await Task.detached { url.flatMap(NSImage.init(contentsOf:)) }.value }
+    }
+}
+
+/// The mini page's toolbar items: More (Copies first), Open in the slicer, and the details
+/// panel's toggle, one item each so each can be moved or taken out in Customize Toolbar…
+/// (#482). In the window's toolbar, empty without a mini's page, rather than on the page: the
+/// page's own `.toolbar(id:)` listed them twice, and NSToolbar stopped Mimic on the next mini.
+struct MiniToolbarItems: CustomizableToolbarContent {
+    let model: AppModel
+
+    /// What the page is showing, as ContentView picks it.
+    private var mini: Mini? { model.setup.installed ? model.selected : nil }
+
+    var body: some CustomizableToolbarContent {
+        ToolbarItem(id: "more", placement: .primaryAction) {
+            if let mini {
+                Menu {
+                    MiniActionButton(action: .copies, minis: [mini])
+                    MiniActionButton(action: .resize, minis: [mini])
+                    MiniActionButton(action: .editAndMakeAgain, minis: [mini])
+                    MiniActionButton(action: .exportForTabletop, minis: [mini])
+                    MiniActionButton(action: .showInFinder, minis: [mini])
+                } label: {
+                    Label("More", systemImage: "ellipsis")
+                }
+                .help("Print copies, resize, make it again with changes, export it for a virtual tabletop, or show it in Finder")
+            }
+        }
+        ToolbarItem(id: "open", placement: .primaryAction) {
+            // Prominent only once it works: until then the page's own button (Try Again, Build
+            // Shape) is the one to press, and a pale disabled one here shouldn't outshine it.
+            if let mini, mini.finished {
+                MiniActionButton(action: .open, minis: [mini], showsIcon: false)
+                    .buttonStyle(.glassProminent)
+                    .tourCallout(.mini)
+            } else if let mini {
+                MiniActionButton(action: .open, minis: [mini], showsIcon: false)
+                    .tourCallout(.mini)
+            }
+        }
+        ToolbarItem(id: "details", placement: .primaryAction) {
+            if mini != nil {
+                Button { model.showDetails.toggle() } label: {
+                    Label(model.showDetails ? "Hide Details" : "Show Details", systemImage: "sidebar.trailing")
+                }
+                .help(model.showDetails ? "Hide the details panel (⌃⌘I)" : "Show size, previews, versions and print tips (⌃⌘I)")
+            }
+        }
     }
 }

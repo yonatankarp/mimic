@@ -101,7 +101,7 @@ extension AppModel {
         if !refreshQueue() { reload() }
     }
 
-    /// Pause After This One, Pause Queue or Resume Queue, in the job's popover and the Mini menu.
+    /// Pause After This One, Pause Queue or Resume Queue, in the job's popover and the Queue menu.
     var pauseCommand: String { JobProgress.pauseCommand(paused: paused, making: current != nil) }
 
     /// Pausing lets the mini being made finish; resuming starts the next one if none is.

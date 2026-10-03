@@ -26,9 +26,9 @@ final class SearchTests: XCTestCase {
         XCTAssertEqual(Gallery.search(minis(seven), "dragon").count, 0)
     }
 
-    func testSixOrFewerIgnoreTheQuery() {
-        // The field is hidden then, so a query left from before must not hide minis.
-        XCTAssertEqual(Gallery.search(minis(Array(seven.prefix(6))), "dwarf").count, 6)
+    func testAFewMinisAreSearchedToo() {
+        // The field is always there (#482), so two minis are searched as seven are.
+        XCTAssertEqual(Gallery.search(minis(["dwarf-cleric", "elf-ranger"]), "dwarf").map(\.name), ["dwarf-cleric"])
     }
 
     func testSearchMatchesTheDescriptionToo() {
@@ -79,9 +79,8 @@ final class SearchTests: XCTestCase {
         XCTAssertEqual(Gallery.arrange(list, query: "", show: .characters, sort: .made).map(\.name), ["dwarf", "waiting"])
         XCTAssertEqual(Gallery.arrange(list, query: "", show: .objects, sort: .made).map(\.name), ["teapot", "lamp"])
         XCTAssertEqual(Gallery.arrange(list, query: "", show: .unfinished, sort: .made).map(\.name), ["waiting", "lamp"])
-        // Its menu is there at any count, unlike the search field: a filter on a few minis still hides.
-        XCTAssertTrue(Gallery.narrowed(list, query: "", show: .objects))
-        XCTAssertFalse(Gallery.narrowed(list, query: "dwarf", show: .all), "the query is ignored at six or fewer")
+        XCTAssertTrue(Gallery.narrowed(query: "", show: .objects))
+        XCTAssertTrue(Gallery.narrowed(query: "dwarf", show: .all), "a search on a few minis narrows too")
     }
 
     /// With nothing selected the list picks its first mini as shown, never one the filter or a
@@ -100,8 +99,8 @@ final class SearchTests: XCTestCase {
     func testArrangeSearchesFiltersAndSorts() {
         let list = (1...8).map { mini("dwarf-\($0)", hoursAgo: Double($0), object: $0 % 2 == 0, height: "\($0 * 10)") } + [mini("elf")]
         XCTAssertEqual(Gallery.arrange(list, query: "dwarf", show: .objects, sort: .size).map(\.name), ["dwarf-8", "dwarf-6", "dwarf-4", "dwarf-2"])
-        XCTAssertTrue(Gallery.narrowed(list, query: " dwarf ", show: .all))
-        XCTAssertFalse(Gallery.narrowed(list, query: "  ", show: .all))
+        XCTAssertTrue(Gallery.narrowed(query: " dwarf ", show: .all))
+        XCTAssertFalse(Gallery.narrowed(query: "  ", show: .all))
     }
 
     func testFinishedIsReadOnceWhenListed() throws {

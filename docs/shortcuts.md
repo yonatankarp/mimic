@@ -18,12 +18,14 @@ before it acts.
 | ++shift+cmd+e++ | **Export for Virtual Tabletop…** |
 | ++cmd+"Delete"++ | **Move to Trash** |
 | ++cmd+z++ | **Undo**: puts minis moved to the Trash back, among other things |
-| ++cmd+f++ | **Find**: the search field at the top of the list *(when you have more than six minis)* |
+| ++cmd+f++ | **Find…**: the search field at the top of the list |
 | ++ctrl+cmd+i++ | **Show Details** / **Hide Details**: the panel on the right of a mini's page |
 | ++ctrl+cmd+s++ | **Show Sidebar** / **Hide Sidebar**: the list of minis |
+| ++cmd+"="++ / ++cmd+"-"++ | **Zoom In** / **Zoom Out**: the 3D view of the selected mini |
 | ++cmd+0++ | **Face Front**: turns the 3D view back to face you |
 | ++opt+cmd+up++ / ++opt+cmd+down++ | **Move Up** / **Move Down** in the queue *(when the selected mini is waiting)* |
 | ++cmd+comma++ | **Settings…** |
+| ++cmd+"?"++ | **Mimic Help**: this guide |
 | ++cmd+w++ | Closes the window. A mini being made carries on (see [The queue](queue.md)) |
 | ++cmd+q++ | Quits Mimic. While a mini is being made or the 3D engine downloads, it asks first |
 
@@ -46,7 +48,7 @@ Click the 3D view first, so it has the keyboard.
 |---|---|
 | ++left++ / ++right++ | Turns the mini |
 | ++up++ / ++down++ | Tilts the mini |
-| ++cmd+"="++ / ++cmd+"-"++ | Zooms in and out |
+| ++cmd+"="++ / ++cmd+"-"++ | Zooms in and out (also in the **View** menu, without clicking first) |
 | ++cmd+0++, or double-click | Turns it back to face you and zooms back out |
 
 With a mouse or trackpad: drag to turn it, and scroll or pinch to zoom toward the pointer.
@@ -102,24 +104,28 @@ Click a preview in the details panel first.
 | Item | What it does |
 |---|---|
 | **Undo** ++cmd+z++ | Puts back minis you moved to the Trash, and undoes **Rename…**, **Keep This One…** (and the rename after it) and **Duplicate…** |
-| **Find** ++cmd+f++ | Puts the cursor in the list's search field *(when you have more than six minis)* |
+| **Find** ▸ **Find…** ++cmd+f++ | Puts the cursor in the list's search field |
 
 ### View
 
 | Item | What it does |
 |---|---|
+| **Show Toolbar** / **Hide Toolbar** | Shows or hides the toolbar |
+| **Customize Toolbar…** | Choose which buttons the toolbar shows, and in what order |
 | **Sort By** ▸ | **Date Made**, **Name** or **Size** |
 | **Show** ▸ | **All Minis**, **Characters**, **Objects** or **Unfinished Minis** |
 | **Show Sidebar** ++ctrl+cmd+s++ | Shows or hides the list of minis |
 | **Show Details** ++ctrl+cmd+i++ | Shows or hides the details panel. It says **Hide Details** while the panel is open |
-| **Face Front** ++cmd+0++ | Turns the 3D view back to face you |
+| **Zoom In** ++cmd+"="++ | Zooms the 3D view in a step |
+| **Zoom Out** ++cmd+"-"++ | Zooms the 3D view out a step |
+| **Face Front** ++cmd+0++ | Turns the 3D view back to face you and zooms back out |
 | **Size Reference** ▸ | **None**, **25 mm Base**, **32 mm Person** or **Millimetre Grid** beside the mini (see [Printing and exporting](printing.md#see-how-big-it-really-is)) |
 
 ### Mini
 
-What you can do to the selected mini, or minis. The same items are in a mini's right-click menu.
-While New Mini or another sheet is open, everything here except **Pause After This One** (or
-**Pause Queue**, **Resume Queue**) waits until you close it.
+What you can do to the selected mini, or minis. The same items, in the same order, are in a
+mini's right-click menu. While New Mini or another sheet is open, everything here waits until you
+close it.
 
 | Item | What it does |
 |---|---|
@@ -128,26 +134,34 @@ While New Mini or another sheet is open, everything here except **Pause After Th
 | **Show in Finder** ++opt+cmd+r++ | Shows the print file, or the mini's folder if it isn't made yet |
 | **Export for Virtual Tabletop…** ++shift+cmd+e++ | A small 3D model of the mini to drag into a virtual tabletop (see [Printing and exporting](printing.md#export-for-a-virtual-tabletop)) |
 | **Resize This Mini…** ++cmd+r++ | Makes the print file again at new sizes *(when it isn't waiting or being made)*. With several selected, it's **Resize 3 Minis…** (or however many) |
-| **Build Shape** | Makes the 3D shape from a redrawn picture *(when its picture waits to be checked)* |
-| **Try Again** | Makes a mini that didn't finish, from the step that failed *(when it didn't finish)* |
-| **Report a Problem…** | Gathers what a bug report needs *(when it didn't finish)* |
 | **Rename…** | Gives the mini a new name *(when it isn't waiting or being made)* |
+| **Duplicate…** | A copy of the same shape, to make at another size *(when it isn't waiting or being made)* |
+| **Move to Project** ▸ | **Unsorted**, any project, or **New Project…** |
+| **Move in Queue** ▸ | **Move to Front**, **Move Up** ++opt+cmd+up++, **Move Down** ++opt+cmd+down++, **Move to End**, and **Remove from Queue…** (**Cancel Resize…** for a resize) *(when the mini is waiting)* |
 | **Make Another Version…** | Makes it again with a new variation number (see [Versions](versions.md)) |
 | **New 3D Shape…** | Keeps its picture and makes only the 3D shape again |
 | **Edit & Make Again…** | Opens New Mini filled in from this mini |
-| **Duplicate…** | A copy of the same shape, to make at another size *(when it isn't waiting or being made)* |
-| **Move to Project** ▸ | **Unsorted**, any project, or **New Project…** |
+| **Build Shape** | Makes the 3D shape from a redrawn picture *(when its picture waits to be checked)* |
+| **Try Again** | Makes a mini that didn't finish, from the step that failed *(when it didn't finish)* |
+| **Report a Problem…** | Gathers what a bug report needs *(when it didn't finish)* |
+| **Move to Trash** ++cmd+"Delete"++ | Moves it to the Trash. **Edit → Undo** puts it back |
+
+### Queue
+
+What the queue is doing, whichever mini is selected (see [The queue](queue.md)). While a sheet is
+open, only **Pause After This One** (or **Pause Queue**, **Resume Queue**) works.
+
+| Item | What it does |
+|---|---|
 | **Show Progress** | Opens the progress popover *(while a mini is being made)* |
 | **Stop Making…** | Stops the mini being made. **Stop Resizing…** for a resize |
-| **Move in Queue** ▸ | **Move to Front**, **Move Up** ++opt+cmd+up++, **Move Down** ++opt+cmd+down++, **Move to End**, and **Remove from Queue…** (**Cancel Resize…** for a resize) *(when the mini is waiting)* |
 | **Pause After This One** | Lets the mini being made finish and starts no more. It's **Pause Queue** when nothing is being made, and **Resume Queue** while paused |
-| **Move to Trash** ++cmd+"Delete"++ | Moves it to the Trash. **Edit → Undo** puts it back |
 
 ### Help
 
 | Item | What it does |
 |---|---|
-| **Mimic Help** | Opens Mimic's guide on the web |
+| **Mimic Help** ++cmd+"?"++ | Opens Mimic's guide on the web |
 | **Show Tour** | The five-stop tour of Mimic again |
 | **Report a Problem…** | Gathers what a bug report needs, with your private details taken out (see [Report a problem or an idea](report.md)) |
 
@@ -155,11 +169,11 @@ While New Mini or another sheet is open, everything here except **Pause After Th
 
 ### A mini
 
-**Open in …**, **Copies…**, **Show in Finder**, **Export for Virtual Tabletop…**,
-**Resize This Mini…**, then **Make Another Version…**, **New 3D Shape…**, **Edit & Make Again…**,
-**Duplicate…**, **Move to Project** ▸ and, while it waits, **Move in Queue** ▸. Then
-**Build Shape**, or **Try Again** and **Report a Problem…** when they apply, and **Rename…** and
-**Move to Trash**.
+The same items as the **Mini** menu, in the same order: **Open in …**, **Copies…**, **Show in
+Finder**, **Export for Virtual Tabletop…**, then **Resize This Mini…**, **Rename…**,
+**Duplicate…**, **Move to Project** ▸ and, while it waits, **Move in Queue** ▸. Then **Make
+Another Version…**, **New 3D Shape…** and **Edit & Make Again…**; **Build Shape**, or **Try
+Again** and **Report a Problem…**, when they apply; and **Move to Trash**.
 
 ### Several selected minis
 
@@ -188,6 +202,9 @@ Resize…** for a resize).
 | **Show Details** / **Hide Details** | On a mini's page: the details panel, ++ctrl+cmd+i++ |
 
 A note about a new version of Mimic also appears in the toolbar when there is one.
+
+To move a button or take it out, choose **View → Customize Toolbar…** (or right-click the toolbar)
+and drag it. Dragging the default set into the toolbar there puts them all back.
 
 ## The Dock icon's menu
 

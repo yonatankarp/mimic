@@ -20,18 +20,20 @@ struct MainWindowChrome: ViewModifier {
         @Bindable var model = model
         content
             .onGeometryChange(for: CGSize.self) { $0.size } action: { room = $0 }
-            .toolbar {
-                // What's going on, then New Mini apart from it; the mini's page adds its own group.
-                ToolbarItem(placement: .primaryAction) { UpdateToolbarItem() }
-                ToolbarItem(placement: .primaryAction) { JobToolbarItem() }
-                ToolbarItem(placement: .primaryAction) { NeedsSetupItem() }
+            // Customisable (View → Customize Toolbar…), as the mini's page's items are (#482).
+            .toolbar(id: "main") {
+                // What's going on, then New Mini apart from it, then the mini page's items.
+                ToolbarItem(id: "update", placement: .primaryAction) { UpdateToolbarItem() }
+                ToolbarItem(id: "progress", placement: .primaryAction) { JobToolbarItem() }
+                ToolbarItem(id: "needsSetup", placement: .primaryAction) { NeedsSetupItem() }
                 ToolbarSpacer(.fixed, placement: .primaryAction)
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(id: "newMini", placement: .primaryAction) {
                     Button { model.sheet = .make(nil) } label: { Label("New Mini", systemImage: "plus") }
                         .help("Make a new mini (⌘N)")
                         .disabled(!model.setup.installed)
                         .tourCallout(.newMini)
                 }
+                MiniToolbarItems(model: model)
             }
             // [room]: read here, so a new window size reaches the sheets (read only inside the
             // closure, the sheet kept getting the starting 640).

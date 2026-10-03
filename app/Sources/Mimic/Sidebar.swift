@@ -23,17 +23,9 @@ struct Sidebar: View {
     var listFocused: FocusState<Bool>.Binding
 
     var body: some View {
-        // Only the search field sits inside the branch: anything attached on the other side
-        // would be torn down when a mini comes or goes past the seventh.
-        Group {
-            // Same threshold as the filter, so the field and the filtering never disagree.
-            if model.minis.count > Gallery.searchAfter {
-                list.searchable(text: $query, placement: .sidebar, prompt: "Find a mini")
-                    .searchFocused($searching)
-            } else {
-                list
-            }
-        }
+        // Always there, as in Finder and Mail (#482), so Edit → Find always has somewhere to go.
+        list.searchable(text: $query, placement: .sidebar, prompt: "Find a mini")
+        .searchFocused($searching)
         .navigationSplitViewColumnWidth(min: 200, ideal: 240)
         .navigationTitle("Minis")
         // The list's shortcuts, the first time a finished mini is picked in it.
@@ -52,7 +44,7 @@ struct Sidebar: View {
         .onChange(of: query, initial: true) { model.listQuery = query; deselectHidden() }
         .onChange(of: show, initial: true) { model.listShow = show; deselectHidden() }
         .onChange(of: sort, initial: true) { model.listSort = sort }
-        .onChange(of: model.findRequests) { searching = true }  // Edit → Find
+        .onChange(of: model.findRequests) { searching = true }  // Edit → Find → Find…
         // View → Sort By and Show change these same choices.
         .focusedSceneValue(\.gallerySort, $sort)
         .focusedSceneValue(\.galleryShow, $show)
@@ -74,7 +66,7 @@ struct Sidebar: View {
     private var list: some View {
         @Bindable var model = model
         let shown = self.shown
-        let narrowed = Gallery.narrowed(model.minis, query: query, show: show)
+        let narrowed = Gallery.narrowed(query: query, show: show)
         return List(selection: $model.selection) {
             if model.projects.isEmpty {
                 Section { rows(shown, project: nil) } header: { Text("Minis") }
@@ -119,8 +111,7 @@ struct Sidebar: View {
                     .buttonStyle(.borderless)
                     .help("A folder to group minis in (⇧⌘N). Drag minis onto it to move them.")
                 Spacer()
-                // Here, not beside the search field: that appears only past six minis, and a
-                // filter must always be there to turn off.
+                // Beside New Project, out of the search field's way.
                 if !model.minis.isEmpty { arrangeMenu }
             }
             .padding(.horizontal, 12).padding(.vertical, 8)
@@ -152,7 +143,7 @@ struct Sidebar: View {
             // headers' own menus: every selected mini when it's among several, else this one.
             GalleryRow(mini: mini, status: rowStatus(mini))
                 .contextMenu {
-                    if model.selection.count > 1 && model.selection.contains(mini.id) { SeveralMenu(minis: model.chosen) } else { menu(for: mini) }
+                    if model.selection.count > 1 && model.selection.contains(mini.id) { SeveralMenu(minis: model.chosen) } else { MiniActionItems(minis: [mini]) }
                 }
                 .draggable(drag(mini))
                 // Dropped on a mini: into that mini's project.
@@ -227,28 +218,6 @@ struct Sidebar: View {
     private func drag(_ mini: Mini) -> MiniDrag {
         guard model.selection.count > 1, model.selection.contains(mini.id) else { return MiniDrag(name: mini.name, stl: mini.stl) }
         return MiniDrag(name: Gallery.dragged(model.chosen.map(\.name)), stl: nil)
-    }
-
-    @ViewBuilder private func menu(for mini: Mini) -> some View {
-        let one = [mini]
-        MiniActionButton(action: .open, minis: one)
-        MiniActionButton(action: .copies, minis: one)
-        MiniActionButton(action: .showInFinder, minis: one)
-        MiniActionButton(action: .exportForTabletop, minis: one)
-        MiniActionButton(action: .resize, minis: one)
-        Divider()
-        MiniActionButton(action: .anotherVersion, minis: one)
-        MiniActionButton(action: .newShape, minis: one)
-        MiniActionButton(action: .editAndMakeAgain, minis: one)
-        MiniActionButton(action: .duplicate, minis: one)
-        MoveToProjectMenu(minis: one)
-        if model.waiting(mini.name) != nil { MoveInQueueMenu(mini: mini) }
-        Divider()
-        MiniActionButton(action: .buildShape, minis: one)
-        MiniActionButton(action: .tryAgain, minis: one)
-        MiniActionButton(action: .reportProblem, minis: one)
-        MiniActionButton(action: .rename, minis: one)
-        MiniActionButton(action: .moveToTrash, minis: one)
     }
 }
 

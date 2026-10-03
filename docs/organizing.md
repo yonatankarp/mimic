@@ -27,9 +27,8 @@ filters it:
 
 The same choices are in the **View** menu.
 
-Once you have more than six minis, a search field appears at the top of the list (**Edit →
-Find**, ++cmd+f++). It finds minis by name and by words in their descriptions, and ignores capitals
-and accents: *elodie* finds "Élodie".
+The search field at the top of the list (**Edit → Find → Find…**, ++cmd+f++) finds minis by name
+and by words in their descriptions, and ignores capitals and accents: *elodie* finds "Élodie".
 
 ## A mini's page
 

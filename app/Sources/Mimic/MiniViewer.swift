@@ -75,6 +75,7 @@ struct MiniViewer: View {
         .onChange(of: fit, initial: true) { if unzoomed { camera = fit } }
         .onChange(of: unzoomed) { if unzoomed { camera = fit } }
         .onChange(of: model.faceFrontRequests) { front() }  // View → Face Front
+        .onChange(of: model.zoomRequests) { old, new in step(zoom: new > old ? 1 : -1) }  // View → Zoom In, Zoom Out
         .onChange(of: layout, initial: true) { referenceEntity = layout.flatMap(Self.marker(for:)) }
         .overlay(alignment: .topTrailing) { controls.padding(12) }
         .overlay(alignment: .bottom) {
