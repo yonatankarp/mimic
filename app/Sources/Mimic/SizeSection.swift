@@ -11,6 +11,7 @@ struct SizeSection: View {
     /// Resize All's: what each character is sized from, said instead of asking its real height.
     var several: String?
     @State private var advanced = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Section {
@@ -169,7 +170,7 @@ struct SizeSection: View {
                 .help("Same description and same number give the same drawing")
             }
         } label: {
-            Button("Advanced") { withAnimation { advanced.toggle() } }.buttonStyle(.plain)
+            Button("Advanced") { withAnimation(reduceMotion ? nil : .default) { advanced.toggle() } }.buttonStyle(.plain)
         }
     }
 

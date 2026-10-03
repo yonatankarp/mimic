@@ -99,6 +99,7 @@ struct MakeView: View {
     @State private var newProjectName = ""
     /// Picture Options is open: more pictures, the cartoon and grey sculpt switches, and a change.
     @State private var pictureOptions = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// The Project menu's choice.
     private enum ProjectChoice: Hashable {
@@ -325,7 +326,7 @@ struct MakeView: View {
                     .foregroundStyle(dropTargeted ? Color.accentColor : .secondary.opacity(0.5)))
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Choose a picture")
+            .accessibilityLabel(picture.map { "Change the picture, \($0.caption)" } ?? "Choose a picture")
             .onDrop(of: PictureDrop.types, isTargeted: $dropTargeted) { receive($0); return true }
             ForEach(picture.map { MakeAdvice.pictureWarnings(width: $0.width, height: $0.height, kind: card.kind) } ?? [], id: \.self) {
                 Label($0, systemImage: "exclamationmark.triangle.fill").font(.callout).foregroundStyle(.orange)
@@ -341,7 +342,7 @@ struct MakeView: View {
             DisclosureGroup(isExpanded: $pictureOptions) {
                 pictureOptionRows
             } label: {
-                Button("Picture Options") { withAnimation { pictureOptions.toggle() } }.buttonStyle(.plain)
+                Button("Picture Options") { withAnimation(reduceMotion ? nil : .default) { pictureOptions.toggle() } }.buttonStyle(.plain)
             }
             // In sight with it closed: without them, the picture is made without the grey sculpt.
             if !health.picturesReady { needsPictures("The grey sculpt needs \(health.pictureNeed).") }
@@ -469,7 +470,8 @@ struct MakeView: View {
                 .overlay(alignment: .topLeading) {
                     if description.isEmpty {
                         Text(object ? "e.g. a round teapot with a curved spout and a lid" : "e.g. dwarf cleric holding a warhammer against his chest, shield on his back")
-                            .foregroundStyle(.tertiary).padding(.leading, 9).padding(.top, 4).allowsHitTesting(false)
+                            // As grey as the Name field's own placeholder: .tertiary measured 1.9:1 (#483).
+                            .foregroundStyle(.secondary).padding(.leading, 9).padding(.top, 4).allowsHitTesting(false)
                     }
                 }
                 .onChange(of: description) { _, text in
