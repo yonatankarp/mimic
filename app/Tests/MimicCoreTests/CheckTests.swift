@@ -247,3 +247,41 @@ final class FakeDrawThings: @unchecked Sendable {
         }
     }
 }
+
+/// One Draw Things watch however many windows watch it (#347).
+@MainActor
+final class SharedLoopTests: XCTestCase {
+    @MainActor final class Loops { var started = 0, running = 0 }
+
+    private func until(_ done: () -> Bool) async {
+        for _ in 0..<200 where !done() { try? await Task.sleep(for: .milliseconds(10)) }
+    }
+
+    func testOneLoopWhileAnyoneWatches() async throws {
+        let shared = SharedLoop(), loops = Loops()
+        let body: @MainActor () async -> Void = {
+            loops.started += 1; loops.running += 1
+            while !Task.isCancelled { try? await Task.sleep(for: .milliseconds(10)) }
+            loops.running -= 1
+        }
+        let settings = Task { await shared.join(body) }
+        let newMini = Task { await shared.join(body) }
+        await until { loops.started > 0 }
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(loops.running, 1, "two windows, two loops")
+
+        newMini.cancel()
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(loops.running, 1, "stopped while Settings still watches")
+        settings.cancel()
+        await until { loops.running == 0 }
+        XCTAssertEqual(loops.running, 0, "still checking with nobody watching")
+
+        let setup = Task { await shared.join(body) }
+        await until { loops.started == 2 }
+        XCTAssertEqual(loops.running, 1, "a window opened later starts it again")
+        setup.cancel()
+        await until { loops.running == 0 }
+        XCTAssertEqual(loops.started, 2)
+    }
+}
