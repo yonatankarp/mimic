@@ -326,7 +326,10 @@ public final class JobRunner: @unchecked Sendable {
         // An imported model has nothing of its own to make again; Resize remakes its print file.
         if settings.isImported { throw RequestError.imported(name) }
         guard settings.requested != nil else { throw RequestError.nothingToRetry }
-        let hasModel = FileManager.default.fileExists(atPath: folder.appendingPathComponent(Mini.modelFile).path)
+        let model = folder.appendingPathComponent(Mini.modelFile)
+        // A 3D shape cut short by a crash before #403 fails print prep every time: it's built again (#436).
+        let cutShort = GLB.cutShort(model)
+        let hasModel = !cutShort && FileManager.default.fileExists(atPath: model.path)
         if !hasModel {
             // The same 3D model it was made with, and it has to be here: found out now, not minutes in.
             guard let model = EngineDownload.model(settings.model) else { throw RequestError.unknownModel(settings.model ?? "") }
@@ -336,6 +339,7 @@ public final class JobRunner: @unchecked Sendable {
         _ = try Pipeline.plan(kind, folder: folder, settings: settings, tools: tools)
         return try queue.locked { entries in
             try checkFree(name, entries)
+            if cutShort { try FileManager.default.removeItem(at: model) }  // only once no job of its own runs
             return enqueue(QueueEntry(name: name, job: kind, again: true), &entries)
         }
     }
@@ -549,8 +553,22 @@ public final class JobRunner: @unchecked Sendable {
         lock.withLock { lockFD = fd; awake = activity; stopWatch = watch }
         idle.enter()
         Leftover.stop(queue: install.queue)
+        if let left = SharedJob.orphaned(queue: install.queue) { failLeftover(left) }
         SharedJob.clear(queue: install.queue)
         return true
+    }
+
+    /// A job a crashed Mimic was running (#436): its mini says so, with Try Again, instead of
+    /// sitting half made with no reason. A step's file is only ever moved into place whole, so
+    /// Try Again carries on from the step it was on.
+    private func failLeftover(_ left: SharedJob) {
+        guard let folder = Gallery.folder(install.runs, left.name) else { return }
+        Log.queue.error("\(left.name, privacy: .public) was left half made by a Mimic that quit unexpectedly")
+        try? MiniSettings.update(folder) { s in
+            // An imported model has no Try Again; Resize makes its print file again.
+            s.failed = s.isImported ? "Mimic stopped while making it. Resize it to try again." : "Mimic stopped while making it. Try Again."
+            s.failedStep = left.step.rawValue
+        }
     }
 
     private func releaseJobLock() {

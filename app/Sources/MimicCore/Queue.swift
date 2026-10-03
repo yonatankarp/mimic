@@ -199,10 +199,19 @@ public struct SharedJob: Codable, Equatable, Sendable {
 
     /// The running job, or nil when nothing runs (or the Mimic running it has gone).
     public static func read(queue: URL) -> SharedJob? {
-        guard let data = try? Data(contentsOf: file(queue: queue)),
-              let r = try? JobQueue.decoder.decode(SharedJob.self, from: data),
-              Leftover.startTime(r.pid) == r.pidStart else { return nil }
+        guard let r = record(queue: queue), Leftover.startTime(r.pid) == r.pidStart else { return nil }
         return r
+    }
+
+    /// The job a Mimic that has gone (crashed, or killed) was running when it went (#436).
+    public static func orphaned(queue: URL) -> SharedJob? {
+        guard let r = record(queue: queue), Leftover.startTime(r.pid) != r.pidStart else { return nil }
+        return r
+    }
+
+    private static func record(queue: URL) -> SharedJob? {
+        guard let data = try? Data(contentsOf: file(queue: queue)) else { return nil }
+        return try? JobQueue.decoder.decode(SharedJob.self, from: data)
     }
 
     public var status: JobStatus {

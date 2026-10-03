@@ -111,6 +111,10 @@ the queue, and the next time you open Mimic it carries on from the last step it 
 minis waiting after it follow, without asking. Logging out, restarting or shutting down your Mac
 doesn't wait for an answer, and loses only the step in progress.
 
+If Mimic quits unexpectedly while a mini is being made, the next time you open it the mini says
+"Mimic stopped while making it. Try Again." **Try Again** carries on from the step it was on. The
+minis waiting after it carry on by themselves.
+
 ## Your Mac stays awake
 
 While Mimic is making minis, your Mac doesn't go to sleep on its own, from the first mini to the
