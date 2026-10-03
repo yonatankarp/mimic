@@ -134,7 +134,11 @@ downloads the real engine and the small model files, never the 8 GB of weights.
 
      Afterwards put it back with `defaults delete com.mimic.app SUFeedURL`.
 4. Click Publish on the draft. Mimic's updater sees it from then on. The README's install steps
-   link to the latest release, so nothing else needs updating.
+   link to the latest release, and the **Homebrew** workflow moves the cask in
+   [yonatankarp/homebrew-mimic](https://github.com/yonatankarp/homebrew-mimic) to it (only when
+   it's the latest release, so a hotfix for an older line doesn't roll it back). It pushes with a
+   deploy key that has write access to the tap, stored as the `HOMEBREW_TAP_DEPLOY_KEY` secret. A
+   release it missed can be done by hand: `gh workflow run homebrew.yml -f tag=v0.3.0`.
 
 From 0.10.0, each release also records where its disk image came from: GitHub signs a
 provenance record saying which workflow run and tag built it. Anyone can check a download against

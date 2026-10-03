@@ -64,7 +64,7 @@ struct MakeView: View {
     init(room: CGSize, start filled: MakeStart? = nil, again: Mini? = nil) {
         self.room = room
         self.again = again
-        _height = State(initialValue: min(720, room.height - 8))
+        _height = State(initialValue: room.sheetHeight)
         // Filled in here rather than on appear, so no onChange takes it for a choice made in the
         // sheet (a kind changed forgets the improved description; the size card's are remembered).
         guard let filled else { return }
@@ -148,7 +148,7 @@ struct MakeView: View {
         }
         // Two equal columns: 540 each from the default window up (the size column's hints mostly
         // on one line, so Game scale fits unscrolled), 460 each in the smallest.
-        .frame(width: min(1080, room.width - 40), height: height)
+        .frame(width: room.sheetWidth, height: height)
         .fitsForms($height, $forms, room: room.height)
         .onChange(of: card.kind) { _, k in
             UserDefaults.standard.set(k.rawValue, forKey: SettingsKey.kind)

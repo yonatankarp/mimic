@@ -36,6 +36,13 @@ No subscriptions, and everything runs on your own Mac, unless you choose an onli
    downloads its 3D engine (8.3 to 9.3 GB, depending on the model). You can keep using your Mac while it does, and
    switch models later in Settings → 3D Model.
 
+Using [Homebrew](https://brew.sh)? Instead of steps 1 and 2, run this in Terminal. It also
+installs the [`mimic` command](https://yonatankarp.com/mimic/cli/):
+
+```bash
+brew install --cask yonatankarp/mimic/mimic
+```
+
 > [!IMPORTANT]
 > **The first time you open Mimic, your Mac may say it can't check it.** Mimic is a free app
 > that isn't registered with Apple, so it needs one extra step:

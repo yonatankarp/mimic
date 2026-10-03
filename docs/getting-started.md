@@ -29,6 +29,20 @@ gets.
 2. Drag **Mimic** onto **Applications**.
 3. Open Mimic from your Applications folder.
 
+### With Homebrew
+
+If you use [Homebrew](https://brew.sh), you can install Mimic with one command in Terminal instead
+of steps 1 and 2:
+
+```bash
+brew install --cask yonatankarp/mimic/mimic
+```
+
+It puts Mimic in your Applications folder and adds the [`mimic` command](cli.md) to Terminal.
+Then open Mimic from your Applications folder. The first time, your Mac may still say it can't
+check it: see below. Mimic [keeps itself up to date](#keep-mimic-up-to-date), so you don't need
+`brew upgrade`.
+
 ### If your Mac says it can't check Mimic
 
 The first time you open Mimic, your Mac may say it can't check it ("Apple could not verify

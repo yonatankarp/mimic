@@ -34,7 +34,7 @@ struct CompareSheet: View {
             }
             .padding(16)
         }
-        .frame(width: min(1080, room.width - 40), height: min(720, room.height - 8))
+        .frame(width: room.sheetWidth, height: room.sheetHeight)
         // One that has gone (moved to the Trash, renamed) gives way to another, or the sheet closes.
         .onChange(of: finished.map(\.name), initial: true) { _, now in
             guard now.count >= 2 else { dismiss(); return }

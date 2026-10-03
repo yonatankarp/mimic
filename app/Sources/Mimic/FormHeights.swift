@@ -10,6 +10,13 @@ struct FormHeights: Equatable {
     init(columns: Int) { content = Array(repeating: 0, count: columns) }
 }
 
+extension CGSize {
+    /// The size of a big sheet (New Mini, Resize, Import, Compare) in a main window with this
+    /// room under its toolbar: up to 1080 × 720, the starting height before `fitsForms` fits it.
+    var sheetWidth: CGFloat { min(1080, width - 40) }
+    var sheetHeight: CGFloat { min(720, height - 8) }
+}
+
 extension View {
     /// Keeps `forms` up to date with this form, column `column` of them.
     func reportsHeight(_ column: Int, into forms: Binding<FormHeights>) -> some View {
