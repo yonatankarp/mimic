@@ -237,7 +237,7 @@ struct TourHost: ViewModifier {
                         .transition(.opacity)
                 }
             }
-            .animation(.easeInOut(duration: 0.25), value: card)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: card)
             .onChange(of: model.sheet) { guide.sheetChanged(model) }
             // Esc leaves the tour when the main window, not a popover, has the keyboard (a card
             // has its own Esc).

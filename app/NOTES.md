@@ -507,7 +507,12 @@ Build and test: `cd app && swift test && ./bundle.sh && open "build/Mimic Dev.ap
   and no other). `OnlineClient` is what the clients share: the key (read only as a request goes
   out), Stop, and `fetch`, which sends the key only to the address it was set up with (scheme, host
   and port) or the entry's hosts over https, follows a redirect anywhere else without the key's
-  header (`KeepKey`), and cuts the key out of error text before it's shortened. Errors are
+  header (`KeepKey`), and cuts the key out of error text before it's shortened. `submit` sends the
+  request that asks for a picture again, twice at most, when it's turned away as busy (429 that
+  isn't billing, or 5xx; #320): a request turned away isn't charged, and a queued mini shouldn't
+  fail on a busy moment. It waits as long as `Retry-After` says (seconds only; the date form falls
+  back), at most 60 s, else 5 s then 15 s, and Stop ends the wait. Nothing after the submit goes
+  through it: from then on the picture is paid for (BFL's polling has its own retries). Errors are
   `OnlineImagesError(problem, service: name)`, in the same plain words for every service.
   `PictureMaker` is the one seam: `DrawThings` and each online client are one, and the job runner
   picks one as each job starts (`JobRunner.pictureService`), so Stop cancels the one in use, and a
