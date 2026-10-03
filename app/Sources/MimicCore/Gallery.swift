@@ -180,16 +180,22 @@ public enum Gallery {
     }
 
     /// Resize All on a project: which of its minis to resize, each to `sizes` but keeping its
-    /// own base or none (a teapot in a party doesn't get the party's round base). Those already
-    /// made at them are left out (`same`); those that can't be resized now (no 3D model yet, or
-    /// `busy`: waiting or being made) are `skipped`.
-    public static func toResize(_ minis: [Mini], to sizes: Sizes, busy: Set<String>) -> (resize: [(mini: Mini, sizes: Sizes)], same: Int, skipped: Int) {
+    /// own base or none (a teapot in a party doesn't get the party's round base). At a `scale`
+    /// (Game Scale), a character with its real height kept is sized from it, so a halfling stays
+    /// shorter than an elf (#479); one without gets `sizes`' height. Those already made at them
+    /// are left out (`same`); those that can't be resized now (no 3D model yet, or `busy`:
+    /// waiting or being made) are `skipped`.
+    public static func toResize(_ minis: [Mini], to sizes: Sizes, scale: Int? = nil, busy: Set<String>) -> (resize: [(mini: Mini, sizes: Sizes)], same: Int, skipped: Int) {
         var resize: [(mini: Mini, sizes: Sizes)] = [], same = 0, skipped = 0
         for mini in minis {
             let settings = mini.settings
             var own = sizes
             own.noBase = (settings.made ?? settings.requested)?.noBase ?? (settings.kind == .object)
             if own.noBase { own.shape = .round; own.style = .plain; own.magnet = nil }  // as it reads back: no base has no shape
+            own.realHeight = settings.realHeight  // its own, never the card's
+            if let scale, let real = own.realHeight {
+                own.height = SizeCard.text(SizeCard.clamp(SizeCard.gameHeight(real: real, scale: scale), SizeCard.heightRange, step: 1))
+            }
             if !mini.hasModel || busy.contains(mini.name) { skipped += 1 }
             else if settings.made == own { same += 1 }
             else { resize.append((mini, own)) }

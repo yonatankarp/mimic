@@ -64,12 +64,16 @@ Its size, base and nozzle, the same choices as [Sizes and bases](sizes-and-bases
 
 ```bash
 mimic resize tiefling --height 32 --base 25
-mimic resize --project "Tiefling Party" --height 32
+mimic resize --project "Tiefling Party" --scale 54
 ```
 
 Only print prep runs again, so a resize takes about a minute. With `--project`, every mini in the
 project gets the new size, like **Resize All…**. A resize keeps the mini's base shape, floor, magnet
 and nozzle unless you give them.
+
+With `--scale`, a resize keeps the character's real height, as the app does: a 1 m halfling made at
+32 mm comes out 30 mm at 54. A mini without one saved (made with Mimic 0.13 or older, or never at a
+scale) is sized as an average human, or gets `--height` if you give it.
 
 | `resize` option | What it does |
 |---|---|

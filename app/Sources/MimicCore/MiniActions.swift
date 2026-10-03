@@ -51,11 +51,12 @@ extension JobRunner {
     // MARK: Resize All
 
     /// Resize All on a project, or Resize on several minis: each one `Gallery.toResize` picks is
-    /// asked for with `resize` (the app's shows its progress), and waits its turn.
-    public func resizeAll(_ group: [Mini], to sizes: Sizes, resize: (Mini, Sizes) throws -> Void) -> ResizeAll {
+    /// asked for with `resize` (the app's shows its progress), and waits its turn. At a `scale`,
+    /// each character is sized from its own real height.
+    public func resizeAll(_ group: [Mini], to sizes: Sizes, scale: Int? = nil, resize: (Mini, Sizes) throws -> Void) -> ResizeAll {
         // A size out of range is refused for them all, not counted as skipped (#432).
         do { _ = try sizes.flags() } catch { return ResizeAll(failure: error) }
-        let picked = Gallery.toResize(group, to: sizes, busy: busyNames())
+        let picked = Gallery.toResize(group, to: sizes, scale: scale, busy: busyNames())
         var result = ResizeAll(same: picked.same, skipped: picked.skipped)
         for (mini, sizes) in picked.resize {
             do {
@@ -70,8 +71,8 @@ extension JobRunner {
     }
 
     /// Resize All, each mini asked for with `resize(name:sizes:)`.
-    public func resizeAll(_ group: [Mini], to sizes: Sizes) -> ResizeAll {
-        resizeAll(group, to: sizes) { try self.resize(name: $0.name, sizes: $1) }
+    public func resizeAll(_ group: [Mini], to sizes: Sizes, scale: Int? = nil) -> ResizeAll {
+        resizeAll(group, to: sizes, scale: scale) { try self.resize(name: $0.name, sizes: $1) }
     }
 
     // MARK: Several pictures

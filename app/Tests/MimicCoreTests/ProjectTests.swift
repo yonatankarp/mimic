@@ -208,6 +208,33 @@ final class ProjectTests: XCTestCase {
         XCTAssertEqual(picked.skipped, 2)
     }
 
+    /// Resize All at Game Scale sizes each character from its own real height (#479): a 1 m
+    /// halfling and a 1.8 m elf at 54 mm don't come out the same height. One made before real
+    /// heights were kept gets the card's height, as before; a giant stays within the slider's range.
+    func testResizeAllKeepsEachCharactersRealHeight() throws {
+        let fx = try Fixture(), runs = fx.install.runs
+        for (name, real) in [("halfling", "1"), ("elf", "1.8"), ("giant", "8"), ("old", nil)] {
+            _ = try fx.mini(name, in: "Party")
+            try MiniSettings.update(runs.appendingPathComponent("Party/\(name)")) {
+                $0.made = Sizes(height: SizeCard.text(SizeCard.gameHeight(real: real ?? "", scale: 32)), base: "25", nozzle: "0.4", realHeight: real)
+            }
+        }
+        let card = Sizes(height: "54", base: "40", nozzle: "0.4", realHeight: "1.8")
+        let picked = Gallery.toResize(Gallery.list(runs), to: card, scale: 54, busy: [])
+        let resize = Dictionary(uniqueKeysWithValues: picked.resize.map { ($0.mini.name, $0.sizes) })
+        XCTAssertEqual(resize["halfling"]?.height, "30")
+        XCTAssertEqual(resize["elf"]?.height, "54")
+        XCTAssertEqual(resize["giant"]?.height, "200", "8 m at 54 mm is 240 mm: as tall as the slider goes")
+        XCTAssertEqual(resize["old"]?.height, "54", "no real height kept: the card's")
+        XCTAssertEqual(resize["halfling"]?.realHeight, "1", "each keeps its own")
+        XCTAssertNil(resize["old"]?.realHeight, "not given the card's")
+        XCTAssertEqual(resize["halfling"]?.base, "40")
+        // Without a scale (Best Print, or a height chosen by hand) everyone gets the card's height.
+        XCTAssertEqual(Set(Gallery.toResize(Gallery.list(runs), to: card, busy: []).resize.map(\.sizes.height)), ["54"])
+        // Already at the scale: left out, not resized again for a real height the card doesn't have.
+        XCTAssertEqual(Gallery.toResize(Gallery.list(runs), to: Sizes(height: "32", base: "25", nozzle: "0.4"), scale: 32, busy: []).same, 4)
+    }
+
     /// A hex Resize All leaves an object without a base as it is: with no base there's no shape,
     /// so it's already that size, not resized again for a shape it can't have.
     func testResizeAllToAShapeLeavesAnObjectWithoutABaseAlone() throws {

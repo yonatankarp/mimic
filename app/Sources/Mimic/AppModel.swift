@@ -437,10 +437,10 @@ final class AppModel {
     func resizeAll(_ project: String, sizes: Sizes) -> String? { resizeAll(minis.filter { $0.project == project }, sizes: sizes) }
 
     /// Resize All, or Resize on several selected: each mini waits its turn to be resized to
-    /// `sizes`, with one note in the job's popover like several dropped pictures. Returns why, in
-    /// words, when none could be added.
-    func resizeAll(_ group: [Mini], sizes: Sizes) -> String? {
-        let done = jobs.resizeAll(group, to: sizes) { try self.resize($0, sizes: $1) }
+    /// `sizes` (at a `scale`, each character from its own real height), with one note in the
+    /// job's popover like several dropped pictures. Returns why, in words, when none could be added.
+    func resizeAll(_ group: [Mini], sizes: Sizes, scale: Int? = nil) -> String? {
+        let done = jobs.resizeAll(group, to: sizes, scale: scale) { try self.resize($0, sizes: $1) }
         guard let last = done.added.last else { return done.nothingAdded(done.failure.map { plainWords($0) }) }
         let ready = readyIn(last) ?? runningLeft()
         present { $0.noteQueued(.init(name: last, text: "\(JobPresentation.QueuedNote.added(done.added.count)) \(whenReady(ready))\(done.sameNote)\(done.skippedNote)")) }

@@ -11,7 +11,7 @@ public enum Usage {
       mimic duplicate <name> --as "<new name>"
       mimic resize <name> [--wait] [options]
       mimic import <file.glb|file.stl> [--object] [--project "<project>"] [--wait] [options]
-      mimic resize --project "<project>" [--wait] [options]   Resize All: every mini in the project
+      mimic resize --project "<project>" [--wait] [options]   Resize All: every mini in the project; --scale keeps each one's real height
       mimic retry <name> [--wait]
       mimic open <name>              opens its print file in your slicer
       mimic export <name> --vtt [--triangles N]   a low-poly .glb for a virtual tabletop, here in this folder
