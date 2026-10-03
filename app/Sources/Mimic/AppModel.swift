@@ -146,15 +146,8 @@ final class AppModel {
     /// Every job this Mac has finished, which the time estimates come from. On this Mac only.
     let timings: Timings
     private(set) var history: [TimingRecord] = []
-    /// The jobs waiting their turn, shared with every other Mimic on this Mac; read again
-    /// every few seconds, since another Mimic may add or start one.
-    private(set) var queue: [QueueEntry] = []
-    /// The job another Mimic is running (the dev app, `mimic` in Terminal), when this one isn't.
-    private(set) var elsewhere: JobStatus?
-    /// Why the queue's next job waits (paused, or on battery), read with the queue.
-    private(set) var hold: QueueHold?
-    /// Paused, here or in another Mimic (#89). Read with the queue.
-    private(set) var paused = false
+    /// The shared queue, as last read (`QueueWatch.swift`).
+    let queueWatch = QueueWatch()
     /// Jobs that ended since the job's popover was last seen, the latest last.
     var ended: [JobStatus] { presentation.ended }
     /// "Added to the queue — …", at the top of the job's popover until that mini starts or the
@@ -178,7 +171,7 @@ final class AppModel {
         setup = SetupModel(install: install)
         updates.model = self
         wire(jobs)
-        setAsideSeen = jobs.queue.setAside().count
+        queueWatch.follow(jobs)
         reload()
         // Run the checks at launch, so Make is blocked (and Settings flagged) before anyone opens Settings.
         Health.shared.check(install)
@@ -235,7 +228,7 @@ final class AppModel {
         let install = Install.locate()
         self.install = install
         self.jobs = JobRunner(install: install, timings: timings, version: BuildInfo.version)
-        setAsideSeen = self.jobs.queue.setAside().count
+        queueWatch.follow(self.jobs)
         wire(self.jobs)
         selection = []
         reload()
@@ -281,54 +274,7 @@ final class AppModel {
     /// anything else: Finder, `mimic move`, another Mimic (#81).
     @ObservationIgnored private lazy var watch = FolderWatch { [weak self] in self?.reload() }
 
-    // MARK: The queue
-
-    /// Off the main thread: stopping a leftover job waits for it to end (up to 5 s), and the
-    /// queue's lock waits while another Mimic holds it, which would freeze the window meanwhile.
-    private func watchQueue() async {
-        let jobs = self.jobs, queueFolder = install.queue
-        let idle = !running, canStart = !running && requiredProblem == nil && setup.installed
-        let leftover = await Task.detached { () -> Bool in
-            // A crashed Mimic's job may still be running with nothing watching it: stopped as soon
-            // as no live Mimic holds the job lock, queue or no queue. One that crashed between
-            // programs left none running, but its mini still needs saying why it stopped (#436).
-            let leftover = idle && (Leftover.recorded(queue: queueFolder) || SharedJob.orphaned(queue: queueFolder) != nil)
-            if leftover { jobs.cleanUpLeftovers() }
-            // Not while a required part is broken (the engine needs Repair): each job would fail in
-            // turn, so the queue waits until it's fixed.
-            if canStart && !jobs.queue.entries().isEmpty { jobs.pump() }
-            return leftover
-        }.value
-        // The mini it was making now says why it stopped: shown without waiting for another reload.
-        if !refreshQueue() && leftover { reload() }
-        updates.tick()
-    }
-
-    /// How many queue files that wouldn't read are put aside, as last seen: one more is said.
-    @ObservationIgnored private var setAsideSeen = 0
-
-    /// Returns whether it reloaded the list, so a caller about to reload too can skip its own.
-    @discardableResult
-    func refreshQueue() -> Bool {
-        // A queue that wouldn't read was put aside (#306), by this Mimic or another: said once.
-        let aside = jobs.queue.setAside().count
-        if aside > setAsideSeen {
-            problem = "Mimic couldn't read its list of minis waiting to be made, so it put the list aside and started a new one. Minis that were waiting didn't start: make or resize them again."
-        }
-        setAsideSeen = aside
-        let q = jobs.queue.entries()
-        var changed = false
-        if q != queue { queue = q; changed = true }
-        let other = running ? nil : SharedJob.read(queue: install.queue)?.status
-        if other?.name != elsewhere?.name { changed = true }  // another Mimic started, or finished, a mini
-        if other != elsewhere { elsewhere = other }
-        let h = jobs.hold(), p = jobs.queue.paused
-        if h != hold { hold = h }
-        if p != paused { paused = p }
-        if changed { reload() }
-        updateBadge()
-        return changed
-    }
+    // MARK: The Dock and the window (the queue is in QueueWatch.swift)
 
     /// How many minis are ready and not yet seen, on the Dock icon; nothing when none are. The
     /// only place the badge is set.
@@ -355,45 +301,8 @@ final class AppModel {
     /// The running job, here or in another Mimic.
     var current: JobStatus? { running ? job : elsewhere }
 
-    /// A mini's place in the queue, from 1, or nil when it isn't waiting.
-    func waiting(_ name: String) -> Int? { queue.firstIndex { $0.name == name }.map { $0 + 1 } }
-
-    /// "1st", "2nd"…
-    static func ordinal(_ n: Int) -> String {
-        let f = NumberFormatter(); f.numberStyle = .ordinal
-        return f.string(from: n as NSNumber) ?? "\(n)"
-    }
-
-    func removeFromQueue(_ name: String) {
-        do { try jobs.remove(name) } catch { problem = plainWords(error, else: "Couldn't take it out of the queue. Try again.") }
-        if !refreshQueue() { reload() }
-    }
-
-    /// Pause After This One, Pause Queue or Resume Queue, in the job's popover and the Mini menu.
-    var pauseCommand: String { JobProgress.pauseCommand(paused: paused, making: current != nil) }
-
-    /// Pausing lets the mini being made finish; resuming starts the next one if none is.
-    func togglePause() {
-        do { try jobs.setPaused(!paused) } catch { problem = paused ? "Couldn't resume the queue. Try again." : "Couldn't pause the queue. Try again." }
-        refreshQueue()
-    }
-
-    /// The queue's next job waits although nothing is running: the toolbar says so.
-    var queueHeld: QueueHold? { current == nil && !queue.isEmpty ? hold : nil }
-
     /// When a mini just added should be ready, or why it waits.
     private func whenReady(_ ready: TimeInterval) -> String { hold.map { $0.sentence } ?? "Ready in \(JobProgress.about(ready))." }
-
-    func moveInQueue(_ name: String, by offset: Int) {
-        _ = try? jobs.move(name, by: offset)
-        refreshQueue()
-    }
-
-    /// Move to Front, Move to End, or a mini dragged onto another's place (#72).
-    func moveInQueue(_ name: String, to place: QueuePlace) {
-        _ = try? jobs.move(name, to: place)
-        refreshQueue()
-    }
 
     // MARK: Time estimates
 

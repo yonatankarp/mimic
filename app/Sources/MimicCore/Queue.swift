@@ -222,3 +222,28 @@ public struct SharedJob: Codable, Equatable, Sendable {
         return s
     }
 }
+
+/// The shared queue as one Mimic last read it: the jobs waiting their turn, the job another Mimic
+/// is running, why the next one waits, and whether the queue is paused.
+public struct QueueState: Equatable, Sendable {
+    public var entries: [QueueEntry] = []
+    public var elsewhere: JobStatus?
+    public var hold: QueueHold?
+    public var paused = false
+
+    public init(entries: [QueueEntry] = [], elsewhere: JobStatus? = nil, hold: QueueHold? = nil, paused: Bool = false) {
+        self.entries = entries; self.elsewhere = elsewhere; self.hold = hold; self.paused = paused
+    }
+
+    /// Read now. `running`: this Mimic is running a job itself, so no other Mimic's is read.
+    public static func read(_ jobs: JobRunner, running: Bool) -> QueueState {
+        QueueState(entries: jobs.queue.entries(), elsewhere: running ? nil : SharedJob.read(queue: jobs.install.queue)?.status,
+                   hold: jobs.hold(), paused: jobs.queue.paused)
+    }
+
+    /// The list of minis is read again: a job joined or left the queue, or another Mimic started
+    /// or finished a mini. Not for another Mimic's progress, a hold or a pause, which change no mini.
+    public func listChanged(from old: QueueState) -> Bool {
+        entries != old.entries || elsewhere?.name != old.elsewhere?.name
+    }
+}
