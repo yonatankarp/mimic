@@ -221,11 +221,11 @@ struct MakeView: View {
         .pickerStyle(.segmented)
         .help("Start from a picture of your \(thing), or from a description")
         if start == .picture { picturePane } else { descriptionPane }
-        if let again, let used = madeWith.flatMap({ EngineDownload.model($0) }), used != model.setup.chosen, !cartoonOn {
+        if let again, let used = madeWith.flatMap({ EngineDownload.model($0) }), used != model.setup.engineModel, !cartoonOn {
             HStack(alignment: .firstTextBaseline) {
                 Text("Made with \(used.name), as \(again.displayName) was.").foregroundStyle(.secondary)
                 Spacer()
-                Button("Use \(model.setup.chosen.name)") { madeWith = nil }
+                Button("Use \(model.setup.engineModel.name)") { madeWith = nil }
                     .help("Make it with the 3D model chosen in Settings instead")
             }
             .font(.callout)
@@ -364,7 +364,7 @@ struct MakeView: View {
 
     /// The 3D model it would be made with, which decides whether it can use them.
     private var makingWith: EngineModel {
-        EngineDownload.forMaking(cartoon: cartoonOn, chosen: madeWith.flatMap { EngineDownload.model($0) } ?? model.setup.chosen)
+        EngineDownload.forMaking(cartoon: cartoonOn, chosen: madeWith.flatMap { EngineDownload.model($0) } ?? model.setup.engineModel)
     }
 
     /// What Make Mini sends of them: nothing when the model uses one picture.

@@ -81,7 +81,7 @@ struct MiniDetail: View {
                 .overlay(alignment: .topLeading) { notes }
         } else if let n = model.waiting(mini.name) {
             ContentUnavailableView("Waiting to be made (\(AppModel.ordinal(n)) in the queue).", systemImage: "hourglass",
-                                   description: Text("Ready in \(JobProgress.about(model.queueTimes()[n - 1].ready))."))
+                                   description: Text("Ready in \(JobProgress.about(model.readyIn(mini.name) ?? 0))."))
         } else if let s = model.current, s.name == mini.name {
             // Being made (#77): which step, and how long it has left, with the progress a click away.
             TimelineView(.periodic(from: .now, by: 5)) { t in

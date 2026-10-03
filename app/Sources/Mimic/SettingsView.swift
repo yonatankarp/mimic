@@ -314,7 +314,7 @@ private struct ModelsSection: View {
                 }
             }
             Spacer()
-            if m == setup.chosen {
+            if m == setup.engineModel {
                 Label("In use", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
             } else if let found = onDisk[m.id] {  // no buttons for the moment before it's looked at
                 if found.complete {

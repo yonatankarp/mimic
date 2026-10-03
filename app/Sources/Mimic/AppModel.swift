@@ -407,7 +407,7 @@ final class AppModel {
     /// A new mini with the model it would be made with.
     /// `pictures`: the front and any of the back and sides, each made in step 1.
     func estimateNew(drawn: Bool, sizes: Sizes, cartoon: Bool = false, pictures: Int = 1) -> Estimate {
-        Estimator.estimate(JobShape(job: .generate, model: EngineDownload.forMaking(cartoon: cartoon, chosen: setup.chosen).id, drawn: drawn,
+        Estimator.estimate(JobShape(job: .generate, model: EngineDownload.forMaking(cartoon: cartoon, chosen: setup.engineModel).id, drawn: drawn,
                                     service: ImageService.load(.standard), nozzle: sizes.nozzle ?? "0.4",
                                     height: sizes.height.flatMap(Double.init), pictures: pictures), history: history)
     }
@@ -449,7 +449,7 @@ final class AppModel {
     func make(name: String, picture: PictureSource, restyle: Bool, seed: Int, sizes: Sizes, kind: MiniKind = .character,
               project: String? = nil, cartoon: Bool = false, shown: String? = nil, model: EngineModel? = nil, shapeSeed: Int? = nil,
               sides: [PictureSide: URL] = [:], fixes: [String] = [], fixUsed: String? = nil, checkPicture: Bool = false) throws {
-        let chosen = EngineDownload.forMaking(cartoon: cartoon, chosen: model ?? setup.chosen)
+        let chosen = EngineDownload.forMaking(cartoon: cartoon, chosen: model ?? setup.engineModel)
         try start(name) {
             try $0.make(name: name, picture: picture, restyle: restyle, seed: seed, sizes: sizes, kind: kind, model: chosen, project: project,
                         cartoon: cartoon, shown: shown, shapeSeed: shapeSeed, sides: sides, fixes: fixes, fixUsed: fixUsed, checkPicture: checkPicture)
@@ -614,11 +614,9 @@ final class AppModel {
     /// A mini waiting for its picture to be checked (#156): not waiting in the queue or being made.
     func pictureToCheck(_ mini: Mini) -> Bool { miniMenu.pictureToCheck(mini) }
 
-    /// Build Shape, for a mini whose picture is ready to check (#156): carries on from it.
-    func buildShape(_ name: String) throws {
-        try start(name) { try $0.retry(name: name) }
-        present { $0.retried(name) }
-    }
+    /// Build Shape, for a mini whose picture is ready to check (#156): carries on from it, as a
+    /// retry does.
+    func buildShape(_ name: String) throws { try retry(name) }
 
     /// Build Shape from a menu; a refusal is said as an alert.
     func buildShape(_ mini: Mini) {

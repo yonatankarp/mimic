@@ -48,22 +48,11 @@ final class Reporter {
         let shot = includeWindow.state == .on ? window : nil
         let folder = model.install.runs.appendingPathComponent("_reports"), build = BuildInfo.line, mac = Report.mac
         let failure = mini.map { $0.settings.failed ?? "It stopped before it was done." }
-        let install = model.install, known = setupKnown(mini)
-        Task {
-            let made: (URL, ReportSetup, [String])? = await Task.detached {
-                var setup = ReportSetup.current(install: install)
-                known(&setup)
-                let log = Log.recent(since: Date().addingTimeInterval(-3600))
-                // The keys saved in Settings, to take out wherever they are (#352). Off the main
-                // thread: reading them may wait on a Keychain prompt after an update.
-                let saved = Keychain.all()
-                guard let zip = try? Report.write(to: folder, mini: mini, picture: picture, build: build, mac: mac, appLog: log,
-                                                  setup: setup, window: shot, saved: saved) else { return nil }
-                return (zip, setup, saved)
-            }.value
-            guard let made else { model.problem = "Couldn't make the report. Check that Mimic's folder is still there, then try again."; return }
-            NSWorkspace.shared.activateFileViewerSelecting([made.0])
-            NSWorkspace.shared.open(Report.issueURL(build: build, mac: mac, failure: failure, setup: made.1, saved: made.2))
+        make(model, mini: mini) { setup, saved in
+            try? Report.write(to: folder, mini: mini, picture: picture, build: build, mac: mac,
+                              appLog: Log.recent(since: Date().addingTimeInterval(-3600)), setup: setup, window: shot, saved: saved)
+        } issue: { setup, saved in
+            Report.issueURL(build: build, mac: mac, failure: failure, setup: setup, saved: saved)
         }
     }
 
@@ -83,19 +72,30 @@ final class Reporter {
         guard answer == .alertFirstButtonReturn else { return }
         let folder = model.install.runs.appendingPathComponent("_reports"), build = BuildInfo.line, mac = Report.mac
         // The setup as it is now: the crashed launch's queue and last job went with it.
-        let install = model.install, known = setupKnown(nil)
+        make(model, mini: nil) { setup, saved in
+            try? CrashReport.write(crash, to: folder, build: build, mac: mac, appLog: CrashReport.appLog(crash), setup: setup, saved: saved)
+        } issue: { setup, saved in
+            CrashReport.issueURL(crash, build: build, mac: mac, setup: setup, saved: saved)
+        }
+    }
+
+    /// Makes a report off the main thread with `write`, given the setup and the keys saved in
+    /// Settings to take out, then shows it in Finder and opens the form `issue` fills in.
+    private func make(_ model: AppModel, mini: Mini?, write: @escaping @Sendable (ReportSetup, [String]) -> URL?,
+                      issue: @escaping @Sendable (ReportSetup, [String]) -> URL) {
+        let install = model.install, known = setupKnown(mini)
         Task {
             let made: (URL, ReportSetup, [String])? = await Task.detached {
                 var setup = ReportSetup.current(install: install)
                 known(&setup)
+                // The keys saved in Settings, to take out wherever they are (#352). Off the main
+                // thread: reading them may wait on a Keychain prompt after an update.
                 let saved = Keychain.all()
-                guard let zip = try? CrashReport.write(crash, to: folder, build: build, mac: mac, appLog: CrashReport.appLog(crash),
-                                                       setup: setup, saved: saved) else { return nil }
-                return (zip, setup, saved)
+                return write(setup, saved).map { ($0, setup, saved) }
             }.value
             guard let made else { model.problem = "Couldn't make the report. Check that Mimic's folder is still there, then try again."; return }
             NSWorkspace.shared.activateFileViewerSelecting([made.0])
-            NSWorkspace.shared.open(CrashReport.issueURL(crash, build: build, mac: mac, setup: made.1, saved: made.2))
+            NSWorkspace.shared.open(issue(made.1, made.2))
         }
     }
 

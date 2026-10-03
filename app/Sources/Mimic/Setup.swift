@@ -16,7 +16,7 @@ final class SetupModel {
     /// The 3D model minis are made with: the `model` default (absent = the standard set,
     /// TRELLIS.2). It only ever names a set that finished
     /// downloading, except on a new Mac, where setup is showing.
-    private(set) var chosen: EngineModel
+    private(set) var engineModel: EngineModel
     /// The set being downloaded, or the one the last download was for.
     private(set) var target: EngineModel
     /// The engine and every file of the chosen model are there (not hashed: setup does that).
@@ -33,23 +33,23 @@ final class SetupModel {
 
     init(install: Install) {
         self.install = install
-        let chosen = EngineDownload.selected(defaults: .standard)
-        self.chosen = chosen
-        target = chosen
-        installed = EngineDownload.present(install, chosen)
+        let engineModel = EngineDownload.selected(defaults: .standard)
+        self.engineModel = engineModel
+        target = engineModel
+        installed = EngineDownload.present(install, engineModel)
     }
 
     /// Makes minis with `model` from now on. Only a model that's all there: others download first.
     func use(_ model: EngineModel) {
         guard model.complete(in: install) else { return }
         UserDefaults.standard.set(model.id, forKey: SettingsKey.model)
-        chosen = model
+        engineModel = model
         Health.shared.check(install)
     }
 
     /// Deletes a model set that isn't the one in use, freeing its space.
     func remove(_ model: EngineModel) {
-        guard model != chosen, !(running && target == model) else { return }
+        guard model != engineModel, !(running && target == model) else { return }
         try? FileManager.default.removeItem(at: model.folder(in: install))
         removals += 1
     }
@@ -60,7 +60,7 @@ final class SetupModel {
     /// minis with it.
     func start(_ model: EngineModel? = nil) {
         guard !running else { return }
-        target = model ?? chosen
+        target = model ?? engineModel
         Log.setup.notice("Setup started for \(self.target.id, privacy: .public)")
         running = true
         problem = nil
@@ -112,11 +112,11 @@ final class SetupModel {
         running = false
         if let problem { Log.setup.error("Setup stopped: \(problem, privacy: .public)") }
         else { Log.setup.notice("Setup finished, \(downloaded ? "ready" : "not complete", privacy: .public)") }
-        if downloaded && !demo && target != chosen {
+        if downloaded && !demo && target != engineModel {
             UserDefaults.standard.set(target.id, forKey: SettingsKey.model)
-            chosen = target
+            engineModel = target
         }
-        let present = demo || EngineDownload.present(install, chosen)
+        let present = demo || EngineDownload.present(install, engineModel)
         if present && !installed {
             justFinished = true
             try? await Task.sleep(for: .seconds(Self.doneShown))
@@ -176,7 +176,7 @@ struct SetupView: View {
     private var setup: SetupModel { model.setup }
     /// The 3D model to download: the standard one until another is picked.
     @State private var pick: EngineModel?
-    private var picked: EngineModel { setup.running || setup.justFinished ? setup.target : pick ?? setup.chosen }
+    private var picked: EngineModel { setup.running || setup.justFinished ? setup.target : pick ?? setup.engineModel }
 
     /// The download at 100 Mbit/s, rounded to five minutes.
     private func minutes(_ m: EngineModel) -> Int {
