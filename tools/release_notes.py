@@ -126,8 +126,11 @@ def notes(version, ref):
         if title["kind"] not in HEADINGS or (note or "").lower().rstrip(".") == "none":
             continue
         if not note:
-            text = title["text"]
-            note = text[0].upper() + text[1:]
+            text = plain(title["text"])
+            note = text[:1].upper() + text[1:]
+        if not note:
+            print(f"#{number} has nothing left in its title once the HTML is taken out, left out", file=sys.stderr)
+            continue
         terminal = title["scope"] == "cli"
         lines = bullets(note)
         sections[TERMINAL if terminal else HEADINGS[title["kind"]]] += lines

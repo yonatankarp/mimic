@@ -51,9 +51,16 @@ jobs:
           path: ${{ matrix.where }}/pixal3d.cpp
           submodules: true
           persist-credentials: false
+      - name: Ninja
+        # A pinned ninja, checked by its sha256, rather than whichever one brew has today.
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/ninja-mac.zip" \
+            https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-mac.zip
+          echo "c99048673aa765960a99cf10c6ddb9f1fad506099ff0a0e137ad8960a88f321b  $RUNNER_TEMP/ninja-mac.zip" | shasum -a 256 -c
+          mkdir "$RUNNER_TEMP/ninja" && unzip -q "$RUNNER_TEMP/ninja-mac.zip" -d "$RUNNER_TEMP/ninja"
+          echo "$RUNNER_TEMP/ninja" >> "$GITHUB_PATH"
       - name: Toolchain
         run: |
-          command -v ninja >/dev/null || brew install ninja
           xcodebuild -version
           cmake --version | head -1
           ninja --version
