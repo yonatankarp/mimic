@@ -292,15 +292,19 @@ final class AppModel {
     private func watchQueue() async {
         let jobs = self.jobs, queueFolder = install.queue
         let idle = !running, canStart = !running && requiredProblem == nil && setup.installed
-        await Task.detached {
+        let leftover = await Task.detached { () -> Bool in
             // A crashed Mimic's job may still be running with nothing watching it: stopped as soon
-            // as no live Mimic holds the job lock, queue or no queue.
-            if idle && Leftover.recorded(queue: queueFolder) { jobs.cleanUpLeftovers() }
+            // as no live Mimic holds the job lock, queue or no queue. One that crashed between
+            // programs left none running, but its mini still needs saying why it stopped (#436).
+            let leftover = idle && (Leftover.recorded(queue: queueFolder) || SharedJob.orphaned(queue: queueFolder) != nil)
+            if leftover { jobs.cleanUpLeftovers() }
             // Not while a required part is broken (the engine needs Repair): each job would fail in
             // turn, so the queue waits until it's fixed.
             if canStart && !jobs.queue.entries().isEmpty { jobs.pump() }
+            return leftover
         }.value
-        refreshQueue()
+        // The mini it was making now says why it stopped: shown without waiting for another reload.
+        if !refreshQueue() && leftover { reload() }
         updates.tick()
     }
 

@@ -35,6 +35,17 @@ public enum GLB {
 
     public static func parse(_ data: Data) throws -> Mesh { try parse(data, painted: false).mesh }
 
+    /// Whether the .glb at `url` is shorter than its header says it is: written only in part, as
+    /// a crash during the 3D step left it before #403 (#436). Only its first 12 bytes are read.
+    static func cutShort(_ url: URL) -> Bool {
+        guard let h = try? FileHandle(forReadingFrom: url) else { return false }
+        defer { try? h.close() }
+        guard let head = try? h.read(upToCount: 12), head.count >= 4,
+              head.prefix(4) == Data("glTF".utf8), let size = try? h.seekToEnd() else { return false }
+        guard head.count == 12 else { return true }
+        return UInt64(head.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: 8, as: UInt32.self) }) > size
+    }
+
     /// The colours the 3D engine painted a model with: each vertex's place on its picture, and the
     /// picture as stored (WebP or PNG), from the material of its triangles.
     public struct Paint {
