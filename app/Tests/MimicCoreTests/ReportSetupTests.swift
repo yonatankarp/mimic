@@ -180,4 +180,41 @@ final class ReportSetupTests: XCTestCase {
         XCTAssertLessThan(c.blueComponent, 0.4)
         XCTAssertNil(WindowPicture.png(NSView(frame: .zero)), "nothing drawn, no picture")
     }
+
+    /// A window comes out with its title bar, and a sheet over it is drawn where it sits: a blue
+    /// sheet over a red window. Both are see-through on screen, as beginSheet shows the window.
+    @MainActor
+    func testAWindowIsDrawnWithItsSheet() throws {
+        final class Filled: NSView {
+            var colour = NSColor.red
+            override func draw(_ dirtyRect: NSRect) { colour.setFill(); bounds.fill() }
+        }
+        func filled(_ colour: NSColor, _ size: NSSize) -> NSView {
+            let v = Filled(frame: NSRect(origin: .zero, size: size)); v.colour = colour; return v
+        }
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 200), styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false; window.alphaValue = 0
+        defer { window.close() }
+        window.contentView = filled(.red, NSSize(width: 300, height: 200))
+        let sheet = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 100, height: 60), styleMask: [.borderless], backing: .buffered, defer: false)
+        sheet.isReleasedWhenClosed = false; sheet.alphaValue = 0
+        sheet.contentView = filled(.blue, NSSize(width: 100, height: 60))
+        window.beginSheet(sheet)
+        defer { window.endSheet(sheet) }
+        XCTAssertEqual(window.attachedSheet, sheet)
+
+        let rep = try XCTUnwrap(NSBitmapImageRep(data: XCTUnwrap(WindowPicture.png(window))))
+        let scale = CGFloat(rep.pixelsWide) / window.frame.width
+        XCTAssertEqual(CGFloat(rep.pixelsHigh), window.frame.height * scale, accuracy: 1, "the title bar is missing")
+        func colour(atWindow p: NSPoint) throws -> NSColor {
+            // The bitmap's rows run top down; the window's points bottom up.
+            try XCTUnwrap(rep.colorAt(x: Int(p.x * scale), y: rep.pixelsHigh - 1 - Int(p.y * scale))?.usingColorSpace(.sRGB))
+        }
+        let s = sheet.frame.offsetBy(dx: -window.frame.minX, dy: -window.frame.minY)
+        let red = try colour(atWindow: NSPoint(x: 40, y: 40))
+        // Behind a sheet, macOS pales the window (about (0.84, 0.54, 0.55) here), as on screen.
+        XCTAssertGreaterThan(red.redComponent, 0.8); XCTAssertGreaterThan(red.redComponent - red.blueComponent, 0.2)
+        let blue = try colour(atWindow: NSPoint(x: s.midX, y: s.midY))
+        XCTAssertGreaterThan(blue.blueComponent, 0.8, "the sheet isn't drawn"); XCTAssertLessThan(blue.redComponent, 0.4)
+    }
 }

@@ -262,6 +262,53 @@ final class SetupTests: XCTestCase {
         }
     }
 
+    /// A `.part` longer than the file on the server (it changed since) gets a 416: the server's
+    /// error, and the `.part` emptied so the next try starts the file over, not from its end.
+    func testAPartTheServerCantResumeStartsOverNextTime() async throws {
+        let server = try FileServer(["/f": Self.bytes(30_000)])
+        defer { server.stop() }
+        let dest = dir.appendingPathComponent("f"), part = URL(fileURLWithPath: dest.path + ".part")
+        let file = server.file("/f", Self.bytes(50_000))
+        try Data(Self.bytes(40_000)).write(to: part)
+        do {
+            try await setup(Install(root: dir)).fetch(file, to: dest) { _ in }
+            XCTFail("a 416 was taken for a download")
+        } catch {
+            XCTAssertEqual(error as? SetupError, .server(416))
+        }
+        XCTAssertEqual(EngineDownload.size(part), 0, "the .part that doesn't fit was kept")
+        _ = try? await setup(Install(root: dir)).fetch(file, to: dest) { _ in }
+        XCTAssertEqual(server.log.map(\.range), ["bytes=40000-", nil], "the next try resumed again")
+    }
+
+    /// A disk that fills up part way through says so, not that something went wrong: the
+    /// download goes to a 2 MB disk image.
+    func testRunningOutOfSpaceSaysSo() async throws {
+        func hdiutil(_ args: String...) throws {
+            let p = Process()
+            p.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
+            p.arguments = args
+            p.standardOutput = FileHandle.nullDevice
+            try p.run(); p.waitUntilExit()
+            XCTAssertEqual(p.terminationStatus, 0, "hdiutil \(args.joined(separator: " "))")
+        }
+        let image = dir.appendingPathComponent("tiny.dmg"), disk = dir.appendingPathComponent("tiny")
+        try hdiutil("create", "-size", "2m", "-fs", "HFS+", "-volname", "tiny", image.path)
+        try FileManager.default.createDirectory(at: disk, withIntermediateDirectories: true)
+        try hdiutil("attach", "-nobrowse", "-mountpoint", disk.path, image.path)
+        defer { try? hdiutil("detach", "-force", disk.path) }
+
+        let body = Self.bytes(4_000_000)
+        let server = try FileServer(["/big": body])
+        defer { server.stop() }
+        do {
+            try await setup(Install(root: dir)).fetch(server.file("/big", body), to: disk.appendingPathComponent("big")) { _ in }
+            XCTFail("a download bigger than the disk finished")
+        } catch {
+            XCTAssertEqual(error as? SetupError, .ranOutOfSpace)
+        }
+    }
+
     // MARK: The whole setup
 
     func testFirstLaunchDownloadsAndUnpacksEverything() async throws {

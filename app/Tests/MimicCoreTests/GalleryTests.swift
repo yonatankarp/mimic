@@ -492,4 +492,18 @@ final class SlicerTests: XCTestCase {
         XCTAssertEqual(Slicer.preferred(defaults: d, in: [apps])?.id, "bambu", "a picked slicer that's gone falls back")
         XCTAssertNil(Slicer.preferred(defaults: d, in: [apps.appendingPathComponent("none")]))
     }
+
+    /// Open in reports back when the slicer can't open the file (here, it's been deleted), so the
+    /// app can say so. Nothing is opened.
+    func testOpeningInASlicerThatsGoneReportsAnError() {
+        let gone = Slicer(id: "orca", name: "OrcaSlicer", app: URL(fileURLWithPath: "/nonexistent-\(UUID().uuidString)/OrcaSlicer.app"))
+        let answered = expectation(description: "macOS answered")
+        let failed = Flag(false)
+        Slicer.open(URL(fileURLWithPath: "/nonexistent/mini.stl"), in: gone) { error in
+            failed.value = error != nil
+            answered.fulfill()
+        }
+        wait(for: [answered], timeout: 30)
+        XCTAssertTrue(failed.value, "a slicer that's gone opened the file")
+    }
 }

@@ -101,6 +101,46 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(Array(p[20..<24]), [0, 0, 0, 0], "the backdrop stayed under a clear pixel")
     }
 
+    /// Apple Vision cuts the sample dwarf out of its grey backdrop: the same size, beside the
+    /// picture, the backdrop clear and the dwarf solid.
+    func testVisionCutsTheCharacterOut() throws {
+        let source = f.root.appendingPathComponent("dwarf.png")
+        try FileManager.default.copyItem(at: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("../../Sources/Mimic/Resources/sample-dwarf.png"), to: source)
+        XCTAssertFalse(try Engine.isCutOut(source))
+        let cut = try Engine.cutOut(source)
+        XCTAssertEqual(cut, f.root.appendingPathComponent("dwarf__matted.png"))
+        XCTAssertTrue(try Engine.isCutOut(cut))
+        let image = try Engine.load(cut)
+        XCTAssertEqual([image.width, image.height], [1024, 1024])
+        let p = try Engine.rgba(image)
+        func pixel(_ x: Int, _ y: Int) -> [UInt8] { Array(p[(y * 1024 + x) * 4..<(y * 1024 + x) * 4 + 4]) }
+        XCTAssertEqual(pixel(20, 20)[3], 0, "the backdrop wasn't cut away")
+        XCTAssertEqual(pixel(512, 420)[3], 255, "the dwarf's chest was cut away")
+    }
+
+    /// A picture with nobody in it says so in words for the person.
+    func testAPictureWithNoCharacterSaysSo() throws {
+        let blank = try picture("blank.png") { _, _ in 255 }
+        XCTAssertThrowsError(try Engine.cutOut(blank)) {
+            let failure = $0 as? Engine.Failure
+            XCTAssertEqual(failure?.description, "Couldn't find the character in the picture. Try one with a plain background.")
+            XCTAssertEqual(failure?.forPeople, true)
+        }
+    }
+
+    /// The engine's log keeps what people read and drops ggml's Metal noise; a progress bar with
+    /// no fast-setting line before it is what stops a slow engine.
+    func testWhatTheEngineLogKeeps() {
+        XCTAssertFalse(Engine.keep("ggml_metal_init: allocating"))
+        XCTAssertFalse(Engine.keep("ggml_metal_library_init: loaded kernel_add_f32"))
+        XCTAssertTrue(Engine.keep("[6/6] writing"))
+        XCTAssertTrue(Engine.keep("      [flow] PIXAL3D_STEPS=8 overrides 12 steps"))
+        XCTAssertTrue(Engine.samplingStarted("      [flow] [##....]  1/8"))
+        XCTAssertFalse(Engine.samplingStarted("      [flow] PIXAL3D_STEPS=8 overrides 12 steps"))
+        XCTAssertFalse(Engine.samplingStarted("      [flow-mv] 12 steps, 3 views"))
+    }
+
     // MARK: The real `mimic _engine`
 
     var mimic: String { Fixture.mimic }
