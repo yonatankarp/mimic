@@ -408,7 +408,7 @@ enum CLI {
         do {
             switch rest.first {
             case "create" where rest.count == 2:
-                print("Made a new project, \(try Gallery.createProject(install.runs, rest[1])).")
+                print("Made a new project, \(try jobs.createProject(rest[1])).")
             case "rename" where rest.count == 4 && rest[2] == "--to":
                 let old = try existing(rest[1])
                 print("Renamed the project \(old) to \(try jobs.renameProject(old, to: rest[3])).")
@@ -466,7 +466,7 @@ enum CLI {
     /// "Tiefling Party"); a new one is made.
     private static func project(_ text: String, _ install: Install) throws -> String {
         if let p = Gallery.project(install.runs, named: text) { return p }
-        let p = try Gallery.createProject(install.runs, text)
+        let p = try JobRunner(install: install).createProject(text)
         print("Made a new project, \(p).")
         return p
     }

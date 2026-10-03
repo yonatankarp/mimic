@@ -141,6 +141,26 @@ final class MinisFolderTests: XCTestCase {
         if made { XCTAssertNotNil(Gallery.folder(new, "late")) }
     }
 
+    /// Rename, Move to Trash and New Project wait for a move too (#331): a rename or a trashed
+    /// mini would make the move fail and go back, and a new project would be left behind in the
+    /// folder the minis left.
+    func testRenameTrashAndNewProjectAreRefusedDuringAMove() throws {
+        let fx = try Fixture(), runs = fx.install.runs
+        _ = try fx.mini("dwarf"); _ = try fx.mini("raven")
+        let jobs = JobRunner(install: fx.install, tools: fx.tools(), trash: { _ in })
+        let raven = try XCTUnwrap(Gallery.list(runs).first { $0.name == "raven" })
+        try jobs.queue.markMoving()
+        XCTAssertThrowsError(try jobs.rename("dwarf", typed: "Dwarf Cleric")) { XCTAssertEqual($0 as? RequestError, .movingMinis) }
+        XCTAssertThrowsError(try jobs.moveToTrash(raven, trash: { _ in nil })) { XCTAssertEqual($0 as? RequestError, .movingMinis) }
+        XCTAssertThrowsError(try jobs.createProject("Orcs")) { XCTAssertEqual($0 as? RequestError, .movingMinis) }
+        XCTAssertEqual(try top(runs), ["dwarf", "raven"])
+
+        jobs.queue.clearMoving()
+        XCTAssertEqual(try jobs.rename("dwarf", typed: "Dwarf Cleric"), Rules.folderName("Dwarf Cleric"))
+        XCTAssertNotNil(try jobs.moveToTrash(raven, trash: { _ in nil }))
+        XCTAssertEqual(try jobs.createProject("Orcs"), "Orcs")
+    }
+
     /// The same folder, one inside it, or one holding it: the old folder would turn into a
     /// project of the new, or the new into one of the old.
     func testTheSameOrANestedFolderIsRefused() throws {
