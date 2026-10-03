@@ -206,7 +206,7 @@ For scripts, `mimic` says how it went in its exit code, and why on stderr:
 `mimic list --json`, `projects --json`, `queue --json`, `models --json` and `info <name> --json` print JSON. These
 field names stay as they are: new ones may be added, but none is renamed or removed. Dates are
 ISO 8601 (`2026-09-21T14:13:20Z`), sizes are millimetres and times are seconds. A field with no
-value is left out.
+value is left out, and so is a size that isn't a number (one edited by hand to `inf`, say).
 
 - `list`: an array of minis, every project's, newest first. Each has `name` (what `mimic`
   commands take), `shown` (the name it's shown as), `project` (left out when unsorted), `state`

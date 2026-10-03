@@ -504,7 +504,7 @@ final class AppModel {
 
     @discardableResult
     func createProject(_ text: String) throws -> String {
-        let name = try Gallery.createProject(install.runs, text)
+        let name = try jobs.createProject(text)
         reload()
         return name
     }

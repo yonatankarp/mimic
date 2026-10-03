@@ -80,4 +80,15 @@ final class ListingJSONTests: XCTestCase {
         XCTAssertEqual(o["versions"] as? [String], ["orc", "orc-2"])
         XCTAssertEqual((o["made"] as? [String: Any])?["shape"] as? String, "hex")
     }
+
+    /// JSONEncoder refuses inf and nan, so one size edited by hand to either broke `info --json`
+    /// (#379). It's left out, as a size with no value is.
+    func testASizeThatIsntANumberIsLeftOut() throws {
+        let fx = try Fixture(); let (mini, minis) = try fullMini(fx)
+        var info = ListingJSON.Info(MiniInfo(mini, in: minis, waiting: []), waiting: [])
+        info.made = ListingJSON.SizesRow(Sizes(height: "inf", base: "nan", nozzle: "-inf", inflate: "0.3"))
+        let made = try XCTUnwrap(object(info)["made"] as? [String: Any])
+        XCTAssertEqual(keys(made), ["inflate", "noBase", "shape", "style"])
+        XCTAssertEqual(made["inflate"] as? Double, 0.3)
+    }
 }
