@@ -171,11 +171,16 @@ jobs:
           name: mimic
           path: dist
       - name: Release notes
-        # Written from the pull requests merged since the last version (tools/release_notes.py);
-        # 0.7.0 and before use their section of CHANGELOG.md.
+        # Written from the pull requests merged since the last version, or release-notes/<version>.md
+        # word for word when there is one. A `(cli)` pull request goes under In Terminal.
+        uses: yonatankarp/github-actions/.github/actions/release-notes@1badbe33ad352c1569d7ac32fdd8a972fc292678 # v2
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 tools/release_notes.py "$GITHUB_REF_NAME" > notes.md
+        with:
+          version: ${{ github.ref_name }}
+          override: release-notes/{version}.md
+          scope-sections: cli=⌨️ In Terminal
+          output: notes.md
       - name: Appcast
         # What Mimic's updater (Sparkle) reads: the new version, its disk image signed with
         # Sparkle's key, and the release notes. Published with each release, so
