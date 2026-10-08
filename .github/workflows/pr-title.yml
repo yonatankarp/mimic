@@ -10,6 +10,6 @@ permissions: {}
 
 jobs:
   title:
-    uses: yonatankarp/github-actions/.github/workflows/pr-title.yml@v2
+    uses: yonatankarp/github-actions/.github/workflows/pr-title.yml@1badbe33ad352c1569d7ac32fdd8a972fc292678 # v2
     with:
       kinds: feat,change,fix,docs,chore,ci,test,refactor

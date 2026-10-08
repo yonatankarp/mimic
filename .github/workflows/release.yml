@@ -173,7 +173,7 @@ jobs:
       - name: Release notes
         # Written from the pull requests merged since the last version, or release-notes/<version>.md
         # word for word when there is one. A `(cli)` pull request goes under In Terminal.
-        uses: yonatankarp/github-actions/.github/actions/release-notes@v2
+        uses: yonatankarp/github-actions/.github/actions/release-notes@1badbe33ad352c1569d7ac32fdd8a972fc292678 # v2
         env:
           GH_TOKEN: ${{ github.token }}
         with:
