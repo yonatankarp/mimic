@@ -70,7 +70,6 @@ By contributing, you agree that your contribution is licensed under Mimic's
 |---|---|
 | `app/` | The Mac app, a Swift package. `MimicCore` is everything but the windows (jobs, Draw Things, checks, the gallery on disk); `Mimic` is one binary that is the app, or the `mimic` command with arguments. `app/NOTES.md` has the design decisions and why. Print prep is `MimicCore/Prep.swift`; its header lists every tuning option (`mimic _prep in.glb out.stl …` runs it by hand). |
 | `tools/package_dmg.sh` | Builds `Mimic.app` into the disk image a release publishes. |
-| `tools/release_notes.py` | Writes a release's notes from the pull requests merged since the last one. |
 | `tools/package_pixal3d.sh`, `tools/pixal3d-steps.patch`, `tools/LICENSE-image-to-3dlab` | Build and package the Pixal3D engine the app downloads on first launch. |
 | `.github/workflows/release.yml` | Tests every change, builds the disk image, and drafts a release from a version tag. |
 | `.github/workflows/engine.yml` | Builds that engine twice, run by hand, and checks both builds are the same. |
@@ -106,10 +105,17 @@ downloads the real engine and the small model files, never the 8 GB of weights.
 
 ## Releasing
 
-1. Check the release notes: `tools/release_notes.py 0.3.0 origin/main` prints what the release
-   will publish, on GitHub and in Mimic's update window. It lists the pull requests merged since
-   the last version under New features, Improvements, Bug fixes and In Terminal, with a line on
-   top that counts them. To change a line, edit that pull request's `## Release note`. The notes
+1. Check the release notes. They're written by the shared
+   [release-notes action](https://github.com/yonatankarp/github-actions/tree/v2/.github/actions/release-notes),
+   and this prints what the release will publish, on GitHub and in Mimic's update window:
+
+   ```bash
+   gh api 'repos/yonatankarp/github-actions/contents/.github/actions/release-notes/release_notes.py?ref=v2' -q .content \
+     | base64 -d | python3 - 0.3.0 origin/main --override 'release-notes/{version}.md' --scope-section 'cli=⌨️ In Terminal'
+   ```
+
+   It lists the pull requests merged since the last version under New features, Improvements, Bug
+   fixes and In Terminal, with a line on top that counts them. To change a line, edit that pull request's `## Release note`. The notes
    are read from the pull requests when the tag is pushed, not when they were merged, so an edit to
    a merged pull request's description changes them: read this preview right before tagging. A version
    with no `feat`, `fix` or `change` fails before anything is published. (A
